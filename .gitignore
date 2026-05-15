@@ -1,0 +1,96 @@
+# ======================================
+# Java 构建产物
+# ======================================
+*.class
+*.jar
+*.war
+*.ear
+*.aar
+target/
+build/
+out/
+bin/
+*/generated/
+
+# ======================================
+# Maven 相关
+# ======================================
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+
+# ======================================
+# Gradle 相关
+# ======================================
+.gradle/
+gradle-app.setting
+!gradle-wrapper.jar
+.gradletasknamecache
+
+# ======================================
+# IntelliJ IDEA
+# ======================================
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+.DS_Store
+
+# ======================================
+# Eclipse
+# ======================================
+.classpath
+.project
+.cproject
+.settings/
+.loadpath
+.externalToolBuilders/
+*.launch
+
+# ======================================
+# 日志文件
+# ======================================
+*.log
+*.logs
+logs/
+log/
+*.hprof
+*.dump
+
+# ======================================
+# 操作系统文件
+# ======================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ======================================
+# 环境与密钥（绝对不能提交）
+# ======================================
+.env
+.env.*
+!.env.example
+application-local.yml
+application-local.properties
+secrets/
+config/
+
+# ======================================
+# 临时文件
+# ======================================
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
