@@ -13,12 +13,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(Map.of("code", 400, "message", ex.getMessage()));
+                .body(Map.of("code", 400, "message", safe(ex.getMessage())));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleException(Exception ex) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("code", 500, "message", ex.getMessage()));
+                .body(Map.of("code", 500, "message", safe(ex.getMessage())));
+    }
+
+    private String safe(String m) {
+        return m == null ? "server error" : m;
     }
 }

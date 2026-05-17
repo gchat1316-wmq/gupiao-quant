@@ -10,8 +10,8 @@ spring:
     name: gupiao-quant
   datasource:
     url: jdbc:mysql://43.140.208.165:3306/gupiao_quant?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    username: root
-    password: root123456
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root123456}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
@@ -30,6 +30,32 @@ spring:
   web:
     resources:
       static-locations: classpath:/static/
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 110MB
+
+app:
+  upload-dir: uploads
+
+ai:
+  fallback-to-mock: true            # AI 调用失败时是否回退到 mock 数据
+  minimax:
+    enabled: true                  # 填入 api-key 后改为 true
+    base-url: https://api.minimaxi.com/anthropic/v1
+    api-key: ${AI_MINIMAX_KEY:}       # 环境变量 AI_MINIMAX_KEY
+    group-id: ""                    # 可选: 部分账号需要 group id
+    model: MiniMax-M2.7-highspeed       # 可改为 abab6.5s-chat 等其它型号
+    timeout-seconds: 90
+    max-input-chars: 8000           # 送入模型的资料文本最大字符数
+  sensenova:
+    enabled: true                  # 填入 api-key 后改为 true
+    base-url: https://token.sensenova.cn/v1
+    api-key: ${AI_SENSENOVA_KEY:}     # 环境变量 AI_SENSENOVA_KEY
+    image-model: sensenova-u1-fast
+    chat-model: deepseek-v4-flash   # 用于 AI 详解文本生成
+    image-size: "2752x1536"
+    timeout-seconds: 120
 
 logging:
   level:

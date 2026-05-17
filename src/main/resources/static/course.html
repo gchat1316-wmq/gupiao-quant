@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>课程详情 · 学习搭子</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/study.css" />
+</head>
+<body>
+  <header class="top-nav">
+    <div class="nav-inner">
+      <a href="/" class="brand"><span class="brand-mark">🐾</span><span class="brand-name">量化学习助手</span></a>
+      <nav class="nav-links">
+        <a href="/#section-stock" class="nav-link">股票财务</a>
+        <a href="/#section-study" class="nav-link">学习搭子</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="page-toolbar">
+      <a href="/#section-study" class="toolbar-back">‹ 返回</a>
+      <span class="toolbar-title" id="crumb">课程详情</span>
+    </div>
+
+    <div class="course-page" id="coursePage">
+      <!-- 左:知识图谱 -->
+      <div class="panel mindmap-panel">
+        <div class="panel-header">
+          <div class="panel-title">知识图谱</div>
+          <div class="mindmap-toolbar">
+            <button class="mm-btn" id="mmZoomOut" title="缩小">−</button>
+            <button class="mm-btn" id="mmFit" title="复位">⤢</button>
+            <button class="mm-btn" id="mmZoomIn" title="放大">+</button>
+          </div>
+        </div>
+        <div class="mindmap-wrap" id="mindmap"></div>
+        <div class="mindmap-hint">支持鼠标拖拽 / 滚轮缩放 / 点击进入知识点</div>
+      </div>
+
+      <!-- 中:课程介绍 / 学习模式 -->
+      <div class="panel center-panel">
+        <div class="center-header">
+          <div class="panel-title" id="courseTitle">加载中...</div>
+          <button class="study-mode-btn" id="enterStudyBtn">📖 知识点学习</button>
+        </div>
+
+        <div id="introView">
+          <div id="courseIntro" style="font-size:13px;line-height:1.7;color:#374151;"></div>
+          <div class="section-head" style="font-weight:700;margin-top:16px;">推荐学习</div>
+          <div class="recommend-strip">
+            <div class="rec-card">炼金术师的魔法书</div>
+            <div class="rec-card">【核心】从数据准备到模型部署</div>
+            <div class="rec-card">从零开始</div>
+          </div>
+        </div>
+
+        <div id="studyView" class="hidden study-view">
+          <div class="study-bar">
+            <span class="study-idx" id="studyIdx">1 / 1</span>
+            <span class="study-crumb" id="studyCrumb"></span>
+            <button class="study-exit" id="studyExitBtn">退出学习</button>
+          </div>
+          <h2 class="study-title" id="studyTitle"></h2>
+          <div class="study-content" id="studyContent"></div>
+          <div class="study-nav">
+            <button class="btn-ghost" id="studyPrev">‹ 上一个</button>
+            <button class="btn-primary-dark" id="studyNext">下一个 ›</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右:资料 (可折叠) -->
+      <div class="panel right-panel" id="rightPanel">
+        <button class="right-toggle" id="rightToggle" title="折叠/展开">»</button>
+        <div class="right-content">
+          <div class="panel-title">资料</div>
+          <div id="materialsBox" style="font-size:13px;color:#374151;line-height:1.6;"></div>
+          <div class="material-preview">📄</div>
+        </div>
+        <div class="right-collapsed-label">资料</div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/js/mindmap.js"></script>
+  <script src="/js/course.js"></script>
+</body>
+</html>
