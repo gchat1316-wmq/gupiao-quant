@@ -13,8 +13,6 @@
 
 /* ===== Section wrapper ===== */
 .invest-section {
-  border-top: 1px solid var(--study-border);
-  margin-top: 56px;
   padding-top: 32px;
 }
 

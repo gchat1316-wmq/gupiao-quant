@@ -9,7 +9,7 @@ spring:
   application:
     name: gupiao-quant
   datasource:
-    url: jdbc:mysql://43.140.208.165:3306/gupiao_quant?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://43.140.208.165:3306/wucai_trade?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:root123456}
     driver-class-name: com.mysql.cj.jdbc.Driver

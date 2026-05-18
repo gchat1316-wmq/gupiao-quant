@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#1e88ff" />
-  <title>量化学习助手 · 股票 + 学习搭子</title>
+  <title>量化学习助手</title>
   <link rel="stylesheet" href="/css/style.css" />
   <link rel="stylesheet" href="/css/study.css" />
   <link rel="stylesheet" href="/css/invest.css" />
@@ -18,10 +18,9 @@
         <span class="brand-name">量化学习助手</span>
       </a>
       <nav class="nav-links">
-        <a href="#section-stock" class="nav-link">股票财务</a>
-        <a href="#section-invest" class="nav-link">龙江投资</a>
-        <a href="#section-study" class="nav-link">学习搭子</a>
-        <a href="#section-more" class="nav-link muted">更多 · 即将上线</a>
+        <a href="#" class="nav-link" data-section="section-stock">财务分析</a>
+        <a href="#" class="nav-link" data-section="section-invest">龙江投资</a>
+        <a href="#" class="nav-link" data-section="section-study">学习搭子</a>
       </nav>
     </div>
   </header>
@@ -333,5 +332,33 @@
   <script src="/js/app.js"></script>
   <script src="/js/study-home.js"></script>
   <script src="/js/invest.js"></script>
+  <script>
+    (function () {
+      var SECTIONS = ['section-stock', 'section-invest', 'section-study'];
+      var DEFAULT_SECTION = 'section-stock';
+
+      function showSection(id) {
+        if (SECTIONS.indexOf(id) === -1) id = DEFAULT_SECTION;
+        SECTIONS.forEach(function (s) {
+          var el = document.getElementById(s);
+          if (el) el.classList.toggle('page-active', s === id);
+        });
+        document.querySelectorAll('.nav-link[data-section]').forEach(function (a) {
+          a.classList.toggle('active', a.dataset.section === id);
+        });
+        history.replaceState(null, '', '#' + id);
+      }
+
+      document.querySelectorAll('.nav-link[data-section]').forEach(function (a) {
+        a.addEventListener('click', function (e) {
+          e.preventDefault();
+          showSection(a.dataset.section);
+        });
+      });
+
+      var hash = location.hash.replace('#', '');
+      showSection(SECTIONS.indexOf(hash) !== -1 ? hash : DEFAULT_SECTION);
+    })();
+  </script>
 </body>
 </html>

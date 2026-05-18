@@ -84,6 +84,15 @@ public class StockQueryService {
             if (byCode.isPresent()) {
                 return byCode;
             }
+            // fallback：代码不在 stock_info，但有财务数据，则返回合成对象
+            List<TradeStockFinancial> fin = financialRepository
+                    .findByStockCodeOrderByReportDateDesc(trimmed);
+            if (!fin.isEmpty()) {
+                TradeStockInfo synthetic = new TradeStockInfo();
+                synthetic.setStockCode(trimmed);
+                synthetic.setStockName(trimmed);
+                return Optional.of(synthetic);
+            }
         }
         List<TradeStockInfo> byName = stockInfoRepository.findByStockNameLike(trimmed);
         if (!byName.isEmpty()) {

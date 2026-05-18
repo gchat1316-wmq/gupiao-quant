@@ -55,13 +55,20 @@
   color: #374151;
   text-decoration: none;
   font-size: 14px;
-  padding: 6px 10px;
-  border-radius: 6px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: 20px;
+  transition: all 0.15s;
 }
 
 .nav-link:hover {
-  background: var(--study-green-soft);
-  color: var(--study-green);
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.nav-link.active {
+  background: #111827;
+  color: #fff;
 }
 
 .nav-link.muted {
@@ -69,15 +76,23 @@
   pointer-events: none;
 }
 
-/* ===== Sections ===== */
+/* ===== Sections: 多页面 Tab 切换 ===== */
 .page-section {
+  display: none;
   padding-top: 24px;
-  scroll-margin-top: 72px;
+  animation: fadeIn 0.15s ease;
+}
+
+.page-section.page-active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .study-section {
-  border-top: 1px solid var(--study-border);
-  margin-top: 56px;
   padding-top: 32px;
 }
 

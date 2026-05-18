@@ -200,9 +200,21 @@ public class InvestService {
         if (t.matches("\\d{4,8}")) {
             Optional<TradeStockInfo> byCode = stockInfoRepository.findByStockCode(t);
             if (byCode.isPresent()) return byCode;
+            // fallback：code 不在 stock_info，但财务数据存在，则创建临时对象
+            List<TradeStockFinancial> fin = financialRepository
+                    .findByStockCodeOrderByReportDateDesc(t);
+            if (!fin.isEmpty()) return Optional.of(syntheticInfo(t, t));
         }
         List<TradeStockInfo> byName = stockInfoRepository.findByStockNameLike(t);
-        return byName.isEmpty() ? Optional.empty() : Optional.of(byName.get(0));
+        if (!byName.isEmpty()) return Optional.of(byName.get(0));
+        return Optional.empty();
+    }
+
+    private TradeStockInfo syntheticInfo(String code, String name) {
+        TradeStockInfo info = new TradeStockInfo();
+        info.setStockCode(code);
+        info.setStockName(name);
+        return info;
     }
 
     // ===== 股票池管理 =====
@@ -215,9 +227,14 @@ public class InvestService {
 
     @Transactional
     public PoolItemDTO addToPool(PoolSaveRequest req) {
-        Optional<TradeStockInfo> infoOpt = resolveStock(req.getKeyword());
+        String kw = req.getKeyword() == null ? "" : req.getKeyword().trim();
+        Optional<TradeStockInfo> infoOpt = resolveStock(kw);
+        // 最后兜底：纯数字代码格式直接放行（财务数据将来会有）
+        if (infoOpt.isEmpty() && kw.matches("\\d{4,8}")) {
+            infoOpt = Optional.of(syntheticInfo(kw, kw));
+        }
         if (infoOpt.isEmpty()) {
-            throw new IllegalArgumentException("未找到股票：" + req.getKeyword());
+            throw new IllegalArgumentException("未找到股票：" + kw + "（请输入6位股票代码或完整名称）");
         }
         TradeStockInfo info = infoOpt.get();
         if (poolRepository.findByStockCode(info.getStockCode()).isPresent()) {
