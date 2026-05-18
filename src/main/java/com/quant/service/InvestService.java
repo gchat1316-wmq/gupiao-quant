@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -60,17 +61,18 @@ public class InvestService {
                 continue;
             }
             TradeStockInfo info = infoOpt.get();
-            List<TradeStockFinancial> records = financialRepository
-                    .findByStockCodeOrderByReportDateDesc(info.getStockCode())
-                    .stream()
-                    .limit(limit)
-                    .collect(Collectors.toList());
+            List<TradeStockFinancial> allRecords = financialRepository
+                    .findByStockCodeOrderByReportDateDesc(info.getStockCode());
+            // 建立日期索引，用于计算同比
+            Map<java.time.LocalDate, TradeStockFinancial> dateMap = allRecords.stream()
+                    .collect(Collectors.toMap(TradeStockFinancial::getReportDate, r -> r, (a, b) -> a));
+            List<TradeStockFinancial> records = allRecords.stream().limit(limit).collect(Collectors.toList());
 
             // 转为升序，方便识别转折点
             List<TradeStockFinancial> asc = new ArrayList<>(records);
             java.util.Collections.reverse(asc);
 
-            List<ProsperityQuarterDTO> quarterDTOs = buildQuarterDTOs(asc);
+            List<ProsperityQuarterDTO> quarterDTOs = buildQuarterDTOs(asc, dateMap);
             String latestLevel = quarterDTOs.isEmpty() ? "unknown"
                     : quarterDTOs.get(quarterDTOs.size() - 1).getRevenueLevel();
 
@@ -106,12 +108,17 @@ public class InvestService {
                 .build();
     }
 
-    private List<ProsperityQuarterDTO> buildQuarterDTOs(List<TradeStockFinancial> ascRecords) {
+    private List<ProsperityQuarterDTO> buildQuarterDTOs(List<TradeStockFinancial> ascRecords,
+                                                          Map<java.time.LocalDate, TradeStockFinancial> dateMap) {
         List<ProsperityQuarterDTO> result = new ArrayList<>();
         for (int i = 0; i < ascRecords.size(); i++) {
             TradeStockFinancial f = ascRecords.get(i);
-            BigDecimal ry = f.getRevenueYoy();
-            BigDecimal py = f.getDeductedNetProfitYoy();
+            java.time.LocalDate prevYear = f.getReportDate().minusYears(1);
+            TradeStockFinancial prev = dateMap.get(prevYear);
+            BigDecimal ry = f.getRevenueYoy() != null ? f.getRevenueYoy()
+                    : calcYoy(f.getRevenue(), prev != null ? prev.getRevenue() : null);
+            BigDecimal py = f.getDeductedNetProfitYoy() != null ? f.getDeductedNetProfitYoy()
+                    : calcYoy(f.getNetProfit(), prev != null ? prev.getNetProfit() : null);
 
             boolean revTurn = false;
             boolean profTurn = false;
@@ -138,6 +145,13 @@ public class InvestService {
                     .build());
         }
         return result;
+    }
+
+    private BigDecimal calcYoy(BigDecimal current, BigDecimal prev) {
+        if (current == null || prev == null || prev.compareTo(BigDecimal.ZERO) == 0) return null;
+        return current.subtract(prev)
+                .divide(prev.abs(), 4, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100));
     }
 
     private String prosperityLevel(BigDecimal yoy) {
@@ -197,13 +211,17 @@ public class InvestService {
     private Optional<TradeStockInfo> resolveStock(String token) {
         String t = token.trim();
         if (t.isEmpty()) return Optional.empty();
-        if (t.matches("\\d{4,8}")) {
-            Optional<TradeStockInfo> byCode = stockInfoRepository.findByStockCode(t);
+
+        // 兼容带交易所后缀的代码，如 600519.SH → bareCode=600519
+        String bareCode = t.contains(".") ? t.substring(0, t.indexOf('.')) : t;
+
+        if (bareCode.matches("\\d{4,8}")) {
+            // 先用裸代码查 stock_info
+            Optional<TradeStockInfo> byCode = stockInfoRepository.findByStockCode(bareCode);
             if (byCode.isPresent()) return byCode;
-            // fallback：code 不在 stock_info，但财务数据存在，则创建临时对象
-            List<TradeStockFinancial> fin = financialRepository
-                    .findByStockCodeOrderByReportDateDesc(t);
-            if (!fin.isEmpty()) return Optional.of(syntheticInfo(t, t));
+            // fallback：查财务数据（支持 600519 和 600519.SH 两种格式）
+            List<TradeStockFinancial> fin = financialRepository.findByStockCodeOrderByReportDateDesc(bareCode);
+            if (!fin.isEmpty()) return Optional.of(syntheticInfo(bareCode, bareCode));
         }
         List<TradeStockInfo> byName = stockInfoRepository.findByStockNameLike(t);
         if (!byName.isEmpty()) return Optional.of(byName.get(0));

@@ -10,6 +10,8 @@ import com.quant.repository.TradeStockInfoRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -49,14 +51,15 @@ public class StockQueryService {
                 continue;
             }
             TradeStockInfo info = infoOpt.get();
-            List<TradeStockFinancial> records = financialRepository
-                    .findByStockCodeOrderByReportDateDesc(info.getStockCode())
-                    .stream()
-                    .limit(limit)
-                    .collect(Collectors.toList());
+            List<TradeStockFinancial> allRecords = financialRepository
+                    .findByStockCodeOrderByReportDateDesc(info.getStockCode());
+            // 建立日期索引，用于计算同比
+            Map<LocalDate, TradeStockFinancial> dateMap = allRecords.stream()
+                    .collect(Collectors.toMap(TradeStockFinancial::getReportDate, r -> r, (a, b) -> a));
+            List<TradeStockFinancial> records = allRecords.stream().limit(limit).collect(Collectors.toList());
 
             List<QuarterMetricDTO> quarterList = records.stream()
-                    .map(this::toQuarterMetric)
+                    .map(f -> toQuarterMetric(f, dateMap))
                     .collect(Collectors.toList());
 
             stocks.add(StockFinancialDTO.builder()
@@ -79,18 +82,20 @@ public class StockQueryService {
         if (trimmed.isEmpty()) {
             return Optional.empty();
         }
-        if (trimmed.matches("\\d{4,8}")) {
-            Optional<TradeStockInfo> byCode = stockInfoRepository.findByStockCode(trimmed);
+        // 兼容带交易所后缀，如 600519.SH → bareCode=600519
+        String bareCode = trimmed.contains(".") ? trimmed.substring(0, trimmed.indexOf('.')) : trimmed;
+        if (bareCode.matches("\\d{4,8}")) {
+            Optional<TradeStockInfo> byCode = stockInfoRepository.findByStockCode(bareCode);
             if (byCode.isPresent()) {
                 return byCode;
             }
-            // fallback：代码不在 stock_info，但有财务数据，则返回合成对象
+            // fallback：查财务数据（支持裸代码和带后缀两种格式）
             List<TradeStockFinancial> fin = financialRepository
-                    .findByStockCodeOrderByReportDateDesc(trimmed);
+                    .findByStockCodeOrderByReportDateDesc(bareCode);
             if (!fin.isEmpty()) {
                 TradeStockInfo synthetic = new TradeStockInfo();
-                synthetic.setStockCode(trimmed);
-                synthetic.setStockName(trimmed);
+                synthetic.setStockCode(bareCode);
+                synthetic.setStockName(bareCode);
                 return Optional.of(synthetic);
             }
         }
@@ -113,16 +118,30 @@ public class StockQueryService {
                 .collect(Collectors.toList());
     }
 
-    private QuarterMetricDTO toQuarterMetric(TradeStockFinancial f) {
+    private QuarterMetricDTO toQuarterMetric(TradeStockFinancial f,
+                                              Map<LocalDate, TradeStockFinancial> allData) {
         LocalDate d = f.getReportDate();
+        BigDecimal revenueYoy = f.getRevenueYoy() != null ? f.getRevenueYoy()
+                : calcYoy(f.getRevenue(), allData.get(d.minusYears(1)) != null
+                    ? allData.get(d.minusYears(1)).getRevenue() : null);
+        BigDecimal profitYoy = f.getDeductedNetProfitYoy() != null ? f.getDeductedNetProfitYoy()
+                : calcYoy(f.getNetProfit(), allData.get(d.minusYears(1)) != null
+                    ? allData.get(d.minusYears(1)).getNetProfit() : null);
         return QuarterMetricDTO.builder()
                 .quarter(formatQuarter(d))
                 .reportDate(d.toString())
                 .grossMargin(f.getGrossMargin())
-                .revenueYoy(f.getRevenueYoy())
-                .deductedNetProfitYoy(f.getDeductedNetProfitYoy())
+                .revenueYoy(revenueYoy)
+                .deductedNetProfitYoy(profitYoy)
                 .deductedNetProfitTtm(f.getDeductedNetProfitTtm())
                 .build();
+    }
+
+    private BigDecimal calcYoy(BigDecimal current, BigDecimal prev) {
+        if (current == null || prev == null || prev.compareTo(BigDecimal.ZERO) == 0) return null;
+        return current.subtract(prev)
+                .divide(prev.abs(), 4, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100));
     }
 
     private String formatQuarter(LocalDate d) {

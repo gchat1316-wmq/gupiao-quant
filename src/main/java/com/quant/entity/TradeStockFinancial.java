@@ -50,10 +50,10 @@ public class TradeStockFinancial {
     @Column(name = "revenue_yoy", precision = 10, scale = 4)
     private BigDecimal revenueYoy;
 
-    @Column(name = "deducted_net_profit_yoy", precision = 10, scale = 4)
+    @Column(name = "deducted_netprofit_yoy", precision = 10, scale = 4)
     private BigDecimal deductedNetProfitYoy;
 
-    @Column(name = "deducted_net_profit_ttm", precision = 20, scale = 2)
+    @Column(name = "deducted_netprofit_ttm", precision = 20, scale = 2)
     private BigDecimal deductedNetProfitTtm;
 
     @Column(name = "net_margin", precision = 10, scale = 4)

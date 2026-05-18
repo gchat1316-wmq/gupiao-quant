@@ -9,6 +9,7 @@ import java.util.List;
 
 public interface TradeStockFinancialRepository extends JpaRepository<TradeStockFinancial, Integer> {
 
-    @Query("SELECT f FROM TradeStockFinancial f WHERE f.stockCode = :stockCode ORDER BY f.reportDate DESC")
-    List<TradeStockFinancial> findByStockCodeOrderByReportDateDesc(@Param("stockCode") String stockCode);
+    // 同时匹配裸代码（600519）和带交易所后缀（600519.SH / 600519.SZ）
+    @Query("SELECT f FROM TradeStockFinancial f WHERE f.stockCode = :code OR f.stockCode LIKE CONCAT(:code, '.%') ORDER BY f.reportDate DESC")
+    List<TradeStockFinancial> findByStockCodeOrderByReportDateDesc(@Param("code") String stockCode);
 }
