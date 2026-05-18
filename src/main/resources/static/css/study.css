@@ -76,20 +76,9 @@
   pointer-events: none;
 }
 
-/* ===== Sections: 多页面 Tab 切换 ===== */
+/* ===== Sections ===== */
 .page-section {
-  display: none;
   padding-top: 24px;
-  animation: fadeIn 0.15s ease;
-}
-
-.page-section.page-active {
-  display: block;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
 }
 
 .study-section {

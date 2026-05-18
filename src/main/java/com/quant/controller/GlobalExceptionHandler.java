@@ -4,6 +4,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.Map;
 
@@ -17,7 +18,11 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleException(Exception ex) {
+    public ResponseEntity<Map<String, Object>> handleException(Exception ex) throws Exception {
+        // 静态资源 404 交由 Spring 默认处理，不拦截
+        if (ex instanceof NoResourceFoundException) {
+            throw ex;
+        }
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("code", 500, "message", safe(ex.getMessage())));
     }
