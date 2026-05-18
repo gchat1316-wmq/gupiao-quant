@@ -17,11 +17,295 @@
   // ---- 模块初始化 ----
   function init() {
     initTabs();
+    initSop();
     initProsperity();
     initHeatmap();
     initPool();
     initValuation();
     initPoolModal();
+  }
+
+  // ===== 实战选股 SOP =====
+  const SOP_TRACKS = [
+    { name: 'AI 算力',        stocks: '寒武纪,中科曙光,海光信息,工业富联' },
+    { name: '半导体设备',     stocks: '北方华创,中微公司,长川科技,拓荆科技' },
+    { name: '光伏储能',       stocks: '阳光电源,宁德时代,亿纬锂能,德业股份' },
+    { name: '创新药',         stocks: '恒瑞医药,百济神州,信达生物,药明康德' },
+    { name: '机器人',         stocks: '汇川技术,埃斯顿,绿的谐波,鸣志电器' },
+    { name: '新能源车',       stocks: '比亚迪,宁德时代,赛力斯,理想汽车' },
+    { name: '军工',           stocks: '中航沈飞,中航成飞,中航光电,航发动力' },
+    { name: '消费白马',       stocks: '贵州茅台,五粮液,泸州老窖,海天味业' },
+  ];
+
+  const SOP_5A_DIMS = [
+    { key: 'a1', title: 'A1 · 行业地位',  hint: '5分=赛道唯一龙头；3分=前三；1分=跟随者' },
+    { key: 'a2', title: 'A2 · 业务唯一性', hint: '5分=不可替代/独家牌照；3分=有差异；1分=同质化' },
+    { key: 'a3', title: 'A3 · 客户粘性',   hint: '5分=长合同/高切换成本；3分=中等；1分=低粘性' },
+    { key: 'a4', title: 'A4 · 护城河',     hint: '5分=专利/工艺/品牌强壁垒；3分=部分壁垒；1分=易复制' },
+    { key: 'a5', title: 'A5 · 替代难度',   hint: '5分=对手追赶需 3 年+；3分=1-2 年；1分=随时被替代' },
+  ];
+
+  let sop5aScores = { a1: 0, a2: 0, a3: 0, a4: 0, a5: 0 };
+
+  function initSop() {
+    initSopTracks();
+    initSop5a();
+    initSopCheckup();
+  }
+
+  function initSopTracks() {
+    const chipBox = document.getElementById('sopTrackChips');
+    if (!chipBox) return;
+    chipBox.innerHTML = SOP_TRACKS.map(t =>
+      `<button class="sop-track-chip" data-stocks="${escHtml(t.stocks)}">
+         <span class="sop-track-name">${t.name}</span>
+         <span class="sop-track-arrow">→ 扫描</span>
+       </button>`
+    ).join('');
+    chipBox.querySelectorAll('.sop-track-chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const stocks = btn.dataset.stocks;
+        switchToProsperity(stocks);
+      });
+    });
+
+    const customBtn = document.getElementById('sopCustomTrackBtn');
+    const customInput = document.getElementById('sopCustomTrackInput');
+    if (customBtn && customInput) {
+      const run = () => {
+        const v = customInput.value.trim();
+        if (!v) return;
+        switchToProsperity(v);
+      };
+      customBtn.addEventListener('click', run);
+      customInput.addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+    }
+  }
+
+  function switchToProsperity(keywords) {
+    document.querySelectorAll('.invest-tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.invest-panel').forEach(p => p.classList.remove('active'));
+    document.querySelector('.invest-tab[data-panel="panel-prosperity"]')?.classList.add('active');
+    document.getElementById('panel-prosperity')?.classList.add('active');
+    const input = document.getElementById('prosperityInput');
+    if (input) input.value = keywords;
+    fetchProsperity(keywords, 8);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function initSop5a() {
+    const box = document.getElementById('sop5aDimensions');
+    if (!box) return;
+    box.innerHTML = SOP_5A_DIMS.map(dim => `
+      <div class="sop-5a-dim">
+        <div class="sop-5a-dim-head">
+          <span class="sop-5a-dim-title">${dim.title}</span>
+          <span class="sop-5a-dim-score" id="score-${dim.key}">0</span>
+        </div>
+        <div class="sop-5a-dim-hint">${dim.hint}</div>
+        <div class="sop-5a-dots" data-key="${dim.key}">
+          ${[1,2,3,4,5].map(n => `<button class="sop-5a-dot" data-val="${n}" type="button">${n}</button>`).join('')}
+        </div>
+      </div>
+    `).join('');
+
+    box.querySelectorAll('.sop-5a-dots').forEach(row => {
+      const key = row.dataset.key;
+      row.querySelectorAll('.sop-5a-dot').forEach(dot => {
+        dot.addEventListener('click', () => {
+          const val = parseInt(dot.dataset.val, 10);
+          sop5aScores[key] = val;
+          row.querySelectorAll('.sop-5a-dot').forEach(d => {
+            d.classList.toggle('active', parseInt(d.dataset.val, 10) <= val);
+          });
+          document.getElementById(`score-${key}`).textContent = val;
+          updateSop5aSummary();
+        });
+      });
+    });
+    updateSop5aSummary();
+
+    document.getElementById('sop5aSaveBtn')?.addEventListener('click', saveSop5aToPool);
+  }
+
+  function updateSop5aSummary() {
+    const total = Object.values(sop5aScores).reduce((a, b) => a + b, 0);
+    document.getElementById('sop5aTotal').textContent = total;
+    let stars, label, cls;
+    if (total >= 22)      { stars = '★★★★★'; label = '极为稀缺，重点跟踪'; cls = 'pass'; }
+    else if (total >= 17) { stars = '★★★★☆'; label = '稀缺，可纳入候选';   cls = 'pass'; }
+    else if (total >= 12) { stars = '★★★☆☆'; label = '一般，需对比同行';   cls = 'warn'; }
+    else if (total > 0)   { stars = '★★☆☆☆'; label = '稀缺性不足，建议放弃'; cls = 'fail'; }
+    else                  { stars = '☆☆☆☆☆'; label = '请先为各维度打分';     cls = '';     }
+    document.getElementById('sop5aStars').textContent = stars;
+    const verdict = document.getElementById('sop5aVerdict');
+    verdict.textContent = label;
+    verdict.className = 'sop-5a-verdict' + (cls ? ' ' + cls : '');
+  }
+
+  async function saveSop5aToPool() {
+    const kw = document.getElementById('sop5aKeyword').value.trim();
+    const total = Object.values(sop5aScores).reduce((a, b) => a + b, 0);
+    if (!kw) { alert('请输入股票名称或代码'); return; }
+    if (total === 0) { alert('请先为 5 个维度打分'); return; }
+
+    const memo = `5A 稀缺度评分：${total}/25\n`
+      + SOP_5A_DIMS.map(d => `${d.title}：${sop5aScores[d.key]}/5`).join('\n');
+
+    const btn = document.getElementById('sop5aSaveBtn');
+    btn.disabled = true;
+    btn.textContent = '保存中...';
+    try {
+      const res = await fetch('/api/invest/pool', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          keyword: kw,
+          poolType: total >= 17 ? 'tech_vc' : 'quality',
+          status: 'watching',
+          memo,
+          targetPrice: null,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || '保存失败');
+      }
+      alert(`已加入股票池：${kw}（${total}/25）`);
+      await loadPool();
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '加入股票池';
+    }
+  }
+
+  function initSopCheckup() {
+    const btn = document.getElementById('sopCheckupBtn');
+    const input = document.getElementById('sopCheckupInput');
+    if (!btn || !input) return;
+    btn.addEventListener('click', () => fetchSopCheckup(input.value.trim()));
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') btn.click(); });
+  }
+
+  async function fetchSopCheckup(keyword) {
+    if (!keyword) return;
+    const el = document.getElementById('sopCheckupResult');
+    el.innerHTML = '<div style="text-align:center;padding:24px;color:#9ca3af">体检中...</div>';
+    try {
+      const res = await fetch(`/api/invest/sop/checkup?keyword=${encodeURIComponent(keyword)}`);
+      const data = await res.json();
+      renderSopCheckup(data);
+    } catch (e) {
+      el.innerHTML = `<div style="color:#dc2626;padding:16px">请求失败：${e.message}</div>`;
+    }
+  }
+
+  function renderSopCheckup(data) {
+    const el = document.getElementById('sopCheckupResult');
+    if (!data.matched) {
+      el.innerHTML = `<div class="sop-checkup-empty">${data.message || '未找到该股票'}</div>`;
+      return;
+    }
+    const overallCls = `sop-verdict-${data.overallVerdict}`;
+    let html = `
+      <div class="sop-checkup-header">
+        <div class="sop-checkup-stock">${data.stockName} <span class="sop-checkup-code">${data.stockCode}</span></div>
+        <div class="sop-checkup-overall ${overallCls}">${verdictLabel(data.overallVerdict)} · ${data.overallSummary}</div>
+      </div>
+      <div class="sop-checkup-grid">
+        ${renderCheckupCard(data.grossMargin)}
+        ${renderCheckupCard(data.revenueYoy)}
+        ${renderCheckupCard(data.profitYoy)}
+      </div>
+      <div class="sop-checkup-jump">
+        <button class="invest-btn-outline" id="sopJumpHeatmap">跳到 16 季度热力表查看完整</button>
+      </div>
+    `;
+    el.innerHTML = html;
+    document.getElementById('sopJumpHeatmap')?.addEventListener('click', () => {
+      document.querySelectorAll('.invest-tab').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.invest-panel').forEach(p => p.classList.remove('active'));
+      document.querySelector('.invest-tab[data-panel="panel-heatmap"]')?.classList.add('active');
+      document.getElementById('panel-heatmap')?.classList.add('active');
+      const input = document.getElementById('heatmapInput');
+      if (input) input.value = data.stockName;
+      fetchHeatmap(data.stockName);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
+
+  function renderCheckupCard(metric) {
+    if (!metric) return '';
+    const cls = `sop-verdict-${metric.verdict}`;
+    const latest = metric.latest != null
+      ? (parseFloat(metric.latest) >= 0 ? '+' : '') + parseFloat(metric.latest).toFixed(1) + metric.unit
+      : '—';
+    return `
+      <div class="sop-checkup-card">
+        <div class="sop-checkup-card-head">
+          <span class="sop-checkup-label">${metric.label}</span>
+          <span class="sop-checkup-verdict ${cls}">${verdictLabel(metric.verdict)}</span>
+        </div>
+        <div class="sop-checkup-latest">最新：<b>${latest}</b></div>
+        ${renderSparkline(metric.series)}
+        <div class="sop-checkup-tip">${escHtml(metric.tip || '')}</div>
+      </div>
+    `;
+  }
+
+  function renderSparkline(series) {
+    if (!series || series.length === 0) {
+      return '<div class="sop-spark-empty">无数据</div>';
+    }
+    const vals = series.map(s => s.value != null ? parseFloat(s.value) : null);
+    const validVals = vals.filter(v => v != null);
+    if (validVals.length === 0) return '<div class="sop-spark-empty">无数据</div>';
+    const min = Math.min(0, ...validVals);
+    const max = Math.max(0, ...validVals);
+    const range = max - min || 1;
+    const w = 240, h = 60, pad = 4;
+    const stepX = (w - pad * 2) / Math.max(series.length - 1, 1);
+    const zeroY = h - pad - (0 - min) / range * (h - pad * 2);
+
+    const points = vals.map((v, i) => {
+      if (v == null) return null;
+      const x = pad + i * stepX;
+      const y = h - pad - (v - min) / range * (h - pad * 2);
+      return { x, y, v };
+    });
+    const pathPoints = points.filter(p => p);
+    const linePath = pathPoints.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+
+    const bars = points.map(p => {
+      if (!p) return '';
+      const positive = p.v >= 0;
+      const top = positive ? p.y : zeroY;
+      const height = Math.max(1, Math.abs(p.y - zeroY));
+      const color = positive ? '#52c41a' : '#ff4d4f';
+      return `<rect x="${(p.x - 5).toFixed(1)}" y="${top.toFixed(1)}" width="10" height="${height.toFixed(1)}" fill="${color}" opacity="0.25" />`;
+    }).join('');
+
+    const labels = series.map((s, i) => {
+      const x = pad + i * stepX;
+      return `<text x="${x.toFixed(1)}" y="${h - 0.5}" text-anchor="middle" font-size="8" fill="#9ca3af">${s.quarter}</text>`;
+    }).join('');
+
+    return `<svg class="sop-spark" viewBox="0 0 ${w} ${h + 10}" preserveAspectRatio="none">
+      <line x1="${pad}" y1="${zeroY.toFixed(1)}" x2="${w - pad}" y2="${zeroY.toFixed(1)}" stroke="#e5e7eb" stroke-dasharray="2,2" />
+      ${bars}
+      <path d="${linePath}" fill="none" stroke="#d4a017" stroke-width="1.5" />
+      ${pathPoints.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2" fill="#d4a017" />`).join('')}
+      ${labels}
+    </svg>`;
+  }
+
+  function verdictLabel(v) {
+    if (v === 'pass') return '✓ PASS';
+    if (v === 'warn') return '⚠ WARN';
+    if (v === 'fail') return '✗ FAIL';
+    return '—';
   }
 
   // ===== Sub-tabs =====

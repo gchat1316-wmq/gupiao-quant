@@ -37,14 +37,127 @@
 
     <!-- Sub-tabs -->
     <div class="invest-tabs">
-      <button class="invest-tab active" data-panel="panel-prosperity">景气度扫描</button>
+      <button class="invest-tab active" data-panel="panel-sop">实战选股SOP</button>
+      <button class="invest-tab" data-panel="panel-prosperity">景气度扫描</button>
       <button class="invest-tab" data-panel="panel-heatmap">16季度热力表</button>
       <button class="invest-tab" data-panel="panel-pool">股票池</button>
       <button class="invest-tab" data-panel="panel-valuation">估值计算器</button>
     </div>
 
+    <!-- Panel 0：实战选股 SOP 三步法 -->
+    <div id="panel-sop" class="invest-panel active">
+      <div class="sop-intro">
+        <div class="sop-intro-title">实战选股三步法 · 30 分钟高效筛选优质标的</div>
+        <div class="sop-intro-sub">增量市场 → 稀缺卡位 → 漂亮数字。每一步 10 分钟，按 SOP 走，结论自然浮现。</div>
+        <div class="sop-progress">
+          <div class="sop-progress-item"><span class="sop-step-no">1</span><span>选赛道</span></div>
+          <div class="sop-progress-arrow">→</div>
+          <div class="sop-progress-item"><span class="sop-step-no">2</span><span>选公司</span></div>
+          <div class="sop-progress-arrow">→</div>
+          <div class="sop-progress-item"><span class="sop-step-no">3</span><span>验真伪</span></div>
+        </div>
+      </div>
+
+      <!-- Step 1 -->
+      <div class="sop-step">
+        <div class="sop-step-head">
+          <div class="sop-step-badge">Step 1 · 10 分钟</div>
+          <div class="sop-step-title">选赛道 — 找“增量市场”</div>
+        </div>
+        <div class="sop-step-body">
+          <div class="sop-step-lesson">
+            <div class="sop-lesson-title">判断要点</div>
+            <ul class="sop-lesson-list">
+              <li>未来 <b>3-5 年规模能否翻倍</b>（增量驱动 vs 存量博弈）</li>
+              <li>是否由 <b>技术进步</b> 推动财富增长（AI / 新能源 / 半导体 / 创新药）</li>
+              <li>是否获得 <b>国家政策</b> 长期支持</li>
+            </ul>
+          </div>
+          <div class="sop-tool">
+            <div class="sop-tool-title">🧰 增量赛道库 · 一键景气扫描</div>
+            <div class="sop-tool-hint">点击赛道徽章，自动跳转「景气度扫描」并对该赛道代表公司进行批量扫描。</div>
+            <div id="sopTrackChips" class="sop-track-chips"></div>
+            <div class="sop-tool-divider">或自定义关键词：</div>
+            <div class="sop-custom-track">
+              <input id="sopCustomTrackInput" type="text" placeholder="如：北方华创,长川科技,中微公司" />
+              <button id="sopCustomTrackBtn" class="invest-btn-outline">扫描景气</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="sop-step">
+        <div class="sop-step-head">
+          <div class="sop-step-badge">Step 2 · 10 分钟</div>
+          <div class="sop-step-title">选公司 — 找“稀缺卡位”</div>
+        </div>
+        <div class="sop-step-body">
+          <div class="sop-step-lesson">
+            <div class="sop-lesson-title">市值阶梯式增长 5A 模型</div>
+            <ul class="sop-lesson-list">
+              <li><b>A1 行业地位</b>：是否赛道前三 / 龙头</li>
+              <li><b>A2 业务唯一性</b>：是否有不可替代的产品 / 牌照</li>
+              <li><b>A3 客户粘性</b>：长合同 / 高切换成本</li>
+              <li><b>A4 技术或品牌护城河</b>：专利、工艺、品牌溢价</li>
+              <li><b>A5 替代难度</b>：竞争对手追赶需 3 年以上</li>
+            </ul>
+            <div class="sop-lesson-tip">22-25 分极为稀缺（★★★★★）/ 17-21 ★★★★ / 12-16 ★★★ / 其他建议放弃</div>
+          </div>
+          <div class="sop-tool">
+            <div class="sop-tool-title">🧰 5A 稀缺度评分卡</div>
+            <div class="sop-tool-hint">为每个维度打分（1-5），自动算出星级；评分结果可一键沉淀到「股票池」。</div>
+            <div class="sop-5a-form">
+              <div class="sop-5a-field">
+                <label>股票名称或代码</label>
+                <input id="sop5aKeyword" type="text" placeholder="如：北方华创 或 002371" />
+              </div>
+              <div id="sop5aDimensions" class="sop-5a-dims"></div>
+              <div class="sop-5a-summary">
+                <div class="sop-5a-score">
+                  当前得分：<span id="sop5aTotal">0</span> / 25
+                  <span id="sop5aStars" class="sop-5a-stars">☆☆☆☆☆</span>
+                </div>
+                <div id="sop5aVerdict" class="sop-5a-verdict"></div>
+              </div>
+              <div class="sop-5a-actions">
+                <button id="sop5aSaveBtn" class="invest-btn" style="height:36px;font-size:13px;padding:0 16px">加入股票池</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="sop-step">
+        <div class="sop-step-head">
+          <div class="sop-step-badge">Step 3 · 10 分钟</div>
+          <div class="sop-step-title">验真伪 — 看“漂亮数字”</div>
+        </div>
+        <div class="sop-step-body">
+          <div class="sop-step-lesson">
+            <div class="sop-lesson-title">三条验证线</div>
+            <ul class="sop-lesson-list">
+              <li><b>毛利率</b>：稳定或持续提升（说明有定价权）</li>
+              <li><b>营收 YoY</b>：持续两位数高增长（≥ 20% 更佳）</li>
+              <li><b>扣非净利润 YoY</b>：增速 > 营收增速（规模效应 + 盈利能力提升）</li>
+            </ul>
+          </div>
+          <div class="sop-tool">
+            <div class="sop-tool-title">🧰 三大数字体检表</div>
+            <div class="sop-tool-hint">输入股票，自动调出最近 8 季度的毛利率、营收同比、扣非净利润同比，并给出 PASS / WARN / FAIL 判定。</div>
+            <div class="sop-checkup-bar">
+              <input id="sopCheckupInput" type="text" placeholder="如：贵州茅台 或 600519" />
+              <button id="sopCheckupBtn" class="invest-btn">立即体检</button>
+            </div>
+            <div id="sopCheckupResult"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Panel 1：景气度扫描 -->
-    <div id="panel-prosperity" class="invest-panel active">
+    <div id="panel-prosperity" class="invest-panel">
       <div class="invest-search-bar">
         <div class="invest-search-wrap">
           <input id="prosperityInput" type="text" placeholder="输入同行业多只股票，如：北方华创,长川科技" />

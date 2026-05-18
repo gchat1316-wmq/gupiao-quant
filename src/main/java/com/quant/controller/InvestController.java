@@ -3,6 +3,7 @@ package com.quant.controller;
 import com.quant.dto.invest.PoolItemDTO;
 import com.quant.dto.invest.PoolSaveRequest;
 import com.quant.dto.invest.ProsperityResultDTO;
+import com.quant.dto.invest.SopCheckupDTO;
 import com.quant.service.InvestService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -36,6 +37,12 @@ public class InvestController {
             @RequestParam("keywords") String keywords,
             @RequestParam(value = "quarters", required = false) Integer quarters) {
         return investService.queryProsperity(keywords, quarters);
+    }
+
+    /** 实战选股 SOP · 三大数字体检 */
+    @GetMapping("/sop/checkup")
+    public SopCheckupDTO sopCheckup(@RequestParam("keyword") String keyword) {
+        return investService.sopCheckup(keyword);
     }
 
     /** 获取股票池列表 */

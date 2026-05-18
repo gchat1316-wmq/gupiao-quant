@@ -709,9 +709,528 @@
   margin-top: 20px;
 }
 
+/* ===== 实战选股 SOP ===== */
+.sop-intro {
+  background: linear-gradient(135deg, #fffaf0 0%, #ffffff 60%);
+  border: 1px solid var(--invest-gold-border);
+  border-radius: var(--invest-card-radius);
+  padding: 20px 24px;
+  margin-bottom: 24px;
+}
+
+.sop-intro-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #111827;
+  margin-bottom: 4px;
+}
+
+.sop-intro-sub {
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 16px;
+}
+
+.sop-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sop-progress-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid var(--invest-gold-border);
+  border-radius: 24px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #92400e;
+}
+
+.sop-step-no {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--invest-gold);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sop-progress-arrow {
+  color: var(--invest-gold);
+  font-weight: 700;
+}
+
+.sop-step {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: var(--invest-card-radius);
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow);
+}
+
+.sop-step-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed #e5e7eb;
+}
+
+.sop-step-badge {
+  background: var(--invest-gold-soft);
+  color: #92400e;
+  border: 1px solid var(--invest-gold-border);
+  border-radius: 16px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.sop-step-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.sop-step-body {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.sop-step-lesson {
+  background: #fafbfc;
+  border: 1px solid #eef0f3;
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.sop-lesson-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.sop-lesson-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.7;
+}
+
+.sop-lesson-list li {
+  margin-bottom: 2px;
+}
+
+.sop-lesson-list b {
+  color: #111827;
+}
+
+.sop-lesson-tip {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #92400e;
+  background: #fef3c7;
+  border-radius: 6px;
+  padding: 6px 10px;
+  line-height: 1.5;
+}
+
+.sop-tool {
+  background: #fff;
+  border: 1px solid #f1d7a3;
+  border-radius: 10px;
+  padding: 16px 18px;
+  box-shadow: 0 2px 6px rgba(212, 160, 23, 0.06);
+}
+
+.sop-tool-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 4px;
+}
+
+.sop-tool-hint {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.sop-tool-divider {
+  font-size: 12px;
+  color: #9ca3af;
+  margin: 14px 0 8px;
+}
+
+/* Step 1 · 赛道徽章 */
+.sop-track-chips {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.sop-track-chip {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+}
+
+.sop-track-chip:hover {
+  border-color: var(--invest-gold);
+  background: var(--invest-gold-soft);
+  transform: translateY(-1px);
+}
+
+.sop-track-name {
+  font-weight: 700;
+  color: #111827;
+}
+
+.sop-track-arrow {
+  font-size: 11px;
+  color: var(--invest-gold);
+  font-weight: 600;
+}
+
+.sop-custom-track {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.sop-custom-track input {
+  flex: 1;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  outline: none;
+}
+
+.sop-custom-track input:focus {
+  border-color: var(--invest-gold);
+}
+
+/* Step 2 · 5A 评分卡 */
+.sop-5a-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sop-5a-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.sop-5a-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.sop-5a-field input {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  outline: none;
+}
+
+.sop-5a-field input:focus {
+  border-color: var(--invest-gold);
+}
+
+.sop-5a-dims {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sop-5a-dim {
+  background: #fafbfc;
+  border: 1px solid #eef0f3;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.sop-5a-dim-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.sop-5a-dim-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.sop-5a-dim-score {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--invest-gold);
+}
+
+.sop-5a-dim-hint {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-bottom: 6px;
+  line-height: 1.5;
+}
+
+.sop-5a-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.sop-5a-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #9ca3af;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.sop-5a-dot:hover {
+  border-color: var(--invest-gold);
+  color: var(--invest-gold);
+}
+
+.sop-5a-dot.active {
+  background: var(--invest-gold);
+  border-color: var(--invest-gold);
+  color: #fff;
+}
+
+.sop-5a-summary {
+  background: var(--invest-gold-soft);
+  border: 1px solid var(--invest-gold-border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sop-5a-score {
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.sop-5a-score span {
+  color: var(--invest-gold);
+}
+
+.sop-5a-stars {
+  margin-left: 10px;
+  color: #f59e0b;
+  font-size: 16px;
+  letter-spacing: 2px;
+}
+
+.sop-5a-verdict {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.sop-5a-verdict.pass { color: #065f46; }
+.sop-5a-verdict.warn { color: #92400e; }
+.sop-5a-verdict.fail { color: #991b1b; }
+
+.sop-5a-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Step 3 · 体检表 */
+.sop-checkup-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.sop-checkup-bar input {
+  flex: 1;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  outline: none;
+}
+
+.sop-checkup-bar input:focus {
+  border-color: var(--invest-gold);
+}
+
+.sop-checkup-bar .invest-btn {
+  height: 40px;
+  font-size: 13px;
+  padding: 0 18px;
+}
+
+.sop-checkup-empty {
+  text-align: center;
+  color: #9ca3af;
+  padding: 24px;
+  font-size: 13px;
+}
+
+.sop-checkup-header {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  background: #fafbfc;
+  border-radius: 8px;
+  border-left: 3px solid var(--invest-gold);
+}
+
+.sop-checkup-stock {
+  font-size: 15px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.sop-checkup-code {
+  font-size: 12px;
+  color: #9ca3af;
+  font-weight: 500;
+  margin-left: 8px;
+}
+
+.sop-checkup-overall {
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sop-checkup-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.sop-checkup-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sop-checkup-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sop-checkup-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.sop-checkup-verdict {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.sop-verdict-pass {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.sop-verdict-warn {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.sop-verdict-fail {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.sop-checkup-latest {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.sop-checkup-latest b {
+  color: #111827;
+  font-size: 14px;
+}
+
+.sop-spark {
+  width: 100%;
+  height: 70px;
+}
+
+.sop-spark-empty {
+  font-size: 12px;
+  color: #9ca3af;
+  text-align: center;
+  padding: 12px 0;
+}
+
+.sop-checkup-tip {
+  font-size: 12px;
+  color: #4b5563;
+  line-height: 1.5;
+  background: #fafbfc;
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.sop-checkup-jump {
+  display: flex;
+  justify-content: center;
+  margin-top: 6px;
+}
+
 /* ===== 响应式 ===== */
 @media (max-width: 900px) {
   .valuation-grid {
+    grid-template-columns: 1fr;
+  }
+  .sop-step-body {
     grid-template-columns: 1fr;
   }
 }
