@@ -44,3 +44,17 @@ CREATE TABLE IF NOT EXISTS `trade_stock_info` (
   UNIQUE KEY `idx_stock_code` (`stock_code`),
   KEY `idx_stock_name` (`stock_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='股票基础信息';
+
+-- 龙江投资：股票池
+CREATE TABLE IF NOT EXISTS `invest_stock_pool` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `stock_code` varchar(20) NOT NULL COMMENT '股票代码',
+  `pool_type` enum('quality','tech_vc') NOT NULL COMMENT '质量优选/科技风投',
+  `memo` text COMMENT '投资逻辑备注',
+  `target_price` decimal(10,2) DEFAULT NULL COMMENT '目标价（可选）',
+  `status` enum('watching','holding','exited') DEFAULT 'watching' COMMENT '观察/持仓/已离场',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_pool_code` (`stock_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='龙江投资股票池';

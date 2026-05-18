@@ -1,0 +1,744 @@
+/* ===== 龙江投资模块 ===== */
+:root {
+  --invest-gold: #d4a017;
+  --invest-gold-soft: #fdf6e3;
+  --invest-gold-border: #f0d080;
+  --invest-green-high: #1a7a4a;
+  --invest-green-mid: #52c41a;
+  --invest-yellow: #faad14;
+  --invest-red: #ff4d4f;
+  --invest-gray: #9ca3af;
+  --invest-card-radius: 12px;
+}
+
+/* ===== Section wrapper ===== */
+.invest-section {
+  border-top: 1px solid var(--study-border);
+  margin-top: 56px;
+  padding-top: 32px;
+}
+
+/* ===== Hero ===== */
+.invest-hero {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  background: linear-gradient(135deg, #fdf6e3 0%, #ffffff 60%);
+  border: 1px solid var(--invest-gold-border);
+  padding: 20px 24px;
+  border-radius: 16px;
+  margin-bottom: 28px;
+}
+
+.invest-hero-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--invest-gold-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 38px;
+  flex-shrink: 0;
+  border: 1px solid var(--invest-gold-border);
+}
+
+.invest-hero-title {
+  font-size: 24px;
+  font-weight: 800;
+  margin: 0 0 6px;
+  color: #1f2937;
+  letter-spacing: 1px;
+}
+
+.invest-hero-sub {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* ===== Sub-tabs ===== */
+.invest-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.invest-tab {
+  background: none;
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  color: #6b7280;
+  padding: 10px 18px 12px;
+  cursor: pointer;
+  position: relative;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s;
+}
+
+.invest-tab:hover {
+  color: var(--invest-gold);
+}
+
+.invest-tab.active {
+  color: #d4a017;
+  border-bottom-color: #d4a017;
+}
+
+.invest-panel {
+  display: none;
+}
+
+.invest-panel.active {
+  display: block;
+}
+
+/* ===== Search bar (reuse style) ===== */
+.invest-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 700px;
+  margin: 0 0 20px;
+}
+
+.invest-search-wrap {
+  position: relative;
+  flex: 1;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  height: 44px;
+  box-shadow: var(--shadow);
+}
+
+.invest-search-wrap input {
+  flex: 1;
+  border: 0;
+  outline: 0;
+  font-size: 15px;
+  background: transparent;
+  color: var(--text);
+}
+
+.invest-btn {
+  background: var(--invest-gold);
+  color: #fff;
+  border: 0;
+  border-radius: var(--radius);
+  font-size: 15px;
+  font-weight: 600;
+  padding: 0 22px;
+  height: 44px;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.invest-btn:hover {
+  background: #b8880e;
+}
+
+.invest-btn-outline {
+  background: #fff;
+  color: var(--invest-gold);
+  border: 1px solid var(--invest-gold-border);
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 0 16px;
+  height: 36px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.invest-btn-outline:hover {
+  background: var(--invest-gold-soft);
+}
+
+/* ===== Sector summary badge ===== */
+.sector-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 22px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+.sector-summary.HIGH {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+}
+
+.sector-summary.MIXED {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+
+.sector-summary.LOW {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+/* ===== Prosperity table ===== */
+.prosperity-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 24px;
+}
+
+.prosperity-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  background: #fff;
+  border-radius: var(--invest-card-radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  min-width: 600px;
+}
+
+.prosperity-table th {
+  background: #2f3b52;
+  color: #fff;
+  padding: 10px 8px;
+  text-align: center;
+  font-weight: 600;
+  border: 1px solid #3d4f6a;
+  white-space: nowrap;
+}
+
+.prosperity-table th.name-col {
+  text-align: left;
+  min-width: 120px;
+}
+
+.prosperity-table td {
+  padding: 8px 6px;
+  text-align: center;
+  border: 1px solid #eaeef3;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.prosperity-table td.row-label {
+  text-align: left;
+  background: #fafbfc;
+  color: #374151;
+  font-size: 12px;
+  padding-left: 10px;
+}
+
+/* 景气等级颜色 */
+.lvl-high {
+  background: #dcfce7;
+  color: var(--invest-green-high);
+}
+
+.lvl-medium {
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.lvl-weak {
+  background: #fefce8;
+  color: #854d0e;
+}
+
+.lvl-low {
+  background: #fff1f2;
+  color: #9f1239;
+}
+
+.lvl-unknown {
+  background: #f9fafb;
+  color: #9ca3af;
+}
+
+/* 转折点标注 */
+.turnaround-cell {
+  position: relative;
+  outline: 2px solid #f59e0b;
+  outline-offset: -2px;
+}
+
+.turnaround-star {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  font-size: 10px;
+  color: #f59e0b;
+  line-height: 1;
+}
+
+/* ===== 热力表 quarters mode ===== */
+.heatmap-stock-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #111827;
+  margin: 20px 0 8px;
+  padding-left: 4px;
+  border-left: 3px solid var(--invest-gold);
+}
+
+/* ===== 股票池 ===== */
+.pool-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pool-filter-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pool-filter-btn {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  font-size: 13px;
+  padding: 4px 14px;
+  cursor: pointer;
+  color: #374151;
+  transition: all 0.15s;
+}
+
+.pool-filter-btn.active {
+  background: var(--invest-gold-soft);
+  border-color: var(--invest-gold-border);
+  color: #92400e;
+  font-weight: 600;
+}
+
+.pool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.pool-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: var(--invest-card-radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+.pool-card:hover {
+  border-color: var(--invest-gold-border);
+  box-shadow: var(--shadow);
+}
+
+.pool-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pool-stock-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.pool-stock-code {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+.pool-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.badge-quality {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.badge-tech {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.badge-watching {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.badge-holding {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.badge-exited {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.pool-prosperity {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.prosperity-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.prosperity-dot.high { background: var(--invest-green-high); }
+.prosperity-dot.medium { background: var(--invest-green-mid); }
+.prosperity-dot.weak { background: var(--invest-yellow); }
+.prosperity-dot.low { background: var(--invest-red); }
+.prosperity-dot.unknown { background: var(--invest-gray); }
+
+.pool-memo {
+  font-size: 13px;
+  color: #374151;
+  line-height: 1.5;
+  background: #f9fafb;
+  border-radius: 6px;
+  padding: 8px 10px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.pool-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.pool-target {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.pool-target span {
+  color: var(--invest-gold);
+  font-weight: 700;
+}
+
+.pool-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.pool-action-btn {
+  background: none;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 12px;
+  padding: 3px 10px;
+  cursor: pointer;
+  color: #6b7280;
+  transition: all 0.15s;
+}
+
+.pool-action-btn:hover {
+  border-color: var(--invest-gold-border);
+  color: var(--invest-gold);
+}
+
+.pool-action-btn.danger:hover {
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+.pool-empty {
+  text-align: center;
+  color: #9ca3af;
+  padding: 48px 0;
+  font-size: 14px;
+}
+
+/* ===== 估值计算器 ===== */
+.valuation-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.valuation-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: var(--invest-card-radius);
+  padding: 24px;
+  box-shadow: var(--shadow);
+}
+
+.valuation-card-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 6px;
+}
+
+.valuation-card-subtitle {
+  font-size: 12px;
+  color: #9ca3af;
+  margin: 0 0 20px;
+}
+
+.valuation-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.valuation-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.valuation-field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.valuation-field input {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+}
+
+.valuation-field input:focus {
+  border-color: var(--invest-gold);
+}
+
+.valuation-field .hint {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.valuation-result {
+  margin-top: 20px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.valuation-result.ok {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+}
+
+.valuation-result.warn {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+
+.valuation-result.bad {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+.valuation-result.empty {
+  background: #f9fafb;
+  color: #9ca3af;
+  border: 1px solid #e5e7eb;
+  font-weight: 400;
+}
+
+/* PS 结果表格 */
+.ps-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+  font-size: 13px;
+}
+
+.ps-table th {
+  background: #f3f4f6;
+  padding: 8px;
+  text-align: center;
+  font-weight: 600;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+}
+
+.ps-table td {
+  padding: 8px;
+  text-align: center;
+  border: 1px solid #e5e7eb;
+  font-weight: 500;
+}
+
+.ps-ok { color: var(--invest-green-high); }
+.ps-warn { color: #92400e; }
+.ps-bad { color: #991b1b; }
+
+/* ===== 弹窗：加入股票池 ===== */
+.invest-modal-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.invest-modal {
+  background: #fff;
+  width: min(480px, 92vw);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.invest-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.invest-modal-title {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.invest-modal-close {
+  background: none;
+  border: 0;
+  font-size: 24px;
+  cursor: pointer;
+  color: #6b7280;
+  line-height: 1;
+}
+
+.invest-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.invest-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.invest-modal-field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.invest-modal-field input,
+.invest-modal-field select,
+.invest-modal-field textarea {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.15s;
+  width: 100%;
+}
+
+.invest-modal-field input:focus,
+.invest-modal-field select:focus,
+.invest-modal-field textarea:focus {
+  border-color: var(--invest-gold);
+}
+
+.invest-modal-field textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.invest-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 900px) {
+  .valuation-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .invest-hero {
+    padding: 16px;
+    gap: 16px;
+  }
+  .invest-hero-icon {
+    width: 56px;
+    height: 56px;
+    font-size: 28px;
+  }
+  .invest-hero-title {
+    font-size: 18px;
+  }
+  .invest-tabs {
+    gap: 0;
+  }
+  .invest-tab {
+    font-size: 13px;
+    padding: 8px 12px 10px;
+  }
+  .pool-grid {
+    grid-template-columns: 1fr;
+  }
+}
