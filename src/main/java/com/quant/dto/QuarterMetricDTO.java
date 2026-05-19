@@ -12,8 +12,24 @@ import java.math.BigDecimal;
 public class QuarterMetricDTO {
     private String quarter;
     private String reportDate;
-    private BigDecimal grossMargin;
+    // 核心增长
     private BigDecimal revenueYoy;
     private BigDecimal deductedNetProfitYoy;
+    // 盈利能力
+    private BigDecimal grossMargin;
+    private BigDecimal netMargin;
+    private BigDecimal roe;
+    private BigDecimal roa;
+    private BigDecimal eps;
+    // 规模
+    private BigDecimal revenue;
+    private BigDecimal netProfit;
     private BigDecimal deductedNetProfitTtm;
+    private BigDecimal totalAssets;
+    private BigDecimal totalEquity;
+    // 现金流
+    private BigDecimal operatingCashflow;
+    // 风险
+    private BigDecimal debtRatio;
+    private BigDecimal currentRatio;
 }

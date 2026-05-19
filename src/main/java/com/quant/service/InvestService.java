@@ -12,6 +12,7 @@ import com.quant.entity.TradeStockInfo;
 import com.quant.repository.InvestStockPoolRepository;
 import com.quant.repository.TradeStockFinancialRepository;
 import com.quant.repository.TradeStockInfoRepository;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,6 +47,7 @@ public class InvestService {
 
     // ===== 景气度扫描 =====
 
+    @Cacheable(value = "prosperity", key = "#keywords + '_' + (#quarters ?: 0)")
     @Transactional(readOnly = true)
     public ProsperityResultDTO queryProsperity(String keywords, Integer quarters) {
         int limit = (quarters == null || quarters <= 0) ? DEFAULT_QUARTERS : Math.min(quarters, MAX_QUARTERS);
@@ -222,10 +224,20 @@ public class InvestService {
             if (byCode.isPresent()) return byCode;
             // fallback：查财务数据（支持 600519 和 600519.SH 两种格式）
             List<TradeStockFinancial> fin = financialRepository.findByStockCodeOrderByReportDateDesc(bareCode);
-            if (!fin.isEmpty()) return Optional.of(syntheticInfo(bareCode, bareCode));
+            if (!fin.isEmpty()) {
+                String finName = fin.get(0).getStockName();
+                return Optional.of(syntheticInfo(bareCode, finName != null && !finName.isBlank() ? finName : bareCode));
+            }
         }
         List<TradeStockInfo> byName = stockInfoRepository.findByStockNameLike(t);
         if (!byName.isEmpty()) return Optional.of(byName.get(0));
+        // 再兜底：按名称查财务数据
+        List<TradeStockFinancial> finByName = financialRepository.findByStockNameLike(t);
+        if (!finByName.isEmpty()) {
+            TradeStockFinancial first = finByName.get(0);
+            String finName = first.getStockName();
+            return Optional.of(syntheticInfo(first.getStockCode(), finName != null && !finName.isBlank() ? finName : first.getStockCode()));
+        }
         return Optional.empty();
     }
 
@@ -241,7 +253,19 @@ public class InvestService {
     @Transactional(readOnly = true)
     public List<PoolItemDTO> listPool() {
         List<InvestStockPool> items = poolRepository.findAllByOrderByCreatedAtDesc();
-        return items.stream().map(this::toPoolItemDTO).collect(Collectors.toList());
+        if (items.isEmpty()) return List.of();
+
+        List<String> codes = items.stream().map(InvestStockPool::getStockCode).collect(Collectors.toList());
+
+        // 批量查股票名（1次 IN 查询代替 N 次单查）
+        Map<String, String> nameMap = stockInfoRepository.findByStockCodeIn(codes).stream()
+                .collect(Collectors.toMap(TradeStockInfo::getStockCode, TradeStockInfo::getStockName));
+
+        // 批量查各股票最新财务记录（1次子查询代替 N 次全量查询）
+        Map<String, TradeStockFinancial> finMap = financialRepository.findLatestByStockCodes(codes).stream()
+                .collect(Collectors.toMap(TradeStockFinancial::getStockCode, f -> f));
+
+        return items.stream().map(p -> toPoolItemDTO(p, nameMap, finMap)).collect(Collectors.toList());
     }
 
     @Transactional
@@ -287,12 +311,12 @@ public class InvestService {
         poolRepository.deleteById(id);
     }
 
+    /** 单条转换，供 addToPool / updatePool 使用（单次写操作，无 N+1 风险）。 */
     private PoolItemDTO toPoolItemDTO(InvestStockPool pool) {
         String stockName = stockInfoRepository.findByStockCode(pool.getStockCode())
                 .map(TradeStockInfo::getStockName)
                 .orElse(pool.getStockCode());
 
-        // 查最新季度财务数据
         List<TradeStockFinancial> recent = financialRepository
                 .findByStockCodeOrderByReportDateDesc(pool.getStockCode())
                 .stream().limit(1).collect(Collectors.toList());
@@ -305,7 +329,24 @@ public class InvestService {
             latestProfitYoy = recent.get(0).getDeductedNetProfitYoy();
             latestLevel = prosperityLevel(latestRevenueYoy);
         }
+        return buildPoolItemDTO(pool, stockName, latestRevenueYoy, latestProfitYoy, latestLevel);
+    }
 
+    /** 批量转换，供 listPool() 使用（预加载 nameMap / finMap，消除 N+1）。 */
+    private PoolItemDTO toPoolItemDTO(InvestStockPool pool,
+                                      Map<String, String> nameMap,
+                                      Map<String, TradeStockFinancial> finMap) {
+        String stockName = nameMap.getOrDefault(pool.getStockCode(), pool.getStockCode());
+        TradeStockFinancial fin = finMap.get(pool.getStockCode());
+        BigDecimal latestRevenueYoy = fin != null ? fin.getRevenueYoy() : null;
+        BigDecimal latestProfitYoy = fin != null ? fin.getDeductedNetProfitYoy() : null;
+        String latestLevel = prosperityLevel(latestRevenueYoy);
+        return buildPoolItemDTO(pool, stockName, latestRevenueYoy, latestProfitYoy, latestLevel);
+    }
+
+    private PoolItemDTO buildPoolItemDTO(InvestStockPool pool, String stockName,
+                                         BigDecimal latestRevenueYoy, BigDecimal latestProfitYoy,
+                                         String latestLevel) {
         return PoolItemDTO.builder()
                 .id(pool.getId())
                 .stockCode(pool.getStockCode())
@@ -336,6 +377,7 @@ public class InvestService {
 
     private static final int SOP_QUARTERS = 8;
 
+    @Cacheable(value = "sopCheckup", key = "#keyword")
     @Transactional(readOnly = true)
     public SopCheckupDTO sopCheckup(String keyword) {
         Optional<TradeStockInfo> infoOpt = resolveStock(keyword == null ? "" : keyword.trim());

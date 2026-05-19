@@ -7,6 +7,7 @@ import com.quant.entity.TradeStockFinancial;
 import com.quant.entity.TradeStockInfo;
 import com.quant.repository.TradeStockFinancialRepository;
 import com.quant.repository.TradeStockInfoRepository;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +37,7 @@ public class StockQueryService {
         this.financialRepository = financialRepository;
     }
 
+    @Cacheable(value = "financial", key = "#keywords + '_' + (#quarters ?: 0)")
     @Transactional(readOnly = true)
     public QueryResultDTO query(String keywords, Integer quarters) {
         int limit = (quarters == null || quarters <= 0) ? DEFAULT_QUARTERS : quarters;
@@ -95,13 +97,24 @@ public class StockQueryService {
             if (!fin.isEmpty()) {
                 TradeStockInfo synthetic = new TradeStockInfo();
                 synthetic.setStockCode(bareCode);
-                synthetic.setStockName(bareCode);
+                String finName = fin.get(0).getStockName();
+                synthetic.setStockName(finName != null && !finName.isBlank() ? finName : bareCode);
                 return Optional.of(synthetic);
             }
         }
         List<TradeStockInfo> byName = stockInfoRepository.findByStockNameLike(trimmed);
         if (!byName.isEmpty()) {
             return Optional.of(byName.get(0));
+        }
+        // 再兜底：按名称查财务数据
+        List<TradeStockFinancial> finByName = financialRepository.findByStockNameLike(trimmed);
+        if (!finByName.isEmpty()) {
+            TradeStockFinancial first = finByName.get(0);
+            TradeStockInfo synthetic = new TradeStockInfo();
+            synthetic.setStockCode(first.getStockCode());
+            String finName = first.getStockName();
+            synthetic.setStockName(finName != null && !finName.isBlank() ? finName : first.getStockCode());
+            return Optional.of(synthetic);
         }
         return Optional.empty();
     }
@@ -130,10 +143,21 @@ public class StockQueryService {
         return QuarterMetricDTO.builder()
                 .quarter(formatQuarter(d))
                 .reportDate(d.toString())
-                .grossMargin(f.getGrossMargin())
                 .revenueYoy(revenueYoy)
                 .deductedNetProfitYoy(profitYoy)
+                .grossMargin(f.getGrossMargin())
+                .netMargin(f.getNetMargin())
+                .roe(f.getRoe())
+                .roa(f.getRoa())
+                .eps(f.getEps())
+                .revenue(f.getRevenue())
+                .netProfit(f.getNetProfit())
                 .deductedNetProfitTtm(f.getDeductedNetProfitTtm())
+                .totalAssets(f.getTotalAssets())
+                .totalEquity(f.getTotalEquity())
+                .operatingCashflow(f.getOperatingCashflow())
+                .debtRatio(f.getDebtRatio())
+                .currentRatio(f.getCurrentRatio())
                 .build();
     }
 

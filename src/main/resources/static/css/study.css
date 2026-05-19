@@ -139,6 +139,105 @@
   background: #14471c;
 }
 
+/* ===== Split hero card ===== */
+.study-split-hero {
+  display: flex;
+  align-items: stretch;
+  background: #fff;
+  border: 1px solid var(--study-border);
+  border-radius: 16px;
+  overflow: hidden;
+  margin: 24px 0 0;
+  box-shadow: var(--study-shadow);
+}
+
+.study-split-left {
+  flex: 2;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 24px;
+  cursor: pointer;
+  background: linear-gradient(135deg, #f1faf2 0%, #ffffff 70%);
+  transition: filter 0.15s;
+}
+
+.study-split-left:not(.active) {
+  filter: opacity(0.55);
+}
+
+.study-split-left:hover {
+  filter: opacity(1);
+}
+
+.study-split-vline {
+  width: 1px;
+  background: var(--study-border);
+  flex-shrink: 0;
+}
+
+.study-split-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 14px;
+  padding: 20px 28px;
+  cursor: pointer;
+  transition: background 0.15s, filter 0.15s;
+}
+
+.study-split-right:not(.active) {
+  filter: opacity(0.55);
+}
+
+.study-split-right:hover {
+  background: #fff5f5;
+  filter: opacity(1);
+}
+
+.study-split-right.active {
+  background: #fff5f5;
+  filter: opacity(1);
+}
+
+.split-quote-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #fff0f0;
+  border: 1px solid #fecaca;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  flex-shrink: 0;
+  margin-bottom: 2px;
+}
+
+.split-quote-label {
+  font-size: 16px;
+  font-weight: 700;
+  color: #c0392b;
+  letter-spacing: 0.5px;
+}
+
+.split-quote-action {
+  font-size: 13px;
+  color: #c0392b;
+  opacity: 0.8;
+  cursor: pointer;
+}
+
+.split-quote-action:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.study-top-panel {
+  padding-top: 8px;
+}
+
 /* ===== Blocks ===== */
 .study-block {
   margin: 32px 0;

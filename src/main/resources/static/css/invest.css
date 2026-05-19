@@ -98,6 +98,24 @@
   display: block;
 }
 
+.invest-tab-study-link {
+  margin-left: auto;
+  align-self: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: #9ca3af;
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 16px;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.invest-tab-study-link:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
 /* ===== Search bar (reuse style) ===== */
 .invest-search-bar {
   display: flex;
@@ -892,12 +910,14 @@
   border-radius: 10px;
   padding: 10px 14px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
   font-size: 13px;
   cursor: pointer;
   transition: all 0.15s;
   text-align: left;
+  position: relative;
 }
 
 .sop-track-chip:hover {
@@ -911,7 +931,20 @@
   color: #111827;
 }
 
+.sop-track-stocks {
+  display: block;
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 3px;
+  line-height: 1.4;
+  white-space: normal;
+  word-break: break-all;
+}
+
 .sop-track-arrow {
+  position: absolute;
+  top: 10px;
+  right: 12px;
   font-size: 11px;
   color: var(--invest-gold);
   font-weight: 600;

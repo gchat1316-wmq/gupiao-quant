@@ -26,6 +26,9 @@ public class TradeStockFinancial {
     @Column(name = "stock_code", nullable = false, length = 20)
     private String stockCode;
 
+    @Column(name = "stock_name", length = 50)
+    private String stockName;
+
     @Column(name = "report_date", nullable = false)
     private LocalDate reportDate;
 

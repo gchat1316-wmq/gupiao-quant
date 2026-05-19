@@ -25,8 +25,6 @@
   </header>
 
   <main class="container">
-    <h1 class="page-title">股票财务数据查询</h1>
-
     <section class="search-bar">
       <div class="search-input-wrap">
         <span class="search-icon" aria-hidden="true">
@@ -43,24 +41,40 @@
       <button id="queryBtn" class="primary-btn">查询</button>
     </section>
 
+    <section class="metric-bar">
+      <div class="metric-bar-row1">
+        <span class="metric-bar-label">指标</span>
+        <div class="metric-chips" id="metricChipsMain"></div>
+      </div>
+      <div class="metric-bar-row2">
+        <div class="metric-more-wrap">
+          <button id="metricMoreBtn" class="metric-more-btn">更多 <span class="caret">▾</span></button>
+          <div id="metricMorePopover" class="metric-popover hidden"></div>
+        </div>
+        <span class="metric-count" id="metricCount">已选 0 项</span>
+        <div class="metric-actions">
+          <button id="metricDefaultBtn" class="metric-link-btn">默认</button>
+          <span class="metric-dot">·</span>
+          <button id="metricAllBtn" class="metric-link-btn">全选</button>
+          <span class="metric-dot">·</span>
+          <button id="metricClearBtn" class="metric-link-btn">清空</button>
+        </div>
+      </div>
+    </section>
+
     <section id="resultSection" class="result-section hidden">
       <h2 class="section-title">核心财务指标对比分析</h2>
       <p class="section-subtitle" id="subtitle"></p>
 
       <div id="tablesWrap" class="tables-wrap"></div>
 
-      <div class="indicator-wrap">
-        <div class="indicator-label">指标</div>
-        <div class="indicator-tabs" id="indicatorTabs">
-          <button class="tab active" data-key="grossMargin">毛利率</button>
-          <button class="tab" data-key="revenueYoy">营收同比</button>
-          <button class="tab" data-key="deductedNetProfitYoy">扣非同比</button>
-          <button class="tab" data-key="deductedNetProfitTtm">扣非TTM</button>
-        </div>
-      </div>
-
+      <!-- 图表 -->
       <div class="chart-card">
-        <div class="chart-title" id="chartTitle">毛利率多股对比图</div>
+        <div class="chart-tabs-row">
+          <span class="chart-tabs-label">图表指标：</span>
+          <div class="indicator-tabs" id="chartTabs"></div>
+        </div>
+        <div class="chart-title" id="chartTitle"></div>
         <div class="chart-canvas-wrap">
           <canvas id="metricChart"></canvas>
         </div>

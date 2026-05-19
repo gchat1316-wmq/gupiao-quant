@@ -32,7 +32,7 @@ body {
 .container {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 32px 20px 64px;
+  padding: 24px 20px 64px;
 }
 
 .page-title {
@@ -48,7 +48,7 @@ body {
   align-items: center;
   gap: 12px;
   max-width: 680px;
-  margin: 0 auto 28px;
+  margin: 0 auto 12px;
 }
 
 .search-input-wrap {
@@ -213,20 +213,198 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
-.indicator-wrap {
-  margin: 32px 0 16px;
+/* ===== Metric chip bar ===== */
+.metric-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 680px;
+  margin: 0 auto 20px;
 }
 
-.indicator-label {
-  font-size: 18px;
+.metric-bar-row1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.metric-bar-row2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.metric-bar-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.metric-chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.metric-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.metric-chip {
+  height: 26px;
+  padding: 0 11px;
+  border-radius: 13px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: #4b5563;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+  line-height: 24px;
+}
+
+.metric-chip:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.metric-chip.on {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.metric-chip.on:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+  color: #fff;
+}
+
+.metric-more-wrap {
+  position: relative;
+}
+
+.metric-more-btn {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 13px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: #4b5563;
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+  transition: border-color 0.12s, color 0.12s;
+  line-height: 1;
+}
+
+.metric-more-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.metric-more-btn .caret {
+  font-size: 10px;
+  transition: transform 0.15s;
+  display: inline-block;
+}
+
+.metric-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 200;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+  padding: 12px 14px;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.metric-pop-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.metric-pop-group-label {
+  font-size: 11px;
   font-weight: 600;
-  margin-bottom: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  min-width: 36px;
+}
+
+.metric-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.metric-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.metric-link-btn {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.12s;
+}
+
+.metric-link-btn:hover {
+  color: var(--primary);
+}
+
+.metric-dot {
+  color: var(--border);
+  font-size: 12px;
+  user-select: none;
+}
+
+/* ===== Chart card & tabs ===== */
+.chart-card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 20px 16px 16px;
+  margin-top: 16px;
+}
+
+.chart-tabs-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.chart-tabs-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .indicator-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 8px;
 }
 
 .indicator-tabs .tab {
@@ -234,8 +412,8 @@ body {
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 6px;
-  font-size: 14px;
-  padding: 8px 18px;
+  font-size: 13px;
+  padding: 5px 14px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -244,14 +422,6 @@ body {
   background: var(--primary);
   color: #fff;
   border-color: var(--primary);
-}
-
-.chart-card {
-  background: var(--card-bg);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 24px 16px 16px;
-  margin-top: 16px;
 }
 
 .chart-title {
@@ -289,6 +459,10 @@ body {
   .search-input-wrap,
   .primary-btn {
     width: 100%;
+  }
+  .metric-popover {
+    left: auto;
+    right: 0;
   }
   .section-title {
     font-size: 18px;

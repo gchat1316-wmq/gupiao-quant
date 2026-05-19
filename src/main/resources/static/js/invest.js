@@ -26,16 +26,16 @@
   }
 
   // ===== 实战选股 SOP =====
-  // stocks 字段用 6 位代码，兼容所有数据库；label 仅用于展示
+  // stocks 字段用 6 位代码（供 API），names 与 stocks 顺序对应（供展示）
   const SOP_TRACKS = [
-    { name: 'AI 算力',    stocks: '688256,603659,688041,601138' },  // 寒武纪,海光信息,中科曙光,工业富联
-    { name: '半导体设备', stocks: '002371,688012,300604,688236' },  // 北方华创,中微公司,长川科技,拓荆科技
-    { name: '光伏储能',   stocks: '300274,300750,300014,605117' },  // 阳光电源,宁德时代,亿纬锂能,德业股份
-    { name: '创新药',     stocks: '600276,688180,688069,603259' },  // 恒瑞医药,君实生物,热景生物,药明康德
-    { name: '机器人',     stocks: '300124,002747,301300,603442' },  // 汇川技术,埃斯顿,绿的谐波,鸣志电器
-    { name: '新能源车',   stocks: '002594,300750,601127,600519' },  // 比亚迪,宁德时代,赛力斯,贵州茅台
-    { name: '军工',       stocks: '600760,688122,002179,600893' },  // 中航沈飞,汉光科技,中航光电,航发动力
-    { name: '消费白马',   stocks: '600519,000858,000568,603288' },  // 贵州茅台,五粮液,泸州老窖,海天味业
+    { name: 'AI 算力',    stocks: '688256,603659,688041,601138', names: '寒武纪,海光信息,中科曙光,工业富联' },
+    { name: '半导体设备', stocks: '002371,688012,300604,688236', names: '北方华创,中微公司,长川科技,拓荆科技' },
+    { name: '光伏储能',   stocks: '300274,300750,300014,605117', names: '阳光电源,宁德时代,亿纬锂能,德业股份' },
+    { name: '创新药',     stocks: '600276,688180,688069,603259', names: '恒瑞医药,君实生物,热景生物,药明康德' },
+    { name: '机器人',     stocks: '300124,002747,301300,603442', names: '汇川技术,埃斯顿,绿的谐波,鸣志电器' },
+    { name: '新能源车',   stocks: '002594,300750,601127,600519', names: '比亚迪,宁德时代,赛力斯,贵州茅台' },
+    { name: '军工',       stocks: '600760,688122,002179,600893', names: '中航沈飞,汉光科技,中航光电,航发动力' },
+    { name: '消费白马',   stocks: '600519,000858,000568,603288', names: '贵州茅台,五粮液,泸州老窖,海天味业' },
   ];
 
   const SOP_5A_DIMS = [
@@ -57,12 +57,16 @@
   function initSopTracks() {
     const chipBox = document.getElementById('sopTrackChips');
     if (!chipBox) return;
-    chipBox.innerHTML = SOP_TRACKS.map(t =>
-      `<button class="sop-track-chip" data-stocks="${escHtml(t.stocks)}">
+    chipBox.innerHTML = SOP_TRACKS.map(t => {
+      const codes = t.stocks.split(',');
+      const names = t.names.split(',');
+      const labels = codes.map((c, i) => `${c}(${names[i] || ''})`).join('、');
+      return `<button class="sop-track-chip" data-stocks="${escHtml(t.stocks)}">
          <span class="sop-track-name">${t.name}</span>
+         <span class="sop-track-stocks">${labels}</span>
          <span class="sop-track-arrow">→ 扫描</span>
-       </button>`
-    ).join('');
+       </button>`;
+    }).join('');
     chipBox.querySelectorAll('.sop-track-chip').forEach(btn => {
       btn.addEventListener('click', () => {
         const stocks = btn.dataset.stocks;
