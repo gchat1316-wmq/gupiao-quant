@@ -80,7 +80,7 @@
       feed.innerHTML = '';
     }
     const params = new URLSearchParams({ kw: currentKw, page: currentPage, size: PAGE_SIZE });
-    const res = await fetch('/api/quotes?' + params);
+    const res = await fetch('api/quotes?' + params);
     const data = await res.json();
     grandTotal = data.total;
     appendCards(data.list);
@@ -116,7 +116,7 @@
     const likeBtn = e.target.closest('.quote-like-btn');
     if (likeBtn) {
       const id = likeBtn.dataset.id;
-      await fetch('/api/quotes/' + id + '/like', { method: 'POST' });
+      await fetch('api/quotes/' + id + '/like', { method: 'POST' });
       const cnt = likeBtn.querySelector('.like-cnt');
       cnt.textContent = parseInt(cnt.textContent) + 1;
       likeBtn.classList.add('liked');
@@ -129,13 +129,13 @@
       importBtn.disabled = true;
       importBtn.textContent = '导入中…';
       try {
-        const res = await fetch('/api/quotes/' + id + '/import', { method: 'POST' });
+        const res = await fetch('api/quotes/' + id + '/import', { method: 'POST' });
         const data = await res.json();
         importBtn.classList.add('imported');
         importBtn.textContent = '✓ 已加入学习';
         importBtn.dataset.node = data.nodeId;
         importBtn.onclick = () => {
-          window.open('/node.html?id=' + data.nodeId, '_blank');
+          window.open('node.html?id=' + data.nodeId, '_blank');
         };
       } catch (err) {
         importBtn.disabled = false;
@@ -147,7 +147,7 @@
 
     // Click on imported button → jump
     if (importBtn && importBtn.classList.contains('imported') && importBtn.dataset.node) {
-      window.open('/node.html?id=' + importBtn.dataset.node, '_blank');
+      window.open('node.html?id=' + importBtn.dataset.node, '_blank');
     }
   });
 
@@ -256,7 +256,7 @@
       if (activeTab === 'single') {
         const content = document.getElementById('quoteContent').value.trim();
         if (!content) { alert('请输入金句内容'); return; }
-        await fetch('/api/quotes', {
+        await fetch('api/quotes', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -270,7 +270,7 @@
         const raw = document.getElementById('quoteBatch').value;
         const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
         if (lines.length === 0) { alert('请输入至少一条金句'); return; }
-        await fetch('/api/quotes/batch', {
+        await fetch('api/quotes/batch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(lines)

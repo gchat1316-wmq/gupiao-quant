@@ -28,8 +28,8 @@
     currentNid = nid;
     try {
       const [nodeResp, courseResp] = await Promise.all([
-        fetch('/api/study/nodes/' + nid),
-        fetch('/api/study/courses/' + cid)
+        fetch('api/study/nodes/' + nid),
+        fetch('api/study/courses/' + cid)
       ]);
       if (!nodeResp.ok) throw new Error('节点加载失败 ' + nodeResp.status);
       if (!courseResp.ok) throw new Error('课程加载失败 ' + courseResp.status);
@@ -79,14 +79,14 @@
     }
 
     document.getElementById('quizBtn').addEventListener('click', function () {
-      window.location.href = '/quiz.html?cid=' + courseData.course.id + '&nid=' + n.id;
+      window.location.href = 'quiz.html?cid=' + courseData.course.id + '&nid=' + n.id;
     });
 
     window.renderMindmap(document.getElementById('mindmap'), courseData.tree, {
       currentId: n.id,
       onClick: function (clicked) {
         if (clicked.id === n.id) return;
-        window.location.href = '/node.html?cid=' + courseData.course.id + '&nid=' + clicked.id;
+        window.location.href = 'node.html?cid=' + courseData.course.id + '&nid=' + clicked.id;
       }
     });
   }
@@ -155,7 +155,7 @@
     genBtn.textContent = '生成中...';
     genBtn.style.pointerEvents = 'none';
     try {
-      const resp = await fetch('/api/study/nodes/' + nid + '/generate-card', {
+      const resp = await fetch('api/study/nodes/' + nid + '/generate-card', {
         method: 'POST'
       });
       if (!resp.ok) {

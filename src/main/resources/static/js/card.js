@@ -25,7 +25,7 @@
     }
     cidCache = cid;
     try {
-      const resp = await fetch('/api/study/nodes/' + nid);
+      const resp = await fetch('api/study/nodes/' + nid);
       if (!resp.ok) throw new Error('加载失败 ' + resp.status);
       nodeDataCache = await resp.json();
       render(nodeDataCache, cid);
@@ -51,7 +51,7 @@
 
     bindTabs();
     document.getElementById('quizBtn').addEventListener('click', function () {
-      window.location.href = '/quiz.html?cid=' + cid + '&nid=' + data.node.id;
+      window.location.href = 'quiz.html?cid=' + cid + '&nid=' + data.node.id;
     });
   }
 
@@ -140,7 +140,7 @@
       genBtn.disabled = true;
     }
     try {
-      var resp = await fetch('/api/study/nodes/' + nid + '/generate-card', { method: 'POST' });
+      var resp = await fetch('api/study/nodes/' + nid + '/generate-card', { method: 'POST' });
       if (!resp.ok) {
         var text = await resp.text();
         throw new Error('生成失败: ' + text);

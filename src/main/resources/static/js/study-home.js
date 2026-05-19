@@ -122,7 +122,7 @@
 
   async function loadHome() {
     try {
-      const resp = await fetch('/api/study/home');
+      const resp = await fetch('api/study/home');
       if (!resp.ok) throw new Error('加载失败 ' + resp.status);
       homeData = await resp.json();
       renderMy();
@@ -139,7 +139,7 @@
       if (!card) return;
       const id = card.getAttribute('data-id');
       if (!id) return;
-      window.location.href = '/course.html?id=' + id;
+      window.location.href = 'course.html?id=' + id;
     }
     els.myGrid.addEventListener('click', go);
     els.pubGrid.addEventListener('click', go);
@@ -209,7 +209,7 @@
     try {
       const form = new FormData();
       form.append('file', pickedFile);
-      const resp = await fetch('/api/study/upload', { method: 'POST', body: form });
+      const resp = await fetch('api/study/upload', { method: 'POST', body: form });
       if (!resp.ok) {
         const text = await resp.text();
         throw new Error('上传失败: ' + text);
@@ -217,7 +217,7 @@
       const data = await resp.json();
       closeModal();
       alert('项目已创建: ' + data.title + '\n' + (data.message || ''));
-      window.location.href = '/course.html?id=' + data.courseId;
+      window.location.href = 'course.html?id=' + data.courseId;
     } catch (e) {
       alert(e.message || '上传失败');
       els.createBtn.disabled = false;

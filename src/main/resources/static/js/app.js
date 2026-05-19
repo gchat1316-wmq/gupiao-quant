@@ -195,7 +195,7 @@
 
   /* ===== Data fetch ===== */
   async function fetchData(keywords) {
-    const resp = await fetch('/api/stock/financial?keywords=' + encodeURIComponent(keywords));
+    const resp = await fetch('api/stock/financial?keywords=' + encodeURIComponent(keywords));
     if (!resp.ok) throw new Error('请求失败: ' + resp.status);
     return resp.json();
   }

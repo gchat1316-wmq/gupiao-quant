@@ -24,7 +24,7 @@
       return;
     }
     try {
-      const resp = await fetch('/api/study/courses/' + id);
+      const resp = await fetch('api/study/courses/' + id);
       if (!resp.ok) throw new Error('加载失败 ' + resp.status);
       courseData = await resp.json();
       render(courseData);
@@ -95,7 +95,7 @@
 
     mindmapApi = window.renderMindmap(document.getElementById('mindmap'), data.tree, {
       onClick: function (node) {
-        window.location.href = '/node.html?cid=' + c.id + '&nid=' + node.id;
+        window.location.href = 'node.html?cid=' + c.id + '&nid=' + node.id;
       }
     });
 
@@ -157,7 +157,7 @@
         const item = flatList[studyIdx];
         if (item && item.node && courseData) {
           if (confirm('已完成全部知识点浏览,是否进入"' + item.node.title + '"的知识卡片?')) {
-            window.location.href = '/node.html?cid=' + courseData.course.id + '&nid=' + item.node.id;
+            window.location.href = 'node.html?cid=' + courseData.course.id + '&nid=' + item.node.id;
           }
         }
       }

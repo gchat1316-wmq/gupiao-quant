@@ -24,7 +24,7 @@
       return;
     }
     try {
-      const resp = await fetch('/api/study/nodes/' + nid + '/quizzes');
+      const resp = await fetch('api/study/nodes/' + nid + '/quizzes');
       if (!resp.ok) throw new Error('加载失败 ' + resp.status);
       quizzes = await resp.json();
       if (!quizzes.length) {
@@ -86,7 +86,7 @@
     const form = new URLSearchParams();
     form.append('picked', picked);
     try {
-      const resp = await fetch('/api/study/quizzes/' + q.id + '/answer', {
+      const resp = await fetch('api/study/quizzes/' + q.id + '/answer', {
         method: 'POST',
         body: form
       });

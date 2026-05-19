@@ -161,7 +161,7 @@
     btn.disabled = true;
     btn.textContent = '保存中...';
     try {
-      const res = await fetch('/api/invest/pool', {
+      const res = await fetch('api/invest/pool', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -199,7 +199,7 @@
     const el = document.getElementById('sopCheckupResult');
     el.innerHTML = '<div style="text-align:center;padding:24px;color:#9ca3af">体检中...</div>';
     try {
-      const res = await fetch(`/api/invest/sop/checkup?keyword=${encodeURIComponent(keyword)}`);
+      const res = await fetch(`api/invest/sop/checkup?keyword=${encodeURIComponent(keyword)}`);
       const data = await res.json();
       renderSopCheckup(data);
     } catch (e) {
@@ -342,7 +342,7 @@
     resultEl.innerHTML = '<div style="text-align:center;padding:32px;color:#9ca3af">加载中...</div>';
 
     try {
-      const res = await fetch(`/api/invest/prosperity?keywords=${encodeURIComponent(keywords)}&quarters=${quarters}`);
+      const res = await fetch(`api/invest/prosperity?keywords=${encodeURIComponent(keywords)}&quarters=${quarters}`);
       const data = await res.json();
       renderProsperity(data);
     } catch (e) {
@@ -440,7 +440,7 @@
     resultEl.innerHTML = '<div style="text-align:center;padding:32px;color:#9ca3af">加载中...</div>';
 
     try {
-      const res = await fetch(`/api/invest/prosperity?keywords=${encodeURIComponent(keywords)}&quarters=16`);
+      const res = await fetch(`api/invest/prosperity?keywords=${encodeURIComponent(keywords)}&quarters=16`);
       const data = await res.json();
       renderHeatmap(data);
     } catch (e) {
@@ -520,7 +520,7 @@
 
   async function loadPool() {
     try {
-      const res = await fetch('/api/invest/pool');
+      const res = await fetch('api/invest/pool');
       poolData = await res.json();
       renderPool();
     } catch (e) {
@@ -581,7 +581,7 @@
   async function removePool(id, name) {
     if (!confirm(`确认从股票池移除「${name}」？`)) return;
     try {
-      await fetch(`/api/invest/pool/${id}`, { method: 'DELETE' });
+      await fetch(`api/invest/pool/${id}`, { method: 'DELETE' });
       await loadPool();
     } catch (e) {
       alert('移除失败：' + e.message);
@@ -657,13 +657,13 @@
 
     try {
       if (editingPoolId) {
-        await fetch(`/api/invest/pool/${editingPoolId}`, {
+        await fetch(`api/invest/pool/${editingPoolId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         });
       } else {
-        const res = await fetch('/api/invest/pool', {
+        const res = await fetch('api/invest/pool', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
