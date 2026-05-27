@@ -25,10 +25,43 @@ public class MiniMaxClient {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     /**
-     * 调用 MiniMax 的 Anthropic 兼容 Messages 接口.
-     * @return assistant 消息的纯文本内容
+     * 调用 MiniMax 的 Anthropic 兼容 Messages 接口（纯文本）。
      */
     public String chatComplete(String systemPrompt, String userPrompt) {
+        return chatCompleteInternal(systemPrompt, userPrompt, null, null);
+    }
+
+    /**
+     * 调用 MiniMax 视觉/多模态接口。
+     *
+     * @param systemPrompt    系统提示
+     * @param userPrompt      用户文本提示
+     * @param imageBase64     图片的 base64（可带 data:image/...;base64, 前缀，会自动剥离）
+     * @param imageMediaType  图片 MIME，如 image/png；为空时按 base64 前缀推断，否则默认 image/jpeg
+     */
+    public String chatCompleteVision(String systemPrompt, String userPrompt,
+                                      String imageBase64, String imageMediaType) {
+        if (imageBase64 == null || imageBase64.isBlank()) {
+            throw new IllegalArgumentException("图片 base64 不能为空");
+        }
+        String pureBase64 = imageBase64;
+        String mediaType = imageMediaType;
+        if (pureBase64.startsWith("data:")) {
+            int comma = pureBase64.indexOf(',');
+            int semi = pureBase64.indexOf(';');
+            if (semi > 5 && (mediaType == null || mediaType.isBlank())) {
+                mediaType = pureBase64.substring(5, semi);
+            }
+            if (comma > 0) {
+                pureBase64 = pureBase64.substring(comma + 1);
+            }
+        }
+        if (mediaType == null || mediaType.isBlank()) mediaType = "image/jpeg";
+        return chatCompleteInternal(systemPrompt, userPrompt, pureBase64, mediaType);
+    }
+
+    private String chatCompleteInternal(String systemPrompt, String userPrompt,
+                                         String imageBase64, String imageMediaType) {
         AiProperties.MiniMax cfg = props.getMinimax();
         if (!cfg.isEnabled() || cfg.getApiKey() == null || cfg.getApiKey().isBlank()) {
             throw new IllegalStateException("MiniMax 未启用或未配置 API Key");
@@ -42,17 +75,38 @@ public class MiniMaxClient {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setAcceptCharset(List.of(StandardCharsets.UTF_8));
-        headers.setBearerAuth(cfg.getApiKey());
+        headers.set("X-Api-Key", cfg.getApiKey());
 
-        // Anthropic Messages API 格式
+        // 选择模型：视觉调用优先用 visionModel
+        String model = cfg.getModel();
+        if (imageBase64 != null && cfg.getVisionModel() != null && !cfg.getVisionModel().isBlank()) {
+            model = cfg.getVisionModel();
+        }
+
+        // 构建 user content：文本 / 多模态混合
+        Object userContent;
+        if (imageBase64 == null) {
+            userContent = userPrompt;
+        } else {
+            Map<String, Object> imageBlock = new LinkedHashMap<>();
+            imageBlock.put("type", "image");
+            Map<String, Object> source = new LinkedHashMap<>();
+            source.put("type", "base64");
+            source.put("media_type", imageMediaType);
+            source.put("data", imageBase64);
+            imageBlock.put("source", source);
+            userContent = List.of(
+                    imageBlock,
+                    Map.of("type", "text", "text", userPrompt)
+            );
+        }
+
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("model", cfg.getModel());
+        body.put("model", model);
         body.put("max_tokens", 4096);
         body.put("system", systemPrompt);
-        body.put("messages", List.of(
-                Map.of("role", "user", "content", userPrompt)
-        ));
-        body.put("temperature", 0.4);
+        body.put("messages", List.of(Map.of("role", "user", "content", userContent)));
+        body.put("temperature", 0.2);
         body.put("stream", false);
 
         String url = cfg.getBaseUrl().replaceAll("/+$", "") + "/messages";
@@ -60,7 +114,7 @@ public class MiniMaxClient {
         org.springframework.http.HttpEntity<Map<String, Object>> entity =
                 new org.springframework.http.HttpEntity<>(body, headers);
 
-        log.info("MiniMax 调用: model={}, prompt长度={}", cfg.getModel(), userPrompt.length());
+        log.info("MiniMax 调用: model={}, vision={}, prompt长度={}", model, imageBase64 != null, userPrompt.length());
         String respStr = rest.postForObject(url, entity, String.class);
         if (respStr == null) {
             throw new IllegalStateException("MiniMax 返回为空");

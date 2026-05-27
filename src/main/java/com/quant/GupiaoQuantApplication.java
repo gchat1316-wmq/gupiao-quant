@@ -1,12 +1,11 @@
 package com.quant;
 
-import com.quant.config.AiProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
-@EnableConfigurationProperties(AiProperties.class)
+@EnableScheduling
 public class GupiaoQuantApplication {
 
     public static void main(String[] args) {

@@ -347,6 +347,251 @@
   font-weight: 600;
 }
 
+.pool-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ===== 列表化股票池 ===== */
+#poolListWrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid #e5e7eb;
+  border-radius: var(--invest-card-radius);
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.pool-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.pool-table thead th {
+  background: #f9fafb;
+  color: #4b5563;
+  font-weight: 600;
+  text-align: center;
+  padding: 8px 6px;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.pool-table th.pool-col-stock,
+.pool-table td.pool-col-stock {
+  position: sticky;
+  left: 0;
+  background: #fff;
+  border-right: 1px solid #e5e7eb;
+  z-index: 4;
+  min-width: 130px;
+}
+
+.pool-table thead th.pool-col-stock {
+  background: #f9fafb;
+  z-index: 6;
+}
+
+.pool-table tbody tr:nth-child(even) td {
+  background: #fafbfc;
+}
+
+.pool-table tbody tr:nth-child(even) td.pool-col-stock {
+  background: #fafbfc;
+}
+
+.pool-table tbody tr:hover td {
+  background: #fdf6e3 !important;
+}
+
+.pool-table tbody tr.alert-buy td {
+  background: #d1fae5 !important;
+}
+
+.pool-table tbody tr.alert-sell td {
+  background: #fee2e2 !important;
+}
+
+.pool-table tbody td {
+  padding: 6px 6px;
+  border-bottom: 1px solid #f1f3f5;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.pool-cell-name {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: 2px;
+}
+
+.pool-cell-name .name {
+  font-weight: 700;
+  color: #111827;
+  font-size: 13px;
+}
+
+.pool-cell-name .code {
+  font-size: 11px;
+  color: #9ca3af;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+}
+
+.pool-cell-name .alert-tag {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 8px;
+  margin-top: 2px;
+  display: inline-block;
+}
+
+.pool-cell-name .alert-tag.buy {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.pool-cell-name .alert-tag.sell {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.pool-table input.pool-cell-input,
+.pool-table select.pool-cell-select {
+  width: 100%;
+  border: 1px solid transparent;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  padding: 3px 4px;
+  text-align: center;
+  border-radius: 4px;
+  color: inherit;
+  outline: none;
+}
+
+.pool-table input.pool-cell-input:hover,
+.pool-table select.pool-cell-select:hover {
+  border-color: #e5e7eb;
+  background: #fff;
+}
+
+.pool-table input.pool-cell-input:focus,
+.pool-table select.pool-cell-select:focus {
+  border-color: var(--invest-gold);
+  background: #fffaf0;
+  box-shadow: 0 0 0 2px rgba(212, 160, 23, 0.2);
+}
+
+.pool-table input.pool-cell-input.saving {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.pool-table input.pool-cell-input.saved {
+  animation: pool-cell-flash 0.6s ease;
+}
+
+.pool-table input.pool-cell-input.error {
+  border-color: var(--invest-red);
+  background: #fef2f2;
+}
+
+@keyframes pool-cell-flash {
+  0%   { background: #d1fae5; }
+  100% { background: transparent; }
+}
+
+.pool-cell-price {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+}
+
+.pool-cell-price.below-buy {
+  color: #065f46;
+  font-weight: 700;
+}
+
+.pool-cell-price.above-sell {
+  color: #991b1b;
+  font-weight: 700;
+}
+
+.pool-cell-pct.up {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.pool-cell-pct.down {
+  color: #047857;
+  font-weight: 600;
+}
+
+.pool-cell-memo {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  color: #4b5563;
+  text-align: left;
+  padding: 0 4px;
+}
+
+.pool-cell-memo:hover {
+  color: var(--invest-gold);
+}
+
+.pool-cell-memo.empty {
+  color: #d1d5db;
+  font-style: italic;
+}
+
+.pool-cell-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+}
+
+.pool-row-btn {
+  background: none;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+  color: #6b7280;
+}
+
+.pool-row-btn:hover {
+  border-color: var(--invest-gold-border);
+  color: var(--invest-gold);
+}
+
+.pool-row-btn.danger:hover {
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+.pool-list-foot {
+  padding: 12px 16px;
+  font-size: 12px;
+  color: #9ca3af;
+  border-top: 1px solid #f1f3f5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ===== legacy pool card (kept for fallback) ===== */
 .pool-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -1291,4 +1536,205 @@
   .pool-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ===== Wide modal & import modal ===== */
+.invest-modal.invest-modal-wide {
+  max-width: 720px;
+  width: 92vw;
+}
+
+.invest-modal-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.invest-modal-row:has(.invest-modal-field:nth-child(3)) {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+@media (max-width: 640px) {
+  .invest-modal-row,
+  .invest-modal-row:has(.invest-modal-field:nth-child(3)) {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== Import modal ===== */
+.import-tip {
+  font-size: 12px;
+  color: #6b7280;
+  background: #f9fafb;
+  border-left: 3px solid var(--invest-gold);
+  padding: 8px 12px;
+  border-radius: 0 6px 6px 0;
+  line-height: 1.6;
+}
+
+.import-upload-area {
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  padding: 36px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  background: #fafbfc;
+}
+
+.import-upload-area:hover,
+.import-upload-area.dragover {
+  border-color: var(--invest-gold);
+  background: var(--invest-gold-soft);
+}
+
+.import-upload-icon {
+  font-size: 36px;
+  margin-bottom: 8px;
+}
+
+.import-upload-text {
+  font-size: 14px;
+  color: #4b5563;
+  font-weight: 600;
+}
+
+.import-upload-hint {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-top: 4px;
+}
+
+.import-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.import-preview img {
+  max-width: 100%;
+  max-height: 360px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.import-default-poolType {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.import-default-poolType select {
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.import-result-table-wrap {
+  max-height: 50vh;
+  overflow-y: auto;
+  overflow-x: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.import-result-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.import-result-table th,
+.import-result-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #f1f3f5;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.import-result-table thead th {
+  background: #f9fafb;
+  position: sticky;
+  top: 0;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.import-result-table input[type="checkbox"] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+.import-result-table input[type="text"],
+.import-result-table input[type="number"] {
+  width: 80px;
+  padding: 3px 5px;
+  border: 1px solid transparent;
+  background: transparent;
+  font-size: 12px;
+  text-align: center;
+  border-radius: 4px;
+}
+
+.import-result-table input[type="text"]:focus,
+.import-result-table input[type="number"]:focus {
+  border-color: var(--invest-gold);
+  background: #fff;
+  outline: none;
+}
+
+.import-result-table tr.match-failed td {
+  background: #fef3c7;
+}
+
+.import-result-table .match-status.ok {
+  color: #15803d;
+  font-size: 11px;
+}
+
+.import-result-table .match-status.fail {
+  color: #b45309;
+  font-size: 11px;
+}
+
+.import-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.import-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px;
+  color: #6b7280;
+}
+
+.import-loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e5e7eb;
+  border-top-color: var(--invest-gold);
+  border-radius: 50%;
+  animation: import-spin 0.8s linear infinite;
+}
+
+@keyframes import-spin {
+  to { transform: rotate(360deg); }
+}
+
+.import-error {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 13px;
 }

@@ -1,20 +1,18 @@
 package com.quant.dto.invest;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Builder;
+import lombok.Data;
 
 import java.math.BigDecimal;
 
-@Getter
-@Setter
-public class PoolSaveRequest {
-    private String keyword;
+@Data
+@Builder
+public class OcrParsedItemDTO {
+    private String stockName;
+    private String stockCode;
     private String poolType;
-    private String memo;
-    /** @deprecated 兼容旧字段 */
-    @Deprecated
-    private BigDecimal targetPrice;
     private String status;
+    private boolean matched;
 
     private BigDecimal undervaluedPrice;
     private BigDecimal fairPrice;
@@ -24,4 +22,6 @@ public class PoolSaveRequest {
     private BigDecimal revenueForecastY0;
     private BigDecimal revenueForecastY1;
     private BigDecimal revenueForecastY2;
+
+    private String memo;
 }

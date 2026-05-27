@@ -222,6 +222,58 @@
     renderChart(data.stocks, currentChartKey);
   }
 
+  /* ===== Stock info bar ===== */
+  function buildInfoBar(s) {
+    var info = s.basicInfo || {};
+    var head = '';
+
+    head += '<span class="info-bar-title">' + esc(s.stockName) + '&nbsp;&nbsp;' + esc(s.stockCode) + '</span>';
+    head += '<span class="info-badges">';
+    if (info.board) head += '<span class="info-badge info-badge-board">' + esc(info.board) + '</span>';
+    if (info.industry) {
+      var indLabel = info.industry + (info.extraIndustryCount > 0 ? '+' + info.extraIndustryCount : '');
+      head += '<span class="info-badge info-badge-industry" title="' + esc(info.industry) + '">' + esc(indLabel) + '</span>';
+    }
+    if (info.valuationLevel) {
+      var vClass = { '高': 'high', '中': 'mid', '低': 'low' }[info.valuationLevel] || 'mid';
+      head += '<span class="info-badge info-badge-valuation-' + vClass + '">估值水平: ' + esc(info.valuationLevel) + '</span>';
+    }
+    head += '</span>';
+
+    var kvs = '';
+    if (info.listDate) {
+      var yearsLabel = info.listYears > 0 ? ' (' + info.listYears + '年)' : '';
+      kvs += infoKV('上市日期', info.listDate + yearsLabel);
+    }
+    kvs += infoKV('PE-TTM', fmtDecimal(info.peTtm));
+    kvs += infoKV('PB', fmtDecimal(info.pb));
+    kvs += infoKV('PS-TTM', fmtDecimal(info.psTtm));
+
+    var foot = info.updatedAt
+      ? '<div class="info-bar-foot">数据来源: ' + esc(info.dataSource || 'qmt') + ' · ' + esc(info.updatedAt) + '</div>'
+      : '';
+
+    return '<div class="stock-info-bar">' +
+      '<div class="info-bar-head">' + head + '</div>' +
+      '<div class="info-kv-row">' + kvs + '</div>' +
+      foot +
+      '</div>';
+  }
+
+  function infoKV(label, value) {
+    var cls = (value === '--') ? ' muted' : '';
+    return '<div class="info-kv">' +
+      '<span class="info-kv-label">' + esc(label) + '</span>' +
+      '<span class="info-kv-value' + cls + '">' + esc(value) + '</span>' +
+      '</div>';
+  }
+
+  function fmtDecimal(v) {
+    if (v == null) return '--';
+    var n = Number(v);
+    return isFinite(n) ? n.toFixed(2) : '--';
+  }
+
   function renderTables(stocks) {
     els.tablesWrap.innerHTML = '';
     const keys = METRIC_CONFIG.filter(function (m) { return selectedKeys.has(m.key); }).map(function (m) { return m.key; });
@@ -232,8 +284,10 @@
     stocks.forEach(function (s) {
       const headerCols = s.quarters.map(function (q) { return '<th>' + esc(q.quarter) + '</th>'; }).join('');
       const rows = keys.map(function (key) { return rowHtml(METRIC_MAP[key].label, s.quarters, key); }).join('');
+      var hasInfo = !!s.basicInfo;
       els.tablesWrap.insertAdjacentHTML('beforeend',
-        '<div class="table-scroll">' +
+        (hasInfo ? buildInfoBar(s) : '') +
+        '<div class="table-scroll' + (hasInfo ? ' has-info-bar' : '') + '">' +
           '<table class="stock-table">' +
             '<thead><tr>' +
               '<th class="first-col">' + esc(s.stockName) + '<br/>(' + esc(s.stockCode) + ')</th>' +

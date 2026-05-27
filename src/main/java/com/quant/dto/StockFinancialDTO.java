@@ -10,5 +10,6 @@ import java.util.List;
 public class StockFinancialDTO {
     private String stockCode;
     private String stockName;
+    private StockBasicInfoDTO basicInfo;
     private List<QuarterMetricDTO> quarters;
 }

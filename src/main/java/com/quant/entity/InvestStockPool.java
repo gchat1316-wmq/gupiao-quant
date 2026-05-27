@@ -28,6 +28,30 @@ public class InvestStockPool {
     @Column(name = "pool_type", nullable = false, length = 10)
     private String poolType;
 
+    @Column(name = "undervalued_price", precision = 10, scale = 2)
+    private BigDecimal undervaluedPrice;
+
+    @Column(name = "fair_price", precision = 10, scale = 2)
+    private BigDecimal fairPrice;
+
+    @Column(name = "overvalued_price", precision = 10, scale = 2)
+    private BigDecimal overvaluedPrice;
+
+    @Column(name = "target_buy_price", precision = 10, scale = 2)
+    private BigDecimal targetBuyPrice;
+
+    @Column(name = "target_sell_price", precision = 10, scale = 2)
+    private BigDecimal targetSellPrice;
+
+    @Column(name = "revenue_forecast_y0", precision = 10, scale = 2)
+    private BigDecimal revenueForecastY0;
+
+    @Column(name = "revenue_forecast_y1", precision = 10, scale = 2)
+    private BigDecimal revenueForecastY1;
+
+    @Column(name = "revenue_forecast_y2", precision = 10, scale = 2)
+    private BigDecimal revenueForecastY2;
+
     @Column(name = "memo", columnDefinition = "TEXT")
     private String memo;
 
@@ -36,6 +60,12 @@ public class InvestStockPool {
 
     @Column(name = "status", length = 10)
     private String status = "watching";
+
+    @Column(name = "alert_state", length = 20)
+    private String alertState = "none";
+
+    @Column(name = "last_alert_at")
+    private LocalDateTime lastAlertAt;
 
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;

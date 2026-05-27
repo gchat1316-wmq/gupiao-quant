@@ -6,12 +6,15 @@ import com.quant.dto.invest.ProsperityQuarterDTO;
 import com.quant.dto.invest.ProsperityResultDTO;
 import com.quant.dto.invest.ProsperityStockDTO;
 import com.quant.dto.invest.SopCheckupDTO;
+import com.quant.dto.invest.PoolFieldUpdateRequest;
 import com.quant.entity.InvestStockPool;
+import com.quant.entity.TradeStockBasic;
+import com.quant.entity.TradeStockDaily;
 import com.quant.entity.TradeStockFinancial;
-import com.quant.entity.TradeStockInfo;
 import com.quant.repository.InvestStockPoolRepository;
+import com.quant.repository.TradeStockBasicRepository;
+import com.quant.repository.TradeStockDailyRepository;
 import com.quant.repository.TradeStockFinancialRepository;
-import com.quant.repository.TradeStockInfoRepository;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,8 +22,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,15 +38,18 @@ public class InvestService {
     private static final int DEFAULT_QUARTERS = 8;
     private static final int MAX_QUARTERS = 16;
 
-    private final TradeStockInfoRepository stockInfoRepository;
+    private final TradeStockBasicRepository stockBasicRepository;
     private final TradeStockFinancialRepository financialRepository;
+    private final TradeStockDailyRepository dailyRepository;
     private final InvestStockPoolRepository poolRepository;
 
-    public InvestService(TradeStockInfoRepository stockInfoRepository,
+    public InvestService(TradeStockBasicRepository stockBasicRepository,
                          TradeStockFinancialRepository financialRepository,
+                         TradeStockDailyRepository dailyRepository,
                          InvestStockPoolRepository poolRepository) {
-        this.stockInfoRepository = stockInfoRepository;
+        this.stockBasicRepository = stockBasicRepository;
         this.financialRepository = financialRepository;
+        this.dailyRepository = dailyRepository;
         this.poolRepository = poolRepository;
     }
 
@@ -58,12 +66,12 @@ public class InvestService {
         Map<String, String> allQuarterDates = new LinkedHashMap<>();
 
         for (String token : tokens) {
-            Optional<TradeStockInfo> infoOpt = resolveStock(token);
+            Optional<TradeStockBasic> infoOpt = resolveStock(token);
             if (infoOpt.isEmpty()) {
                 notFound.add(token);
                 continue;
             }
-            TradeStockInfo info = infoOpt.get();
+            TradeStockBasic info = infoOpt.get();
             List<TradeStockFinancial> allRecords = financialRepository
                     .findByStockCodeOrderByReportDateDesc(info.getStockCode());
             // 建立日期索引，用于计算同比
@@ -211,41 +219,40 @@ public class InvestService {
                 .collect(Collectors.toList());
     }
 
-    private Optional<TradeStockInfo> resolveStock(String token) {
+    private Optional<TradeStockBasic> resolveStock(String token) {
         String t = token.trim();
         if (t.isEmpty()) return Optional.empty();
 
-        // 兼容带交易所后缀的代码，如 600519.SH → bareCode=600519
         String bareCode = t.contains(".") ? t.substring(0, t.indexOf('.')) : t;
 
         if (bareCode.matches("\\d{4,8}")) {
-            // 先用裸代码查 stock_info
-            Optional<TradeStockInfo> byCode = stockInfoRepository.findByStockCode(bareCode);
-            if (byCode.isPresent()) return byCode;
-            // fallback：查财务数据（支持 600519 和 600519.SH 两种格式）
-            List<TradeStockFinancial> fin = financialRepository.findByStockCodeOrderByReportDateDesc(bareCode);
+            Optional<TradeStockBasic> byFull = stockBasicRepository.findByStockCode(t);
+            if (byFull.isPresent()) return byFull;
+            List<TradeStockBasic> byPrefix = stockBasicRepository.findByStockCodePrefix(bareCode);
+            if (!byPrefix.isEmpty()) return Optional.of(byPrefix.get(0));
+            List<TradeStockFinancial> fin = financialRepository.findByStockCodeOrderByReportDateDesc(t);
             if (!fin.isEmpty()) {
                 String finName = fin.get(0).getStockName();
-                return Optional.of(syntheticInfo(bareCode, finName != null && !finName.isBlank() ? finName : bareCode));
+                return Optional.of(syntheticBasic(t, finName != null && !finName.isBlank() ? finName : t));
             }
         }
-        List<TradeStockInfo> byName = stockInfoRepository.findByStockNameLike(t);
+        List<TradeStockBasic> byName = stockBasicRepository.findByStockNameLike(t);
         if (!byName.isEmpty()) return Optional.of(byName.get(0));
-        // 再兜底：按名称查财务数据
         List<TradeStockFinancial> finByName = financialRepository.findByStockNameLike(t);
         if (!finByName.isEmpty()) {
             TradeStockFinancial first = finByName.get(0);
             String finName = first.getStockName();
-            return Optional.of(syntheticInfo(first.getStockCode(), finName != null && !finName.isBlank() ? finName : first.getStockCode()));
+            return Optional.of(syntheticBasic(first.getStockCode(),
+                    finName != null && !finName.isBlank() ? finName : first.getStockCode()));
         }
         return Optional.empty();
     }
 
-    private TradeStockInfo syntheticInfo(String code, String name) {
-        TradeStockInfo info = new TradeStockInfo();
-        info.setStockCode(code);
-        info.setStockName(name);
-        return info;
+    private TradeStockBasic syntheticBasic(String code, String name) {
+        TradeStockBasic b = new TradeStockBasic();
+        b.setStockCode(code);
+        b.setStockName(name);
+        return b;
     }
 
     // ===== 股票池管理 =====
@@ -257,29 +264,41 @@ public class InvestService {
 
         List<String> codes = items.stream().map(InvestStockPool::getStockCode).collect(Collectors.toList());
 
-        // 批量查股票名（1次 IN 查询代替 N 次单查）
-        Map<String, String> nameMap = stockInfoRepository.findByStockCodeIn(codes).stream()
-                .collect(Collectors.toMap(TradeStockInfo::getStockCode, TradeStockInfo::getStockName));
+        Map<String, TradeStockBasic> basicMap = stockBasicRepository.findByStockCodeIn(codes).stream()
+                .collect(Collectors.toMap(TradeStockBasic::getStockCode, b -> b, (a, b) -> a));
 
-        // 批量查各股票最新财务记录（1次子查询代替 N 次全量查询）
         Map<String, TradeStockFinancial> finMap = financialRepository.findLatestByStockCodes(codes).stream()
                 .collect(Collectors.toMap(TradeStockFinancial::getStockCode, f -> f));
 
-        return items.stream().map(p -> toPoolItemDTO(p, nameMap, finMap)).collect(Collectors.toList());
+        Map<String, TradeStockDaily> latestDailyMap = dailyRepository.findLatestByStockCodes(codes).stream()
+                .collect(Collectors.toMap(TradeStockDaily::getStockCode, d -> d, (a, b) -> a));
+
+        LocalDate yearStart = LocalDate.of(LocalDate.now().getYear(), 1, 1);
+        Map<String, TradeStockDaily> yearStartDailyMap = dailyRepository
+                .findFirstAfterDateByStockCodes(codes, yearStart).stream()
+                .collect(Collectors.toMap(TradeStockDaily::getStockCode, d -> d, (a, b) -> a));
+
+        PoolPriceContext ctx = new PoolPriceContext(basicMap, finMap, latestDailyMap, yearStartDailyMap);
+        return items.stream().map(p -> toPoolItemDTO(p, ctx)).collect(Collectors.toList());
     }
+
+    private record PoolPriceContext(Map<String, TradeStockBasic> basicMap,
+                                    Map<String, TradeStockFinancial> finMap,
+                                    Map<String, TradeStockDaily> latestDailyMap,
+                                    Map<String, TradeStockDaily> yearStartDailyMap) { }
 
     @Transactional
     public PoolItemDTO addToPool(PoolSaveRequest req) {
         String kw = req.getKeyword() == null ? "" : req.getKeyword().trim();
-        Optional<TradeStockInfo> infoOpt = resolveStock(kw);
+        Optional<TradeStockBasic> infoOpt = resolveStock(kw);
         // 最后兜底：纯数字代码格式直接放行（财务数据将来会有）
         if (infoOpt.isEmpty() && kw.matches("\\d{4,8}")) {
-            infoOpt = Optional.of(syntheticInfo(kw, kw));
+            infoOpt = Optional.of(syntheticBasic(kw, kw));
         }
         if (infoOpt.isEmpty()) {
             throw new IllegalArgumentException("未找到股票：" + kw + "（请输入6位股票代码或完整名称）");
         }
-        TradeStockInfo info = infoOpt.get();
+        TradeStockBasic info = infoOpt.get();
         if (poolRepository.findByStockCode(info.getStockCode()).isPresent()) {
             throw new IllegalArgumentException("该股票已在股票池中：" + info.getStockName());
         }
@@ -287,9 +306,8 @@ public class InvestService {
         InvestStockPool pool = new InvestStockPool();
         pool.setStockCode(info.getStockCode());
         pool.setPoolType(req.getPoolType() != null ? req.getPoolType() : "quality");
-        pool.setMemo(req.getMemo());
-        pool.setTargetPrice(req.getTargetPrice());
         pool.setStatus(req.getStatus() != null ? req.getStatus() : "watching");
+        applyPoolFields(pool, req);
 
         InvestStockPool saved = poolRepository.save(pool);
         return toPoolItemDTO(saved);
@@ -300,10 +318,73 @@ public class InvestService {
         InvestStockPool pool = poolRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("股票池条目不存在：" + id));
         if (req.getPoolType() != null) pool.setPoolType(req.getPoolType());
+        if (req.getStatus() != null) pool.setStatus(req.getStatus());
+        applyPoolFields(pool, req);
+        return toPoolItemDTO(poolRepository.save(pool));
+    }
+
+    private void applyPoolFields(InvestStockPool pool, PoolSaveRequest req) {
         if (req.getMemo() != null) pool.setMemo(req.getMemo());
         if (req.getTargetPrice() != null) pool.setTargetPrice(req.getTargetPrice());
-        if (req.getStatus() != null) pool.setStatus(req.getStatus());
+        if (req.getUndervaluedPrice() != null) pool.setUndervaluedPrice(req.getUndervaluedPrice());
+        if (req.getFairPrice() != null) pool.setFairPrice(req.getFairPrice());
+        if (req.getOvervaluedPrice() != null) pool.setOvervaluedPrice(req.getOvervaluedPrice());
+        if (req.getTargetBuyPrice() != null) pool.setTargetBuyPrice(req.getTargetBuyPrice());
+        if (req.getTargetSellPrice() != null) pool.setTargetSellPrice(req.getTargetSellPrice());
+        if (req.getRevenueForecastY0() != null) pool.setRevenueForecastY0(req.getRevenueForecastY0());
+        if (req.getRevenueForecastY1() != null) pool.setRevenueForecastY1(req.getRevenueForecastY1());
+        if (req.getRevenueForecastY2() != null) pool.setRevenueForecastY2(req.getRevenueForecastY2());
+    }
+
+    /**
+     * 单字段更新（内联编辑）。空字符串视为清空（设为 null），允许撤销字段值。
+     */
+    @Transactional
+    public PoolItemDTO updateField(Integer id, PoolFieldUpdateRequest req) {
+        if (req == null || req.getField() == null || req.getField().isBlank()) {
+            throw new IllegalArgumentException("字段名不能为空");
+        }
+        InvestStockPool pool = poolRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("股票池条目不存在：" + id));
+        String field = req.getField().trim();
+        String raw = req.getValue();
+        boolean blank = raw == null || raw.isBlank();
+        switch (field) {
+            case "poolType" -> pool.setPoolType(blank ? "quality" : raw.trim());
+            case "status" -> {
+                String v = blank ? "watching" : raw.trim();
+                pool.setStatus(v);
+                if (!"watching".equals(pool.getAlertState()) && "exited".equals(v)) {
+                    pool.setAlertState("none");
+                }
+            }
+            case "memo" -> pool.setMemo(blank ? null : raw);
+            case "undervaluedPrice" -> pool.setUndervaluedPrice(parseDecimal(raw));
+            case "fairPrice" -> pool.setFairPrice(parseDecimal(raw));
+            case "overvaluedPrice" -> pool.setOvervaluedPrice(parseDecimal(raw));
+            case "targetBuyPrice" -> {
+                pool.setTargetBuyPrice(parseDecimal(raw));
+                pool.setAlertState("none");
+            }
+            case "targetSellPrice" -> {
+                pool.setTargetSellPrice(parseDecimal(raw));
+                pool.setAlertState("none");
+            }
+            case "revenueForecastY0" -> pool.setRevenueForecastY0(parseDecimal(raw));
+            case "revenueForecastY1" -> pool.setRevenueForecastY1(parseDecimal(raw));
+            case "revenueForecastY2" -> pool.setRevenueForecastY2(parseDecimal(raw));
+            default -> throw new IllegalArgumentException("不支持的字段：" + field);
+        }
         return toPoolItemDTO(poolRepository.save(pool));
+    }
+
+    private BigDecimal parseDecimal(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        try {
+            return new BigDecimal(raw.trim());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("数值格式错误：" + raw);
+        }
     }
 
     @Transactional
@@ -311,58 +392,90 @@ public class InvestService {
         poolRepository.deleteById(id);
     }
 
-    /** 单条转换，供 addToPool / updatePool 使用（单次写操作，无 N+1 风险）。 */
+    /** 单条转换，供 addToPool / updatePool / updateField 使用。 */
     private PoolItemDTO toPoolItemDTO(InvestStockPool pool) {
-        String stockName = stockInfoRepository.findByStockCode(pool.getStockCode())
-                .map(TradeStockInfo::getStockName)
-                .orElse(pool.getStockCode());
+        String code = pool.getStockCode();
+        TradeStockBasic basic = stockBasicRepository.findByStockCode(code).orElse(null);
+        TradeStockFinancial fin = financialRepository
+                .findByStockCodeOrderByReportDateDesc(code)
+                .stream().findFirst().orElse(null);
+        TradeStockDaily latestDaily = dailyRepository
+                .findFirstByStockCodeOrderByTradeDateDesc(code).orElse(null);
+        TradeStockDaily yearStartDaily = dailyRepository
+                .findFirstByStockCodeAndTradeDateGreaterThanEqualOrderByTradeDateAsc(
+                        code, LocalDate.of(LocalDate.now().getYear(), 1, 1))
+                .orElse(null);
 
-        List<TradeStockFinancial> recent = financialRepository
-                .findByStockCodeOrderByReportDateDesc(pool.getStockCode())
-                .stream().limit(1).collect(Collectors.toList());
-
-        BigDecimal latestRevenueYoy = null;
-        BigDecimal latestProfitYoy = null;
-        String latestLevel = "unknown";
-        if (!recent.isEmpty()) {
-            latestRevenueYoy = recent.get(0).getRevenueYoy();
-            latestProfitYoy = recent.get(0).getDeductedNetProfitYoy();
-            latestLevel = prosperityLevel(latestRevenueYoy);
-        }
-        return buildPoolItemDTO(pool, stockName, latestRevenueYoy, latestProfitYoy, latestLevel);
+        Map<String, TradeStockBasic> basicMap = basic != null ? Map.of(code, basic) : Map.of();
+        Map<String, TradeStockFinancial> finMap = fin != null ? Map.of(code, fin) : Map.of();
+        Map<String, TradeStockDaily> latestDailyMap = latestDaily != null ? Map.of(code, latestDaily) : Map.of();
+        Map<String, TradeStockDaily> yearStartDailyMap = yearStartDaily != null ? Map.of(code, yearStartDaily) : Map.of();
+        return toPoolItemDTO(pool, new PoolPriceContext(basicMap, finMap, latestDailyMap, yearStartDailyMap));
     }
 
-    /** 批量转换，供 listPool() 使用（预加载 nameMap / finMap，消除 N+1）。 */
-    private PoolItemDTO toPoolItemDTO(InvestStockPool pool,
-                                      Map<String, String> nameMap,
-                                      Map<String, TradeStockFinancial> finMap) {
-        String stockName = nameMap.getOrDefault(pool.getStockCode(), pool.getStockCode());
-        TradeStockFinancial fin = finMap.get(pool.getStockCode());
+    private PoolItemDTO toPoolItemDTO(InvestStockPool pool, PoolPriceContext ctx) {
+        String code = pool.getStockCode();
+        TradeStockBasic basic = ctx.basicMap().get(code);
+        String stockName = basic != null ? basic.getStockName() : code;
+        TradeStockFinancial fin = ctx.finMap().get(code);
+        TradeStockDaily latest = ctx.latestDailyMap().get(code);
+        TradeStockDaily yearStart = ctx.yearStartDailyMap().get(code);
+
+        BigDecimal latestPrice = latest != null ? latest.getClosePrice() : null;
+        BigDecimal ytdGain = computeYtdGain(latest, yearStart);
+        BigDecimal marketCap = computeMarketCap(latestPrice, basic);
+
         BigDecimal latestRevenueYoy = fin != null ? fin.getRevenueYoy() : null;
         BigDecimal latestProfitYoy = fin != null ? fin.getDeductedNetProfitYoy() : null;
         String latestLevel = prosperityLevel(latestRevenueYoy);
-        return buildPoolItemDTO(pool, stockName, latestRevenueYoy, latestProfitYoy, latestLevel);
-    }
 
-    private PoolItemDTO buildPoolItemDTO(InvestStockPool pool, String stockName,
-                                         BigDecimal latestRevenueYoy, BigDecimal latestProfitYoy,
-                                         String latestLevel) {
         return PoolItemDTO.builder()
                 .id(pool.getId())
-                .stockCode(pool.getStockCode())
+                .stockCode(code)
                 .stockName(stockName)
                 .poolType(pool.getPoolType())
                 .poolTypeLabel("quality".equals(pool.getPoolType()) ? "质量优选" : "科技风投")
                 .memo(pool.getMemo())
+                .undervaluedPrice(pool.getUndervaluedPrice())
+                .fairPrice(pool.getFairPrice())
+                .overvaluedPrice(pool.getOvervaluedPrice())
+                .targetBuyPrice(pool.getTargetBuyPrice())
+                .targetSellPrice(pool.getTargetSellPrice())
                 .targetPrice(pool.getTargetPrice())
+                .revenueForecastY0(pool.getRevenueForecastY0())
+                .revenueForecastY1(pool.getRevenueForecastY1())
+                .revenueForecastY2(pool.getRevenueForecastY2())
                 .status(pool.getStatus())
                 .statusLabel(statusLabel(pool.getStatus()))
+                .alertState(pool.getAlertState())
+                .lastAlertAt(pool.getLastAlertAt())
+                .latestPrice(latestPrice)
+                .ytdGain(ytdGain)
+                .marketCap(marketCap)
                 .latestRevenueYoy(latestRevenueYoy)
                 .latestProfitYoy(latestProfitYoy)
                 .latestLevel(latestLevel)
                 .createdAt(pool.getCreatedAt())
                 .updatedAt(pool.getUpdatedAt())
                 .build();
+    }
+
+    private BigDecimal computeYtdGain(TradeStockDaily latest, TradeStockDaily yearStart) {
+        if (latest == null || yearStart == null) return null;
+        BigDecimal close = latest.getClosePrice();
+        BigDecimal base = yearStart.getClosePrice();
+        if (close == null || base == null || base.compareTo(BigDecimal.ZERO) == 0) return null;
+        return close.subtract(base)
+                .divide(base, 6, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100))
+                .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal computeMarketCap(BigDecimal latestPrice, TradeStockBasic basic) {
+        if (latestPrice == null || basic == null || basic.getTotalShares() == null) return null;
+        BigDecimal totalShares = BigDecimal.valueOf(basic.getTotalShares());
+        BigDecimal totalCap = totalShares.multiply(latestPrice);
+        return totalCap.divide(BigDecimal.valueOf(100_000_000L), 2, RoundingMode.HALF_UP);
     }
 
     private String statusLabel(String status) {
@@ -380,14 +493,14 @@ public class InvestService {
     @Cacheable(value = "sopCheckup", key = "#keyword")
     @Transactional(readOnly = true)
     public SopCheckupDTO sopCheckup(String keyword) {
-        Optional<TradeStockInfo> infoOpt = resolveStock(keyword == null ? "" : keyword.trim());
+        Optional<TradeStockBasic> infoOpt = resolveStock(keyword == null ? "" : keyword.trim());
         if (infoOpt.isEmpty()) {
             return SopCheckupDTO.builder()
                     .matched(false)
                     .message("未找到股票：" + keyword + "（请输入6位代码或完整名称）")
                     .build();
         }
-        TradeStockInfo info = infoOpt.get();
+        TradeStockBasic info = infoOpt.get();
         List<TradeStockFinancial> all = financialRepository
                 .findByStockCodeOrderByReportDateDesc(info.getStockCode());
         if (all.isEmpty()) {

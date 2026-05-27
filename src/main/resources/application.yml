@@ -44,7 +44,7 @@ ai:
   minimax:
     enabled: true                  # 填入 api-key 后改为 true
     base-url: https://api.minimaxi.com/anthropic/v1
-    api-key: ${AI_MINIMAX_KEY:}       # 环境变量 AI_MINIMAX_KEY
+    api-key: ${AI_MINIMAX_KEY:4SzPnZuXeVOtJayrrdEACoxKWZ6npFsdClX5sAGQp3Rhk}       # 环境变量 AI_MINIMAX_KEY
     group-id: ""                    # 可选: 部分账号需要 group id
     model: MiniMax-M2.7-highspeed       # 可改为 abab6.5s-chat 等其它型号
     timeout-seconds: 90
@@ -57,6 +57,12 @@ ai:
     chat-model: deepseek-v4-flash   # 用于 AI 详解文本生成
     image-size: "2752x1536"
     timeout-seconds: 120
+  tavily:
+    enabled: true
+    base-url: https://api.tavily.com
+    api-key: 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
+    timeout-seconds: 30
+    max-results: 5
 
 logging:
   level:

@@ -502,9 +502,28 @@
     el.innerHTML = html;
   }
 
-  // ===== 股票池 =====
+  // ===== 股票池（列表化） =====
   let poolData = [];
   let poolFilter = 'all';
+
+  // 池子列定义：14 列 + 操作列。inline 决定是否可内联编辑。
+  const POOL_COLUMNS = [
+    { key: 'stockName',         label: '名称 / 代码', cls: 'pool-col-stock', render: renderStockCell },
+    { key: 'poolType',          label: '分类',       inline: 'select', options: [{v:'quality',l:'质量优选'},{v:'tech_vc',l:'科技风投'}] },
+    { key: 'undervaluedPrice',  label: '低估价',     inline: 'number' },
+    { key: 'fairPrice',         label: '合理价',     inline: 'number' },
+    { key: 'overvaluedPrice',   label: '高估价',     inline: 'number' },
+    { key: 'ytdGain',           label: '年初涨幅',   readonly: true, render: renderPctCell },
+    { key: 'marketCap',         label: '当前市值(亿)', readonly: true, render: renderMarketCapCell },
+    { key: 'latestPrice',       label: '现价',       readonly: true, render: renderLatestPriceCell },
+    { key: 'revenueForecastY0', label: '今年营收(亿)', inline: 'number' },
+    { key: 'revenueForecastY1', label: '明年营收(亿)', inline: 'number' },
+    { key: 'revenueForecastY2', label: '后年营收(亿)', inline: 'number' },
+    { key: 'targetBuyPrice',    label: '希望买入价', inline: 'number' },
+    { key: 'targetSellPrice',   label: '希望卖出价', inline: 'number' },
+    { key: 'status',            label: '持仓状态',   inline: 'select', options: [{v:'watching',l:'观察中'},{v:'holding',l:'持仓中'},{v:'exited',l:'已离场'}] },
+    { key: 'memo',              label: '投资逻辑',   render: renderMemoCell },
+  ];
 
   function initPool() {
     loadPool();
@@ -519,63 +538,199 @@
   }
 
   async function loadPool() {
+    const wrap = document.getElementById('poolListWrap');
+    if (!wrap) return;
     try {
       const res = await fetch('api/invest/pool');
       poolData = await res.json();
       renderPool();
     } catch (e) {
-      document.getElementById('poolGrid').innerHTML =
-        `<div class="pool-empty">加载失败：${e.message}</div>`;
+      wrap.innerHTML = `<div class="pool-empty">加载失败：${e.message}</div>`;
     }
   }
 
   function renderPool() {
-    const grid = document.getElementById('poolGrid');
+    const wrap = document.getElementById('poolListWrap');
+    if (!wrap) return;
     let items = poolData;
     if (poolFilter === 'quality') items = poolData.filter(i => i.poolType === 'quality');
     else if (poolFilter === 'tech_vc') items = poolData.filter(i => i.poolType === 'tech_vc');
     else if (poolFilter === 'holding') items = poolData.filter(i => i.status === 'holding');
+    else if (poolFilter === 'alerted') items = poolData.filter(i => i.alertState && i.alertState !== 'none');
 
     if (items.length === 0) {
-      grid.innerHTML = '<div class="pool-empty">暂无股票，点击「加入股票池」添加你关注的标的</div>';
+      wrap.innerHTML = '<div class="pool-empty">暂无股票，点击「+ 加入股票池」或「📷 截图批量导入」添加</div>';
       return;
     }
 
-    grid.innerHTML = items.map(item => {
-      const lvlConf = LEVEL_COLORS[item.latestLevel] || LEVEL_COLORS.unknown;
-      const ry = item.latestRevenueYoy != null ? formatPct(item.latestRevenueYoy) : '—';
-      const py = item.latestProfitYoy != null ? formatPct(item.latestProfitYoy) : '—';
+    let head = '<thead><tr>';
+    POOL_COLUMNS.forEach(c => {
+      head += `<th class="${c.cls || ''}">${c.label}</th>`;
+    });
+    head += '<th>操作</th></tr></thead>';
 
-      return `<div class="pool-card">
-        <div class="pool-card-header">
-          <div>
-            <div class="pool-stock-name">${item.stockName}</div>
-            <div class="pool-stock-code">${item.stockCode}</div>
-          </div>
-          <div class="pool-badges">
-            <span class="badge badge-${item.poolType === 'quality' ? 'quality' : 'tech'}">${item.poolTypeLabel}</span>
-            <span class="badge badge-${item.status}">${item.statusLabel}</span>
-          </div>
-        </div>
-        <div class="pool-prosperity">
-          <span class="prosperity-dot ${item.latestLevel}"></span>
-          <span>景气：${lvlConf.label}</span>
-          <span style="margin-left:8px;color:#d1d5db">|</span>
-          <span>营收同比 <b>${ry}</b></span>
-          <span style="margin-left:6px">扣非同比 <b>${py}</b></span>
-        </div>
-        ${item.memo ? `<div class="pool-memo">${escHtml(item.memo)}</div>` : ''}
-        <div class="pool-card-footer">
-          <div class="pool-target">
-            ${item.targetPrice != null ? `目标价：<span>¥${item.targetPrice}</span>` : '<span style="color:#d1d5db">未设目标价</span>'}
-          </div>
-          <div class="pool-actions">
-            <button class="pool-action-btn" onclick="Invest.openEditModal(${item.id})">编辑</button>
-            <button class="pool-action-btn danger" onclick="Invest.removePool(${item.id}, '${escHtml(item.stockName)}')">移除</button>
-          </div>
-        </div>
+    let body = '<tbody>';
+    items.forEach(item => {
+      let rowCls = '';
+      if (item.alertState === 'buy_alerted') rowCls = 'alert-buy';
+      else if (item.alertState === 'sell_alerted') rowCls = 'alert-sell';
+      body += `<tr class="${rowCls}" data-id="${item.id}">`;
+      POOL_COLUMNS.forEach(c => {
+        body += `<td class="${c.cls || ''}" data-field="${c.key}">${renderCell(c, item)}</td>`;
+      });
+      body += `<td class="pool-cell-actions">
+        <button class="pool-row-btn" data-action="edit" data-id="${item.id}">详情</button>
+        <button class="pool-row-btn danger" data-action="delete" data-id="${item.id}">移除</button>
+      </td>`;
+      body += '</tr>';
+    });
+    body += '</tbody>';
+
+    const total = poolData.length;
+    const matched = items.length;
+    const alertedCount = poolData.filter(i => i.alertState && i.alertState !== 'none').length;
+
+    wrap.innerHTML = `<table class="pool-table">${head}${body}</table>
+      <div class="pool-list-foot">
+        <span>共 ${total} 只，当前显示 ${matched} 只</span>
+        <span>${alertedCount > 0 ? `<span style="color:#b91c1c;font-weight:700">${alertedCount} 只触发提醒</span>` : '提醒状态：全部正常'}</span>
       </div>`;
-    }).join('');
+
+    bindPoolEvents();
+  }
+
+  function renderCell(col, item) {
+    if (col.render) return col.render(item, col);
+    const val = item[col.key];
+    if (col.inline === 'number') {
+      const display = val != null ? Number(val) : '';
+      return `<input type="number" step="0.01" class="pool-cell-input" data-field="${col.key}" value="${display}" />`;
+    }
+    if (col.inline === 'select') {
+      const opts = col.options.map(o =>
+        `<option value="${o.v}" ${val === o.v ? 'selected' : ''}>${o.l}</option>`).join('');
+      return `<select class="pool-cell-select" data-field="${col.key}">${opts}</select>`;
+    }
+    return val != null ? escHtml(String(val)) : '';
+  }
+
+  function renderStockCell(item) {
+    let alertTag = '';
+    if (item.alertState === 'buy_alerted') alertTag = '<span class="alert-tag buy">⬇ 触发买入</span>';
+    else if (item.alertState === 'sell_alerted') alertTag = '<span class="alert-tag sell">⬆ 触发卖出</span>';
+    return `<div class="pool-cell-name">
+      <span class="name">${escHtml(item.stockName)}</span>
+      <span class="code">${escHtml(item.stockCode)}</span>
+      ${alertTag}
+    </div>`;
+  }
+
+  function renderPctCell(item, col) {
+    const v = item[col.key];
+    if (v == null) return '<span style="color:#d1d5db">—</span>';
+    const n = parseFloat(v);
+    const cls = n > 0 ? 'up' : (n < 0 ? 'down' : '');
+    const sign = n >= 0 ? '+' : '';
+    return `<span class="pool-cell-pct ${cls}">${sign}${n.toFixed(2)}%</span>`;
+  }
+
+  function renderMarketCapCell(item) {
+    const v = item.marketCap;
+    if (v == null) return '<span style="color:#d1d5db">—</span>';
+    return `<span class="pool-cell-price">${parseFloat(v).toFixed(1)}</span>`;
+  }
+
+  function renderLatestPriceCell(item) {
+    const p = item.latestPrice;
+    if (p == null) return '<span style="color:#d1d5db">—</span>';
+    const price = parseFloat(p);
+    let cls = 'pool-cell-price';
+    if (item.targetBuyPrice != null && price <= parseFloat(item.targetBuyPrice)) cls += ' below-buy';
+    else if (item.targetSellPrice != null && price >= parseFloat(item.targetSellPrice)) cls += ' above-sell';
+    return `<span class="${cls}">${price.toFixed(2)}</span>`;
+  }
+
+  function renderMemoCell(item) {
+    const memo = item.memo;
+    if (!memo || !memo.trim()) {
+      return `<div class="pool-cell-memo empty" data-action="memo" data-id="${item.id}">点击编辑...</div>`;
+    }
+    const short = memo.length > 30 ? memo.slice(0, 30) + '…' : memo;
+    return `<div class="pool-cell-memo" data-action="memo" data-id="${item.id}" title="${escHtml(memo)}">${escHtml(short)}</div>`;
+  }
+
+  function bindPoolEvents() {
+    const wrap = document.getElementById('poolListWrap');
+    if (!wrap) return;
+
+    // 内联输入框：blur 时保存
+    wrap.querySelectorAll('.pool-cell-input').forEach(inp => {
+      inp.addEventListener('blur', () => onCellEdit(inp));
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
+        if (e.key === 'Escape') {
+          const tr = inp.closest('tr');
+          const item = poolData.find(i => i.id == tr.dataset.id);
+          inp.value = item && item[inp.dataset.field] != null ? item[inp.dataset.field] : '';
+          inp.blur();
+        }
+      });
+    });
+    wrap.querySelectorAll('.pool-cell-select').forEach(sel => {
+      sel.addEventListener('change', () => onCellEdit(sel));
+    });
+
+    // 操作按钮（编辑、删除、备注）使用事件委托
+    wrap.addEventListener('click', e => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const action = btn.dataset.action;
+      const id = parseInt(btn.dataset.id, 10);
+      if (action === 'edit') openEditModal(id);
+      else if (action === 'delete') {
+        const item = poolData.find(i => i.id === id);
+        if (item) removePool(id, item.stockName);
+      } else if (action === 'memo') {
+        openMemoModal(id);
+      }
+    });
+  }
+
+  async function onCellEdit(el) {
+    const tr = el.closest('tr');
+    const id = parseInt(tr.dataset.id, 10);
+    const field = el.dataset.field;
+    const value = el.value;
+    const item = poolData.find(i => i.id === id);
+    const oldVal = item ? item[field] : null;
+    if (String(oldVal == null ? '' : oldVal) === String(value)) return;
+
+    el.classList.remove('error', 'saved');
+    el.classList.add('saving');
+
+    try {
+      const res = await fetch(`api/invest/pool/${id}/field`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ field, value: value === '' ? null : value }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || '保存失败');
+      }
+      const updated = await res.json();
+      const idx = poolData.findIndex(i => i.id === id);
+      if (idx >= 0) poolData[idx] = updated;
+      el.classList.remove('saving');
+      el.classList.add('saved');
+      setTimeout(() => el.classList.remove('saved'), 800);
+      // 如果改了 select（持仓状态/分类），重新渲染整行（filter 可能改变）
+      if (field === 'status' || field === 'poolType') renderPool();
+    } catch (e) {
+      el.classList.remove('saving');
+      el.classList.add('error');
+      alert(e.message);
+    }
   }
 
   async function removePool(id, name) {
@@ -591,6 +746,17 @@
   // ===== 加入/编辑股票池弹窗 =====
   let editingPoolId = null;
 
+  const MODAL_FIELDS = [
+    ['modalUndervaluedPrice', 'undervaluedPrice'],
+    ['modalFairPrice',        'fairPrice'],
+    ['modalOvervaluedPrice',  'overvaluedPrice'],
+    ['modalTargetBuyPrice',   'targetBuyPrice'],
+    ['modalTargetSellPrice',  'targetSellPrice'],
+    ['modalRevY0',            'revenueForecastY0'],
+    ['modalRevY1',            'revenueForecastY1'],
+    ['modalRevY2',            'revenueForecastY2'],
+  ];
+
   function initPoolModal() {
     document.getElementById('addPoolBtn')?.addEventListener('click', openAddModal);
     document.getElementById('investModalClose')?.addEventListener('click', closeModal);
@@ -599,6 +765,17 @@
     document.getElementById('investModalMask')?.addEventListener('click', e => {
       if (e.target === e.currentTarget) closeModal();
     });
+
+    // 备注弹窗
+    document.getElementById('memoModalClose')?.addEventListener('click', closeMemoModal);
+    document.getElementById('memoModalCancel')?.addEventListener('click', closeMemoModal);
+    document.getElementById('memoModalSave')?.addEventListener('click', saveMemoModal);
+    document.getElementById('memoModalMask')?.addEventListener('click', e => {
+      if (e.target === e.currentTarget) closeMemoModal();
+    });
+
+    // 截图导入
+    initImportModal();
   }
 
   function openAddModal() {
@@ -608,8 +785,8 @@
     document.getElementById('modalKeyword').disabled = false;
     document.getElementById('modalPoolType').value = 'quality';
     document.getElementById('modalStatus').value = 'watching';
-    document.getElementById('modalTargetPrice').value = '';
     document.getElementById('modalMemo').value = '';
+    MODAL_FIELDS.forEach(([id]) => { document.getElementById(id).value = ''; });
     document.getElementById('investModalMask').classList.remove('hidden');
   }
 
@@ -622,8 +799,10 @@
     document.getElementById('modalKeyword').disabled = true;
     document.getElementById('modalPoolType').value = item.poolType;
     document.getElementById('modalStatus').value = item.status;
-    document.getElementById('modalTargetPrice').value = item.targetPrice != null ? item.targetPrice : '';
     document.getElementById('modalMemo').value = item.memo || '';
+    MODAL_FIELDS.forEach(([id, key]) => {
+      document.getElementById(id).value = item[key] != null ? item[key] : '';
+    });
     document.getElementById('investModalMask').classList.remove('hidden');
   }
 
@@ -635,7 +814,6 @@
     const keyword = document.getElementById('modalKeyword').value.trim();
     const poolType = document.getElementById('modalPoolType').value;
     const status = document.getElementById('modalStatus').value;
-    const targetPriceVal = document.getElementById('modalTargetPrice').value.trim();
     const memo = document.getElementById('modalMemo').value.trim();
 
     if (!editingPoolId && !keyword) {
@@ -643,13 +821,11 @@
       return;
     }
 
-    const body = {
-      keyword,
-      poolType,
-      status,
-      memo: memo || null,
-      targetPrice: targetPriceVal ? parseFloat(targetPriceVal) : null,
-    };
+    const body = { keyword, poolType, status, memo: memo || null };
+    MODAL_FIELDS.forEach(([id, key]) => {
+      const v = document.getElementById(id).value.trim();
+      body[key] = v ? parseFloat(v) : null;
+    });
 
     const saveBtn = document.getElementById('investModalSave');
     saveBtn.disabled = true;
@@ -657,11 +833,15 @@
 
     try {
       if (editingPoolId) {
-        await fetch(`api/invest/pool/${editingPoolId}`, {
+        const res = await fetch(`api/invest/pool/${editingPoolId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.message || '保存失败');
+        }
       } else {
         const res = await fetch('api/invest/pool', {
           method: 'POST',
@@ -680,6 +860,261 @@
     } finally {
       saveBtn.disabled = false;
       saveBtn.textContent = '保存';
+    }
+  }
+
+  // ===== 备注弹窗 =====
+  let memoEditingId = null;
+  function openMemoModal(id) {
+    const item = poolData.find(i => i.id === id);
+    if (!item) return;
+    memoEditingId = id;
+    document.getElementById('memoModalTitle').textContent = `投资逻辑 — ${item.stockName} (${item.stockCode})`;
+    document.getElementById('memoModalText').value = item.memo || '';
+    document.getElementById('memoModalMask').classList.remove('hidden');
+    setTimeout(() => document.getElementById('memoModalText').focus(), 50);
+  }
+
+  function closeMemoModal() {
+    memoEditingId = null;
+    document.getElementById('memoModalMask').classList.add('hidden');
+  }
+
+  async function saveMemoModal() {
+    if (!memoEditingId) return;
+    const memo = document.getElementById('memoModalText').value;
+    const btn = document.getElementById('memoModalSave');
+    btn.disabled = true;
+    btn.textContent = '保存中...';
+    try {
+      const res = await fetch(`api/invest/pool/${memoEditingId}/field`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ field: 'memo', value: memo || null }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || '保存失败');
+      const updated = await res.json();
+      const idx = poolData.findIndex(i => i.id === memoEditingId);
+      if (idx >= 0) poolData[idx] = updated;
+      closeMemoModal();
+      renderPool();
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '保存';
+    }
+  }
+
+  // ===== 截图批量导入弹窗 =====
+  let importParsedItems = [];
+  let importImageBase64 = null;
+
+  function initImportModal() {
+    const importBtn = document.getElementById('importPoolBtn');
+    if (!importBtn) return;
+    importBtn.addEventListener('click', openImportModal);
+
+    document.getElementById('importModalClose')?.addEventListener('click', closeImportModal);
+    document.getElementById('importModalMask')?.addEventListener('click', e => {
+      if (e.target === e.currentTarget) closeImportModal();
+    });
+
+    const uploadArea = document.getElementById('importUploadArea');
+    const fileInput = document.getElementById('importFileInput');
+    uploadArea?.addEventListener('click', () => fileInput?.click());
+    uploadArea?.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+    uploadArea?.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+    uploadArea?.addEventListener('drop', e => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+      if (e.dataTransfer.files[0]) handleImportFile(e.dataTransfer.files[0]);
+    });
+    fileInput?.addEventListener('change', e => {
+      if (e.target.files[0]) handleImportFile(e.target.files[0]);
+    });
+
+    document.getElementById('importParseBtn')?.addEventListener('click', parseImportImage);
+    document.getElementById('importBackBtn')?.addEventListener('click', resetImportToStep1);
+    document.getElementById('importConfirmBtn')?.addEventListener('click', confirmImport);
+  }
+
+  function openImportModal() {
+    document.getElementById('importModalMask').classList.remove('hidden');
+    resetImportToStep1();
+  }
+
+  function closeImportModal() {
+    document.getElementById('importModalMask').classList.add('hidden');
+    importParsedItems = [];
+    importImageBase64 = null;
+    document.getElementById('importFileInput').value = '';
+  }
+
+  function resetImportToStep1() {
+    document.querySelector('.import-step-1').classList.remove('hidden');
+    document.getElementById('importStep2').classList.add('hidden');
+    document.getElementById('importPreviewWrap').classList.add('hidden');
+    importImageBase64 = null;
+    importParsedItems = [];
+    const ip = document.getElementById('importPreviewImg');
+    if (ip) ip.src = '';
+  }
+
+  function handleImportFile(file) {
+    if (!file.type.startsWith('image/')) {
+      alert('请选择图片文件');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      alert('图片大小不能超过 10MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = ev => {
+      importImageBase64 = ev.target.result;
+      document.getElementById('importPreviewImg').src = importImageBase64;
+      document.getElementById('importPreviewWrap').classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function parseImportImage() {
+    if (!importImageBase64) return;
+    const defaultPoolType = document.getElementById('importDefaultPoolType').value;
+    const body = document.getElementById('importModalBody');
+    const originalHtml = body.innerHTML;
+    body.innerHTML = `<div class="import-loading">
+      <div class="import-loading-spinner"></div>
+      <div>AI 正在识别截图，请稍候 (5-30 秒)...</div>
+    </div>`;
+    try {
+      const res = await fetch('api/invest/pool/import-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: importImageBase64, defaultPoolType }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || '识别失败');
+      }
+      const data = await res.json();
+      importParsedItems = data.items || [];
+      body.innerHTML = originalHtml;
+      // 重新绑定事件（因为 innerHTML 重置了）
+      initImportModal();
+      // 切到 step2
+      document.querySelector('.import-step-1').classList.add('hidden');
+      document.getElementById('importStep2').classList.remove('hidden');
+      renderImportTable(data);
+    } catch (e) {
+      body.innerHTML = `<div class="import-error">识别失败：${escHtml(e.message)}</div>
+        <div style="margin-top:12px;text-align:center">
+          <button class="invest-btn-outline" onclick="Invest.resetImport()">← 重试</button>
+        </div>`;
+    }
+  }
+
+  function renderImportTable(data) {
+    const summary = document.getElementById('importParseSummary');
+    const matched = importParsedItems.filter(it => it.matched).length;
+    summary.innerHTML = `共识别 <b>${importParsedItems.length}</b> 只股票，匹配代码 <b>${matched}</b> 只${matched < importParsedItems.length ? `，<span style="color:#b45309">${importParsedItems.length - matched} 只未匹配（黄色高亮，可手动补充代码）</span>` : ''}`;
+
+    const tbl = document.getElementById('importResultTable');
+    let html = `<thead><tr>
+      <th><input type="checkbox" id="importSelectAll" checked /></th>
+      <th>名称</th>
+      <th>代码</th>
+      <th>分类</th>
+      <th>状态</th>
+      <th>低估价</th>
+      <th>合理价</th>
+      <th>高估价</th>
+      <th>买入价</th>
+      <th>卖出价</th>
+      <th>今年营收</th>
+      <th>明年营收</th>
+      <th>后年营收</th>
+    </tr></thead><tbody>`;
+    importParsedItems.forEach((it, idx) => {
+      const cls = it.matched ? '' : 'match-failed';
+      const status = it.matched
+        ? '<span class="match-status ok">✓</span>'
+        : '<span class="match-status fail">⚠ 未匹配</span>';
+      html += `<tr class="${cls}" data-idx="${idx}">
+        <td><input type="checkbox" class="import-select" checked /></td>
+        <td><input type="text" data-field="stockName" value="${escHtml(it.stockName || '')}" /> ${status}</td>
+        <td><input type="text" data-field="stockCode" value="${escHtml(it.stockCode || '')}" /></td>
+        <td>
+          <select data-field="poolType">
+            <option value="quality" ${it.poolType==='quality'?'selected':''}>质量</option>
+            <option value="tech_vc" ${it.poolType==='tech_vc'?'selected':''}>科技</option>
+          </select>
+        </td>
+        <td>
+          <select data-field="status">
+            <option value="watching">观察</option>
+            <option value="holding">持仓</option>
+            <option value="exited">已出</option>
+          </select>
+        </td>
+        <td><input type="number" step="0.01" data-field="undervaluedPrice" value="${it.undervaluedPrice ?? ''}" /></td>
+        <td><input type="number" step="0.01" data-field="fairPrice" value="${it.fairPrice ?? ''}" /></td>
+        <td><input type="number" step="0.01" data-field="overvaluedPrice" value="${it.overvaluedPrice ?? ''}" /></td>
+        <td><input type="number" step="0.01" data-field="targetBuyPrice" value="${it.targetBuyPrice ?? ''}" /></td>
+        <td><input type="number" step="0.01" data-field="targetSellPrice" value="${it.targetSellPrice ?? ''}" /></td>
+        <td><input type="number" step="0.01" data-field="revenueForecastY0" value="${it.revenueForecastY0 ?? ''}" /></td>
+        <td><input type="number" step="0.01" data-field="revenueForecastY1" value="${it.revenueForecastY1 ?? ''}" /></td>
+        <td><input type="number" step="0.01" data-field="revenueForecastY2" value="${it.revenueForecastY2 ?? ''}" /></td>
+      </tr>`;
+    });
+    html += '</tbody>';
+    tbl.innerHTML = html;
+
+    document.getElementById('importSelectAll').addEventListener('change', e => {
+      tbl.querySelectorAll('.import-select').forEach(cb => { cb.checked = e.target.checked; });
+    });
+  }
+
+  async function confirmImport() {
+    const tbl = document.getElementById('importResultTable');
+    const rows = Array.from(tbl.querySelectorAll('tbody tr'));
+    const items = [];
+    rows.forEach(row => {
+      const sel = row.querySelector('.import-select');
+      if (!sel.checked) return;
+      const item = {};
+      row.querySelectorAll('input[data-field], select[data-field]').forEach(el => {
+        const f = el.dataset.field;
+        const v = el.value.trim();
+        if (el.type === 'number') item[f] = v ? parseFloat(v) : null;
+        else item[f] = v || null;
+      });
+      if (item.stockCode || item.stockName) items.push(item);
+    });
+    if (items.length === 0) {
+      alert('请至少选择一只股票');
+      return;
+    }
+    const btn = document.getElementById('importConfirmBtn');
+    btn.disabled = true;
+    btn.textContent = '导入中...';
+    try {
+      const res = await fetch('api/invest/pool/batch-import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || '导入失败');
+      const result = await res.json();
+      alert(`导入完成：成功 ${result.imported} 只，跳过 ${result.skipped} 只${result.failed > 0 ? '，失败 ' + result.failed + ' 只' : ''}`);
+      closeImportModal();
+      await loadPool();
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '确认导入选中项';
     }
   }
 
@@ -783,6 +1218,7 @@
   window.Invest = {
     openEditModal,
     removePool,
+    resetImport: resetImportToStep1,
   };
 
   // ---- 等 DOM 就绪后初始化 ----

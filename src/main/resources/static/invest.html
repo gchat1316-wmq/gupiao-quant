@@ -20,6 +20,7 @@
       <nav class="nav-links">
         <a href="./" class="nav-link">财务分析</a>
         <a href="invest.html" class="nav-link active">龙江投资</a>
+        <a href="prosperity-pick.html" class="nav-link">景气度选股</a>
         <a href="study.html" class="nav-link">学习搭子</a>
       </nav>
     </div>
@@ -190,10 +191,14 @@
           <button class="pool-filter-btn" data-filter="quality">质量优选</button>
           <button class="pool-filter-btn" data-filter="tech_vc">科技风投</button>
           <button class="pool-filter-btn" data-filter="holding">持仓中</button>
+          <button class="pool-filter-btn" data-filter="alerted">已触发提醒</button>
         </div>
-        <button id="addPoolBtn" class="invest-btn" style="height:36px;font-size:13px;padding:0 16px">+ 加入股票池</button>
+        <div class="pool-header-actions">
+          <button id="importPoolBtn" class="invest-btn-outline" style="height:36px;font-size:13px;padding:0 14px">📷 截图批量导入</button>
+          <button id="addPoolBtn" class="invest-btn" style="height:36px;font-size:13px;padding:0 16px">+ 加入股票池</button>
+        </div>
       </div>
-      <div id="poolGrid" class="pool-grid"></div>
+      <div id="poolListWrap"></div>
     </div>
 
     <!-- Panel 4：估值计算器 -->
@@ -255,7 +260,7 @@
 
   <!-- 加入/编辑股票池弹窗 -->
   <div class="invest-modal-mask hidden" id="investModalMask">
-    <div class="invest-modal">
+    <div class="invest-modal invest-modal-wide">
       <div class="invest-modal-header">
         <span class="invest-modal-title" id="investModalTitle">加入股票池</span>
         <button class="invest-modal-close" id="investModalClose">×</button>
@@ -265,24 +270,60 @@
           <label>股票名称或代码</label>
           <input id="modalKeyword" type="text" placeholder="如：北方华创 或 002371" />
         </div>
-        <div class="invest-modal-field">
-          <label>分类</label>
-          <select id="modalPoolType">
-            <option value="quality">质量优选（巴菲特式，现金流好、分红稳定）</option>
-            <option value="tech_vc">科技风投（成长股式，营收高增长）</option>
-          </select>
+        <div class="invest-modal-row">
+          <div class="invest-modal-field">
+            <label>分类</label>
+            <select id="modalPoolType">
+              <option value="quality">质量优选（巴菲特式）</option>
+              <option value="tech_vc">科技风投（成长股）</option>
+            </select>
+          </div>
+          <div class="invest-modal-field">
+            <label>持仓状态</label>
+            <select id="modalStatus">
+              <option value="watching">观察中</option>
+              <option value="holding">持仓中</option>
+              <option value="exited">已离场</option>
+            </select>
+          </div>
         </div>
-        <div class="invest-modal-field">
-          <label>持仓状态</label>
-          <select id="modalStatus">
-            <option value="watching">观察中</option>
-            <option value="holding">持仓中</option>
-            <option value="exited">已离场</option>
-          </select>
+        <div class="invest-modal-row">
+          <div class="invest-modal-field">
+            <label>低估价（元）</label>
+            <input id="modalUndervaluedPrice" type="number" min="0" step="0.01" />
+          </div>
+          <div class="invest-modal-field">
+            <label>合理价（元）</label>
+            <input id="modalFairPrice" type="number" min="0" step="0.01" />
+          </div>
+          <div class="invest-modal-field">
+            <label>高估价（元）</label>
+            <input id="modalOvervaluedPrice" type="number" min="0" step="0.01" />
+          </div>
         </div>
-        <div class="invest-modal-field">
-          <label>目标价（元，选填）</label>
-          <input id="modalTargetPrice" type="number" min="0" step="0.01" placeholder="如：150.00" />
+        <div class="invest-modal-row">
+          <div class="invest-modal-field">
+            <label>希望买入价（元）</label>
+            <input id="modalTargetBuyPrice" type="number" min="0" step="0.01" />
+          </div>
+          <div class="invest-modal-field">
+            <label>希望卖出价（元）</label>
+            <input id="modalTargetSellPrice" type="number" min="0" step="0.01" />
+          </div>
+        </div>
+        <div class="invest-modal-row">
+          <div class="invest-modal-field">
+            <label>今年预测营收（亿）</label>
+            <input id="modalRevY0" type="number" min="0" step="0.01" />
+          </div>
+          <div class="invest-modal-field">
+            <label>明年预测营收（亿，选填）</label>
+            <input id="modalRevY1" type="number" min="0" step="0.01" />
+          </div>
+          <div class="invest-modal-field">
+            <label>后年预测营收（亿，选填）</label>
+            <input id="modalRevY2" type="number" min="0" step="0.01" />
+          </div>
         </div>
         <div class="invest-modal-field">
           <label>投资逻辑备注（选填）</label>
@@ -292,6 +333,65 @@
       <div class="invest-modal-footer">
         <button class="btn-ghost" id="investModalCancel">取消</button>
         <button class="btn-primary-dark" id="investModalSave">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 截图批量导入弹窗 -->
+  <div class="invest-modal-mask hidden" id="importModalMask">
+    <div class="invest-modal invest-modal-wide">
+      <div class="invest-modal-header">
+        <span class="invest-modal-title">截图批量导入</span>
+        <button class="invest-modal-close" id="importModalClose">×</button>
+      </div>
+      <div class="invest-modal-form" id="importModalBody">
+        <div class="import-step-1">
+          <div class="import-tip">支持上传 10 倍 PS 估值表、研报截图等。AI 会识别图中的股票名称和数据，自动匹配代码并填入估值/营收字段。识别不到的字段保留空白，可在列表中手工补充。</div>
+          <div class="import-upload-area" id="importUploadArea">
+            <input type="file" id="importFileInput" accept="image/*" hidden />
+            <div class="import-upload-icon">📷</div>
+            <div class="import-upload-text">点击或拖拽图片到此处</div>
+            <div class="import-upload-hint">支持 JPG / PNG / WebP，建议 &lt; 5MB</div>
+          </div>
+          <div class="import-preview hidden" id="importPreviewWrap">
+            <img id="importPreviewImg" alt="preview" />
+            <div class="import-default-poolType">
+              <label>默认分类：</label>
+              <select id="importDefaultPoolType">
+                <option value="tech_vc">科技风投（成长股）</option>
+                <option value="quality">质量优选</option>
+              </select>
+            </div>
+            <button class="invest-btn" id="importParseBtn">🤖 AI 识别</button>
+          </div>
+        </div>
+        <div class="import-step-2 hidden" id="importStep2">
+          <div class="import-tip" id="importParseSummary"></div>
+          <div class="import-result-table-wrap">
+            <table class="import-result-table" id="importResultTable"></table>
+          </div>
+          <div class="import-actions">
+            <button class="invest-btn-outline" id="importBackBtn">← 重新上传</button>
+            <button class="invest-btn" id="importConfirmBtn">确认导入选中项</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 投资逻辑展开弹窗 -->
+  <div class="invest-modal-mask hidden" id="memoModalMask">
+    <div class="invest-modal">
+      <div class="invest-modal-header">
+        <span class="invest-modal-title" id="memoModalTitle">投资逻辑</span>
+        <button class="invest-modal-close" id="memoModalClose">×</button>
+      </div>
+      <div class="invest-modal-form">
+        <textarea id="memoModalText" rows="8" placeholder="记录入池理由、稀缺卡位分析等..."></textarea>
+      </div>
+      <div class="invest-modal-footer">
+        <button class="btn-ghost" id="memoModalCancel">取消</button>
+        <button class="btn-primary-dark" id="memoModalSave">保存</button>
       </div>
     </div>
   </div>
