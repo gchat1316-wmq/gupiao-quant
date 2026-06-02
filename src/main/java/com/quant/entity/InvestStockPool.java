@@ -52,6 +52,36 @@ public class InvestStockPool {
     @Column(name = "revenue_forecast_y2", precision = 10, scale = 2)
     private BigDecimal revenueForecastY2;
 
+    @Column(name = "rev_2023", precision = 10, scale = 2)
+    private BigDecimal revenue2023;
+
+    @Column(name = "rev_2024", precision = 10, scale = 2)
+    private BigDecimal revenue2024;
+
+    @Column(name = "rev_2025", precision = 10, scale = 2)
+    private BigDecimal revenue2025;
+
+    @Column(name = "q1_gross_margin", precision = 8, scale = 2)
+    private BigDecimal q1GrossMargin;
+
+    @Column(name = "q1_net_margin", precision = 8, scale = 2)
+    private BigDecimal q1NetMargin;
+
+    @Column(name = "q1_revenue_growth", precision = 8, scale = 2)
+    private BigDecimal q1RevenueGrowth;
+
+    @Column(name = "min_ps_5y", precision = 10, scale = 2)
+    private BigDecimal minPs5y;
+
+    @Column(name = "target_market_cap", precision = 12, scale = 2)
+    private BigDecimal targetMarketCap;
+
+    @Column(name = "profit_level", length = 20)
+    private String profitLevel;
+
+    @Column(name = "valuation_range", length = 20)
+    private String valuationRange;
+
     @Column(name = "memo", columnDefinition = "TEXT")
     private String memo;
 

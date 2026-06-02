@@ -355,32 +355,98 @@
 
 /* ===== 列表化股票池 ===== */
 #poolListWrap {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow: hidden;
   border: 1px solid #e5e7eb;
-  border-radius: var(--invest-card-radius);
+  border-radius: 8px;
   background: #fff;
   box-shadow: var(--shadow);
 }
 
-.pool-table {
-  width: max-content;
-  min-width: 100%;
-  border-collapse: collapse;
+.pool-board-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  background: #fbfcfe;
+  border-bottom: 1px solid #edf0f5;
+}
+
+.pool-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pool-board-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: #b42318;
+  letter-spacing: 0;
+}
+
+.pool-board-title span {
+  margin-left: 12px;
   font-size: 12px;
+  color: #0e7490;
+  font-weight: 700;
+}
+
+.pool-board-note {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.pool-board-stats {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 520px;
+}
+
+.pool-stat {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.pool-stat.red { background: #fee2e2; color: #b42318; }
+.pool-stat.orange { background: #ffedd5; color: #c2410c; }
+.pool-stat.green { background: #dcfce7; color: #047857; }
+.pool-stat.gray { background: #eef2f7; color: #475569; }
+.pool-stat.blue { background: #e0f2fe; color: #0369a1; }
+
+.pool-table {
+  width: 100%;
+  min-width: 1120px;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 11.5px;
 }
 
 .pool-table thead th {
-  background: #f9fafb;
-  color: #4b5563;
-  font-weight: 600;
+  background: #26394b;
+  color: #fff;
+  font-weight: 800;
   text-align: center;
-  padding: 8px 6px;
-  border-bottom: 1px solid #e5e7eb;
-  white-space: nowrap;
+  padding: 7px 4px;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid #1e2f40;
+  white-space: normal;
   position: sticky;
   top: 0;
   z-index: 5;
+  line-height: 1.12;
+  word-break: keep-all;
 }
 
 .pool-table th.pool-col-stock,
@@ -390,24 +456,68 @@
   background: #fff;
   border-right: 1px solid #e5e7eb;
   z-index: 4;
-  min-width: 130px;
+  width: 108px;
+  min-width: 108px;
+}
+
+.pool-table th.pool-col-num,
+.pool-table td.pool-col-num {
+  width: 62px;
+}
+
+.pool-table th.pool-col-rate,
+.pool-table td.pool-col-rate {
+  width: 66px;
+}
+
+.pool-table th.pool-col-ps,
+.pool-table td.pool-col-ps {
+  width: 58px;
+}
+
+.pool-table th.pool-col-tag,
+.pool-table td.pool-col-tag {
+  width: 76px;
+}
+
+.pool-table th.pool-col-actions,
+.pool-table td.pool-col-actions {
+  width: 82px;
 }
 
 .pool-table thead th.pool-col-stock {
-  background: #f9fafb;
+  background: #26394b;
   z-index: 6;
 }
 
-.pool-table tbody tr:nth-child(even) td {
-  background: #fafbfc;
+.pool-ps-table tbody tr:nth-child(4n + 1) td,
+.pool-ps-table tbody tr:nth-child(4n + 2) td {
+  background: #fff4f2;
 }
 
-.pool-table tbody tr:nth-child(even) td.pool-col-stock {
-  background: #fafbfc;
+.pool-ps-table tbody tr:nth-child(4n + 3) td {
+  background: #fff9ec;
+}
+
+.pool-ps-table tbody tr:nth-child(4n) td {
+  background: #f8fbff;
+}
+
+.pool-ps-table tbody tr:nth-child(4n + 1) td.pool-col-stock,
+.pool-ps-table tbody tr:nth-child(4n + 2) td.pool-col-stock {
+  background: #fff4f2;
+}
+
+.pool-ps-table tbody tr:nth-child(4n + 3) td.pool-col-stock {
+  background: #fff9ec;
+}
+
+.pool-ps-table tbody tr:nth-child(4n) td.pool-col-stock {
+  background: #f8fbff;
 }
 
 .pool-table tbody tr:hover td {
-  background: #fdf6e3 !important;
+  background: #f1f5ff !important;
 }
 
 .pool-table tbody tr.alert-buy td {
@@ -419,11 +529,17 @@
 }
 
 .pool-table tbody td {
-  padding: 6px 6px;
-  border-bottom: 1px solid #f1f3f5;
+  padding: 6px 4px;
+  border-bottom: 1px solid #edf0f5;
+  border-right: 1px solid #edf0f5;
   text-align: center;
   vertical-align: middle;
   white-space: nowrap;
+}
+
+.pool-table td.pool-col-hot {
+  color: #b42318;
+  font-weight: 800;
 }
 
 .pool-cell-name {
@@ -437,7 +553,11 @@
 .pool-cell-name .name {
   font-weight: 700;
   color: #111827;
-  font-size: 13px;
+  font-size: 12px;
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pool-cell-name .code {
@@ -471,12 +591,92 @@
   border: 1px solid transparent;
   background: transparent;
   font: inherit;
-  font-size: 12px;
-  padding: 3px 4px;
+  font-size: 11.5px;
+  padding: 3px 2px;
   text-align: center;
   border-radius: 4px;
   color: inherit;
   outline: none;
+}
+
+.pool-edit-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  width: 100%;
+  color: inherit;
+  font-weight: inherit;
+}
+
+.pool-edit-wrap input.pool-cell-input {
+  width: 100%;
+  min-width: 0;
+  color: inherit;
+  font-weight: inherit;
+}
+
+.pool-growth-edit.surge,
+.pool-growth-edit.strong,
+.pool-ps-edit {
+  color: #b42318;
+  font-weight: 800;
+}
+
+.pool-growth-edit.warm {
+  color: #c2410c;
+  font-weight: 800;
+}
+
+.pool-growth-edit.calm {
+  color: #475569;
+  font-weight: 700;
+}
+
+.pool-tag-input {
+  border-radius: 999px !important;
+  min-width: 0;
+  font-weight: 800 !important;
+}
+
+.pool-tag-input.profit-super {
+  background: #fee2e2 !important;
+  color: #b42318 !important;
+}
+
+.pool-tag-input.profit-high {
+  background: #ffedd5 !important;
+  color: #c2410c !important;
+}
+
+.pool-tag-input.profit-normal {
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+}
+
+.pool-tag-input.profit-warn {
+  background: #fef3c7 !important;
+  color: #92400e !important;
+}
+
+.pool-tag-input.valuation-low {
+  background: #dcfce7 !important;
+  color: #047857 !important;
+}
+
+.pool-tag-input.valuation-fair {
+  background: #e0f2fe !important;
+  color: #0369a1 !important;
+}
+
+.pool-tag-input.valuation-high {
+  background: #fee2e2 !important;
+  color: #b42318 !important;
+}
+
+.pool-tag-input.valuation-empty {
+  background: #f8fafc !important;
+  color: #94a3b8 !important;
 }
 
 .pool-table input.pool-cell-input:hover,
@@ -557,7 +757,7 @@
 
 .pool-cell-actions {
   display: flex;
-  gap: 4px;
+  gap: 3px;
   justify-content: center;
 }
 
@@ -566,7 +766,7 @@
   border: 1px solid #e5e7eb;
   border-radius: 4px;
   font-size: 11px;
-  padding: 2px 8px;
+  padding: 2px 5px;
   cursor: pointer;
   color: #6b7280;
 }
@@ -589,6 +789,89 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.pool-chart-grid {
+  min-width: 980px;
+  display: grid;
+  grid-template-columns: minmax(760px, 1fr);
+  gap: 18px;
+  padding: 18px;
+  background: #fff;
+  border-top: 1px solid #eef2f7;
+}
+
+.pool-chart-section h3 {
+  margin: 0 0 12px;
+  color: #1f2937;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.pool-bars {
+  height: 230px;
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  padding: 24px 8px 34px;
+  border-top: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+  background: repeating-linear-gradient(to top, #fff 0, #fff 35px, #f3f4f6 36px);
+}
+
+.pool-bar-item {
+  position: relative;
+  height: 100%;
+  width: 38px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pool-bar-track {
+  height: 100%;
+  width: 30px;
+  display: flex;
+  align-items: flex-end;
+}
+
+.pool-bar {
+  width: 100%;
+  min-height: 6px;
+  border-radius: 4px 4px 0 0;
+}
+
+.pool-bar.revenue {
+  background: linear-gradient(180deg, #ef4444 0%, #f97316 65%, #64748b 100%);
+}
+
+.pool-bar.margin {
+  background: linear-gradient(180deg, #7c3aed 0%, #8b5cf6 100%);
+}
+
+.pool-bar-value {
+  position: absolute;
+  bottom: calc(var(--bar-height, 0%) + 4px);
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.pool-bar-name {
+  position: absolute;
+  left: 50%;
+  bottom: -28px;
+  width: 64px;
+  transform: translateX(-50%) rotate(-28deg);
+  transform-origin: top center;
+  color: #475569;
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
 }
 
 /* ===== legacy pool card (kept for fallback) ===== */

@@ -33,6 +33,18 @@ public class PoolItemDTO {
     private BigDecimal revenueForecastY1;
     private BigDecimal revenueForecastY2;
 
+    /** 10倍PS看板：历史营收、季度指标、估值跟踪 */
+    private BigDecimal revenue2023;
+    private BigDecimal revenue2024;
+    private BigDecimal revenue2025;
+    private BigDecimal q1GrossMargin;
+    private BigDecimal q1NetMargin;
+    private BigDecimal q1RevenueGrowth;
+    private BigDecimal minPs5y;
+    private BigDecimal targetMarketCap;
+    private String profitLevel;
+    private String valuationRange;
+
     /** 持仓状态 */
     private String status;
     private String statusLabel;

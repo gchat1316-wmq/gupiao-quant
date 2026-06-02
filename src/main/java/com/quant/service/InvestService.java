@@ -334,6 +334,16 @@ public class InvestService {
         if (req.getRevenueForecastY0() != null) pool.setRevenueForecastY0(req.getRevenueForecastY0());
         if (req.getRevenueForecastY1() != null) pool.setRevenueForecastY1(req.getRevenueForecastY1());
         if (req.getRevenueForecastY2() != null) pool.setRevenueForecastY2(req.getRevenueForecastY2());
+        if (req.getRevenue2023() != null) pool.setRevenue2023(req.getRevenue2023());
+        if (req.getRevenue2024() != null) pool.setRevenue2024(req.getRevenue2024());
+        if (req.getRevenue2025() != null) pool.setRevenue2025(req.getRevenue2025());
+        if (req.getQ1GrossMargin() != null) pool.setQ1GrossMargin(req.getQ1GrossMargin());
+        if (req.getQ1NetMargin() != null) pool.setQ1NetMargin(req.getQ1NetMargin());
+        if (req.getQ1RevenueGrowth() != null) pool.setQ1RevenueGrowth(req.getQ1RevenueGrowth());
+        if (req.getMinPs5y() != null) pool.setMinPs5y(req.getMinPs5y());
+        if (req.getTargetMarketCap() != null) pool.setTargetMarketCap(req.getTargetMarketCap());
+        if (req.getProfitLevel() != null) pool.setProfitLevel(req.getProfitLevel());
+        if (req.getValuationRange() != null) pool.setValuationRange(req.getValuationRange());
     }
 
     /**
@@ -373,6 +383,16 @@ public class InvestService {
             case "revenueForecastY0" -> pool.setRevenueForecastY0(parseDecimal(raw));
             case "revenueForecastY1" -> pool.setRevenueForecastY1(parseDecimal(raw));
             case "revenueForecastY2" -> pool.setRevenueForecastY2(parseDecimal(raw));
+            case "revenue2023" -> pool.setRevenue2023(parseDecimal(raw));
+            case "revenue2024" -> pool.setRevenue2024(parseDecimal(raw));
+            case "revenue2025" -> pool.setRevenue2025(parseDecimal(raw));
+            case "q1GrossMargin" -> pool.setQ1GrossMargin(parseDecimal(raw));
+            case "q1NetMargin" -> pool.setQ1NetMargin(parseDecimal(raw));
+            case "q1RevenueGrowth" -> pool.setQ1RevenueGrowth(parseDecimal(raw));
+            case "minPs5y" -> pool.setMinPs5y(parseDecimal(raw));
+            case "targetMarketCap" -> pool.setTargetMarketCap(parseDecimal(raw));
+            case "profitLevel" -> pool.setProfitLevel(blank ? null : raw.trim());
+            case "valuationRange" -> pool.setValuationRange(blank ? null : raw.trim());
             default -> throw new IllegalArgumentException("不支持的字段：" + field);
         }
         return toPoolItemDTO(poolRepository.save(pool));
@@ -445,6 +465,16 @@ public class InvestService {
                 .revenueForecastY0(pool.getRevenueForecastY0())
                 .revenueForecastY1(pool.getRevenueForecastY1())
                 .revenueForecastY2(pool.getRevenueForecastY2())
+                .revenue2023(pool.getRevenue2023())
+                .revenue2024(pool.getRevenue2024())
+                .revenue2025(pool.getRevenue2025())
+                .q1GrossMargin(pool.getQ1GrossMargin())
+                .q1NetMargin(pool.getQ1NetMargin())
+                .q1RevenueGrowth(pool.getQ1RevenueGrowth())
+                .minPs5y(pool.getMinPs5y())
+                .targetMarketCap(pool.getTargetMarketCap())
+                .profitLevel(pool.getProfitLevel())
+                .valuationRange(pool.getValuationRange())
                 .status(pool.getStatus())
                 .statusLabel(statusLabel(pool.getStatus()))
                 .alertState(pool.getAlertState())

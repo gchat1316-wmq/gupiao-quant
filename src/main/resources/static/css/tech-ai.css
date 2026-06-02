@@ -1,0 +1,251 @@
+.tech-ai-page {
+  --tech-ink: #12312f;
+  --tech-muted: #6b7a78;
+  --tech-line: #d7e4df;
+  --tech-surface: #f7fbf9;
+  --tech-accent: #1b7f6b;
+  --tech-accent-soft: #e3f5ef;
+  --tech-warn: #b45309;
+  --tech-red: #b42318;
+}
+
+.tech-ai-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 20px;
+  padding: 28px 0 18px;
+  border-bottom: 1px solid var(--tech-line);
+}
+
+.tech-ai-kicker {
+  color: var(--tech-accent);
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.tech-ai-title {
+  color: var(--tech-ink);
+  font-size: 32px;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.tech-ai-sub {
+  color: var(--tech-muted);
+  margin: 10px 0 0;
+  font-size: 14px;
+}
+
+.tech-ai-hero-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tech-ai-command {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 18px 0;
+}
+
+.tech-ai-add {
+  display: flex;
+  gap: 10px;
+  min-width: min(560px, 100%);
+}
+
+.tech-ai-add input {
+  flex: 1;
+  height: 40px;
+  border: 1px solid var(--tech-line);
+  border-radius: 8px;
+  padding: 0 12px;
+  font-size: 14px;
+  outline: none;
+}
+
+.tech-ai-add input:focus {
+  border-color: var(--tech-accent);
+  box-shadow: 0 0 0 3px rgba(27, 127, 107, .12);
+}
+
+.tech-ai-note {
+  color: var(--tech-muted);
+  font-size: 12px;
+}
+
+.tech-ai-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 18px;
+  align-items: start;
+}
+
+.tech-ai-panel {
+  border: 1px solid var(--tech-line);
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tech-ai-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  background: var(--tech-surface);
+  border-bottom: 1px solid var(--tech-line);
+}
+
+.tech-ai-panel-head h3 {
+  margin: 0;
+  color: var(--tech-ink);
+  font-size: 16px;
+}
+
+.tech-ai-panel-head p {
+  margin: 4px 0 0;
+  color: var(--tech-muted);
+  font-size: 12px;
+}
+
+.tech-ai-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--tech-accent-soft);
+  color: var(--tech-accent);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.tech-ai-table-wrap {
+  overflow-x: auto;
+}
+
+.tech-ai-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 900px;
+}
+
+.tech-ai-table th,
+.tech-ai-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #edf2f0;
+  text-align: left;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.tech-ai-table th {
+  color: #5e706c;
+  background: #fbfdfc;
+  font-weight: 700;
+}
+
+.tech-ai-stock-name {
+  color: var(--tech-ink);
+  font-weight: 700;
+}
+
+.tech-ai-stock-code,
+.tech-ai-qmt-code {
+  color: var(--tech-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.tech-ai-change-up { color: #0f7a4f; font-weight: 700; }
+.tech-ai-change-down { color: var(--tech-red); font-weight: 700; }
+.tech-ai-empty {
+  padding: 34px 18px;
+  color: var(--tech-muted);
+  text-align: center;
+}
+
+.tech-ai-row-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.tech-ai-mini-btn {
+  border: 1px solid var(--tech-line);
+  background: #fff;
+  color: var(--tech-ink);
+  border-radius: 6px;
+  height: 30px;
+  padding: 0 10px;
+  cursor: pointer;
+}
+
+.tech-ai-mini-btn:hover {
+  border-color: var(--tech-accent);
+  color: var(--tech-accent);
+}
+
+.tech-ai-alert-list {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  max-height: 640px;
+  overflow: auto;
+}
+
+.tech-ai-alert {
+  border: 1px solid var(--tech-line);
+  border-left: 3px solid var(--tech-accent);
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
+}
+
+.tech-ai-alert-title {
+  color: var(--tech-ink);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.tech-ai-alert-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--tech-muted);
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .tech-ai-hero,
+  .tech-ai-command {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .tech-ai-add {
+    min-width: 0;
+  }
+
+  .tech-ai-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .tech-ai-add {
+    flex-direction: column;
+  }
+
+  .tech-ai-title {
+    font-size: 27px;
+  }
+}

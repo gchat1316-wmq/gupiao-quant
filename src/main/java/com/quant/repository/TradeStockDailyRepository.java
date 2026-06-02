@@ -15,6 +15,8 @@ public interface TradeStockDailyRepository extends JpaRepository<TradeStockDaily
     /** 取指定股票的最新一条 daily 记录 */
     Optional<TradeStockDaily> findFirstByStockCodeOrderByTradeDateDesc(String stockCode);
 
+    List<TradeStockDaily> findTop6ByStockCodeOrderByTradeDateDesc(String stockCode);
+
     /** 取指定股票在指定日期及之后的首条 daily 记录（用于年初涨幅基准价） */
     Optional<TradeStockDaily> findFirstByStockCodeAndTradeDateGreaterThanEqualOrderByTradeDateAsc(
             String stockCode, LocalDate fromDate);

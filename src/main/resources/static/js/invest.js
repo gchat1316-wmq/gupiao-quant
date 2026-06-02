@@ -506,23 +506,23 @@
   let poolData = [];
   let poolFilter = 'all';
 
-  // 池子列定义：14 列 + 操作列。inline 决定是否可内联编辑。
+  // 10倍PS股票池看板列定义。inline 决定是否可内联编辑。
   const POOL_COLUMNS = [
-    { key: 'stockName',         label: '名称 / 代码', cls: 'pool-col-stock', render: renderStockCell },
-    { key: 'poolType',          label: '分类',       inline: 'select', options: [{v:'quality',l:'质量优选'},{v:'tech_vc',l:'科技风投'}] },
-    { key: 'undervaluedPrice',  label: '低估价',     inline: 'number' },
-    { key: 'fairPrice',         label: '合理价',     inline: 'number' },
-    { key: 'overvaluedPrice',   label: '高估价',     inline: 'number' },
-    { key: 'ytdGain',           label: '年初涨幅',   readonly: true, render: renderPctCell },
-    { key: 'marketCap',         label: '当前市值(亿)', readonly: true, render: renderMarketCapCell },
-    { key: 'latestPrice',       label: '现价',       readonly: true, render: renderLatestPriceCell },
-    { key: 'revenueForecastY0', label: '今年营收(亿)', inline: 'number' },
-    { key: 'revenueForecastY1', label: '明年营收(亿)', inline: 'number' },
-    { key: 'revenueForecastY2', label: '后年营收(亿)', inline: 'number' },
-    { key: 'targetBuyPrice',    label: '希望买入价', inline: 'number' },
-    { key: 'targetSellPrice',   label: '希望卖出价', inline: 'number' },
-    { key: 'status',            label: '持仓状态',   inline: 'select', options: [{v:'watching',l:'观察中'},{v:'holding',l:'持仓中'},{v:'exited',l:'已离场'}] },
-    { key: 'memo',              label: '投资逻辑',   render: renderMemoCell },
+    { key: 'stockName',         label: '公司简称', cls: 'pool-col-stock', render: renderStockCell },
+    { key: 'revenue2023',       label: '2023<br>营收<br>(亿)', cls: 'pool-col-num', inline: 'number' },
+    { key: 'revenue2024',       label: '2024<br>营收<br>(亿)', cls: 'pool-col-num', inline: 'number' },
+    { key: 'revenue2025',       label: '2025<br>营收<br>(亿)', cls: 'pool-col-num', inline: 'number' },
+    { key: 'revenueForecastY0', label: '2026<br>预测<br>(亿)', cls: 'pool-col-num', inline: 'number', hot: true },
+    { key: 'revenueForecastY1', label: '2027<br>预测<br>(亿)', cls: 'pool-col-num', inline: 'number' },
+    { key: 'revenueForecastY2', label: '2028<br>预测<br>(亿)', cls: 'pool-col-num', inline: 'number' },
+    { key: 'q1GrossMargin',     label: '2026Q1<br>毛利率<br>(%)', cls: 'pool-col-rate', inline: 'number' },
+    { key: 'q1NetMargin',       label: '2026Q1<br>净利率<br>(%)', cls: 'pool-col-rate', inline: 'number' },
+    { key: 'q1RevenueGrowth',   label: '2026Q1<br>营收<br>增速(%)', cls: 'pool-col-rate', inline: 'number', render: renderGrowthEditCell },
+    { key: 'minPs5y',           label: '近5年<br>最低<br>PS(倍)', cls: 'pool-col-ps', inline: 'number', render: renderPsCell },
+    { key: 'targetMarketCap',   label: '目标<br>市值<br>(亿)', cls: 'pool-col-num', inline: 'number', hot: true },
+    { key: 'ytdGain',           label: '今年<br>涨幅<br>(%)', cls: 'pool-col-rate', readonly: true, render: renderPctCell },
+    { key: 'profitLevel',       label: '盈亏<br>等级', cls: 'pool-col-tag', inline: 'text', render: renderProfitLevelCell },
+    { key: 'valuationRange',    label: '估值<br>区间', cls: 'pool-col-tag', inline: 'text', render: renderValuationRangeCell },
   ];
 
   function initPool() {
@@ -553,21 +553,23 @@
     const wrap = document.getElementById('poolListWrap');
     if (!wrap) return;
     let items = poolData;
-    if (poolFilter === 'quality') items = poolData.filter(i => i.poolType === 'quality');
-    else if (poolFilter === 'tech_vc') items = poolData.filter(i => i.poolType === 'tech_vc');
-    else if (poolFilter === 'holding') items = poolData.filter(i => i.status === 'holding');
-    else if (poolFilter === 'alerted') items = poolData.filter(i => i.alertState && i.alertState !== 'none');
+    if (poolFilter === 'super') items = poolData.filter(i => asNum(i.q1RevenueGrowth) >= 100);
+    else if (poolFilter === 'high') items = poolData.filter(i => asNum(i.q1RevenueGrowth) >= 70);
+    else if (poolFilter === 'buy') items = poolData.filter(isBuyZone);
+    else if (poolFilter === 'risk') items = poolData.filter(isRiskZone);
 
     if (items.length === 0) {
       wrap.innerHTML = '<div class="pool-empty">暂无股票，点击「+ 加入股票池」或「📷 截图批量导入」添加</div>';
       return;
     }
 
+    items = [...items].sort((a, b) => sortNum(b.q1RevenueGrowth) - sortNum(a.q1RevenueGrowth));
+
     let head = '<thead><tr>';
     POOL_COLUMNS.forEach(c => {
       head += `<th class="${c.cls || ''}">${c.label}</th>`;
     });
-    head += '<th>操作</th></tr></thead>';
+    head += '<th class="pool-col-actions">操作</th></tr></thead>';
 
     let body = '<tbody>';
     items.forEach(item => {
@@ -576,9 +578,9 @@
       else if (item.alertState === 'sell_alerted') rowCls = 'alert-sell';
       body += `<tr class="${rowCls}" data-id="${item.id}">`;
       POOL_COLUMNS.forEach(c => {
-        body += `<td class="${c.cls || ''}" data-field="${c.key}">${renderCell(c, item)}</td>`;
+        body += `<td class="${c.cls || ''} ${c.hot ? 'pool-col-hot' : ''}" data-field="${c.key}">${renderCell(c, item)}</td>`;
       });
-      body += `<td class="pool-cell-actions">
+      body += `<td class="pool-cell-actions pool-col-actions">
         <button class="pool-row-btn" data-action="edit" data-id="${item.id}">详情</button>
         <button class="pool-row-btn danger" data-action="delete" data-id="${item.id}">移除</button>
       </td>`;
@@ -586,15 +588,15 @@
     });
     body += '</tbody>';
 
-    const total = poolData.length;
-    const matched = items.length;
-    const alertedCount = poolData.filter(i => i.alertState && i.alertState !== 'none').length;
-
-    wrap.innerHTML = `<table class="pool-table">${head}${body}</table>
+    wrap.innerHTML = `${renderPoolBoardSummary(items)}
+      <div class="pool-table-scroll">
+        <table class="pool-table pool-ps-table">${head}${body}</table>
+      </div>
       <div class="pool-list-foot">
-        <span>共 ${total} 只，当前显示 ${matched} 只</span>
-        <span>${alertedCount > 0 ? `<span style="color:#b91c1c;font-weight:700">${alertedCount} 只触发提醒</span>` : '提醒状态：全部正常'}</span>
-      </div>`;
+        <span>共 ${poolData.length} 只，当前显示 ${items.length} 只</span>
+        <span>数据来源：invest_stock_pool</span>
+      </div>
+      ${renderPoolCharts(items)}`;
 
     bindPoolEvents();
   }
@@ -605,6 +607,9 @@
     if (col.inline === 'number') {
       const display = val != null ? Number(val) : '';
       return `<input type="number" step="0.01" class="pool-cell-input" data-field="${col.key}" value="${display}" />`;
+    }
+    if (col.inline === 'text') {
+      return `<input type="text" class="pool-cell-input" data-field="${col.key}" value="${escHtml(val || '')}" />`;
     }
     if (col.inline === 'select') {
       const opts = col.options.map(o =>
@@ -631,7 +636,85 @@
     const n = parseFloat(v);
     const cls = n > 0 ? 'up' : (n < 0 ? 'down' : '');
     const sign = n >= 0 ? '+' : '';
-    return `<span class="pool-cell-pct ${cls}">${sign}${n.toFixed(2)}%</span>`;
+    return `<span class="pool-cell-pct ${cls}">${sign}${n.toFixed(2)}</span>`;
+  }
+
+  function renderGrowthEditCell(item, col) {
+    const v = item[col.key];
+    const n = asNum(v);
+    const cls = n >= 100 ? 'surge' : (n >= 70 ? 'strong' : (n >= 30 ? 'warm' : 'calm'));
+    const display = v != null ? Number(v) : '';
+    return `<label class="pool-edit-wrap pool-growth-edit ${cls}">
+      <input type="number" step="0.01" class="pool-cell-input" data-field="${col.key}" value="${display}" />
+    </label>`;
+  }
+
+  function renderPsCell(item, col) {
+    const v = item[col.key];
+    const display = v != null ? Number(v) : '';
+    return `<label class="pool-edit-wrap pool-ps-edit">
+      <input type="number" step="0.01" class="pool-cell-input" data-field="${col.key}" value="${display}" />
+    </label>`;
+  }
+
+  function renderProfitLevelCell(item, col) {
+    const val = item[col.key] || inferProfitLevel(item);
+    const cls = val.includes('超高') ? 'super' : (val.includes('高') ? 'high' : (val.includes('正常') ? 'normal' : 'warn'));
+    return `<input type="text" class="pool-cell-input pool-tag-input profit-${cls}" data-field="${col.key}" value="${escHtml(val)}" />`;
+  }
+
+  function renderValuationRangeCell(item, col) {
+    const val = item[col.key] || inferValuationRange(item);
+    const cls = val.includes('低估') ? 'low' : (val.includes('高估') ? 'high' : (val.includes('合理') ? 'fair' : 'empty'));
+    return `<input type="text" class="pool-cell-input pool-tag-input valuation-${cls}" data-field="${col.key}" value="${escHtml(val)}" />`;
+  }
+
+  function renderPoolBoardSummary(items) {
+    const superCount = poolData.filter(i => asNum(i.q1RevenueGrowth) >= 100).length;
+    const highCount = poolData.filter(i => asNum(i.q1RevenueGrowth) >= 70).length;
+    const buyCount = poolData.filter(isBuyZone).length;
+    const riskCount = poolData.filter(isRiskZone).length;
+    const avgGrowth = avg(poolData.map(i => i.q1RevenueGrowth));
+    return `<div class="pool-board-head">
+      <div>
+        <div class="pool-board-title">适合用10倍PS来简单估测和跟踪的高科技成长股 <span>${new Date().toISOString().slice(0, 10)}</span></div>
+        <div class="pool-board-note">判断依据：2026 Q1 营收增速、毛利率/净利率、动态 PS、目标市值与今年涨幅。</div>
+      </div>
+      <div class="pool-board-stats">
+        <span class="pool-stat red">超高景气 ${superCount}</span>
+        <span class="pool-stat orange">高景气 ${highCount}</span>
+        <span class="pool-stat green">低估买入 ${buyCount}</span>
+        <span class="pool-stat gray">高估风险 ${riskCount}</span>
+        <span class="pool-stat blue">均值 ${isFinite(avgGrowth) ? avgGrowth.toFixed(1) + '%' : '—'}</span>
+      </div>
+    </div>`;
+  }
+
+  function renderPoolCharts(items) {
+    const rows = [...items].filter(i => i.q1RevenueGrowth != null || i.q1NetMargin != null).slice(0, 16);
+    if (rows.length === 0) return '';
+    return `<div class="pool-chart-grid">
+      ${renderPoolBarChart('2026 Q1 营收增速分布', rows, 'q1RevenueGrowth', '%', 'revenue')}
+      ${renderPoolBarChart('2026 Q1 净利率分布', rows, 'q1NetMargin', '%', 'margin')}
+    </div>`;
+  }
+
+  function renderPoolBarChart(title, rows, key, suffix, tone) {
+    const nums = rows.map(i => Math.max(0, asNum(i[key]))).filter(Number.isFinite);
+    const max = Math.max(10, ...nums);
+    const bars = rows.map(item => {
+      const val = asNum(item[key]);
+      const height = Number.isFinite(val) ? Math.max(8, Math.min(100, val / max * 100)) : 0;
+      return `<div class="pool-bar-item">
+        <div class="pool-bar-value" style="--bar-height:${height}%">${Number.isFinite(val) ? val.toFixed(1) + suffix : '—'}</div>
+        <div class="pool-bar-track"><div class="pool-bar ${tone}" style="height:${height}%"></div></div>
+        <div class="pool-bar-name" title="${escHtml(item.stockName || item.stockCode)}">${escHtml(item.stockName || item.stockCode)}</div>
+      </div>`;
+    }).join('');
+    return `<section class="pool-chart-section">
+      <h3>${title}</h3>
+      <div class="pool-bars">${bars}</div>
+    </section>`;
   }
 
   function renderMarketCapCell(item) {
@@ -657,6 +740,57 @@
     }
     const short = memo.length > 30 ? memo.slice(0, 30) + '…' : memo;
     return `<div class="pool-cell-memo" data-action="memo" data-id="${item.id}" title="${escHtml(memo)}">${escHtml(short)}</div>`;
+  }
+
+  function asNum(v) {
+    if (v == null || v === '') return NaN;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : NaN;
+  }
+
+  function sortNum(v) {
+    const n = asNum(v);
+    return Number.isFinite(n) ? n : -Infinity;
+  }
+
+  function avg(values) {
+    const nums = values.map(asNum).filter(Number.isFinite);
+    if (nums.length === 0) return NaN;
+    return nums.reduce((sum, n) => sum + n, 0) / nums.length;
+  }
+
+  function isBuyZone(item) {
+    const explicit = item.valuationRange || '';
+    if (explicit.includes('低估')) return true;
+    const marketCap = asNum(item.marketCap);
+    const targetMarketCap = asNum(item.targetMarketCap);
+    return Number.isFinite(marketCap) && Number.isFinite(targetMarketCap) && marketCap <= targetMarketCap * 0.8;
+  }
+
+  function isRiskZone(item) {
+    const explicit = item.valuationRange || '';
+    if (explicit.includes('高估')) return true;
+    const marketCap = asNum(item.marketCap);
+    const targetMarketCap = asNum(item.targetMarketCap);
+    return Number.isFinite(marketCap) && Number.isFinite(targetMarketCap) && marketCap >= targetMarketCap * 1.2;
+  }
+
+  function inferProfitLevel(item) {
+    const growth = asNum(item.q1RevenueGrowth);
+    if (!Number.isFinite(growth)) return '';
+    if (growth >= 100) return '超高景气';
+    if (growth >= 70) return '高景气';
+    if (growth >= 30) return '景气中';
+    return '正常';
+  }
+
+  function inferValuationRange(item) {
+    if (isBuyZone(item)) return '低估区间';
+    if (isRiskZone(item)) return '高估区间';
+    const marketCap = asNum(item.marketCap);
+    const targetMarketCap = asNum(item.targetMarketCap);
+    if (Number.isFinite(marketCap) && Number.isFinite(targetMarketCap)) return '合理区间';
+    return '';
   }
 
   function bindPoolEvents() {
@@ -726,6 +860,7 @@
       setTimeout(() => el.classList.remove('saved'), 800);
       // 如果改了 select（持仓状态/分类），重新渲染整行（filter 可能改变）
       if (field === 'status' || field === 'poolType') renderPool();
+      if (['q1RevenueGrowth', 'q1NetMargin', 'q1GrossMargin', 'targetMarketCap', 'valuationRange', 'profitLevel'].includes(field)) renderPool();
     } catch (e) {
       el.classList.remove('saving');
       el.classList.add('error');
