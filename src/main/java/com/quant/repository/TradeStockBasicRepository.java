@@ -21,4 +21,8 @@ public interface TradeStockBasicRepository extends JpaRepository<TradeStockBasic
 
     @Query("SELECT s FROM TradeStockBasic s WHERE s.stockName = :name OR s.stockName LIKE CONCAT('%', :name, '%')")
     List<TradeStockBasic> findByStockNameLike(@Param("name") String name);
+
+    /** 按 sector_names 字段模糊匹配板块名称(成分股查询) */
+    @Query("SELECT s FROM TradeStockBasic s WHERE s.sectorNames LIKE CONCAT('%', :sectorName, '%')")
+    List<TradeStockBasic> findBySectorNameLike(@Param("sectorName") String sectorName);
 }

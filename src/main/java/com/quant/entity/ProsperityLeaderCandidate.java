@@ -1,0 +1,64 @@
+package com.quant.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+@Getter
+@Setter
+@Entity
+@Table(name = "prosperity_leader_candidate")
+public class ProsperityLeaderCandidate {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+
+    @Column(name = "snap_date", nullable = false)
+    private LocalDate snapDate;
+
+    @Column(name = "sector_id", nullable = false)
+    private Integer sectorId;
+
+    @Column(name = "sector_name", nullable = false, length = 64)
+    private String sectorName;
+
+    @Column(name = "stock_code", nullable = false, length = 20)
+    private String stockCode;
+
+    @Column(name = "stock_name", length = 50)
+    private String stockName;
+
+    @Column(name = "leader_score", precision = 8, scale = 2)
+    private BigDecimal leaderScore;
+
+    @Column(name = "ytd_change", precision = 8, scale = 4)
+    private BigDecimal ytdChange;
+
+    @Column(name = "change_5d", precision = 8, scale = 4)
+    private BigDecimal change5d;
+
+    @Column(name = "turnover_rate", precision = 8, scale = 4)
+    private BigDecimal turnoverRate;
+
+    @Column(name = "main_inflow_5d", precision = 20, scale = 2)
+    private BigDecimal mainInflow5d;
+
+    @Column(name = "filter_passed")
+    private Integer filterPassed;
+
+    @Column(name = "filter_reason", length = 128)
+    private String filterReason;
+
+    @Column(name = "created_at", insertable = false, updatable = false)
+    private LocalDateTime createdAt;
+}

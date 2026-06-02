@@ -1,0 +1,279 @@
+/* 强势股选股页面样式 */
+
+.ps-page {
+  padding-top: 16px;
+}
+
+.ps-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: linear-gradient(135deg, #fff1f2 0%, #fce8ef 100%);
+  border: 1px solid #f3c5d2;
+  border-radius: 12px;
+  padding: 18px 22px;
+  margin-bottom: 16px;
+}
+.ps-kicker {
+  color: #b1395c;
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+.ps-title {
+  margin: 4px 0 6px;
+  color: #7a1f3d;
+  font-size: 22px;
+}
+.ps-sub {
+  margin: 0;
+  color: #82445b;
+  font-size: 13px;
+}
+.ps-hero-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.ps-hero-actions input[type=date] {
+  padding: 6px 10px;
+  border: 1px solid #d6336c33;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.ps-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  color: #555;
+}
+.ps-status-pill {
+  background: #e7f4ee;
+  color: #1c7a4a;
+  border: 1px solid #cfe7d8;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+.ps-status-pill.busy {
+  background: #fff4d8;
+  color: #a8770b;
+  border-color: #f3e0a3;
+}
+.ps-status-pill.err {
+  background: #ffe6e6;
+  color: #c0392b;
+  border-color: #f5b3b3;
+}
+
+.ps-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid #e4e4e7;
+  margin-bottom: 16px;
+}
+.ps-tab {
+  background: transparent;
+  border: none;
+  padding: 10px 16px;
+  font-size: 14px;
+  color: #555;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+.ps-tab.active {
+  color: #d6336c;
+  border-bottom-color: #d6336c;
+  font-weight: 600;
+}
+
+.ps-panel.hidden { display: none; }
+
+.ps-section-head h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  color: #2c2c2c;
+}
+.ps-section-head p {
+  margin: 0 0 14px;
+  color: #777;
+  font-size: 12px;
+}
+
+/* 板块卡片 */
+.ps-sector-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+.ps-sector-card {
+  border: 1px solid #e6e6ea;
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: #fff;
+  transition: box-shadow .15s;
+}
+.ps-sector-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.06); }
+.ps-sector-rank {
+  display: inline-block;
+  background: #d6336c;
+  color: #fff;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  margin-right: 8px;
+}
+.ps-sector-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2c2c2c;
+}
+.ps-sector-metrics {
+  margin: 10px 0;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #555;
+}
+.ps-sector-metrics span strong { color: #d6336c; }
+.ps-sector-narrative {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #444;
+  background: #fcfafb;
+  border-left: 3px solid #d6336c;
+  padding: 8px 10px;
+  border-radius: 0 6px 6px 0;
+}
+
+/* 候选表 */
+.ps-table-wrap { overflow-x: auto; }
+.ps-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.ps-table th, .ps-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #ececef;
+  text-align: right;
+  white-space: nowrap;
+}
+.ps-table th { background: #faf6f8; color: #555; font-weight: 600; text-align: right; }
+.ps-table th:nth-child(1), .ps-table td:nth-child(1),
+.ps-table th:nth-child(2), .ps-table td:nth-child(2),
+.ps-table th:nth-child(3), .ps-table td:nth-child(3) { text-align: left; }
+.ps-table td.score-cell { font-weight: 600; color: #d6336c; }
+.ps-signal { padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+.ps-signal.add { background: #e7f4ee; color: #1c7a4a; }
+.ps-signal.hold { background: #eef2ff; color: #4b5bff; }
+.ps-signal.reduce { background: #fff4d8; color: #a8770b; }
+.ps-signal.observe { background: #ececef; color: #666; }
+
+/* 仓位决策卡 */
+.ps-position-card {
+  border: 1px solid #f3c5d2;
+  background: linear-gradient(135deg, #fff8fb 0%, #fff 100%);
+  border-radius: 12px;
+  padding: 18px;
+  margin: 18px 0;
+}
+.ps-position-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.ps-position-head h3 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  color: #7a1f3d;
+}
+.ps-position-meta {
+  font-size: 12px;
+  color: #777;
+}
+.ps-position-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+.ps-position-item {
+  background: #fff;
+  border: 1px solid #f1d8e0;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.ps-position-label {
+  font-size: 11px;
+  color: #b1395c;
+  margin-bottom: 4px;
+  letter-spacing: 0.5px;
+}
+.ps-position-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: #2c2c2c;
+}
+.ps-position-tip {
+  font-size: 12px;
+  color: #777;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #f3c5d2;
+}
+
+.ps-detail-search {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.ps-detail-search input {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid #d6336c33;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.ps-history-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.ps-empty {
+  padding: 28px;
+  text-align: center;
+  color: #999;
+  border: 1px dashed #e4e4e7;
+  border-radius: 8px;
+}
+
+.ps-disclaimer {
+  margin-top: 24px;
+  font-size: 11px;
+  color: #999;
+  text-align: center;
+}
+
+.ps-btn-mini {
+  background: transparent;
+  border: 1px solid #d6336c66;
+  color: #d6336c;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.ps-btn-mini:hover { background: #fff1f2; }

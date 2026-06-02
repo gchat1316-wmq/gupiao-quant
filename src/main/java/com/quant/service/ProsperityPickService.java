@@ -57,8 +57,12 @@ public class ProsperityPickService {
             Optional<InvestProsperityPick> cached = repo.findByStockCodeAndAnalysisDate(
                     basic.getStockCode(), today);
             if (cached.isPresent()) {
-                log.info("命中缓存: {} {}", basic.getStockCode(), today);
-                return toResultDTO(cached.get(), basic, true);
+                InvestProsperityPick cachedEntity = cached.get();
+                if (cachedEntity.getDegraded() == null || cachedEntity.getDegraded() != 1) {
+                    log.info("命中缓存: {} {}", basic.getStockCode(), today);
+                    return toResultDTO(cachedEntity, basic, true);
+                }
+                log.info("命中演示数据缓存，重新分析: {} {}", basic.getStockCode(), today);
             }
         }
 
@@ -68,10 +72,7 @@ public class ProsperityPickService {
         boolean degraded = false;
         String aiJson;
         try {
-            aiJson = miniMaxClient.chatComplete(SYSTEM_PROMPT, prompt);
-            aiJson = extractJson(aiJson);
-            // 校验是否合法 JSON
-            MAPPER.readTree(aiJson);
+            aiJson = analyzeWithAi(prompt);
         } catch (Exception e) {
             log.warn("AI 调用失败，使用 mock 退化: {}", e.getMessage());
             if (!aiProperties.isFallbackToMock()) {
@@ -94,6 +95,34 @@ public class ProsperityPickService {
         }
         InvestProsperityPick saved = repo.save(entity);
         return toResultDTO(saved, basic, false);
+    }
+
+    private String analyzeWithAi(String prompt) {
+        Exception miniMaxError = null;
+        try {
+            return normalizeAiJson(miniMaxClient.chatComplete(SYSTEM_PROMPT, prompt));
+        } catch (Exception e) {
+            miniMaxError = e;
+            log.warn("MiniMax 分析失败，尝试 SenseNova: {}", e.getMessage());
+        }
+
+        try {
+            return normalizeAiJson(senseNovaClient.chatComplete(SYSTEM_PROMPT, prompt));
+        } catch (Exception senseNovaError) {
+            String message = "MiniMax: " + miniMaxError.getMessage()
+                    + "; SenseNova: " + senseNovaError.getMessage();
+            throw new IllegalStateException(message, senseNovaError);
+        }
+    }
+
+    private String normalizeAiJson(String raw) {
+        String aiJson = extractJson(raw);
+        try {
+            MAPPER.readTree(aiJson);
+        } catch (Exception e) {
+            throw new IllegalStateException("AI 返回不是合法 JSON: " + e.getMessage(), e);
+        }
+        return aiJson;
     }
 
     public String generateInfographic(Long id) {

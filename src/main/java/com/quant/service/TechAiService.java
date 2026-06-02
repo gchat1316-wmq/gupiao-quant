@@ -80,7 +80,7 @@ public class TechAiService {
         Map<String, TechAiQuoteSnapshot> quotes = latestQuotes(codes);
         Map<String, TradeStockBasic> basics = basics(codes);
         return pool.stream()
-                .map(item -> toPoolDTO(item, basics.get(item.getStockCode()), quotes.get(item.getStockCode())))
+                .map(item -> toPoolDTO(item, basicFromMap(basics, item.getStockCode()), quotes.get(item.getStockCode())))
                 .toList();
     }
 
@@ -98,11 +98,15 @@ public class TechAiService {
 
         InvestStockPool pool = new InvestStockPool();
         pool.setStockCode(stockCode);
+        TradeStockBasic basic = basic(stockCode);
+        if (basic != null) {
+            pool.setStockName(basic.getStockName());
+        }
         pool.setPoolType(POOL_TYPE);
         pool.setStatus(request.getStatus() == null || request.getStatus().isBlank() ? "watching" : request.getStatus());
         pool.setMemo(request.getMemo());
         InvestStockPool saved = poolRepository.save(pool);
-        return toPoolDTO(saved, basic(saved.getStockCode()), quoteRepository.findFirstByStockCodeOrderByQuoteTimeDesc(saved.getStockCode()).orElse(null));
+        return toPoolDTO(saved, basic, quoteRepository.findFirstByStockCodeOrderByQuoteTimeDesc(saved.getStockCode()).orElse(null));
     }
 
     @Transactional
@@ -166,10 +170,7 @@ public class TechAiService {
             if (quote == null) {
                 continue;
             }
-            String stockName = Optional.ofNullable(basics.get(item.getStockCode()))
-                    .map(TradeStockBasic::getStockName)
-                    .filter(name -> !name.isBlank())
-                    .orElse(item.getStockCode());
+            String stockName = displayStockName(item, basicFromMap(basics, item.getStockCode()));
             TechAiMarketContext ctx = buildContext(item.getStockCode(), stockName, quote);
             for (TechAiAlertCandidate candidate : ruleEngine.evaluate(ctx)) {
                 if (shouldPush(candidate, cfg)) {
@@ -269,7 +270,7 @@ public class TechAiService {
                 .id(item.getId())
                 .stockCode(item.getStockCode())
                 .qmtCode(TechAiStockCodeUtils.toQmtCode(item.getStockCode()))
-                .stockName(basic == null || basic.getStockName() == null ? item.getStockCode() : basic.getStockName())
+                .stockName(displayStockName(item, basic))
                 .status(item.getStatus())
                 .memo(item.getMemo())
                 .latestPrice(quote == null ? null : quote.getLatestPrice())
@@ -280,6 +281,16 @@ public class TechAiService {
                 .createdAt(item.getCreatedAt())
                 .updatedAt(item.getUpdatedAt())
                 .build();
+    }
+
+    private String displayStockName(InvestStockPool item, TradeStockBasic basic) {
+        if (basic != null && basic.getStockName() != null && !basic.getStockName().isBlank()) {
+            return basic.getStockName();
+        }
+        if (item.getStockName() != null && !item.getStockName().isBlank()) {
+            return item.getStockName();
+        }
+        return item.getStockCode();
     }
 
     private TechAiAlertDTO toAlertDTO(InvestAlert alert) {
@@ -336,6 +347,10 @@ public class TechAiService {
             result.put(TechAiStockCodeUtils.normalizeProjectCode(basic.getStockCode()), basic);
         }
         return result;
+    }
+
+    private TradeStockBasic basicFromMap(Map<String, TradeStockBasic> basics, String stockCode) {
+        return basics.get(TechAiStockCodeUtils.normalizeProjectCode(stockCode));
     }
 
     private Map<String, TechAiQuoteSnapshot> latestQuotes(Collection<String> codes) {

@@ -27,9 +27,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -264,8 +267,8 @@ public class InvestService {
 
         List<String> codes = items.stream().map(InvestStockPool::getStockCode).collect(Collectors.toList());
 
-        Map<String, TradeStockBasic> basicMap = stockBasicRepository.findByStockCodeIn(codes).stream()
-                .collect(Collectors.toMap(TradeStockBasic::getStockCode, b -> b, (a, b) -> a));
+        Map<String, TradeStockBasic> basicMap = stockBasicRepository.findByStockCodeIn(expandCodeVariants(codes)).stream()
+                .collect(Collectors.toMap(f -> normalizeCodeKey(f.getStockCode()), b -> b, (a, b) -> a));
 
         Map<String, TradeStockFinancial> finMap = financialRepository.findLatestByStockCodes(codes).stream()
                 .collect(Collectors.toMap(TradeStockFinancial::getStockCode, f -> f));
@@ -287,6 +290,20 @@ public class InvestService {
                                     Map<String, TradeStockDaily> latestDailyMap,
                                     Map<String, TradeStockDaily> yearStartDailyMap) { }
 
+    private Set<String> expandCodeVariants(List<String> codes) {
+        Set<String> variants = new LinkedHashSet<>();
+        for (String code : codes) {
+            if (code == null || code.isBlank()) continue;
+            variants.add(code);
+            variants.add(code.toUpperCase(Locale.ROOT));
+        }
+        return variants;
+    }
+
+    private String normalizeCodeKey(String code) {
+        return code == null ? "" : code.toUpperCase(Locale.ROOT);
+    }
+
     @Transactional
     public PoolItemDTO addToPool(PoolSaveRequest req) {
         String kw = req.getKeyword() == null ? "" : req.getKeyword().trim();
@@ -305,6 +322,7 @@ public class InvestService {
 
         InvestStockPool pool = new InvestStockPool();
         pool.setStockCode(info.getStockCode());
+        pool.setStockName(info.getStockName());
         pool.setPoolType(req.getPoolType() != null ? req.getPoolType() : "quality");
         pool.setStatus(req.getStatus() != null ? req.getStatus() : "watching");
         applyPoolFields(pool, req);
@@ -415,7 +433,7 @@ public class InvestService {
     /** 单条转换，供 addToPool / updatePool / updateField 使用。 */
     private PoolItemDTO toPoolItemDTO(InvestStockPool pool) {
         String code = pool.getStockCode();
-        TradeStockBasic basic = stockBasicRepository.findByStockCode(code).orElse(null);
+        TradeStockBasic basic = findBasicByPoolCode(code);
         TradeStockFinancial fin = financialRepository
                 .findByStockCodeOrderByReportDateDesc(code)
                 .stream().findFirst().orElse(null);
@@ -435,8 +453,8 @@ public class InvestService {
 
     private PoolItemDTO toPoolItemDTO(InvestStockPool pool, PoolPriceContext ctx) {
         String code = pool.getStockCode();
-        TradeStockBasic basic = ctx.basicMap().get(code);
-        String stockName = basic != null ? basic.getStockName() : code;
+        TradeStockBasic basic = ctx.basicMap().get(normalizeCodeKey(code));
+        String stockName = displayStockName(pool, basic);
         TradeStockFinancial fin = ctx.finMap().get(code);
         TradeStockDaily latest = ctx.latestDailyMap().get(code);
         TradeStockDaily yearStart = ctx.yearStartDailyMap().get(code);
@@ -488,6 +506,24 @@ public class InvestService {
                 .createdAt(pool.getCreatedAt())
                 .updatedAt(pool.getUpdatedAt())
                 .build();
+    }
+
+    private TradeStockBasic findBasicByPoolCode(String code) {
+        Optional<TradeStockBasic> exact = stockBasicRepository.findByStockCode(code);
+        if (exact.isPresent() || code == null) return exact.orElse(null);
+        String upperCode = code.toUpperCase(Locale.ROOT);
+        if (upperCode.equals(code)) return null;
+        return stockBasicRepository.findByStockCode(upperCode).orElse(null);
+    }
+
+    private String displayStockName(InvestStockPool pool, TradeStockBasic basic) {
+        if (basic != null && basic.getStockName() != null && !basic.getStockName().isBlank()) {
+            return basic.getStockName();
+        }
+        if (pool.getStockName() != null && !pool.getStockName().isBlank()) {
+            return pool.getStockName();
+        }
+        return pool.getStockCode();
     }
 
     private BigDecimal computeYtdGain(TradeStockDaily latest, TradeStockDaily yearStart) {

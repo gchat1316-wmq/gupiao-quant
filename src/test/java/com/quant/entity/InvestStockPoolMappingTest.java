@@ -12,6 +12,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 class InvestStockPoolMappingTest {
 
     @Test
+    @DisplayName("公司名称字段映射到股票池 stock_name 列")
+    void stockNameFieldMapsToStockNameColumn() throws Exception {
+        assertColumnName("stockName", "stock_name");
+    }
+
+    @Test
     @DisplayName("历史营收字段映射到已有数据的 rev_* 列")
     void revenueHistoryFieldsMapToRevColumns() throws Exception {
         assertColumnName("revenue2023", "rev_2023");

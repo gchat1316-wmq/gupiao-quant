@@ -25,6 +25,9 @@ public class InvestStockPool {
     @Column(name = "stock_code", nullable = false, length = 20, unique = true)
     private String stockCode;
 
+    @Column(name = "stock_name", length = 255)
+    private String stockName;
+
     @Column(name = "pool_type", nullable = false, length = 10)
     private String poolType;
 
