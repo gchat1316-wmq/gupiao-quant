@@ -31,8 +31,8 @@ echo "      已启动，PID=$NEW_PID"
 echo "      等待服务就绪 ..."
 for i in $(seq 1 30); do
   sleep 1
-  if curl -s -o /dev/null -w "%{http_code}" "http://localhost:$PORT/" 2>/dev/null | grep -q "200"; then
-    echo "      服务已就绪 -> http://localhost:$PORT/"
+  if curl -s -o /dev/null -w "%{http_code}" "http://localhost:$PORT/gp/" 2>/dev/null | grep -q "200"; then
+    echo "      服务已就绪 -> http://localhost:$PORT/gp/"
     exit 0
   fi
 done
