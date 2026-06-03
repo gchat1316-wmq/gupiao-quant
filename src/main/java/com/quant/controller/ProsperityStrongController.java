@@ -4,11 +4,14 @@ import com.quant.dto.prosperitystrong.HotSectorDTO;
 import com.quant.dto.prosperitystrong.LeaderCandidateDTO;
 import com.quant.dto.prosperitystrong.PickDailyDTO;
 import com.quant.dto.prosperitystrong.PipelineRunResultDTO;
+import com.quant.dto.prosperitystrong.ProviderCapabilityDTO;
 import com.quant.entity.InvestStockPool;
 import com.quant.entity.ProsperityPickDaily;
 import com.quant.repository.InvestStockPoolRepository;
 import com.quant.repository.ProsperityPickDailyRepository;
+import com.quant.service.prosperitystrong.ProsperityDataProviderService;
 import com.quant.service.prosperitystrong.ProsperityStrongPipelineService;
+import com.quant.service.prosperitystrong.WindAifinMarketClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -30,6 +33,8 @@ import java.util.Map;
 public class ProsperityStrongController {
 
     private final ProsperityStrongPipelineService pipeline;
+    private final ProsperityDataProviderService providers;
+    private final WindAifinMarketClient windClient;
     private final ProsperityPickDailyRepository pickRepo;
     private final InvestStockPoolRepository poolRepo;
 
@@ -37,8 +42,23 @@ public class ProsperityStrongController {
     @PostMapping("/run")
     public PipelineRunResultDTO run(
             @RequestParam(value = "date", required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return pipeline.run(date == null ? LocalDate.now() : date);
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(value = "provider", required = false) String provider) {
+        return pipeline.run(date == null ? LocalDate.now() : date, provider);
+    }
+
+    /** 数据链路能力诊断 */
+    @GetMapping("/providers")
+    public List<ProviderCapabilityDTO> providers() {
+        return providers.capabilities();
+    }
+
+    /** Wind 自然语言 A 股筛选,用于后续补数/替代本地日线缺口 */
+    @GetMapping("/providers/wind/search-stocks")
+    public Map<String, Object> windSearchStocks(
+            @RequestParam(value = "question", defaultValue = "筛选沪深市场近5日涨幅居前且换手率较高且非ST的股票") String question,
+            @RequestParam(value = "limit", defaultValue = "20") int limit) throws Exception {
+        return windClient.searchStocks(question, limit);
     }
 
     /** 当日热门板块 */
@@ -88,7 +108,8 @@ public class ProsperityStrongController {
         LocalDate latest = pipeline.latestSnapDate();
         return Map.of(
                 "latestSnapDate", latest == null ? "" : latest.toString(),
-                "now", LocalDate.now().toString()
+                "now", LocalDate.now().toString(),
+                "defaultProvider", providers.normalize(null)
         );
     }
 

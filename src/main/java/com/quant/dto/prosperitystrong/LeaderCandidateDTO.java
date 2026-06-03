@@ -22,4 +22,10 @@ public class LeaderCandidateDTO {
     private BigDecimal mainInflow5d;
     private Boolean filterPassed;
     private String filterReason;
+    private BigDecimal financeScore;
+    private Boolean financePassed;
+    private String financeReason;
+    private BigDecimal mainlineScore;
+    private Boolean mainlinePassed;
+    private String finalStage;
 }

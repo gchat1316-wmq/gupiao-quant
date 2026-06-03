@@ -7,6 +7,7 @@ import lombok.Getter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Builder
@@ -22,6 +23,7 @@ public class PickDailyDTO {
     private BigDecimal netMarginAvg4q;
     private BigDecimal mainBizRatio;
     private BigDecimal latestPrice;
+    private List<ProfitQuarterDTO> profitQuarters;
 
     /** 仓位决策（核心字段） */
     private BigDecimal priceLow;
@@ -41,4 +43,14 @@ public class PickDailyDTO {
     private Boolean degraded;
 
     private LocalDateTime createdAt;
+
+    @Getter
+    @Builder
+    public static class ProfitQuarterDTO {
+        private LocalDate reportDate;
+        private String label;
+        private BigDecimal netProfit;
+        private BigDecimal qoqPct;
+        private BigDecimal netMargin;
+    }
 }

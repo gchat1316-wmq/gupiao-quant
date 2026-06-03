@@ -5,6 +5,7 @@ import lombok.Getter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 @Getter
 @Builder
@@ -22,4 +23,8 @@ public class HotSectorDTO {
     private BigDecimal score;
     private String aiNarrative;
     private String dataSource;
+    private List<LeaderCandidateDTO> leaders;
+    private Integer matchedMemberCount;
+    private Integer quotedMemberCount;
+    private String diagnosticMessage;
 }

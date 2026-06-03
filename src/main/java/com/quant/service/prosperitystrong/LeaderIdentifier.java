@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -42,7 +43,7 @@ public class LeaderIdentifier {
     public List<ProsperityLeaderCandidate> identify(LocalDate snapDate, ProsperityHotSector sector) {
         if (sector == null || sector.getSectorName() == null) return Collections.emptyList();
 
-        List<TradeStockBasic> realMembers = basicRepo.findBySectorNameLike(sector.getSectorName());
+        List<TradeStockBasic> realMembers = findMembers(sector.getSectorName());
         if (realMembers.size() > 100) {
             realMembers = realMembers.subList(0, 100);
         }
@@ -68,7 +69,7 @@ public class LeaderIdentifier {
             TradeStockDaily latest = latestQuotes.get(basic.getStockCode());
             if (latest == null) continue;
 
-            String filterReason = passFastFilter(basic, latest);
+            String filterReason = passFastFilter(basic, latest, snapDate);
             BigDecimal ytdChange = ytdChange(latest, yearStartQuotes.get(basic.getStockCode()));
             BigDecimal turnover = latest.getTurnoverRate();
             // 简化的 5 日涨幅:用最近6条记录里的第一/最后一条
@@ -101,20 +102,82 @@ public class LeaderIdentifier {
         scored.sort(Comparator.comparing(ProsperityLeaderCandidate::getLeaderScore,
                 Comparator.nullsLast(Comparator.reverseOrder())));
 
-        // 仅返回通过过滤的前 N 只
-        List<ProsperityLeaderCandidate> passed = new ArrayList<>();
-        for (ProsperityLeaderCandidate c : scored) {
-            if (c.getFilterPassed() != null && c.getFilterPassed() == 1) {
-                passed.add(c);
-                if (passed.size() >= props.getLeadersPerSector()) break;
-            }
+        int limit = Math.max(props.getLeadersPerSector(), props.getLeadersPerSector() * 4);
+        if (scored.size() > limit) {
+            return new ArrayList<>(scored.subList(0, limit));
         }
-        return passed;
+        return scored;
     }
 
-    private String passFastFilter(TradeStockBasic basic, TradeStockDaily latest) {
+    private List<TradeStockBasic> findMembers(String sectorName) {
+        Map<String, TradeStockBasic> members = new LinkedHashMap<>();
+        for (String keyword : sectorKeywords(sectorName)) {
+            for (TradeStockBasic basic : basicRepo.findBySectorNameLike(keyword)) {
+                members.putIfAbsent(basic.getStockCode(), basic);
+            }
+        }
+        return new ArrayList<>(members.values());
+    }
+
+    private List<String> sectorKeywords(String sectorName) {
+        List<String> keywords = new ArrayList<>();
+        keywords.add(sectorName);
+        switch (sectorName) {
+            case "半导体" -> {
+                keywords.add("芯片");
+                keywords.add("集成电路");
+                keywords.add("中芯国际");
+                keywords.add("华为海思");
+            }
+            case "光模块" -> {
+                keywords.add("CPO");
+                keywords.add("光纤");
+                keywords.add("F5G");
+            }
+            case "AI算力" -> {
+                keywords.add("DeepSeek");
+                keywords.add("ChatGPT");
+                keywords.add("AIGC");
+                keywords.add("英伟达");
+                keywords.add("CPO");
+            }
+            case "工业母机" -> {
+                keywords.add("机器人");
+                keywords.add("工业4.0");
+                keywords.add("智能机器");
+            }
+            case "创新药" -> {
+                keywords.add("创新药");
+                keywords.add("医药");
+                keywords.add("医疗器械");
+                keywords.add("基因");
+            }
+            default -> {
+            }
+        }
+        return keywords.stream().distinct().toList();
+    }
+
+    public MemberStats memberStats(String sectorName) {
+        List<TradeStockBasic> members = findMembers(sectorName);
+        if (members.isEmpty()) {
+            return new MemberStats(0, 0, "本地 trade_stock_basic.sector_names 未匹配到该板块或别名");
+        }
+        List<TradeStockDaily> quotes = dailyRepo.findLatestByStockCodes(
+                members.stream().map(TradeStockBasic::getStockCode).toList());
+        String message = quotes.isEmpty()
+                ? "已匹配成分股,但 trade_stock_daily 无这些股票的日线行情,无法计算龙头分"
+                : "已匹配成分股和日线行情";
+        return new MemberStats(members.size(), quotes.size(), message);
+    }
+
+    private String passFastFilter(TradeStockBasic basic, TradeStockDaily latest, LocalDate snapDate) {
         if (basic.getStockName() != null && basic.getStockName().contains("ST")) return "ST标的";
-        if (basic.getIsTrading() != null && basic.getIsTrading() == 0) return "停牌";
+        if (basic.getIsTrading() != null && basic.getIsTrading() == 0
+                && (latest == null || latest.getTradeDate() == null
+                || latest.getTradeDate().isBefore(snapDate.minusDays(3)))) {
+            return "停牌";
+        }
         if (basic.getListDate() != null && basic.getListDate().isAfter(LocalDate.now().minusYears(1))) {
             return "次新股(上市不足1年)";
         }
@@ -141,4 +204,6 @@ public class LeaderIdentifier {
         double total = 0.4 * yScore + 0.4 * fScore + 0.2 * tScore;
         return BigDecimal.valueOf(Math.max(0, Math.min(100, total))).setScale(2, RoundingMode.HALF_UP);
     }
+
+    public record MemberStats(int matchedMemberCount, int quotedMemberCount, String diagnosticMessage) {}
 }

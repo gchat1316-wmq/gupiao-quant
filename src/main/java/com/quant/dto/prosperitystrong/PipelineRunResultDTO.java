@@ -17,6 +17,8 @@ public class PipelineRunResultDTO {
     private int leaderCount;
     private int hardFilteredCount;
     private int candidateCount;
+    private String provider;
+    private String providerMessage;
     private String status;        // SUCCESS / PARTIAL / FAILED
     private String message;
 }

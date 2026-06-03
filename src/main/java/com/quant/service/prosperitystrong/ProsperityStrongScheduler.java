@@ -19,7 +19,7 @@ public class ProsperityStrongScheduler {
     private final ProsperityStrongPipelineService pipeline;
     private final NotificationService notification;
 
-    @Scheduled(cron = "${prosperity-strong.cron:0 30 16 * * MON-FRI}")
+    @Scheduled(cron = "${prosperity-strong.cron:0 30 15 * * MON-FRI}")
     public void runDaily() {
         if (!props.isEnabled()) {
             log.info("强势股选股流水线未启用,跳过定时执行");
@@ -30,7 +30,7 @@ public class ProsperityStrongScheduler {
         Exception lastErr = null;
         for (int i = 1; i <= maxAttempts; i++) {
             try {
-                PipelineRunResultDTO r = pipeline.run(today);
+                PipelineRunResultDTO r = pipeline.run(today, props.getProvider());
                 log.info("强势股流水线完成: {}", r.getMessage());
                 return;
             } catch (Exception e) {

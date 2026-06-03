@@ -37,6 +37,12 @@
         <p class="ps-sub">板块扫描 → 龙头识别 → 16 季度财务硬筛 → 主线判定 + AI 深度 → 仓位建议</p>
       </div>
       <div class="ps-hero-actions">
+        <select id="psProvider" class="ps-provider-select" title="数据链路">
+          <option value="local">本地/东方财富</option>
+          <option value="wind">Wind</option>
+          <option value="tdx">通达信</option>
+          <option value="hybrid">Wind+通达信</option>
+        </select>
         <input type="date" id="psDate" />
         <button id="psRefreshBtn" class="invest-btn-outline">刷新</button>
         <button id="psRunBtn" class="invest-btn">手动触发</button>
@@ -47,6 +53,8 @@
       <span class="ps-status-pill" id="psStatusPill">就绪</span>
       <span class="ps-status-text" id="psStatusText">上次执行: --</span>
     </section>
+
+    <section class="ps-provider-panel" id="psProviderPanel"></section>
 
     <nav class="ps-tabs">
       <button class="ps-tab active" data-tab="sectors">今日板块</button>
@@ -79,6 +87,7 @@
         <h3>个股深度报告 + 仓位决策卡</h3>
         <p>从"龙头候选"点击查看详情,或在下方搜索框输入股票代码。</p>
       </div>
+      <div id="psDetailCandidateTags" class="ps-detail-tags"></div>
       <div class="ps-detail-search">
         <input id="psDetailCode" placeholder="输入股票代码,如 688301.SH" />
         <button id="psDetailLoadBtn" class="invest-btn-outline">加载详情</button>

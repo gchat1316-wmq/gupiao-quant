@@ -59,6 +59,24 @@ public class ProsperityLeaderCandidate {
     @Column(name = "filter_reason", length = 128)
     private String filterReason;
 
+    @Column(name = "finance_score", precision = 8, scale = 2)
+    private BigDecimal financeScore;
+
+    @Column(name = "finance_passed")
+    private Integer financePassed;
+
+    @Column(name = "finance_reason", length = 256)
+    private String financeReason;
+
+    @Column(name = "mainline_score", precision = 8, scale = 2)
+    private BigDecimal mainlineScore;
+
+    @Column(name = "mainline_passed")
+    private Integer mainlinePassed;
+
+    @Column(name = "final_stage", length = 20)
+    private String finalStage;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 }

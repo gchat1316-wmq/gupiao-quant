@@ -39,6 +39,28 @@ spring:
 app:
   upload-dir: uploads
 
+prosperity-strong:
+  enabled: true
+  cron: "0 30 15 * * MON-FRI"
+  provider: local
+  max-sectors: 5
+  leaders-per-sector: 5
+  max-candidates: 15
+  ai:
+    enabled: true
+    fallback-to-mock: true
+  source:
+    sector: eastmoney
+    timeout-seconds: 15
+  wind:
+    skill-dir: ${WIND_SKILL_DIR:${user.home}/.agents/skills/wind-mcp-skill}
+    config-path: ${WIND_CONFIG_PATH:${user.home}/.wind-aifinmarket/config}
+    timeout-seconds: 15
+  tdx:
+    enabled: false
+    connector-dir: ${TDX_CONNECTOR_DIR:${user.home}/.workbuddy/connectors-marketplace/connectors/tdx-connector}
+    mcp-url: ${TDX_MCP_URL:https://txmcp.tdx.com.cn:3001/txmcp}
+
 notification:
   serverchan:
     enabled: true
@@ -66,7 +88,7 @@ ai:
   sensenova:
     enabled: true                  # 填入 api-key 后改为 true
     base-url: https://token.sensenova.cn/v1
-    api-key: ${AI_SENSENOVA_KEY:}     # 环境变量 AI_SENSENOVA_KEY
+    api-key: ${SENSENOVA_API_KEY:${AI_SENSENOVA_KEY:sk-tNFEPGZZeyZqNDn13ma3BbJzkdFqzJX8}}     # 环境变量 SENSENOVA_API_KEY / AI_SENSENOVA_KEY
     image-model: sensenova-u1-fast
     chat-model: deepseek-v4-flash   # 用于 AI 详解文本生成
     image-size: "2752x1536"

@@ -78,7 +78,7 @@ public class FinancialHardFilter {
 
         BigDecimal score = BigDecimal.valueOf(pass * 100.0 / total)
                 .setScale(2, RoundingMode.HALF_UP);
-        boolean hardPassed = pass >= 5; // 6 项中至少 5 项达标视为硬过线
+        boolean hardPassed = pass == total; // PRD: 任一不符直接淘汰
         return new Result(stockCode, score, hardPassed,
                 reason.length() == 0 ? "全部达标" : reason.toString().trim(),
                 avgNetMargin(last4));
