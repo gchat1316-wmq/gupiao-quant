@@ -256,6 +256,11 @@
   }
 
   function renderResult(data) {
+    if (data && data.degraded) {
+      els.result.classList.add('hidden');
+      showError('本次分析未生成真实结论，已停止展示演示数据。请稍后重试或点击“重新分析”。');
+      return;
+    }
     currentResult = data;
     hideError();
     els.result.classList.remove('hidden');
@@ -334,14 +339,18 @@
   async function loadRecent() {
     try {
       const list = await apiRecent();
-      els.recent.innerHTML = (list || []).map(r =>
-        `<span class="pp-recent-chip" data-id="${r.id}" data-keyword="${escape(r.stockCode)}">${escape(r.stockName)}</span>`
-      ).join('') || '<span style="font-size:12px;color:#9ca3af">暂无</span>';
-      els.recent.querySelectorAll('.pp-recent-chip').forEach(chip => {
-        chip.addEventListener('click', async () => {
-          const id = chip.getAttribute('data-id');
+      const realList = (list || []).filter(r => !r.degraded);
+      els.recent.innerHTML = realList.map(renderRecentItem).join('')
+        || '<div class="pp-recent-empty">近 3 天暂无真实分析记录</div>';
+      els.recent.querySelectorAll('.pp-recent-item').forEach(item => {
+        item.addEventListener('click', async () => {
+          const id = item.getAttribute('data-id');
           const data = await apiGet(id);
           if (data) {
+            if (data.degraded) {
+              showError('该缓存记录是演示数据，已停止展示。请重新分析获取真实结论。');
+              return;
+            }
             els.keyword.value = data.stockName || data.stockCode;
             renderResult(data);
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -351,6 +360,26 @@
     } catch (e) {
       // 静默
     }
+  }
+
+  function renderRecentItem(r) {
+    const verdicts = [
+      r.valuationVerdict ? `估值：${r.valuationVerdict}` : '',
+      r.technicalVerdict ? `技术：${r.technicalVerdict}` : '',
+      r.capitalVerdict ? `资金：${r.capitalVerdict}` : '',
+    ].filter(Boolean);
+    const summary = r.summaryOneLiner || (r.summaryBullets || [])[0] || '查看缓存分析结果';
+    return `
+      <button type="button" class="pp-recent-item" data-id="${r.id}">
+        <span class="pp-recent-main">
+          <span class="pp-recent-name">${escape(r.stockName || r.stockCode || '')}</span>
+          <span class="pp-recent-code">${escape(r.stockCode || '')}</span>
+        </span>
+        <span class="pp-recent-one">${escape(summary)}</span>
+        ${verdicts.length ? `<span class="pp-recent-verdicts">${verdicts.slice(0, 3).map(v => `<span>${escape(v)}</span>`).join('')}</span>` : ''}
+        <span class="pp-recent-date">${escape(r.analysisDate || '')}</span>
+      </button>
+    `;
   }
 
   // ---- 事件绑定 ----

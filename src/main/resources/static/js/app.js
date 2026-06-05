@@ -388,6 +388,11 @@
   els.queryBtn.addEventListener('click', onQuery);
   els.searchInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') onQuery(); });
   els.clearBtn.addEventListener('click', function () { els.searchInput.value = ''; els.searchInput.focus(); });
+  els.searchInput.addEventListener('focus', function () {
+    if (els.searchInput.value === els.searchInput.getAttribute('placeholder')) {
+      els.searchInput.value = '';
+    }
+  });
   els.downloadBtn.addEventListener('click', function () {
     if (!chart) return;
     const a = document.createElement('a');
@@ -431,6 +436,5 @@
 
   window.addEventListener('DOMContentLoaded', function () {
     renderMetricBar();
-    onQuery();
   });
 })();

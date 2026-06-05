@@ -20,11 +20,14 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -109,6 +112,56 @@ class ProsperityPickServiceTest {
         assertThat(result.isDegraded()).isFalse();
         assertThat(result.getAnalysis().path("summary").path("oneLiner").asText()).isEqualTo("真实分析结论");
         verify(senseNovaClient).chatComplete(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("所有 AI 失败时不回退保存演示数据")
+    void analyzeDoesNotPersistDemoDataWhenAiFails() {
+        TradeStockBasic basic = basic();
+
+        when(stockQueryService.resolveStock("麦格米特")).thenReturn(Optional.of(basic));
+        when(repo.findByStockCodeAndAnalysisDate("002851.SZ", LocalDate.now())).thenReturn(Optional.empty());
+        when(miniMaxClient.chatComplete(anyString(), anyString())).thenThrow(new IllegalStateException("MiniMax down"));
+        when(senseNovaClient.chatComplete(anyString(), anyString())).thenThrow(new IllegalStateException("SenseNova down"));
+
+        assertThatThrownBy(() -> service.analyze("麦格米特", false))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("AI 调用失败");
+        verify(repo, never()).save(any(InvestProsperityPick.class));
+    }
+
+    @Test
+    @DisplayName("最近分析只返回近 3 天非演示记录并携带关键结论")
+    void recentReturnsThreeDayRealRecordsWithSummary() {
+        LocalDate today = LocalDate.now();
+        InvestProsperityPick real = entity(1L, 0, """
+                {
+                  "valuation": {"verdict": "合理偏低"},
+                  "technical": {"verdict": "短线趋势向上"},
+                  "capital": {"verdict": "资金温和流入"},
+                  "summary": {
+                    "bullets": ["行业景气向上", "估值仍有修复空间"],
+                    "oneLiner": "五维结论偏积极"
+                  }
+                }
+                """);
+        real.setAnalysisDate(today.minusDays(2));
+        InvestProsperityPick degraded = entity(2L, 1, "{\"summary\":{\"oneLiner\":\"演示数据\"}}");
+        degraded.setAnalysisDate(today);
+
+        when(repo.findTop30ByAnalysisDateGreaterThanEqualOrderByAnalysisDateDescIdDesc(today.minusDays(2)))
+                .thenReturn(List.of(degraded, real));
+
+        var result = service.recent();
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getId()).isEqualTo(1L);
+        assertThat(result.get(0).getSummaryOneLiner()).isEqualTo("五维结论偏积极");
+        assertThat(result.get(0).getSummaryBullets()).containsExactly("行业景气向上", "估值仍有修复空间");
+        assertThat(result.get(0).getValuationVerdict()).isEqualTo("合理偏低");
+        assertThat(result.get(0).getTechnicalVerdict()).isEqualTo("短线趋势向上");
+        assertThat(result.get(0).getCapitalVerdict()).isEqualTo("资金温和流入");
+        assertThat(result.get(0).isDegraded()).isFalse();
     }
 
     private TradeStockBasic basic() {
