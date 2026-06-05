@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#d6336c" />
+  <base href="/gp/" />
+  <title>强势股选股 · 量化学习助手</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/study.css" />
+  <link rel="stylesheet" href="css/invest.css" />
+  <link rel="stylesheet" href="css/prosperity-strong.css" />
+</head>
+<body>
+  <header class="top-nav">
+    <div class="nav-inner">
+      <a href="./" class="brand">
+        <span class="brand-mark">🐾</span>
+        <span class="brand-name">量化学习助手</span>
+      </a>
+      <nav class="nav-links">
+        <a href="./" class="nav-link">财务分析</a>
+        <a href="invest.html" class="nav-link">龙江投资</a>
+        <a href="tech-ai.html" class="nav-link">科技AI</a>
+        <a href="prosperity-pick.html" class="nav-link">景气度选股</a>
+        <a href="prosperity-strong.html" class="nav-link active">强势股选股</a>
+        <a href="study.html" class="nav-link">学习搭子</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container ps-page">
+    <section class="ps-hero">
+      <div>
+        <div class="ps-kicker">杨华建四步选股法 · AI 自动化</div>
+        <h2 class="ps-title">高景气强势股选股</h2>
+        <p class="ps-sub">板块扫描 → 龙头识别 → 16 季度财务硬筛 → 主线判定 + AI 深度 → 仓位建议</p>
+      </div>
+      <div class="ps-hero-actions">
+        <select id="psProvider" class="ps-provider-select" title="数据链路">
+          <option value="local">本地/东方财富</option>
+          <option value="wind">Wind</option>
+          <option value="tdx">通达信</option>
+          <option value="hybrid">Wind+通达信</option>
+        </select>
+        <input type="date" id="psDate" />
+        <button id="psRefreshBtn" class="invest-btn-outline">刷新</button>
+        <button id="psRunBtn" class="invest-btn">手动触发</button>
+      </div>
+    </section>
+
+    <section class="ps-status">
+      <span class="ps-status-pill" id="psStatusPill">就绪</span>
+      <span class="ps-status-text" id="psStatusText">上次执行: --</span>
+    </section>
+
+    <section class="ps-provider-panel" id="psProviderPanel"></section>
+
+    <nav class="ps-tabs">
+      <button class="ps-tab active" data-tab="sectors">今日板块</button>
+      <button class="ps-tab" data-tab="candidates">龙头候选</button>
+      <button class="ps-tab" data-tab="detail">个股深度</button>
+      <button class="ps-tab" data-tab="history">历史回顾</button>
+    </nav>
+
+    <!-- Tab A: 板块 -->
+    <section class="ps-panel" id="psPanelSectors">
+      <div class="ps-section-head">
+        <h3>每日 Top 板块</h3>
+        <p>板块综合评分 = 0.4 × 涨幅 + 0.4 × 资金流 + 0.2 × 持续性</p>
+      </div>
+      <div id="psSectorList" class="ps-sector-grid"></div>
+    </section>
+
+    <!-- Tab B: 候选 -->
+    <section class="ps-panel hidden" id="psPanelCandidates">
+      <div class="ps-section-head">
+        <h3>每日最终候选清单</h3>
+        <p>顺次执行 财务硬筛 + 主线判定 + 仓位建议,默认按综合评分降序。</p>
+      </div>
+      <div id="psCandidateTable" class="ps-table-wrap"></div>
+    </section>
+
+    <!-- Tab C: 个股深度 -->
+    <section class="ps-panel hidden" id="psPanelDetail">
+      <div class="ps-section-head">
+        <h3>个股深度报告 + 仓位决策卡</h3>
+        <p>从"龙头候选"点击查看详情,或在下方搜索框输入股票代码。</p>
+      </div>
+      <div id="psDetailCandidateTags" class="ps-detail-tags"></div>
+      <div class="ps-detail-search">
+        <input id="psDetailCode" placeholder="输入股票代码,如 688301.SH" />
+        <button id="psDetailLoadBtn" class="invest-btn-outline">加载详情</button>
+      </div>
+      <div id="psDetailCard"></div>
+    </section>
+
+    <!-- Tab D: 历史 -->
+    <section class="ps-panel hidden" id="psPanelHistory">
+      <div class="ps-section-head">
+        <h3>历史候选回顾</h3>
+      </div>
+      <div class="ps-history-bar">
+        <input type="date" id="psHistFrom" />
+        <span>~</span>
+        <input type="date" id="psHistTo" />
+        <button id="psHistLoadBtn" class="invest-btn-outline">查询</button>
+      </div>
+      <div id="psHistoryTable" class="ps-table-wrap"></div>
+    </section>
+
+    <p class="ps-disclaimer">免责声明: 本页面所有数据与建议仅供学习研究使用,不构成任何投资建议。</p>
+  </main>
+
+  <script src="js/prosperity-strong.js"></script>
+</body>
+</html>

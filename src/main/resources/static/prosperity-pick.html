@@ -21,7 +21,9 @@
       <nav class="nav-links">
         <a href="./" class="nav-link">财务分析</a>
         <a href="invest.html" class="nav-link">龙江投资</a>
+        <a href="tech-ai.html" class="nav-link">科技AI</a>
         <a href="prosperity-pick.html" class="nav-link active">景气度选股</a>
+        <a href="prosperity-strong.html" class="nav-link">强势股选股</a>
         <a href="study.html" class="nav-link">学习搭子</a>
       </nav>
     </div>
@@ -46,8 +48,11 @@
         <button id="ppForceBtn" class="invest-btn-outline" title="强制重新分析（跳过当日缓存）">重新分析</button>
       </div>
       <div class="pp-recent">
-        <span class="pp-recent-label">最近分析：</span>
-        <div id="ppRecent" class="pp-recent-chips"></div>
+        <div class="pp-recent-head">
+          <span class="pp-recent-label">近 3 天分析历史</span>
+          <span class="pp-recent-note">点击可快速查看缓存结果</span>
+        </div>
+        <div id="ppRecent" class="pp-recent-list"></div>
       </div>
     </div>
 

@@ -35,6 +35,7 @@ public class ProsperityPickService {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final int FINANCIAL_QUARTERS = 12;
+    private static final int RECENT_HISTORY_DAYS = 3;
 
     private final StockQueryService stockQueryService;
     private final TradeStockFinancialRepository financialRepo;
@@ -57,28 +58,24 @@ public class ProsperityPickService {
             Optional<InvestProsperityPick> cached = repo.findByStockCodeAndAnalysisDate(
                     basic.getStockCode(), today);
             if (cached.isPresent()) {
-                log.info("命中缓存: {} {}", basic.getStockCode(), today);
-                return toResultDTO(cached.get(), basic, true);
+                InvestProsperityPick cachedEntity = cached.get();
+                if (cachedEntity.getDegraded() == null || cachedEntity.getDegraded() != 1) {
+                    log.info("命中缓存: {} {}", basic.getStockCode(), today);
+                    return toResultDTO(cachedEntity, basic, true);
+                }
+                log.info("命中演示数据缓存，重新分析: {} {}", basic.getStockCode(), today);
             }
         }
 
         ProsperityPickResultDTO.Profile profile = buildProfile(basic);
         String prompt = buildPrompt(profile, basic);
 
-        boolean degraded = false;
         String aiJson;
         try {
-            aiJson = miniMaxClient.chatComplete(SYSTEM_PROMPT, prompt);
-            aiJson = extractJson(aiJson);
-            // 校验是否合法 JSON
-            MAPPER.readTree(aiJson);
+            aiJson = analyzeWithAi(prompt);
         } catch (Exception e) {
-            log.warn("AI 调用失败，使用 mock 退化: {}", e.getMessage());
-            if (!aiProperties.isFallbackToMock()) {
-                throw new IllegalStateException("AI 调用失败: " + e.getMessage(), e);
-            }
-            aiJson = mockResultJson(basic);
-            degraded = true;
+            log.warn("AI 调用失败，不返回演示数据: {}", e.getMessage());
+            throw new IllegalStateException("AI 调用失败: " + e.getMessage(), e);
         }
 
         InvestProsperityPick entity = repo.findByStockCodeAndAnalysisDate(basic.getStockCode(), today)
@@ -87,13 +84,41 @@ public class ProsperityPickService {
         entity.setStockName(basic.getStockName() != null ? basic.getStockName() : basic.getStockCode());
         entity.setAnalysisDate(today);
         entity.setResultJson(aiJson);
-        entity.setDegraded(degraded ? 1 : 0);
+        entity.setDegraded(0);
         if (force) {
             entity.setImageUrl(null);
             entity.setImagePrompt(null);
         }
         InvestProsperityPick saved = repo.save(entity);
         return toResultDTO(saved, basic, false);
+    }
+
+    private String analyzeWithAi(String prompt) {
+        Exception miniMaxError = null;
+        try {
+            return normalizeAiJson(miniMaxClient.chatComplete(SYSTEM_PROMPT, prompt));
+        } catch (Exception e) {
+            miniMaxError = e;
+            log.warn("MiniMax 分析失败，尝试 SenseNova: {}", e.getMessage());
+        }
+
+        try {
+            return normalizeAiJson(senseNovaClient.chatComplete(SYSTEM_PROMPT, prompt));
+        } catch (Exception senseNovaError) {
+            String message = "MiniMax: " + miniMaxError.getMessage()
+                    + "; SenseNova: " + senseNovaError.getMessage();
+            throw new IllegalStateException(message, senseNovaError);
+        }
+    }
+
+    private String normalizeAiJson(String raw) {
+        String aiJson = extractJson(raw);
+        try {
+            MAPPER.readTree(aiJson);
+        } catch (Exception e) {
+            throw new IllegalStateException("AI 返回不是合法 JSON: " + e.getMessage(), e);
+        }
+        return aiJson;
     }
 
     public String generateInfographic(Long id) {
@@ -122,15 +147,38 @@ public class ProsperityPickService {
     }
 
     public List<ProsperityPickRecentDTO> recent() {
-        return repo.findTop10ByOrderByAnalysisDateDescIdDesc().stream()
-                .map(e -> ProsperityPickRecentDTO.builder()
-                        .id(e.getId())
-                        .stockCode(e.getStockCode())
-                        .stockName(e.getStockName())
-                        .analysisDate(e.getAnalysisDate())
-                        .imageUrl(e.getImageUrl())
-                        .build())
+        LocalDate cutoff = LocalDate.now().minusDays(RECENT_HISTORY_DAYS - 1L);
+        return repo.findTop30ByAnalysisDateGreaterThanEqualOrderByAnalysisDateDescIdDesc(cutoff).stream()
+                .filter(e -> e.getDegraded() == null || e.getDegraded() != 1)
+                .map(this::toRecentDTO)
                 .collect(Collectors.toList());
+    }
+
+    private ProsperityPickRecentDTO toRecentDTO(InvestProsperityPick entity) {
+        JsonNode root = readAnalysis(entity.getResultJson());
+        JsonNode summary = root.path("summary");
+        List<String> bullets = new ArrayList<>();
+        JsonNode bulletNode = summary.path("bullets");
+        if (bulletNode.isArray()) {
+            for (JsonNode node : bulletNode) {
+                String text = node.asText("");
+                if (!text.isBlank()) bullets.add(text);
+                if (bullets.size() >= 3) break;
+            }
+        }
+        return ProsperityPickRecentDTO.builder()
+                .id(entity.getId())
+                .stockCode(entity.getStockCode())
+                .stockName(entity.getStockName())
+                .analysisDate(entity.getAnalysisDate())
+                .imageUrl(entity.getImageUrl())
+                .summaryOneLiner(summary.path("oneLiner").asText(""))
+                .summaryBullets(bullets)
+                .valuationVerdict(root.path("valuation").path("verdict").asText(""))
+                .technicalVerdict(root.path("technical").path("verdict").asText(""))
+                .capitalVerdict(root.path("capital").path("verdict").asText(""))
+                .degraded(entity.getDegraded() != null && entity.getDegraded() == 1)
+                .build();
     }
 
     public ProsperityPickResultDTO get(Long id) {
@@ -267,14 +315,7 @@ public class ProsperityPickService {
     }
 
     private ProsperityPickResultDTO toResultDTO(InvestProsperityPick entity, TradeStockBasic basic, boolean cached) {
-        JsonNode analysis;
-        try {
-            analysis = MAPPER.readTree(
-                    entity.getResultJson() == null || entity.getResultJson().isBlank()
-                            ? "{}" : entity.getResultJson());
-        } catch (Exception e) {
-            analysis = MAPPER.createObjectNode();
-        }
+        JsonNode analysis = readAnalysis(entity.getResultJson());
         return ProsperityPickResultDTO.builder()
                 .id(entity.getId())
                 .stockCode(entity.getStockCode())
@@ -286,6 +327,14 @@ public class ProsperityPickService {
                 .degraded(entity.getDegraded() != null && entity.getDegraded() == 1)
                 .cached(cached)
                 .build();
+    }
+
+    private JsonNode readAnalysis(String resultJson) {
+        try {
+            return MAPPER.readTree(resultJson == null || resultJson.isBlank() ? "{}" : resultJson);
+        } catch (Exception e) {
+            return MAPPER.createObjectNode();
+        }
     }
 
     private String buildImagePromptFromResult(InvestProsperityPick entity) {

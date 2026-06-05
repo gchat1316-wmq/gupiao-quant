@@ -22,7 +22,7 @@ cd "$APP_DIR"
 mvn package -q -DskipTests
 
 echo "[3/3] 启动应用，日志输出到 $LOG_FILE ..."
-nohup java -jar target/gupiao-quant-*.jar \
+nohup java -jar target/gupiao-quant-1.0.0.jar \
   --spring.profiles.active=default \
   > "$LOG_FILE" 2>&1 &
 NEW_PID=$!

@@ -112,8 +112,7 @@ class InvestServiceSopTest {
     @Test
     @DisplayName("TC03 - 毛利率稳定/营收持续>=20%/扣非>营收 => overall=pass")
     void tc03_allMetricsPass_returnsOverallPass() {
-        String code = "600000";
-        when(stockBasicRepo.findByStockNameLike(code)).thenReturn(List.of(stockBasic(code, "优质股")));
+        String code = "600000"; 
         when(financialRepo.findByStockCodeOrderByReportDateDesc(code))
                 .thenReturn(buildFinancials(code, 8, 45.0, 30.0, 40.0));
 
@@ -129,8 +128,7 @@ class InvestServiceSopTest {
     @Test
     @DisplayName("TC04 - 营收同比<10% 触发 fail，整体判定 fail")
     void tc04_lowRevenue_returnsFail() {
-        String code = "600001";
-        when(stockBasicRepo.findByStockNameLike(code)).thenReturn(List.of(stockBasic(code, "慢增长股")));
+        String code = "600001"; 
         when(financialRepo.findByStockCodeOrderByReportDateDesc(code))
                 .thenReturn(buildFinancials(code, 8, 40.0, 5.0, 5.0));
 
@@ -144,7 +142,6 @@ class InvestServiceSopTest {
     @DisplayName("TC05 - 毛利率从 50% 跌至 40%，下滑>3pct => verdict=fail")
     void tc05_grossMarginDroppingBadly_returnsFail() {
         String code = "600002";
-        when(stockBasicRepo.findByStockNameLike(code)).thenReturn(List.of(stockBasic(code, "毛利下滑股")));
         double[] grossMargins = {40.0, 42.0, 43.0, 44.0, 45.0, 46.0, 48.0, 50.0};
         when(financialRepo.findByStockCodeOrderByReportDateDesc(code))
                 .thenReturn(buildFinancialsWithTrend(code, grossMargins, 25.0, 30.0));
@@ -158,7 +155,6 @@ class InvestServiceSopTest {
     @DisplayName("TC06 - 毛利率下滑 2pct (1~3区间) => verdict=warn")
     void tc06_grossMarginSlightDrop_returnsWarn() {
         String code = "600003";
-        when(stockBasicRepo.findByStockNameLike(code)).thenReturn(List.of(stockBasic(code, "毛利微降股")));
         double[] grossMargins = {43.0, 43.5, 44.0, 44.5, 44.5, 44.8, 45.0, 45.0};
         when(financialRepo.findByStockCodeOrderByReportDateDesc(code))
                 .thenReturn(buildFinancialsWithTrend(code, grossMargins, 25.0, 30.0));
@@ -171,8 +167,7 @@ class InvestServiceSopTest {
     @Test
     @DisplayName("TC07 - 扣非(5%)远落后营收(25%)，差距>5pct => profitYoy=fail")
     void tc07_profitFarBehindRevenue_returnsFail() {
-        String code = "600004";
-        when(stockBasicRepo.findByStockNameLike(code)).thenReturn(List.of(stockBasic(code, "规模不经济股")));
+        String code = "600004"; 
         when(financialRepo.findByStockCodeOrderByReportDateDesc(code))
                 .thenReturn(buildFinancials(code, 8, 40.0, 25.0, 5.0));
 
@@ -185,7 +180,6 @@ class InvestServiceSopTest {
     @DisplayName("TC08 - 最新营收>=20%但历史仅3/8季度达标(不足60%) => revenueYoy=warn")
     void tc08_recentHighRevenueButNotConsistent_returnsWarn() {
         String code = "600005";
-        when(stockBasicRepo.findByStockNameLike(code)).thenReturn(List.of(stockBasic(code, "偶尔高增股")));
         List<TradeStockFinancial> list = new ArrayList<>();
         for (int i = 0; i < 8; i++) {
             TradeStockFinancial f = new TradeStockFinancial();
@@ -208,7 +202,7 @@ class InvestServiceSopTest {
     @DisplayName("TC09 - 股票名称解析，stockName 取自 stock_basic")
     void tc09_resolveByName_nameFromStockBasic() {
         String code = "600519";
-        when(stockBasicRepo.findByStockNameLike(code)).thenReturn(List.of(stockBasic(code, "贵州茅台")));
+        when(stockBasicRepo.findByStockCode(code)).thenReturn(Optional.of(stockBasic(code, "贵州茅台")));
         when(financialRepo.findByStockCodeOrderByReportDateDesc(code))
                 .thenReturn(buildFinancials(code, 4, 91.0, 10.0, 10.0));
 
@@ -222,8 +216,7 @@ class InvestServiceSopTest {
     @Test
     @DisplayName("TC10 - 数据库有12条记录，series 只取最近8条")
     void tc10_moreRecordsThanLimit_onlyTakes8() {
-        String code = "600006";
-        when(stockBasicRepo.findByStockNameLike(code)).thenReturn(List.of(stockBasic(code, "数据多股")));
+        String code = "600006"; 
         when(financialRepo.findByStockCodeOrderByReportDateDesc(code))
                 .thenReturn(buildFinancials(code, 12, 40.0, 25.0, 30.0));
 
@@ -244,8 +237,7 @@ class InvestServiceSopTest {
     @Test
     @DisplayName("TC12 - 只有1条财务数据，毛利率无法算趋势，verdict=pass(稳定)")
     void tc12_singleRecord_grossMarginPassAsStable() {
-        String code = "600007";
-        when(stockBasicRepo.findByStockNameLike(code)).thenReturn(List.of(stockBasic(code, "新上市股")));
+        String code = "600007"; 
         when(financialRepo.findByStockCodeOrderByReportDateDesc(code))
                 .thenReturn(buildFinancials(code, 1, 50.0, 25.0, 30.0));
 

@@ -10,6 +10,7 @@ public class NotificationProperties {
 
     private ServerChan serverchan = new ServerChan();
     private PriceMonitor priceMonitor = new PriceMonitor();
+    private QuoteMonitor quoteMonitor = new QuoteMonitor();
 
     @Data
     public static class ServerChan {
@@ -24,5 +25,15 @@ public class NotificationProperties {
         private boolean enabled = false;
         private boolean requireTradingTime = true;
         private int cooldownMinutes = 30;
+    }
+
+    @Data
+    public static class QuoteMonitor {
+        private boolean enabled = false;
+        private String poolType = "tech_ai";
+        private boolean requireTradingTime = true;
+        private int cooldownMinutes = 10;
+        private boolean dailyDedupe = true;
+        private String cron = "0 */1 9-15 * * MON-FRI";
     }
 }

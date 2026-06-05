@@ -12,4 +12,6 @@ public interface InvestProsperityPickRepository extends JpaRepository<InvestPros
     Optional<InvestProsperityPick> findByStockCodeAndAnalysisDate(String stockCode, LocalDate analysisDate);
 
     List<InvestProsperityPick> findTop10ByOrderByAnalysisDateDescIdDesc();
+
+    List<InvestProsperityPick> findTop30ByAnalysisDateGreaterThanEqualOrderByAnalysisDateDescIdDesc(LocalDate analysisDate);
 }
