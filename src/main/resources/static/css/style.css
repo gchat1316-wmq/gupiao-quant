@@ -1,15 +1,17 @@
 :root {
-  --primary: #1e88ff;
-  --primary-hover: #1473e6;
-  --bg: #f5f7fa;
+  --primary: #e1062c;
+  --primary-hover: #b80022;
+  --primary-glow: rgba(225, 6, 44, 0.28);
+  --tech-cyan: #00d4ff;
+  --bg: #f6f7fb;
   --card-bg: #ffffff;
-  --text: #1f2937;
+  --text: #161b2b;
   --text-muted: #6b7280;
-  --border: #e5e7eb;
-  --table-head: #2f7bff;
+  --border: #e7dfe4;
+  --table-head: #a9001f;
   --green: #16a34a;
   --red: #dc2626;
-  --shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06);
+  --shadow: 0 1px 2px rgba(22, 27, 43, 0.04), 0 14px 34px rgba(80, 0, 24, 0.08);
   --radius: 8px;
 }
 
@@ -21,15 +23,32 @@ html,
 body {
   margin: 0;
   padding: 0;
+  min-height: 100%;
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei",
     "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  background: var(--bg);
+  background:
+    radial-gradient(circle at 14% -10%, rgba(225, 6, 44, 0.14), transparent 30%),
+    radial-gradient(circle at 86% 0%, rgba(0, 212, 255, 0.12), transparent 26%),
+    linear-gradient(180deg, #fbfbfe 0%, var(--bg) 46%, #f2f4f8 100%);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   -webkit-text-size-adjust: 100%;
 }
 
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#siteHeader,
+#siteFooter {
+  flex: 0 0 auto;
+}
+
 .container {
+  flex: 1 0 auto;
+  width: 100%;
   max-width: 1280px;
   margin: 0 auto;
   padding: 24px 20px 64px;
@@ -55,7 +74,7 @@ body {
   position: relative;
   flex: 1;
   background: #fff;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(169, 0, 31, 0.12);
   border-radius: var(--radius);
   display: flex;
   align-items: center;
@@ -94,7 +113,7 @@ body {
 }
 
 .primary-btn {
-  background: var(--primary);
+  background: linear-gradient(135deg, #ff2a49 0%, var(--primary) 48%, #8f001b 100%);
   color: #fff;
   border: 0;
   border-radius: var(--radius);
@@ -104,11 +123,11 @@ body {
   height: 48px;
   cursor: pointer;
   transition: background 0.15s ease;
-  box-shadow: var(--shadow);
+  box-shadow: 0 10px 24px var(--primary-glow);
 }
 
 .primary-btn:hover {
-  background: var(--primary-hover);
+  background: linear-gradient(135deg, #ff3b59 0%, var(--primary-hover) 58%, #730016 100%);
 }
 
 .primary-btn.wide {
@@ -181,7 +200,7 @@ body {
 }
 
 .stock-table thead th {
-  background: var(--table-head);
+  background: linear-gradient(135deg, #ba001f 0%, var(--table-head) 72%, #4c0613 100%);
   color: #fff;
   font-weight: 600;
   border-color: var(--table-head);
@@ -272,9 +291,10 @@ body {
 }
 
 .metric-chip.on {
-  background: var(--primary);
+  background: linear-gradient(135deg, #ff2a49 0%, var(--primary) 100%);
   border-color: var(--primary);
   color: #fff;
+  box-shadow: 0 6px 18px rgba(225, 6, 44, 0.18);
 }
 
 .metric-chip.on:hover {
@@ -419,7 +439,7 @@ body {
 }
 
 .indicator-tabs .tab.active {
-  background: var(--primary);
+  background: linear-gradient(135deg, #ff2a49 0%, var(--primary) 100%);
   color: #fff;
   border-color: var(--primary);
 }

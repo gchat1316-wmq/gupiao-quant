@@ -63,13 +63,36 @@ function setCurrentDate(value) {
 
 async function apiGet(url) {
   const r = await fetch(url);
-  if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+  if (!r.ok) throw new Error(await formatApiError(r));
   return r.json();
 }
 async function apiPost(url) {
   const r = await fetch(url, { method: 'POST' });
-  if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+  if (!r.ok) throw new Error(await formatApiError(r));
   return r.json();
+}
+
+async function formatApiError(response) {
+  const text = await response.text();
+  const contentType = response.headers.get('content-type') || '';
+  const isHtml = contentType.includes('text/html') || /^\s*<!doctype html/i.test(text) || /^\s*<html/i.test(text);
+
+  if (response.status === 501 && isHtml) {
+    return 'HTTP 501: 当前静态预览服务不支持接口请求。请使用 Spring Boot 后端地址访问页面后再触发流水线。';
+  }
+  if (response.status === 404 && isHtml) {
+    return 'HTTP 404: 未找到后端接口。请确认页面运行在 Spring Boot 服务下。';
+  }
+  if (isHtml) {
+    return `HTTP ${response.status}: 后端返回了 HTML 错误页，请检查服务地址或接口路径。`;
+  }
+
+  try {
+    const data = JSON.parse(text);
+    return `HTTP ${response.status}: ${data.message || data.error || text}`;
+  } catch (e) {
+    return `HTTP ${response.status}: ${text || response.statusText || '请求失败'}`;
+  }
 }
 
 function setStatus(text, kind) {
@@ -101,7 +124,7 @@ async function loadStatus() {
       }
     }
   } catch (e) {
-    setStatus('状态加载失败', 'err');
+    setStatus('状态加载失败: ' + e.message, 'err');
   }
 }
 
@@ -737,10 +760,6 @@ async function loadHistory() {
 
 document.addEventListener('DOMContentLoaded', async () => {
   setCurrentDate(todayLocalDate());
-  await loadStatus();
-  await loadProviders();
-  await loadSectors().catch(()=>{});
-  await loadCandidates().catch(()=>{});
 
   $('#psRunBtn').addEventListener('click', runPipeline);
   $('#psProvider').addEventListener('change', (e) => setProvider(e.target.value));
@@ -756,6 +775,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   $$('.ps-tab').forEach(tab => {
     tab.addEventListener('click', () => switchTab(tab.dataset.tab));
   });
+
+  await loadStatus();
+  await loadProviders();
+  await loadSectors().catch(()=>{});
+  await loadCandidates().catch(()=>{});
 
   $('#psDetailLoadBtn').addEventListener('click', () => {
     const code = $('#psDetailCode').value.trim();
