@@ -45,6 +45,22 @@ function fmtSignedPct(v) {
   return (n > 0 ? '+' : '') + n.toFixed(2) + '%';
 }
 
+function todayLocalDate() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function setCurrentDate(value) {
+  const date = value || todayLocalDate();
+  const input = $('#psDate');
+  if (input) input.value = date;
+  state.date = date;
+  return date;
+}
+
 async function apiGet(url) {
   const r = await fetch(url);
   if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
@@ -70,12 +86,10 @@ async function loadStatus() {
     const providerSelect = $('#psProvider');
     if (providerSelect) providerSelect.value = state.provider;
     if (s.latestSnapDate) {
-      $('#psDate').value = s.latestSnapDate;
-      state.date = s.latestSnapDate;
+      if (!state.date) setCurrentDate(s.now || todayLocalDate());
       setStatus(`上次执行: ${s.latestSnapDate}`);
     } else {
-      $('#psDate').value = s.now;
-      state.date = s.now;
+      setCurrentDate(state.date || s.now || todayLocalDate());
       setStatus('尚无数据,自动触发中...');
       // 自动触发: 无数据时首次自动跑一次
       try {
@@ -722,6 +736,7 @@ async function loadHistory() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  setCurrentDate(todayLocalDate());
   await loadStatus();
   await loadProviders();
   await loadSectors().catch(()=>{});

@@ -2,6 +2,7 @@ package com.quant.techai;
 
 import com.quant.service.techai.TechAiAlertCandidate;
 import com.quant.service.techai.TechAiAlertRuleEngine;
+import com.quant.service.techai.TechAiAlertThresholds;
 import com.quant.service.techai.TechAiMarketContext;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -88,5 +89,37 @@ class TechAiAlertRuleEngineTest {
         List<TechAiAlertCandidate> alerts = new TechAiAlertRuleEngine().evaluate(ctx);
 
         assertThat(alerts).noneMatch(alert -> alert.ruleType().equals("turnover_rate"));
+    }
+
+    @Test
+    @DisplayName("uses per-stock thresholds when provided")
+    void usesCustomThresholds() {
+        TechAiAlertThresholds thresholds = TechAiAlertThresholds.builder()
+                .minute1Pct(new BigDecimal("6"))
+                .minute5Pct(new BigDecimal("8"))
+                .dailyPct(new BigDecimal("12"))
+                .threeDayPct(new BigDecimal("18"))
+                .turnoverRatioPct(new BigDecimal("260"))
+                .build();
+
+        List<TechAiAlertCandidate> alerts = new TechAiAlertRuleEngine()
+                .evaluate(context(new BigDecimal("120")), thresholds);
+
+        assertThat(alerts).extracting(TechAiAlertCandidate::dedupeKey)
+                .contains(
+                        "300733.sz|minute_1m_up|6",
+                        "300733.sz|minute_5m_up|8",
+                        "300733.sz|daily_up|12",
+                        "300733.sz|three_day_up|18"
+                )
+                .doesNotContain(
+                        "300733.sz|minute_1m_up|3",
+                        "300733.sz|minute_5m_up|5",
+                        "300733.sz|daily_up|3",
+                        "300733.sz|turnover_rate|150",
+                        "300733.sz|turnover_rate|200",
+                        "300733.sz|turnover_rate|260",
+                        "300733.sz|turnover_rate|300"
+                );
     }
 }

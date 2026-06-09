@@ -22,6 +22,7 @@
     infographicBtn: $('ppInfographicBtn'),
     infographicHint: $('ppInfographicHint'),
     infographic: $('ppInfographic'),
+    anchorNav: $('ppAnchorNav'),
   };
 
   let currentResult = null;
@@ -382,6 +383,29 @@
     `;
   }
 
+  function activateAnchor(targetId) {
+    if (!els.anchorNav) return;
+    els.anchorNav.querySelectorAll('.pp-anchor').forEach(anchor => {
+      anchor.classList.toggle('active', anchor.getAttribute('data-target') === targetId);
+    });
+  }
+
+  function bindAnchorNav() {
+    if (!els.anchorNav) return;
+    els.anchorNav.addEventListener('click', (e) => {
+      const anchor = e.target.closest('.pp-anchor');
+      if (!anchor) return;
+      const targetId = anchor.getAttribute('data-target');
+      const target = targetId ? document.getElementById(targetId) : null;
+      if (!target) return;
+      activateAnchor(targetId);
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (history.replaceState) {
+        history.replaceState(null, '', `${window.location.pathname}${window.location.search}#${targetId}`);
+      }
+    });
+  }
+
   // ---- 事件绑定 ----
   els.analyzeBtn.addEventListener('click', () => runAnalyze(els.keyword.value, false));
   els.forceBtn.addEventListener('click', () => runAnalyze(els.keyword.value, true));
@@ -389,6 +413,7 @@
     if (e.key === 'Enter') runAnalyze(els.keyword.value, false);
   });
   els.infographicBtn.addEventListener('click', runInfographic);
+  bindAnchorNav();
 
   // 初始化
   loadRecent();

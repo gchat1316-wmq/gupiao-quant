@@ -13,21 +13,43 @@ public class TechAiAlertRuleEngine {
     private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
 
     public List<TechAiAlertCandidate> evaluate(TechAiMarketContext ctx) {
+        return evaluate(ctx, null);
+    }
+
+    public List<TechAiAlertCandidate> evaluate(TechAiMarketContext ctx, TechAiAlertThresholds thresholds) {
         List<TechAiAlertCandidate> alerts = new ArrayList<>();
         BigDecimal latest = ctx.getLatestPrice();
         if (latest == null) {
             return alerts;
         }
         addChangeAlerts(alerts, ctx, "minute_1m", "1分钟涨跌幅", latest, ctx.getMinute1OpenPrice(),
-                List.of(BigDecimal.valueOf(3)), true);
+                thresholds == null
+                        ? List.of(BigDecimal.valueOf(3))
+                        : thresholdList(valueOrDefault(thresholds.getMinute1Pct(), BigDecimal.valueOf(3))), true);
         addChangeAlerts(alerts, ctx, "minute_5m", "5分钟涨跌幅", latest, ctx.getMinute5OpenPrice(),
-                List.of(BigDecimal.valueOf(5)), true);
+                thresholds == null
+                        ? List.of(BigDecimal.valueOf(5))
+                        : thresholdList(valueOrDefault(thresholds.getMinute5Pct(), BigDecimal.valueOf(5))), true);
         addChangeAlerts(alerts, ctx, "daily", "当日涨跌幅", latest, ctx.getPrevClosePrice(),
-                List.of(BigDecimal.valueOf(3), BigDecimal.valueOf(5), BigDecimal.valueOf(7)), false);
-        addTurnoverAlerts(alerts, ctx);
+                thresholds == null
+                        ? List.of(BigDecimal.valueOf(3), BigDecimal.valueOf(5), BigDecimal.valueOf(7))
+                        : thresholdList(valueOrDefault(thresholds.getDailyPct(), BigDecimal.valueOf(3))), false);
+        addTurnoverAlerts(alerts, ctx, thresholds == null
+                ? List.of(BigDecimal.valueOf(150), BigDecimal.valueOf(200), BigDecimal.valueOf(300))
+                : thresholdList(valueOrDefault(thresholds.getTurnoverRatioPct(), BigDecimal.valueOf(150))));
         addChangeAlerts(alerts, ctx, "three_day", "3日涨跌幅", latest, ctx.getClosePrice3TradingDaysAgo(),
-                List.of(BigDecimal.valueOf(10), BigDecimal.valueOf(15), BigDecimal.valueOf(20)), false);
+                thresholds == null
+                        ? List.of(BigDecimal.valueOf(10), BigDecimal.valueOf(15), BigDecimal.valueOf(20))
+                        : thresholdList(valueOrDefault(thresholds.getThreeDayPct(), BigDecimal.valueOf(10))), false);
         return alerts;
+    }
+
+    private BigDecimal valueOrDefault(BigDecimal value, BigDecimal fallback) {
+        return value == null || value.compareTo(BigDecimal.ZERO) <= 0 ? fallback : value;
+    }
+
+    private List<BigDecimal> thresholdList(BigDecimal threshold) {
+        return List.of(threshold);
     }
 
     private void addChangeAlerts(List<TechAiAlertCandidate> alerts,
@@ -53,14 +75,14 @@ public class TechAiAlertRuleEngine {
         }
     }
 
-    private void addTurnoverAlerts(List<TechAiAlertCandidate> alerts, TechAiMarketContext ctx) {
+    private void addTurnoverAlerts(List<TechAiAlertCandidate> alerts, TechAiMarketContext ctx, List<BigDecimal> thresholds) {
         BigDecimal current = ctx.getTurnoverRate();
         BigDecimal avg = ctx.getAvgTurnoverRate5d();
         if (current == null || avg == null || avg.compareTo(BigDecimal.ZERO) <= 0) {
             return;
         }
         BigDecimal ratio = current.divide(avg, 6, RoundingMode.HALF_UP).multiply(HUNDRED);
-        for (BigDecimal threshold : List.of(BigDecimal.valueOf(150), BigDecimal.valueOf(200), BigDecimal.valueOf(300))) {
+        for (BigDecimal threshold : thresholds) {
             if (ratio.compareTo(threshold) >= 0) {
                 alerts.add(candidate(ctx, "turnover_rate", "up", threshold, ratio, "换手率放大", false));
             }

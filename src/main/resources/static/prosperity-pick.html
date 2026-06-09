@@ -80,13 +80,13 @@
       <div id="ppProfile" class="pp-profile-card"></div>
 
       <!-- Sticky 锚点导航 -->
-      <div class="pp-anchor-nav">
-        <a href="#pp-section-industry" class="pp-anchor">① 行业</a>
-        <a href="#pp-section-company" class="pp-anchor">② 公司</a>
-        <a href="#pp-section-valuation" class="pp-anchor">③ 估值</a>
-        <a href="#pp-section-technical" class="pp-anchor">④ 技术</a>
-        <a href="#pp-section-capital" class="pp-anchor">⑤ 资金</a>
-        <a href="#pp-section-summary" class="pp-anchor">⑥ 总结</a>
+      <div class="pp-anchor-nav" id="ppAnchorNav" aria-label="分析章节导航">
+        <button type="button" class="pp-anchor active" data-target="pp-section-industry"><span>①</span> 行业</button>
+        <button type="button" class="pp-anchor" data-target="pp-section-company"><span>②</span> 公司</button>
+        <button type="button" class="pp-anchor" data-target="pp-section-valuation"><span>③</span> 估值</button>
+        <button type="button" class="pp-anchor" data-target="pp-section-technical"><span>④</span> 技术</button>
+        <button type="button" class="pp-anchor" data-target="pp-section-capital"><span>⑤</span> 资金</button>
+        <button type="button" class="pp-anchor" data-target="pp-section-summary"><span>⑥</span> 总结</button>
       </div>
 
       <!-- ① 行业 -->

@@ -134,7 +134,7 @@
 .tech-ai-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 900px;
+  min-width: 1120px;
 }
 
 .tech-ai-table th,
@@ -175,6 +175,35 @@
 .tech-ai-row-actions {
   display: flex;
   gap: 8px;
+}
+
+.tech-ai-thresholds {
+  display: grid;
+  grid-template-columns: repeat(5, 52px);
+  gap: 6px;
+}
+
+.tech-ai-thresholds label {
+  display: grid;
+  gap: 3px;
+  color: var(--tech-muted);
+  font-size: 11px;
+}
+
+.tech-ai-thresholds input {
+  width: 52px;
+  height: 28px;
+  border: 1px solid var(--tech-line);
+  border-radius: 6px;
+  color: var(--tech-ink);
+  font-size: 12px;
+  padding: 0 5px;
+}
+
+.tech-ai-thresholds input:focus {
+  border-color: var(--tech-accent);
+  box-shadow: 0 0 0 2px rgba(27, 127, 107, .1);
+  outline: none;
 }
 
 .tech-ai-mini-btn {

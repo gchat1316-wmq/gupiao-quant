@@ -100,6 +100,21 @@ public class InvestStockPool {
     @Column(name = "last_alert_at")
     private LocalDateTime lastAlertAt;
 
+    @Column(name = "alert_minute_1m_pct", precision = 8, scale = 2)
+    private BigDecimal alertMinute1mPct;
+
+    @Column(name = "alert_minute_5m_pct", precision = 8, scale = 2)
+    private BigDecimal alertMinute5mPct;
+
+    @Column(name = "alert_daily_pct", precision = 8, scale = 2)
+    private BigDecimal alertDailyPct;
+
+    @Column(name = "alert_three_day_pct", precision = 8, scale = 2)
+    private BigDecimal alertThreeDayPct;
+
+    @Column(name = "alert_turnover_ratio_pct", precision = 8, scale = 2)
+    private BigDecimal alertTurnoverRatioPct;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 

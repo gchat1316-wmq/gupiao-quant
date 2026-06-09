@@ -17,6 +17,7 @@ import com.quant.repository.TradeStockBasicRepository;
 import com.quant.repository.TradeStockDailyRepository;
 import com.quant.service.techai.TechAiAlertCandidate;
 import com.quant.service.techai.TechAiAlertRuleEngine;
+import com.quant.service.techai.TechAiAlertThresholds;
 import com.quant.service.techai.TechAiMarketContext;
 import com.quant.service.techai.TechAiStockCodeUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -120,6 +121,11 @@ public class TechAiService {
         switch (field) {
             case "status" -> pool.setStatus(blank ? "watching" : value.trim());
             case "memo" -> pool.setMemo(blank ? null : value);
+            case "alertMinute1mPct" -> pool.setAlertMinute1mPct(parsePositiveDecimal(value, field));
+            case "alertMinute5mPct" -> pool.setAlertMinute5mPct(parsePositiveDecimal(value, field));
+            case "alertDailyPct" -> pool.setAlertDailyPct(parsePositiveDecimal(value, field));
+            case "alertThreeDayPct" -> pool.setAlertThreeDayPct(parsePositiveDecimal(value, field));
+            case "alertTurnoverRatioPct" -> pool.setAlertTurnoverRatioPct(parsePositiveDecimal(value, field));
             default -> throw new IllegalArgumentException("不支持的字段：" + field);
         }
         InvestStockPool saved = poolRepository.save(pool);
@@ -172,7 +178,7 @@ public class TechAiService {
             }
             String stockName = displayStockName(item, basicFromMap(basics, item.getStockCode()));
             TechAiMarketContext ctx = buildContext(item.getStockCode(), stockName, quote);
-            for (TechAiAlertCandidate candidate : ruleEngine.evaluate(ctx)) {
+            for (TechAiAlertCandidate candidate : ruleEngine.evaluate(ctx, thresholds(item))) {
                 if (shouldPush(candidate, cfg)) {
                     saveAndPush(candidate, quote);
                     triggered++;
@@ -278,9 +284,39 @@ public class TechAiService {
                 .turnoverRate(quote == null ? null : quote.getTurnoverRate())
                 .volume(quote == null ? null : quote.getVolume())
                 .quoteTime(quote == null ? null : quote.getQuoteTime())
+                .alertMinute1mPct(item.getAlertMinute1mPct())
+                .alertMinute5mPct(item.getAlertMinute5mPct())
+                .alertDailyPct(item.getAlertDailyPct())
+                .alertThreeDayPct(item.getAlertThreeDayPct())
+                .alertTurnoverRatioPct(item.getAlertTurnoverRatioPct())
                 .createdAt(item.getCreatedAt())
                 .updatedAt(item.getUpdatedAt())
                 .build();
+    }
+
+    private TechAiAlertThresholds thresholds(InvestStockPool item) {
+        return TechAiAlertThresholds.builder()
+                .minute1Pct(item.getAlertMinute1mPct())
+                .minute5Pct(item.getAlertMinute5mPct())
+                .dailyPct(item.getAlertDailyPct())
+                .threeDayPct(item.getAlertThreeDayPct())
+                .turnoverRatioPct(item.getAlertTurnoverRatioPct())
+                .build();
+    }
+
+    private BigDecimal parsePositiveDecimal(String value, String field) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            BigDecimal decimal = new BigDecimal(value.trim());
+            if (decimal.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("阈值必须大于 0：" + field);
+            }
+            return decimal.setScale(2, RoundingMode.HALF_UP);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("阈值格式错误：" + field);
+        }
     }
 
     private String displayStockName(InvestStockPool item, TradeStockBasic basic) {

@@ -33,6 +33,12 @@
     return String(v).replace('T', ' ').slice(0, 19);
   }
 
+  function inputValue(v, fallback) {
+    if (v == null || v === '') return fallback;
+    const n = Number(v);
+    return Number.isFinite(n) ? String(n) : fallback;
+  }
+
   async function fetchJson(url, options) {
     const res = await fetch(url, options);
     if (!res.ok) {
@@ -68,6 +74,7 @@
               <th>成交量</th>
               <th>换手率</th>
               <th>行情时间</th>
+              <th>告警阈值</th>
               <th>备注</th>
               <th>操作</th>
             </tr>
@@ -101,6 +108,7 @@
         <td>${row.volume == null ? '—' : Number(row.volume).toLocaleString()}</td>
         <td>${row.turnoverRate == null ? '—' : fmtNum(row.turnoverRate, 2) + '%'}</td>
         <td>${fmtTime(row.quoteTime)}</td>
+        <td>${renderThresholdInputs(row)}</td>
         <td><input class="pool-cell-input" data-field="memo" value="${esc(row.memo || '')}" placeholder="备注" /></td>
         <td>
           <div class="tech-ai-row-actions">
@@ -109,6 +117,17 @@
           </div>
         </td>
       </tr>`;
+  }
+
+  function renderThresholdInputs(row) {
+    return `
+      <div class="tech-ai-thresholds">
+        <label><span>1m</span><input type="number" min="0" step="0.1" data-field="alertMinute1mPct" value="${esc(inputValue(row.alertMinute1mPct, '3'))}" /></label>
+        <label><span>5m</span><input type="number" min="0" step="0.1" data-field="alertMinute5mPct" value="${esc(inputValue(row.alertMinute5mPct, '5'))}" /></label>
+        <label><span>日</span><input type="number" min="0" step="0.1" data-field="alertDailyPct" value="${esc(inputValue(row.alertDailyPct, '3'))}" /></label>
+        <label><span>3日</span><input type="number" min="0" step="0.1" data-field="alertThreeDayPct" value="${esc(inputValue(row.alertThreeDayPct, '10'))}" /></label>
+        <label><span>换手</span><input type="number" min="0" step="1" data-field="alertTurnoverRatioPct" value="${esc(inputValue(row.alertTurnoverRatioPct, '150'))}" /></label>
+      </div>`;
   }
 
   async function loadAlerts() {
@@ -200,6 +219,16 @@
       const status = tr.querySelector('[data-field="status"]').value;
       await updateField(id, 'memo', memo);
       await updateField(id, 'status', status);
+      const thresholdFields = [
+        'alertMinute1mPct',
+        'alertMinute5mPct',
+        'alertDailyPct',
+        'alertThreeDayPct',
+        'alertTurnoverRatioPct',
+      ];
+      for (const field of thresholdFields) {
+        await updateField(id, field, tr.querySelector(`[data-field="${field}"]`).value);
+      }
       await loadPool();
     });
   }

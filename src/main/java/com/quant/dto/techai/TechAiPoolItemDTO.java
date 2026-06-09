@@ -20,6 +20,11 @@ public class TechAiPoolItemDTO {
     private BigDecimal turnoverRate;
     private Long volume;
     private LocalDateTime quoteTime;
+    private BigDecimal alertMinute1mPct;
+    private BigDecimal alertMinute5mPct;
+    private BigDecimal alertDailyPct;
+    private BigDecimal alertThreeDayPct;
+    private BigDecimal alertTurnoverRatioPct;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
