@@ -1,11 +1,11 @@
 :root {
-  --study-green: #2e7d32;
-  --study-green-deep: #1b5e20;
-  --study-green-soft: #e8f5e9;
-  --study-bg: #fafbfc;
+  --study-green: #e1062c;
+  --study-green-deep: #a9001f;
+  --study-green-soft: #fff0f3;
+  --study-bg: #f6f7fb;
   --study-card-radius: 12px;
-  --study-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06);
-  --study-border: #eaeef3;
+  --study-shadow: 0 1px 2px rgba(22, 27, 43, 0.04), 0 14px 34px rgba(80, 0, 24, 0.08);
+  --study-border: #eadfe4;
   --study-text-muted: #6b7280;
 }
 
@@ -14,8 +14,11 @@
   position: sticky;
   top: 0;
   z-index: 50;
-  background: #fff;
-  border-bottom: 1px solid var(--study-border);
+  background:
+    linear-gradient(90deg, rgba(22, 27, 43, 0.98), rgba(68, 5, 19, 0.97) 54%, rgba(22, 27, 43, 0.98)),
+    #161b2b;
+  border-bottom: 1px solid rgba(255, 42, 73, 0.32);
+  box-shadow: 0 10px 28px rgba(80, 0, 24, 0.18);
 }
 
 .nav-inner {
@@ -32,12 +35,14 @@
   align-items: center;
   gap: 8px;
   text-decoration: none;
-  color: #111827;
+  color: #fff;
   font-weight: 700;
 }
 
 .brand-mark {
   font-size: 22px;
+  color: #ff3654;
+  text-shadow: 0 0 14px rgba(255, 42, 73, 0.8);
 }
 
 .brand-name {
@@ -52,7 +57,7 @@
 }
 
 .nav-link {
-  color: #374151;
+  color: rgba(255, 255, 255, 0.78);
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
@@ -62,18 +67,40 @@
 }
 
 .nav-link:hover {
-  background: #f3f4f6;
-  color: #111827;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
 }
 
 .nav-link.active {
-  background: #111827;
+  background: linear-gradient(135deg, #ff2a49 0%, #d90028 56%, #8f001b 100%);
   color: #fff;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14), 0 8px 22px rgba(225, 6, 44, 0.28);
 }
 
 .nav-link.muted {
   color: #9ca3af;
   pointer-events: none;
+}
+
+.site-footer {
+  width: 100%;
+  max-width: 1280px;
+  margin: auto auto 0;
+  padding: 18px 20px 28px;
+  border-top: 1px solid var(--study-border);
+  color: var(--study-text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.site-footer a {
+  color: var(--study-green-deep);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.site-footer a:hover {
+  text-decoration: underline;
 }
 
 /* ===== Sections ===== */
@@ -1355,6 +1382,11 @@
   .nav-link {
     font-size: 12px;
     padding: 4px 6px;
+  }
+  .site-footer {
+    margin-top: 12px;
+    padding: 16px 12px 24px;
+    line-height: 1.7;
   }
   .study-hero {
     padding: 16px;

@@ -300,8 +300,8 @@
     return `<svg class="sop-spark" viewBox="0 0 ${w} ${h + 10}" preserveAspectRatio="none">
       <line x1="${pad}" y1="${zeroY.toFixed(1)}" x2="${w - pad}" y2="${zeroY.toFixed(1)}" stroke="#e5e7eb" stroke-dasharray="2,2" />
       ${bars}
-      <path d="${linePath}" fill="none" stroke="#d4a017" stroke-width="1.5" />
-      ${pathPoints.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2" fill="#d4a017" />`).join('')}
+      <path d="${linePath}" fill="none" stroke="#e1062c" stroke-width="1.5" />
+      ${pathPoints.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2" fill="#e1062c" />`).join('')}
       ${labels}
     </svg>`;
   }

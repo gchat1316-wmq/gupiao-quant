@@ -1,8 +1,8 @@
 /* ===== 龙江投资模块 ===== */
 :root {
-  --invest-gold: #d4a017;
-  --invest-gold-soft: #fdf6e3;
-  --invest-gold-border: #f0d080;
+  --invest-gold: #e1062c;
+  --invest-gold-soft: #fff0f3;
+  --invest-gold-border: #ffb3c1;
   --invest-green-high: #1a7a4a;
   --invest-green-mid: #52c41a;
   --invest-yellow: #faad14;
@@ -21,7 +21,9 @@
   display: flex;
   align-items: center;
   gap: 24px;
-  background: linear-gradient(135deg, #fdf6e3 0%, #ffffff 60%);
+  background:
+    linear-gradient(135deg, rgba(255, 42, 73, 0.11) 0%, #ffffff 56%),
+    linear-gradient(90deg, rgba(0, 212, 255, 0.10), transparent 34%);
   border: 1px solid var(--invest-gold-border);
   padding: 20px 24px;
   border-radius: 16px;
@@ -32,7 +34,7 @@
   width: 72px;
   height: 72px;
   border-radius: 50%;
-  background: var(--invest-gold-soft);
+  background: radial-gradient(circle at 35% 30%, #fff, var(--invest-gold-soft) 58%, #ffe0e6 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -45,7 +47,7 @@
   font-size: 24px;
   font-weight: 800;
   margin: 0 0 6px;
-  color: #1f2937;
+  color: #7a0017;
   letter-spacing: 1px;
 }
 
@@ -86,8 +88,8 @@
 }
 
 .invest-tab.active {
-  color: #d4a017;
-  border-bottom-color: #d4a017;
+  color: var(--invest-gold);
+  border-bottom-color: var(--invest-gold);
 }
 
 .invest-panel {
@@ -148,7 +150,7 @@
 }
 
 .invest-btn {
-  background: var(--invest-gold);
+  background: linear-gradient(135deg, #ff2a49 0%, var(--invest-gold) 58%, #8f001b 100%);
   color: #fff;
   border: 0;
   border-radius: var(--radius);
@@ -162,7 +164,7 @@
 }
 
 .invest-btn:hover {
-  background: #b8880e;
+  background: linear-gradient(135deg, #ff3b59 0%, #c40025 58%, #730016 100%);
 }
 
 .invest-btn-outline {
