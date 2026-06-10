@@ -4,6 +4,7 @@
   const NAV_ITEMS = [
     { href: './', label: '财务分析', match: ['/', '/index.html', '/gp', '/gp/', '/gp/index.html'] },
     { href: 'invest.html', label: '龙江投资', match: ['invest.html'] },
+    { href: 'market-recap.html', label: '每日复盘', match: ['market-recap.html'] },
     { href: 'tech-ai.html', label: '科技AI', match: ['tech-ai.html'] },
     { href: 'prosperity-pick.html', label: '景气度选股', match: ['prosperity-pick.html'] },
     { href: 'prosperity-strong.html', label: '强势股选股', match: ['prosperity-strong.html'] },

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#1e88ff" />
+  <base href="/gp/" />
+  <title>每日复盘 · 投资助手</title>
+  <link rel="stylesheet" href="css/style.css?v=20260610-market-recap" />
+  <link rel="stylesheet" href="css/study.css?v=20260610-market-recap" />
+  <link rel="stylesheet" href="css/market-recap.css?v=20260610-list" />
+  <script src="js/layout.js?v=20260610-market-recap" defer></script>
+  <script src="js/market-recap.js?v=20260610-list" defer></script>
+</head>
+<body>
+  <div id="siteHeader"></div>
+
+  <main class="container rq-page">
+    <div class="rq-topbar">
+      <div class="rq-tab-group" id="marketTabs"></div>
+      <div class="rq-date-picker">
+        <label for="recapDatePicker" class="rq-date-label">日期</label>
+        <input id="recapDatePicker" class="rq-date-input" type="date" />
+        <button id="recapDateClear" type="button" class="rq-date-latest" title="回到最新">最新</button>
+      </div>
+    </div>
+
+    <section id="recapList" class="rq-list" hidden></section>
+
+    <section id="recapStatus" class="rq-status-card">加载中...</section>
+
+    <div id="recapContent" class="hidden">
+      <section id="recapArticle"></section>
+    </div>
+  </main>
+
+  <div id="siteFooter"></div>
+</body>
+</html>
