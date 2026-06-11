@@ -195,7 +195,7 @@
 
   /* ===== Data fetch ===== */
   async function fetchData(keywords) {
-    const resp = await fetch('api/stock/financial?keywords=' + encodeURIComponent(keywords));
+    const resp = await fetch('api/stock/financial?keywords=' + encodeURIComponent(keywords) + '&quarters=16');
     if (!resp.ok) throw new Error('请求失败: ' + resp.status);
     return resp.json();
   }
@@ -242,29 +242,52 @@
 
     var kvs = '';
     if (info.listDate) {
-      var yearsLabel = info.listYears > 0 ? ' (' + info.listYears + '年)' : '';
-      kvs += infoKV('上市日期', info.listDate + yearsLabel);
+      var yearsLabel = info.listYears > 0 ? ' / ' + info.listYears + '年' : '';
+      kvs += infoKV('上市', info.listDate + yearsLabel);
     }
     kvs += infoKV('PE-TTM', fmtDecimal(info.peTtm));
     kvs += infoKV('PB', fmtDecimal(info.pb));
     kvs += infoKV('PS-TTM', fmtDecimal(info.psTtm));
+    if (info.currentMarketCapYi != null) {
+      kvs += infoKV('市值', fmtYi(info.currentMarketCapYi));
+    }
+    if (info.latestNetMargin != null) {
+      kvs += infoKV('净利率', pctFmt(info.latestNetMargin));
+    }
+    if (info.tenPsCandidate != null) {
+      kvs += infoKV('10PS标的', info.tenPsCandidate ? '是' : '否', info.tenPsCandidate ? 'strong' : 'muted');
+    }
+    if (info.tenPsCurrentToY1 != null) {
+      kvs += infoKV('明年PS', fmtDecimal(info.tenPsCurrentToY1) + '倍');
+    }
+    if (info.tenPsFairMarketCapYi != null) {
+      kvs += infoKV('合理市值', fmtYi(info.tenPsFairMarketCapYi));
+    }
+    if (info.tenPsValuationVerdict) {
+      var verdictClass = info.tenPsValuationVerdict === '合理/低估' ? 'ok'
+        : info.tenPsValuationVerdict === '不适用' ? 'muted' : 'warn';
+      kvs += infoKV('估值', info.tenPsValuationVerdict, verdictClass, info.tenPsValuationDetail);
+    }
 
     var foot = info.updatedAt
       ? '<div class="info-bar-foot">数据来源: ' + esc(info.dataSource || 'qmt') + ' · ' + esc(info.updatedAt) + '</div>'
       : '';
 
     return '<div class="stock-info-bar">' +
-      '<div class="info-bar-head">' + head + '</div>' +
+      '<div class="info-bar-line"><div class="info-bar-head">' + head + '</div>' +
       '<div class="info-kv-row">' + kvs + '</div>' +
+      '</div>' +
       foot +
       '</div>';
   }
 
-  function infoKV(label, value) {
+  function infoKV(label, value, tone, title) {
     var cls = (value === '--') ? ' muted' : '';
+    if (tone) cls += ' ' + tone;
+    var titleAttr = title ? ' title="' + esc(title) + '"' : '';
     return '<div class="info-kv">' +
       '<span class="info-kv-label">' + esc(label) + '</span>' +
-      '<span class="info-kv-value' + cls + '">' + esc(value) + '</span>' +
+      '<span class="info-kv-value' + cls + '"' + titleAttr + '>' + esc(value) + '</span>' +
       '</div>';
   }
 
@@ -272,6 +295,12 @@
     if (v == null) return '--';
     var n = Number(v);
     return isFinite(n) ? n.toFixed(2) : '--';
+  }
+
+  function fmtYi(v) {
+    if (v == null) return '--';
+    var n = Number(v);
+    return isFinite(n) ? n.toFixed(2) + '亿' : '--';
   }
 
   function renderTables(stocks) {

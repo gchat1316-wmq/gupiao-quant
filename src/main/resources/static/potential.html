@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#12403a" />
   <base href="/gp/" />
-  <title>股票监控· 投资助手</title>
+  <title>潜力监控· 投资助手</title>
   <link rel="stylesheet" href="css/style.css?v=20260609-red-tech-footer" />
   <link rel="stylesheet" href="css/study.css?v=20260609-red-tech-footer" />
   <link rel="stylesheet" href="css/invest.css?v=20260609-red-tech" />
@@ -18,9 +18,9 @@
   <main class="container tech-ai-page">
     <section class="tech-ai-hero">
       <div>
-        <div class="tech-ai-kicker">QMT 实时行情监控</div>
-        <h2 class="tech-ai-title">AI监控</h2>
-        <p class="tech-ai-sub">独立股票池 · 分钟涨跌幅 · 成交量与换手率异动 · Server 酱推送</p>
+        <div class="tech-ai-kicker">浮盈加仓 · 移动止损 · 目标止盈</div>
+        <h2 class="tech-ai-title">潜力监控</h2>
+        <p class="tech-ai-sub">独立潜力池 · 轻仓试错 · 浮盈加仓 · 跟随最高价移动止损 · 目标分批止盈</p>
       </div>
       <div class="tech-ai-hero-actions">
         <button id="refreshBtn" class="invest-btn-outline">刷新</button>
@@ -31,36 +31,24 @@
     <section class="tech-ai-command">
       <div class="tech-ai-add">
         <input id="stockInput" type="text" placeholder="输入股票代码或名称，如 300733.sz" autocomplete="off" />
-        <button id="addStockBtn" class="invest-btn">加入AI监控池</button>
+        <button id="addStockBtn" class="invest-btn">加入潜力池</button>
       </div>
-      <div class="tech-ai-note">内部代码统一为小写后缀格式；QMT 桥会自动转换为 300733.SZ。</div>
+      <div class="tech-ai-note">内部代码统一为小写后缀格式；QMT 桥会自动转换为 300733.SZ。点"展开"查看建仓/加仓/止损计划。</div>
     </section>
 
-    <section class="tech-ai-grid">
-      <div class="tech-ai-panel tech-ai-panel-main">
-        <div class="tech-ai-panel-head">
-          <div>
-            <h3>股票池</h3>
-            <p>仅展示 <code>pool_type=tech_ai</code> 的标的。</p>
-          </div>
-          <span id="poolCount" class="tech-ai-pill">0 只</span>
+    <section class="tech-ai-panel tech-ai-panel-main">
+      <div class="tech-ai-panel-head">
+        <div>
+          <h3>潜力股票池</h3>
+          <p>独立潜力池 · 轻仓试错 · 浮盈加仓 · 移动止损 · 目标止盈</p>
         </div>
-        <div id="poolTableWrap" class="tech-ai-table-wrap"></div>
+        <span id="poolCount" class="tech-ai-pill">0 只</span>
       </div>
-
-      <aside class="tech-ai-panel tech-ai-alert-panel">
-        <div class="tech-ai-panel-head">
-          <div>
-            <h3>最近告警</h3>
-            <p>复用 invest_alert 记录。</p>
-          </div>
-        </div>
-        <div id="alertList" class="tech-ai-alert-list"></div>
-      </aside>
+      <div id="poolTableWrap" class="tech-ai-table-wrap"></div>
     </section>
   </main>
   <div id="siteFooter"></div>
 
-  <script src="js/tech-ai.js"></script>
+  <script src="js/potential.js"></script>
 </body>
 </html>

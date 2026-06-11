@@ -6,7 +6,7 @@ import com.quant.dto.invest.PositionFillRequest;
 import com.quant.dto.techai.PositionFillDTO;
 import com.quant.dto.techai.TechAiAlertDTO;
 import com.quant.dto.techai.TechAiPoolItemDTO;
-import com.quant.service.TechAiService;
+import com.quant.service.PotentialService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -22,60 +22,60 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/tech-ai")
+@RequestMapping("/api/potential")
 @CrossOrigin(origins = "*")
-public class TechAiController {
+public class PotentialController {
 
-    private final TechAiService techAiService;
+    private final PotentialService potentialService;
 
-    public TechAiController(TechAiService techAiService) {
-        this.techAiService = techAiService;
+    public PotentialController(PotentialService potentialService) {
+        this.potentialService = potentialService;
     }
 
     @GetMapping("/pool")
     public List<TechAiPoolItemDTO> listPool() {
-        return techAiService.listPool();
+        return potentialService.listPool();
     }
 
     @PostMapping("/pool")
     public TechAiPoolItemDTO addToPool(@RequestBody PoolSaveRequest request) {
-        return techAiService.addToPool(request);
+        return potentialService.addToPool(request);
     }
 
     @PatchMapping("/pool/{id}/field")
     public TechAiPoolItemDTO updateField(@PathVariable Integer id, @RequestBody PoolFieldUpdateRequest request) {
-        return techAiService.updateField(id, request);
+        return potentialService.updateField(id, request);
     }
 
     @DeleteMapping("/pool/{id}")
     public ResponseEntity<Map<String, String>> removeFromPool(@PathVariable Integer id) {
-        techAiService.removeFromPool(id);
+        potentialService.removeFromPool(id);
         return ResponseEntity.ok(Map.of("message", "已移除"));
     }
 
     @PostMapping("/pool/{id}/fill")
     public TechAiPoolItemDTO recordFill(@PathVariable Integer id, @RequestBody PositionFillRequest request) {
-        return techAiService.recordFill(id, request);
+        return potentialService.recordFill(id, request);
     }
 
     @GetMapping("/pool/{id}/fills")
     public List<PositionFillDTO> listFills(@PathVariable Integer id) {
-        return techAiService.listFills(id);
+        return potentialService.listFills(id);
     }
 
     @DeleteMapping("/pool/{id}/fills/{fillId}")
     public TechAiPoolItemDTO deleteFill(@PathVariable Integer id, @PathVariable Long fillId) {
-        return techAiService.deleteFill(id, fillId);
+        return potentialService.deleteFill(id, fillId);
     }
 
     @GetMapping("/alerts")
     public List<TechAiAlertDTO> listAlerts() {
-        return techAiService.listAlerts();
+        return potentialService.listAlerts();
     }
 
     @PostMapping("/monitor/run")
     public Map<String, Object> runMonitor() {
-        int triggered = techAiService.monitorQuotes();
+        int triggered = potentialService.monitorQuotes();
         return Map.of("message", "monitor triggered", "triggered", triggered);
     }
 }

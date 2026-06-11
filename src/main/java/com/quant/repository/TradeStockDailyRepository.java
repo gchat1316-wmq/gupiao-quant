@@ -17,6 +17,9 @@ public interface TradeStockDailyRepository extends JpaRepository<TradeStockDaily
 
     List<TradeStockDaily> findTop6ByStockCodeOrderByTradeDateDesc(String stockCode);
 
+    /** 取最近 N 日 daily（用于 ATR 计算），按日期倒序 */
+    List<TradeStockDaily> findTop30ByStockCodeOrderByTradeDateDesc(String stockCode);
+
     /** 取指定股票在指定日期及之后的首条 daily 记录（用于年初涨幅基准价） */
     Optional<TradeStockDaily> findFirstByStockCodeAndTradeDateGreaterThanEqualOrderByTradeDateAsc(
             String stockCode, LocalDate fromDate);

@@ -5,8 +5,10 @@ import com.quant.dto.QueryResultDTO;
 import com.quant.dto.StockBasicInfoDTO;
 import com.quant.dto.StockFinancialDTO;
 import com.quant.entity.TradeStockBasic;
+import com.quant.entity.TradeStockDaily;
 import com.quant.entity.TradeStockFinancial;
 import com.quant.repository.TradeStockBasicRepository;
+import com.quant.repository.TradeStockDailyRepository;
 import com.quant.repository.TradeStockFinancialRepository;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -30,15 +32,21 @@ import java.util.stream.Collectors;
 @Service
 public class StockQueryService {
 
-    private static final int DEFAULT_QUARTERS = 15;
+    private static final int DEFAULT_QUARTERS = 16;
+    private static final BigDecimal TEN = BigDecimal.TEN;
+    private static final BigDecimal YI = BigDecimal.valueOf(100_000_000L);
+    private static final BigDecimal TEN_PS_NET_MARGIN_THRESHOLD = BigDecimal.valueOf(22.5);
 
     private final TradeStockBasicRepository stockBasicRepository;
     private final TradeStockFinancialRepository financialRepository;
+    private final TradeStockDailyRepository dailyRepository;
 
     public StockQueryService(TradeStockBasicRepository stockBasicRepository,
-                             TradeStockFinancialRepository financialRepository) {
+                             TradeStockFinancialRepository financialRepository,
+                             TradeStockDailyRepository dailyRepository) {
         this.stockBasicRepository = stockBasicRepository;
         this.financialRepository = financialRepository;
+        this.dailyRepository = dailyRepository;
     }
 
     @Cacheable(value = "financial", key = "#keywords + '_' + (#quarters ?: 0)")
@@ -70,7 +78,7 @@ public class StockQueryService {
             stocks.add(StockFinancialDTO.builder()
                     .stockCode(basic.getStockCode())
                     .stockName(basic.getStockName())
-                    .basicInfo(toBasicInfoDTO(basic))
+                    .basicInfo(toBasicInfoDTO(basic, allRecords))
                     .quarters(quarterList)
                     .build());
         }
@@ -119,7 +127,7 @@ public class StockQueryService {
         return b;
     }
 
-    private StockBasicInfoDTO toBasicInfoDTO(TradeStockBasic b) {
+    private StockBasicInfoDTO toBasicInfoDTO(TradeStockBasic b, List<TradeStockFinancial> financials) {
         String[] industries = parseSectorNames(b.getSectorNames());
         String industry = industries.length > 0 ? industries[0] : null;
         int extraCount = Math.max(0, industries.length - 1);
@@ -136,6 +144,9 @@ public class StockQueryService {
             updatedAt = formatUpdatedAt(b.getUpdatedAt());
         }
 
+        TenPsSnapshot tenPs = buildTenPsSnapshot(b, financials);
+        BigDecimal psTtm = b.getPsTtm() != null ? b.getPsTtm() : estimatePsTtm(tenPs.currentMarketCapYi(), tenPs.annualizedRevenueYi());
+
         return StockBasicInfoDTO.builder()
                 .stockCode(b.getStockCode())
                 .stockName(b.getStockName())
@@ -147,11 +158,138 @@ public class StockQueryService {
                 .listYears(listYears)
                 .peTtm(b.getPeTtm())
                 .pb(b.getPb())
-                .psTtm(b.getPsTtm())
+                .psTtm(psTtm)
+                .currentMarketCapYi(tenPs.currentMarketCapYi())
+                .latestNetMargin(tenPs.latestNetMargin())
+                .forecastRevenueY1Yi(tenPs.forecastRevenueY1Yi())
+                .forecastRevenueY2Yi(tenPs.forecastRevenueY2Yi())
+                .forecastRevenueY3Yi(tenPs.forecastRevenueY3Yi())
+                .tenPsCandidate(tenPs.tenPsCandidate())
+                .tenPsFairMarketCapYi(tenPs.tenPsFairMarketCapYi())
+                .tenPsCurrentToY1(tenPs.tenPsCurrentToY1())
+                .tenPsValuationVerdict(tenPs.tenPsValuationVerdict())
+                .tenPsValuationDetail(tenPs.tenPsValuationDetail())
                 .valuationLevel(b.getValuationLevel())
                 .dataSource(b.getDataSource())
                 .updatedAt(updatedAt)
                 .build();
+    }
+
+    private TenPsSnapshot buildTenPsSnapshot(TradeStockBasic basic, List<TradeStockFinancial> financials) {
+        BigDecimal currentMarketCapYi = latestMarketCapYi(basic);
+        if (financials == null || financials.isEmpty()) {
+            return TenPsSnapshot.empty(currentMarketCapYi);
+        }
+
+        TradeStockFinancial latest = financials.get(0);
+        BigDecimal annualizedRevenueYi = annualizedRevenueYi(latest);
+        BigDecimal growthRate = latest.getRevenueYoy() != null ? latest.getRevenueYoy() : BigDecimal.ZERO;
+        BigDecimal growthMultiplier = BigDecimal.ONE.add(growthRate.divide(BigDecimal.valueOf(100), 6, RoundingMode.HALF_UP));
+        if (growthMultiplier.compareTo(BigDecimal.ZERO) <= 0) {
+            growthMultiplier = BigDecimal.ONE;
+        }
+
+        BigDecimal forecastY1 = multiply(annualizedRevenueYi, growthMultiplier);
+        BigDecimal forecastY2 = multiply(forecastY1, growthMultiplier);
+        BigDecimal forecastY3 = multiply(forecastY2, growthMultiplier);
+        BigDecimal fairCap = multiply(forecastY1, TEN);
+        BigDecimal currentToY1 = ratio(currentMarketCapYi, forecastY1);
+
+        BigDecimal netMargin = latest.getNetMargin();
+        Boolean candidate = netMargin != null ? netMargin.compareTo(TEN_PS_NET_MARGIN_THRESHOLD) >= 0 : null;
+        String verdict = null;
+        String detail = null;
+        if (Boolean.TRUE.equals(candidate) && currentMarketCapYi != null && fairCap != null) {
+            BigDecimal fairCapY3 = multiply(forecastY3, TEN);
+            if (currentMarketCapYi.compareTo(fairCap) <= 0) {
+                verdict = "合理/低估";
+                detail = "当前市值对应明年10倍PS以内";
+            } else if (fairCapY3 != null && currentMarketCapYi.compareTo(fairCapY3) <= 0) {
+                verdict = "偏贵";
+                detail = "当前市值对应2-3年后10倍PS";
+            } else {
+                verdict = "泡沫警惕";
+                detail = "当前市值超过3年预测营收10倍PS";
+            }
+        } else if (Boolean.FALSE.equals(candidate)) {
+            verdict = "不适用";
+            detail = "净利率未接近25%，不按10PS标尺";
+        }
+
+        return new TenPsSnapshot(
+                currentMarketCapYi,
+                annualizedRevenueYi,
+                netMargin,
+                scaleYi(forecastY1),
+                scaleYi(forecastY2),
+                scaleYi(forecastY3),
+                candidate,
+                scaleYi(fairCap),
+                scaleMultiple(currentToY1),
+                verdict,
+                detail
+        );
+    }
+
+    private BigDecimal latestMarketCapYi(TradeStockBasic basic) {
+        if (basic.getTotalShares() == null || basic.getTotalShares() <= 0) return null;
+        Optional<TradeStockDaily> dailyOpt = dailyRepository.findFirstByStockCodeOrderByTradeDateDesc(basic.getStockCode());
+        return dailyOpt.map(TradeStockDaily::getClosePrice)
+                .filter(price -> price.compareTo(BigDecimal.ZERO) > 0)
+                .map(price -> scaleYi(price.multiply(BigDecimal.valueOf(basic.getTotalShares())).divide(YI, 6, RoundingMode.HALF_UP)))
+                .orElse(null);
+    }
+
+    private BigDecimal annualizedRevenueYi(TradeStockFinancial latest) {
+        if (latest.getRevenue() == null || latest.getReportDate() == null) return null;
+        int month = latest.getReportDate().getMonthValue();
+        if (month <= 0) return null;
+        BigDecimal annualized = latest.getRevenue()
+                .multiply(BigDecimal.valueOf(12L))
+                .divide(BigDecimal.valueOf(month), 6, RoundingMode.HALF_UP);
+        return annualized.divide(YI, 6, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal estimatePsTtm(BigDecimal marketCapYi, BigDecimal annualizedRevenueYi) {
+        return scaleMultiple(ratio(marketCapYi, annualizedRevenueYi));
+    }
+
+    private BigDecimal ratio(BigDecimal numerator, BigDecimal denominator) {
+        if (numerator == null || denominator == null || denominator.compareTo(BigDecimal.ZERO) == 0) return null;
+        return numerator.divide(denominator, 6, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal multiply(BigDecimal left, BigDecimal right) {
+        if (left == null || right == null) return null;
+        return left.multiply(right);
+    }
+
+    private BigDecimal scaleYi(BigDecimal value) {
+        if (value == null) return null;
+        return value.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal scaleMultiple(BigDecimal value) {
+        if (value == null) return null;
+        return value.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private record TenPsSnapshot(
+            BigDecimal currentMarketCapYi,
+            BigDecimal annualizedRevenueYi,
+            BigDecimal latestNetMargin,
+            BigDecimal forecastRevenueY1Yi,
+            BigDecimal forecastRevenueY2Yi,
+            BigDecimal forecastRevenueY3Yi,
+            Boolean tenPsCandidate,
+            BigDecimal tenPsFairMarketCapYi,
+            BigDecimal tenPsCurrentToY1,
+            String tenPsValuationVerdict,
+            String tenPsValuationDetail
+    ) {
+        private static TenPsSnapshot empty(BigDecimal currentMarketCapYi) {
+            return new TenPsSnapshot(currentMarketCapYi, null, null, null, null, null, null, null, null, null, null);
+        }
     }
 
     private String[] parseSectorNames(String sectorNames) {

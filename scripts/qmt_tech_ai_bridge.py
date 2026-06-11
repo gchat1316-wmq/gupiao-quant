@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-QMT/xtdata -> MySQL bridge for the tech_ai stock pool.
+QMT/xtdata -> MySQL bridge for the tech_ai and potential stock pools.
 
 Environment:
   DB_HOST=127.0.0.1
@@ -60,16 +60,29 @@ def to_qmt_code(project_code: str) -> str:
 
 
 def load_pool(conn) -> list[str]:
+    """Load stock codes from both invest_stock_pool (tech_ai) and potential_pool."""
+    codes: list[str] = []
     with conn.cursor() as cur:
         cur.execute(
             """
             SELECT stock_code
             FROM invest_stock_pool
-            WHERE pool_type='tech_ai' AND status <> 'exited'
+            WHERE pool_type IN ('tech_ai', 'potential') AND status <> 'exited'
             ORDER BY id
             """
         )
-        return [to_qmt_code(row["stock_code"]) for row in cur.fetchall()]
+        codes.extend(to_qmt_code(row["stock_code"]) for row in cur.fetchall())
+        cur.execute(
+            """
+            SELECT stock_code
+            FROM potential_pool
+            WHERE status <> 'exited'
+            ORDER BY id
+            """
+        )
+        codes.extend(to_qmt_code(row["stock_code"]) for row in cur.fetchall())
+    seen = set()
+    return [c for c in codes if c not in seen and not seen.add(c)]
 
 
 def parse_time(value: Any) -> dt.datetime:
