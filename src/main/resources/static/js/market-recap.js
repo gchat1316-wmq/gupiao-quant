@@ -11,6 +11,7 @@
     activeDetailId: null,
     detailLoadingId: null,
   };
+  const DEFAULT_MARKETS = ['A股', '美股', '港股'];
 
   function init() {
     bindGlobalHandlers();
@@ -158,8 +159,7 @@
     const el = document.getElementById('marketTabs');
     if (!el) return;
 
-    const markets = state.markets.length ? state.markets
-      : (state.selectedMarket ? [state.selectedMarket] : []);
+    const markets = unique(DEFAULT_MARKETS.concat(state.markets || [], state.selectedMarket ? [state.selectedMarket] : []));
 
     if (!markets.length) {
       el.innerHTML = '';
@@ -398,6 +398,15 @@
   function shorten(text, maxLength) {
     if (!text) return '';
     return text.length <= maxLength ? text : text.slice(0, maxLength) + '...';
+  }
+
+  function unique(items) {
+    const seen = new Set();
+    return items.filter(function (item) {
+      if (!item || seen.has(item)) return false;
+      seen.add(item);
+      return true;
+    });
   }
 
   function readMarketFromUrl() {

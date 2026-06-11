@@ -1,42 +1,44 @@
-(function () {
+(async function () {
   'use strict';
 
-  const NAV_ITEMS = [
-    { href: './', label: '财务分析', match: ['/', '/index.html', '/gp', '/gp/', '/gp/index.html'] },
-    { href: 'invest.html', label: '龙江投资', match: ['invest.html'] },
-    { href: 'market-recap.html', label: '每日复盘', match: ['market-recap.html'] },
-    { href: 'tech-ai.html', label: '科技AI', match: ['tech-ai.html'] },
-    { href: 'prosperity-pick.html', label: '景气度选股', match: ['prosperity-pick.html'] },
-    { href: 'prosperity-strong.html', label: '强势股选股', match: ['prosperity-strong.html'] },
-    { href: 'study.html', label: '学习搭子', match: ['study.html', 'course.html', 'node.html', 'card.html', 'quiz.html'] },
-  ];
-
-  function isActive(item) {
+  function isActive(matches) {
     const pathname = window.location.pathname;
-    return item.match.some(function (part) {
+    return matches.some(function (part) {
       if (part.charAt(0) === '/') return pathname === part;
       return pathname.endsWith('/' + part);
     });
   }
 
-  function renderHeader() {
+  async function renderHeader() {
     const mount = document.getElementById('siteHeader');
     if (!mount) return;
 
-    const links = NAV_ITEMS.map(function (item) {
-      return '<a href="' + item.href + '" class="nav-link' + (isActive(item) ? ' active' : '') + '">' + item.label + '</a>';
-    }).join('');
+    try {
+      const response = await fetch('header.html?v=20260611-shared-header', { cache: 'no-cache' });
+      if (!response.ok) throw new Error('header load failed');
+      mount.innerHTML = await response.text();
+    } catch (e) {
+      mount.innerHTML =
+        '<header class="top-nav">' +
+          '<div class="nav-inner">' +
+            '<a href="./" class="brand"><span class="brand-mark">↗</span><span class="brand-name">投资助手</span></a>' +
+            '<nav class="nav-links">' +
+              '<a href="./" class="nav-link" data-match="/,/index.html,/gp,/gp/,/gp/index.html">财务分析</a>' +
+              '<a href="invest.html" class="nav-link" data-match="invest.html">龙江投资</a>' +
+              '<a href="market-recap.html" class="nav-link" data-match="market-recap.html">每日复盘</a>' +
+              '<a href="tech-ai.html" class="nav-link" data-match="tech-ai.html">科技AI</a>' +
+              '<a href="prosperity-pick.html" class="nav-link" data-match="prosperity-pick.html">景气度选股</a>' +
+              '<a href="prosperity-strong.html" class="nav-link" data-match="prosperity-strong.html">强势股选股</a>' +
+              '<a href="study.html" class="nav-link" data-match="study.html,course.html,node.html,card.html,quiz.html">学习搭子</a>' +
+            '</nav>' +
+          '</div>' +
+        '</header>';
+    }
 
-    mount.innerHTML =
-      '<header class="top-nav">' +
-        '<div class="nav-inner">' +
-          '<a href="./" class="brand">' +
-            '<span class="brand-mark">↗</span>' +
-            '<span class="brand-name">投资助手</span>' +
-          '</a>' +
-          '<nav class="nav-links">' + links + '</nav>' +
-        '</div>' +
-      '</header>';
+    mount.querySelectorAll('.nav-link').forEach(function (link) {
+      const matches = (link.dataset.match || '').split(',').filter(Boolean);
+      link.classList.toggle('active', isActive(matches));
+    });
   }
 
   function renderFooter() {
@@ -50,6 +52,6 @@
       '</footer>';
   }
 
-  renderHeader();
+  await renderHeader();
   renderFooter();
 }());
