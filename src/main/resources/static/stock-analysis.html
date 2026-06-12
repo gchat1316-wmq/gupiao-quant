@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#1e88ff" />
+  <base href="/gp/" />
+  <title>个股分析 · 紫苏叶+九维 · 投资助手</title>
+  <link rel="stylesheet" href="css/style.css?v=20260609-red-tech-footer" />
+  <link rel="stylesheet" href="css/study.css?v=20260609-red-tech-footer" />
+  <link rel="stylesheet" href="css/invest.css?v=20260609-red-tech" />
+  <script src="js/layout.js?v=20260611-shared-header" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    .sa-hero {
+      display: flex; align-items: center; gap: 16px;
+      padding: 28px 24px; margin-bottom: 24px;
+      background: linear-gradient(135deg, #1e88ff 0%, #6c4ce6 100%);
+      border-radius: 12px; color: #fff;
+    }
+    .sa-hero-icon { font-size: 48px; }
+    .sa-hero-title { font-size: 24px; font-weight: 600; margin: 0; }
+    .sa-hero-sub { font-size: 14px; opacity: 0.9; margin-top: 6px; }
+
+    .sa-search-bar {
+      display: flex; gap: 12px; margin-bottom: 20px;
+      padding: 20px; background: #fff; border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+    .sa-input {
+      flex: 1; padding: 10px 14px; font-size: 15px;
+      border: 1px solid #d0d7e2; border-radius: 6px;
+      transition: border-color 0.2s;
+    }
+    .sa-input:focus { outline: none; border-color: #1e88ff; }
+    .sa-method-select {
+      padding: 10px 14px; font-size: 14px;
+      border: 1px solid #d0d7e2; border-radius: 6px; background: #fff;
+    }
+    .sa-btn {
+      padding: 10px 28px; font-size: 15px; font-weight: 500;
+      color: #fff; background: #1e88ff; border: none; border-radius: 6px;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .sa-btn:hover { background: #1976d2; }
+    .sa-btn:disabled { background: #9aa4b2; cursor: not-allowed; }
+
+    .sa-loading {
+      text-align: center; padding: 60px 20px;
+      color: #6b7280; font-size: 14px;
+    }
+    .sa-loading-spinner {
+      display: inline-block; width: 32px; height: 32px;
+      border: 3px solid #e0e7ef; border-top-color: #1e88ff;
+      border-radius: 50%; animation: sa-spin 1s linear infinite;
+      margin-bottom: 12px;
+    }
+    @keyframes sa-spin { to { transform: rotate(360deg); } }
+
+    .sa-result { display: none; }
+    .sa-result.active { display: block; }
+
+    .sa-card {
+      background: #fff; border-radius: 8px; padding: 20px;
+      margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+    .sa-card-title {
+      font-size: 16px; font-weight: 600; color: #1a2233;
+      margin: 0 0 12px; display: flex; align-items: center; gap: 8px;
+    }
+    .sa-card-title::before {
+      content: ''; display: inline-block;
+      width: 3px; height: 16px; background: #1e88ff; border-radius: 2px;
+    }
+    .sa-meta-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px; margin-bottom: 16px;
+    }
+    .sa-meta-item {
+      background: #f7f9fc; padding: 12px 14px; border-radius: 6px;
+    }
+    .sa-meta-label { font-size: 12px; color: #6b7280; margin-bottom: 4px; }
+    .sa-meta-value { font-size: 18px; font-weight: 600; color: #1a2233; }
+    .sa-meta-value.up { color: #e74c3c; }
+    .sa-meta-value.down { color: #27ae60; }
+
+    .sa-verdict {
+      display: inline-block; padding: 6px 14px; border-radius: 16px;
+      font-size: 13px; font-weight: 600;
+    }
+    .sa-verdict-green { background: #d4edda; color: #155724; }
+    .sa-verdict-yellow { background: #fff3cd; color: #856404; }
+    .sa-verdict-gray { background: #e2e3e5; color: #383d41; }
+
+    .sa-list { margin: 0; padding-left: 20px; }
+    .sa-list li { margin-bottom: 8px; line-height: 1.6; color: #4a5568; }
+
+    .sa-chart-wrap { position: relative; height: 280px; margin-top: 12px; }
+
+    .sa-tag {
+      display: inline-block; padding: 2px 8px; margin-right: 4px;
+      background: #e3f2fd; color: #1565c0; border-radius: 4px;
+      font-size: 12px;
+    }
+    .sa-error {
+      background: #fee; border-left: 4px solid #e74c3c;
+      padding: 14px 18px; border-radius: 4px; color: #c0392b;
+    }
+    .sa-hint {
+      background: #fff8e1; border-left: 4px solid #ffc107;
+      padding: 10px 14px; border-radius: 4px; font-size: 13px;
+      color: #856404; margin: 8px 0;
+    }
+    .sa-empty-tip {
+      text-align: center; padding: 80px 20px; color: #9aa4b2;
+    }
+    .sa-empty-tip-icon { font-size: 64px; opacity: 0.5; }
+  </style>
+</head>
+<body>
+  <div id="siteHeader"></div>
+
+  <main class="container">
+
+    <!-- Hero -->
+    <div class="sa-hero">
+      <div class="sa-hero-icon">🔬</div>
+      <div>
+        <h2 class="sa-hero-title">个股深度分析</h2>
+        <p class="sa-hero-sub">紫苏叶产业链拆解 + 高景气九维框架 · 基于 baostock 真实数据</p>
+      </div>
+    </div>
+
+    <!-- 搜索栏 -->
+    <div class="sa-search-bar">
+      <input id="codeInput" class="sa-input" type="text" placeholder="输入股票代码, 如 688627 / 600519 / 300750" />
+      <select id="methodSelect" class="sa-method-select">
+        <option value="full">紫苏叶+九维 (完整)</option>
+        <option value="purple_perilla">仅紫苏叶</option>
+        <option value="gaojingqi">仅高景气九维</option>
+      </select>
+      <button id="analyzeBtn" class="sa-btn">开始分析</button>
+    </div>
+
+    <!-- 加载状态 -->
+    <div id="loadingSection" class="sa-loading" style="display:none;">
+      <div class="sa-loading-spinner"></div>
+      <div>正在调用 baostock + 紫苏叶方法论分析, 约 30-60 秒...</div>
+    </div>
+
+    <!-- 错误 -->
+    <div id="errorSection" class="sa-error" style="display:none;"></div>
+
+    <!-- 空状态提示 -->
+    <div id="emptySection" class="sa-empty-tip">
+      <div class="sa-empty-tip-icon">📊</div>
+      <div>输入股票代码开始分析</div>
+      <div style="margin-top:8px;font-size:13px;">试试: 688627 (精智达) · 688200 (华峰测控) · 300604 (长川科技)</div>
+    </div>
+
+    <!-- 结果区域 -->
+    <div id="resultSection" class="sa-result">
+
+      <!-- 1. 总览卡片 -->
+      <div class="sa-card">
+        <h3 class="sa-card-title">总览</h3>
+        <div class="sa-meta-grid" id="overviewGrid"></div>
+        <div id="verdictBox"></div>
+      </div>
+
+      <!-- 2. 财务走势图 -->
+      <div class="sa-card">
+        <h3 class="sa-card-title">财务趋势</h3>
+        <div class="sa-chart-wrap">
+          <canvas id="finChart"></canvas>
+        </div>
+        <p class="sa-hint">数据源: baostock · 展示近 8 个季度 ROE / 毛利率 / 净利率 / 净利 YoY 走势</p>
+      </div>
+
+      <!-- 3. 紫苏叶方法 - 产业链 -->
+      <div class="sa-card">
+        <h3 class="sa-card-title">紫苏叶 · 产业链定位</h3>
+        <div id="chainBox"></div>
+      </div>
+
+      <!-- 4. 紫苏叶方法 - 竞争格局 -->
+      <div class="sa-card">
+        <h3 class="sa-card-title">紫苏叶 · 全球竞争格局</h3>
+        <div id="competitionBox"></div>
+      </div>
+
+      <!-- 5. 紫苏叶方法 - 三个问题清单 -->
+      <div class="sa-card">
+        <h3 class="sa-card-title">紫苏叶 · 下单前三问</h3>
+        <ul class="sa-list" id="threeQuestionList"></ul>
+      </div>
+
+      <!-- 6. 高景气九维 -->
+      <div class="sa-card">
+        <h3 class="sa-card-title">高景气 · 九维摘要</h3>
+        <div id="nineDimensionBox"></div>
+      </div>
+
+      <!-- 7. 催化剂 -->
+      <div class="sa-card">
+        <h3 class="sa-card-title">📢 核心催化剂</h3>
+        <ul class="sa-list" id="catalystList"></ul>
+      </div>
+
+      <!-- 8. 风险 -->
+      <div class="sa-card">
+        <h3 class="sa-card-title">⚠️ 关键风险</h3>
+        <ul class="sa-list" id="riskList"></ul>
+      </div>
+
+      <!-- 9. 元数据 -->
+      <div style="text-align:center; color:#9aa4b2; font-size:12px; padding: 12px;">
+        <span id="metaInfo"></span>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    'use strict';
+
+    const API_KEY = 'wmq-gp-secret-2026'; // 与 application.yml stock-analysis.api-keys 一致
+    const API_BASE = '/gp/api/stock-analysis';
+
+    const codeInput = document.getElementById('codeInput');
+    const methodSelect = document.getElementById('methodSelect');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const loadingSection = document.getElementById('loadingSection');
+    const errorSection = document.getElementById('errorSection');
+    const emptySection = document.getElementById('emptySection');
+    const resultSection = document.getElementById('resultSection');
+
+    let chartInstance = null;
+
+    analyzeBtn.addEventListener('click', runAnalysis);
+    codeInput.addEventListener('keydown', e => { if (e.key === 'Enter') runAnalysis(); });
+
+    async function runAnalysis() {
+      const code = codeInput.value.trim();
+      if (!code) {
+        showError('请输入股票代码');
+        return;
+      }
+      const method = methodSelect.value;
+      analyzeBtn.disabled = true;
+      hideAll();
+      loadingSection.style.display = 'block';
+
+      try {
+        const resp = await fetch(API_BASE + '/analyze', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': API_KEY
+          },
+          body: JSON.stringify({ code: code, method: method, years: 2, lite: true, quoteDays: 60 })
+        });
+
+        if (resp.status === 401) {
+          throw new Error('API Key 无效, 请联系管理员');
+        }
+        if (!resp.ok) {
+          throw new Error('HTTP ' + resp.status);
+        }
+
+        const json = await resp.json();
+        if (!json.ok) {
+          throw new Error(json.message || '分析失败');
+        }
+        renderResult(json.data);
+      } catch (e) {
+        showError(e.message || '网络错误');
+      } finally {
+        loadingSection.style.display = 'none';
+        analyzeBtn.disabled = false;
+      }
+    }
+
+    function renderResult(d) {
+      // 1. 总览
+      const grid = document.getElementById('overviewGrid');
+      const price = d.currentPrice;
+      const m = (d.nineDimension && d.nineDimension.market) || {};
+      const f = (d.nineDimension && d.nineDimension.financial) || {};
+      const changePct = m.periodChangePct ? parseFloat(String(m.periodChangePct).replace('%','')) : 0;
+      grid.innerHTML = `
+        <div class="sa-meta-item">
+          <div class="sa-meta-label">股票名称</div>
+          <div class="sa-meta-value">${escape(d.name || '-')}</div>
+        </div>
+        <div class="sa-meta-item">
+          <div class="sa-meta-label">代码</div>
+          <div class="sa-meta-value">${escape(d.code || '-')}</div>
+        </div>
+        <div class="sa-meta-item">
+          <div class="sa-meta-label">现价 (${escape(m.close ? new Date().toISOString().slice(0,10) : '')})</div>
+          <div class="sa-meta-value ${changePct >= 0 ? 'up' : 'down'}">${formatNum(price)} 元</div>
+        </div>
+        <div class="sa-meta-item">
+          <div class="sa-meta-label">30日区间</div>
+          <div class="sa-meta-value">${formatNum(m.periodLow)} - ${formatNum(m.periodHigh)}</div>
+        </div>
+        <div class="sa-meta-item">
+          <div class="sa-meta-label">30日涨跌</div>
+          <div class="sa-meta-value ${changePct >= 0 ? 'up' : 'down'}">${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%</div>
+        </div>
+        <div class="sa-meta-item">
+          <div class="sa-meta-label">最新ROE</div>
+          <div class="sa-meta-value">${escape(f.roe || '-')}</div>
+        </div>
+        <div class="sa-meta-item">
+          <div class="sa-meta-label">最新毛利率</div>
+          <div class="sa-meta-value">${escape(f.grossMargin || '-')}</div>
+        </div>
+        <div class="sa-meta-item">
+          <div class="sa-meta-label">最新净利YoY</div>
+          <div class="sa-meta-value">${escape(f.yoyNetProfit || '-')}</div>
+        </div>
+      `;
+
+      // Verdict
+      const verdictBox = document.getElementById('verdictBox');
+      const verdictClass = d.moatScore >= 8 ? 'sa-verdict-green' : (d.moatScore >= 6 ? 'sa-verdict-yellow' : 'sa-verdict-gray');
+      verdictBox.innerHTML = `
+        <span class="sa-verdict ${verdictClass}">🧠 紫苏叶判定: ${escape(d.verdict || '-')}</span>
+        <span style="margin-left:12px; color:#6b7280; font-size:13px;">
+          护城河打分: <strong>${d.moatScore || '-'}/10</strong>
+        </span>
+      `;
+
+      // 2. 财务图表
+      renderFinancialChart(d.financialSummary);
+
+      // 3. 紫苏叶 - 产业链
+      const c = d.chainPosition || {};
+      document.getElementById('chainBox').innerHTML = `
+        <p><strong>行业:</strong> <span class="sa-tag">${escape(c.industry || '-')}</span></p>
+        <p><strong>产业链位置:</strong> ${escape(c.layer || '-')}</p>
+        <p><strong>产业链拆解路径:</strong></p>
+        <p style="margin-left: 12px; color: #4a5568;">${escape(c.chainPath || '-')}</p>
+        <p><strong>护城河类型:</strong> ${escape(c.moatType || '-')}</p>
+      `;
+
+      // 4. 竞争格局
+      const comp = d.competition || {};
+      document.getElementById('competitionBox').innerHTML = `
+        <p><strong>全球玩家:</strong> ${escape(comp.globalPlayers || '-')}</p>
+        <p><strong>中国位置:</strong> ${escape(comp.chinesePosition || '-')}</p>
+        <p><strong>地缘优势:</strong> ${escape(comp.geographicAdvantage || '-')}</p>
+      `;
+
+      // 5. 三个问题
+      const q = d.threeQuestions || {};
+      const qList = document.getElementById('threeQuestionList');
+      qList.innerHTML = `
+        <li><strong>①不可替代?</strong> ${escape(q.Q1_irreplaceable || '-')}</li>
+        <li><strong>②全球玩家数?</strong> ${escape(q.Q2_competitorCount || '-')}</li>
+        <li><strong>③下游需求?</strong> ${escape(q.Q3_demandTrend || '-')}</li>
+        <li><em style="color:#6b7280;font-size:13px;">${escape(q.note || '')}</em></li>
+      `;
+
+      // 6. 九维
+      const nd = d.nineDimension || {};
+      document.getElementById('nineDimensionBox').innerHTML = `
+        <div class="sa-meta-grid">
+          <div class="sa-meta-item">
+            <div class="sa-meta-label">营收(亿)</div>
+            <div class="sa-meta-value">${formatNum(f.revenue ? (f.revenue / 1e8).toFixed(2) : null)}</div>
+          </div>
+          <div class="sa-meta-item">
+            <div class="sa-meta-label">最新EPS-TTM</div>
+            <div class="sa-meta-value">${formatNum(f.epsTtm)}</div>
+          </div>
+          <div class="sa-meta-item">
+            <div class="sa-meta-label">净利率</div>
+            <div class="sa-meta-value">${escape(f.netMargin || '-')}</div>
+          </div>
+          <div class="sa-meta-item">
+            <div class="sa-meta-label">PE-TTM</div>
+            <div class="sa-meta-value" style="font-size:14px;">${escape((nd.valuation||{}).peTtm || 'N/A')}</div>
+          </div>
+        </div>
+        <p class="sa-hint">💡 PE/PB 估值字段需配合 eastmoney / Wind 数据源. Baostock 暂不提供.</p>
+      `;
+
+      // 7. 催化剂
+      document.getElementById('catalystList').innerHTML =
+        (d.catalysts || []).map(c => `<li>${escape(c)}</li>`).join('') || '<li>暂无</li>';
+
+      // 8. 风险
+      document.getElementById('riskList').innerHTML =
+        (d.risks || []).map(r => `<li>${escape(r)}</li>`).join('') || '<li>暂无</li>';
+
+      // 9. 元数据
+      document.getElementById('metaInfo').textContent =
+        `方法: ${d.method} | 用时: ${d.elapsedMs}ms | 数据源: baostock | ${new Date(d.timestamp).toLocaleString('zh-CN')}`;
+
+      resultSection.classList.add('active');
+    }
+
+    function renderFinancialChart(fin) {
+      if (!fin || !fin.periodLabels || fin.periodLabels.length === 0) return;
+      if (chartInstance) chartInstance.destroy();
+
+      const ctx = document.getElementById('finChart').getContext('2d');
+      const toPct = arr => (arr || []).map(v => v == null ? null : +(v * 100).toFixed(2));
+
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: fin.periodLabels,
+          datasets: [
+            { label: 'ROE %', data: toPct(fin.roeList), borderColor: '#1e88ff', backgroundColor: 'rgba(30,136,255,0.1)', tension: 0.3, yAxisID: 'y' },
+            { label: '毛利率 %', data: toPct(fin.grossMarginList), borderColor: '#6c4ce6', backgroundColor: 'rgba(108,76,230,0.1)', tension: 0.3, yAxisID: 'y' },
+            { label: '净利率 %', data: toPct(fin.netMarginList), borderColor: '#27ae60', backgroundColor: 'rgba(39,174,96,0.1)', tension: 0.3, yAxisID: 'y' },
+            { label: '净利 YoY %', data: toPct(fin.yoyNetProfitList), borderColor: '#e74c3c', backgroundColor: 'rgba(231,76,60,0.1)', tension: 0.3, borderDash: [5, 5], yAxisID: 'y' }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom' } },
+          scales: {
+            y: { beginAtZero: false, title: { display: true, text: '百分比 (%)' } }
+          }
+        }
+      });
+    }
+
+    function showError(msg) {
+      hideAll();
+      errorSection.textContent = '❌ ' + msg;
+      errorSection.style.display = 'block';
+    }
+
+    function hideAll() {
+      loadingSection.style.display = 'none';
+      errorSection.style.display = 'none';
+      emptySection.style.display = 'none';
+      resultSection.classList.remove('active');
+    }
+
+    function formatNum(v) {
+      if (v == null || v === '') return '-';
+      const n = parseFloat(v);
+      if (isNaN(n)) return '-';
+      return n.toFixed(2);
+    }
+
+    function escape(s) {
+      if (s == null) return '-';
+      return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+    }
+  </script>
+</body>
+</html>

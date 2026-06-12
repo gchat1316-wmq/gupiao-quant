@@ -48,6 +48,15 @@ baostock-sync:
   python-command: python3
   timeout-seconds: 1800
 
+# 个股分析模块 (紫苏叶/高景气九维)
+# 多个 API Key 以逗号分隔。生成随机 Key: openssl rand -hex 16
+stock-analysis:
+  enabled: true
+  api-keys: ${STOCK_ANALYSIS_API_KEYS:wmq-gp-secret-2026,wmq-local-debug}
+  python-script: /root/.agents/skills/baostock-finance-data/scripts/baostock_client.py
+  python-command: python3
+  timeout-seconds: 90
+
 prosperity-strong:
   enabled: true
   cron: "0 30 15 * * MON-FRI"
