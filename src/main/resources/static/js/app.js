@@ -67,8 +67,7 @@
     downloadBtn:      document.getElementById('downloadBtn'),
     canvas:           document.getElementById('metricChart'),
     metricChipsMain:  document.getElementById('metricChipsMain'),
-    metricMoreBtn:    document.getElementById('metricMoreBtn'),
-    metricMorePopover:document.getElementById('metricMorePopover'),
+
     metricCount:      document.getElementById('metricCount'),
     metricDefaultBtn: document.getElementById('metricDefaultBtn'),
     metricAllBtn:     document.getElementById('metricAllBtn'),
@@ -86,7 +85,7 @@
   }());
   let currentChartKey = Array.from(selectedKeys)[0] || DEFAULT_KEYS[0];
   let chart = null;
-  let popoverOpen = false;
+
 
   /* ===== Metric chip bar ===== */
   function persistSelection() {
@@ -110,52 +109,12 @@
   }
 
   function renderMetricBar() {
-    // primary chips
     els.metricChipsMain.innerHTML = '';
-    METRIC_CONFIG.filter(function (m) { return m.primary; }).forEach(function (m) {
+    METRIC_CONFIG.forEach(function (m) {
       els.metricChipsMain.appendChild(renderChip(m));
     });
 
-    // count
     els.metricCount.textContent = '已选 ' + selectedKeys.size + ' 项';
-
-    // more btn arrow
-    const caret = els.metricMoreBtn.querySelector('.caret');
-    if (caret) caret.style.transform = popoverOpen ? 'rotate(180deg)' : '';
-
-    // popover chips (non-primary)
-    if (popoverOpen) {
-      const nonPrimary = METRIC_CONFIG.filter(function (m) { return !m.primary; });
-      const groupOrder = [];
-      nonPrimary.forEach(function (m) { if (!groupOrder.includes(m.group)) groupOrder.push(m.group); });
-      els.metricMorePopover.innerHTML = '';
-      groupOrder.forEach(function (g) {
-        const grpDiv = document.createElement('div');
-        grpDiv.className = 'metric-pop-group';
-        const label = document.createElement('span');
-        label.className = 'metric-pop-group-label';
-        label.textContent = g;
-        grpDiv.appendChild(label);
-        nonPrimary.filter(function (m) { return m.group === g; }).forEach(function (m) {
-          grpDiv.appendChild(renderChip(m));
-        });
-        els.metricMorePopover.appendChild(grpDiv);
-      });
-    }
-  }
-
-  function togglePopover() {
-    popoverOpen = !popoverOpen;
-    els.metricMorePopover.classList.toggle('hidden', !popoverOpen);
-    renderMetricBar();
-  }
-
-  function closePopover() {
-    if (!popoverOpen) return;
-    popoverOpen = false;
-    els.metricMorePopover.classList.add('hidden');
-    const caret = els.metricMoreBtn.querySelector('.caret');
-    if (caret) caret.style.transform = '';
   }
 
   function onSelectionChange() {
@@ -427,17 +386,6 @@
     a.download = METRIC_MAP[currentChartKey].label + '_对比图.png';
     document.body.appendChild(a); a.click(); a.remove();
   });
-
-  els.metricMoreBtn.addEventListener('click', function (e) {
-    e.stopPropagation();
-    togglePopover();
-  });
-
-  document.addEventListener('click', function (e) {
-    if (!els.metricMorePopover.contains(e.target) && e.target !== els.metricMoreBtn) closePopover();
-  });
-
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePopover(); });
 
   els.metricDefaultBtn.addEventListener('click', function () {
     selectedKeys = new Set(DEFAULT_KEYS);

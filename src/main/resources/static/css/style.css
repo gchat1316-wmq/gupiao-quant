@@ -235,22 +235,11 @@ body {
 /* ===== Metric chip bar ===== */
 .metric-bar {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
   max-width: 680px;
   margin: 0 auto 20px;
-}
-
-.metric-bar-row1 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.metric-bar-row2 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
 .metric-bar-label {
@@ -263,12 +252,7 @@ body {
 .metric-chips {
   display: flex;
   gap: 6px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.metric-chips::-webkit-scrollbar {
-  display: none;
+  flex-wrap: wrap;
 }
 
 .metric-chip {
@@ -301,69 +285,6 @@ body {
   background: var(--primary-hover);
   border-color: var(--primary-hover);
   color: #fff;
-}
-
-.metric-more-wrap {
-  position: relative;
-}
-
-.metric-more-btn {
-  height: 26px;
-  padding: 0 10px;
-  border-radius: 13px;
-  border: 1px solid var(--border);
-  background: #fff;
-  color: #4b5563;
-  font-size: 12px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  white-space: nowrap;
-  transition: border-color 0.12s, color 0.12s;
-  line-height: 1;
-}
-
-.metric-more-btn:hover {
-  border-color: var(--primary);
-  color: var(--primary);
-}
-
-.metric-more-btn .caret {
-  font-size: 10px;
-  transition: transform 0.15s;
-  display: inline-block;
-}
-
-.metric-popover {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: 200;
-  background: #fff;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
-  padding: 12px 14px;
-  min-width: 220px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.metric-pop-group {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.metric-pop-group-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-muted);
-  white-space: nowrap;
-  min-width: 36px;
 }
 
 .metric-count {
@@ -473,89 +394,64 @@ body {
 .wishpool-shell {
   position: relative;
   overflow: hidden;
-  border-radius: 30px;
-  padding: 28px;
+  border-radius: 16px;
+  padding: 14px 20px;
   background:
     radial-gradient(circle at 10% 10%, rgba(225, 6, 44, 0.10), transparent 28%),
     radial-gradient(circle at 90% 0%, rgba(96, 165, 250, 0.12), transparent 24%),
     linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(246, 248, 253, 0.96));
   border: 1px solid rgba(184, 201, 224, 0.88);
-  box-shadow: 0 20px 44px rgba(80, 0, 24, 0.08);
+  box-shadow: 0 12px 28px rgba(80, 0, 24, 0.06);
 }
 
 .wishpool-shell::after {
-  content: "";
-  position: absolute;
-  inset: auto -30px -80px auto;
-  width: 220px;
-  height: 220px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(225, 6, 44, 0.13), transparent 65%);
-  pointer-events: none;
+  display: none;
 }
 
 .wishpool-heading {
-  margin-bottom: 18px;
+  display: none;
 }
 
 .wishpool-kicker {
   color: #203a63;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 800;
   letter-spacing: 0.04em;
-  margin-bottom: 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.wishpool-title {
-  margin: 0 0 8px;
-  color: #1f3352;
-  font-size: 30px;
-  line-height: 1.2;
-}
-
-.wishpool-subtitle {
-  margin: 0;
-  max-width: 860px;
-  color: #7a8798;
-  font-size: 15px;
-  line-height: 1.8;
+.wishpool-title,
+.wishpool-subtitle,
+.wishpool-input-wrap,
+.wishpool-label {
+  display: none;
 }
 
 .wishpool-panel {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 210px;
-  gap: 18px;
+  display: flex;
   align-items: center;
-  padding: 22px 24px;
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.78);
-  border: 2px dashed rgba(191, 211, 237, 0.92);
-  backdrop-filter: blur(8px);
-}
-
-.wishpool-input-wrap {
-  display: grid;
-  gap: 10px;
-}
-
-.wishpool-label {
-  color: #1f3352;
-  font-size: 16px;
-  font-weight: 700;
+  gap: 12px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  backdrop-filter: none;
 }
 
 .wishpool-input {
-  width: 100%;
-  min-height: 100px;
-  resize: vertical;
-  border: 0;
+  flex: 1;
+  min-width: 0;
+  height: 38px;
+  border: 1px solid rgba(191, 211, 237, 0.92);
+  border-radius: 999px;
   outline: none;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.78);
   color: #1f2937;
-  font-size: 16px;
-  line-height: 1.8;
+  font-size: 14px;
+  line-height: 38px;
   font-family: inherit;
-  padding: 0;
+  padding: 0 16px;
 }
 
 .wishpool-input::placeholder {
@@ -563,15 +459,16 @@ body {
 }
 
 .wishpool-submit {
-  justify-self: end;
-  width: 100%;
-  max-width: 210px;
-  height: 64px;
+  flex-shrink: 0;
+  width: auto;
+  max-width: none;
+  height: 38px;
+  padding: 0 20px;
   border: 0;
   border-radius: 999px;
   background: linear-gradient(135deg, #6ca5ff 0%, #4d7df0 52%, #315cd2 100%);
   color: #fff;
-  font-size: 22px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.01em;
   cursor: pointer;
@@ -591,9 +488,11 @@ body {
 }
 
 .wishpool-status {
-  min-height: 20px;
-  font-size: 13px;
+  min-height: 0;
+  font-size: 12px;
   color: #7b8798;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .wishpool-status.pending {
@@ -608,22 +507,7 @@ body {
   color: #be123c;
 }
 
-.site-footer-meta {
-  padding-top: 16px;
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 13px;
-}
 
-.site-footer-meta a {
-  color: var(--primary);
-  font-weight: 700;
-  text-decoration: none;
-}
-
-.site-footer-meta a:hover {
-  text-decoration: underline;
-}
 
 @media (max-width: 768px) {
   .container {
@@ -641,10 +525,6 @@ body {
   .search-input-wrap,
   .primary-btn {
     width: 100%;
-  }
-  .metric-popover {
-    left: auto;
-    right: 0;
   }
   .section-title {
     font-size: 18px;
@@ -666,25 +546,18 @@ body {
     padding: 0 12px 26px;
   }
   .wishpool-shell {
-    border-radius: 22px;
-    padding: 22px 18px;
-  }
-  .wishpool-title {
-    font-size: 24px;
+    border-radius: 12px;
+    padding: 12px 14px;
   }
   .wishpool-panel {
-    grid-template-columns: 1fr;
-    padding: 18px;
+    flex-wrap: wrap;
   }
   .wishpool-submit {
-    max-width: none;
-    height: 54px;
-    font-size: 18px;
-    justify-self: stretch;
+    width: 100%;
+    height: 38px;
   }
   .wishpool-input {
-    min-height: 92px;
-    font-size: 15px;
+    font-size: 14px;
   }
 }
 

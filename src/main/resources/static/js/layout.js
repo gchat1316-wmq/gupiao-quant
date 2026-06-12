@@ -49,24 +49,14 @@
     mount.innerHTML =
       '<footer class="site-footer">' +
         '<section class="wishpool-shell" aria-labelledby="wishPoolTitle">' +
-          '<div class="wishpool-heading">' +
-            '<div class="wishpool-kicker">✦ 许愿池</div>' +
-            '<h2 id="wishPoolTitle" class="wishpool-title">还有哪些希望平台实现的能力或功能？</h2>' +
-            '<p class="wishpool-subtitle">告诉我们你想要什么能力，它能帮你完成什么工作，我们会把高频诉求直接推进到迭代列表。</p>' +
-          '</div>' +
           '<div class="wishpool-panel">' +
-            '<div class="wishpool-input-wrap">' +
-              '<label class="wishpool-label" for="wishPoolInput">输入你的愿望</label>' +
-              '<textarea id="wishPoolInput" class="wishpool-input" rows="3" maxlength="500" ' +
-                'placeholder="例如：希望增加复盘摘要导出，它能帮我每天 10 分钟内完成晨会材料整理。"></textarea>' +
-              '<div id="wishPoolStatus" class="wishpool-status" aria-live="polite"></div>' +
-            '</div>' +
+            '<div class="wishpool-kicker">✦ 许愿池</div>' +
+            '<input id="wishPoolInput" class="wishpool-input" type="text" maxlength="500" ' +
+              'placeholder="输入你的愿望，例如：希望增加复盘摘要导出">' +
+            '<div id="wishPoolStatus" class="wishpool-status" aria-live="polite"></div>' +
             '<button id="wishPoolSubmit" class="wishpool-submit" type="button">提交许愿 →</button>' +
           '</div>' +
         '</section>' +
-        '<div class="site-footer-meta">联系方式：新功能提需求，也可以发送到邮箱 ' +
-          '<a href="mailto:gchat1316@gmail.com">gchat1316@gmail.com</a>' +
-        '</div>' +
       '</footer>';
   }
 
