@@ -463,6 +463,168 @@ body {
   margin-top: 32px;
 }
 
+.site-footer {
+  width: 100%;
+  max-width: 1280px;
+  margin: 48px auto 0;
+  padding: 0 20px 32px;
+}
+
+.wishpool-shell {
+  position: relative;
+  overflow: hidden;
+  border-radius: 30px;
+  padding: 28px;
+  background:
+    radial-gradient(circle at 10% 10%, rgba(225, 6, 44, 0.10), transparent 28%),
+    radial-gradient(circle at 90% 0%, rgba(96, 165, 250, 0.12), transparent 24%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(246, 248, 253, 0.96));
+  border: 1px solid rgba(184, 201, 224, 0.88);
+  box-shadow: 0 20px 44px rgba(80, 0, 24, 0.08);
+}
+
+.wishpool-shell::after {
+  content: "";
+  position: absolute;
+  inset: auto -30px -80px auto;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(225, 6, 44, 0.13), transparent 65%);
+  pointer-events: none;
+}
+
+.wishpool-heading {
+  margin-bottom: 18px;
+}
+
+.wishpool-kicker {
+  color: #203a63;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+
+.wishpool-title {
+  margin: 0 0 8px;
+  color: #1f3352;
+  font-size: 30px;
+  line-height: 1.2;
+}
+
+.wishpool-subtitle {
+  margin: 0;
+  max-width: 860px;
+  color: #7a8798;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.wishpool-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 210px;
+  gap: 18px;
+  align-items: center;
+  padding: 22px 24px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 2px dashed rgba(191, 211, 237, 0.92);
+  backdrop-filter: blur(8px);
+}
+
+.wishpool-input-wrap {
+  display: grid;
+  gap: 10px;
+}
+
+.wishpool-label {
+  color: #1f3352;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.wishpool-input {
+  width: 100%;
+  min-height: 100px;
+  resize: vertical;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #1f2937;
+  font-size: 16px;
+  line-height: 1.8;
+  font-family: inherit;
+  padding: 0;
+}
+
+.wishpool-input::placeholder {
+  color: #9aa4b2;
+}
+
+.wishpool-submit {
+  justify-self: end;
+  width: 100%;
+  max-width: 210px;
+  height: 64px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #6ca5ff 0%, #4d7df0 52%, #315cd2 100%);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: 0 18px 36px rgba(58, 98, 210, 0.28);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+}
+
+.wishpool-submit:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 22px 40px rgba(58, 98, 210, 0.34);
+}
+
+.wishpool-submit:disabled {
+  opacity: 0.72;
+  cursor: wait;
+  transform: none;
+}
+
+.wishpool-status {
+  min-height: 20px;
+  font-size: 13px;
+  color: #7b8798;
+}
+
+.wishpool-status.pending {
+  color: #315cd2;
+}
+
+.wishpool-status.success {
+  color: #15803d;
+}
+
+.wishpool-status.error {
+  color: #be123c;
+}
+
+.site-footer-meta {
+  padding-top: 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.site-footer-meta a {
+  color: var(--primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.site-footer-meta a:hover {
+  text-decoration: underline;
+}
+
 @media (max-width: 768px) {
   .container {
     padding: 16px 12px 48px;
@@ -499,6 +661,30 @@ body {
   .stock-table th,
   .stock-table td {
     padding: 8px 6px;
+  }
+  .site-footer {
+    padding: 0 12px 26px;
+  }
+  .wishpool-shell {
+    border-radius: 22px;
+    padding: 22px 18px;
+  }
+  .wishpool-title {
+    font-size: 24px;
+  }
+  .wishpool-panel {
+    grid-template-columns: 1fr;
+    padding: 18px;
+  }
+  .wishpool-submit {
+    max-width: none;
+    height: 54px;
+    font-size: 18px;
+    justify-self: stretch;
+  }
+  .wishpool-input {
+    min-height: 92px;
+    font-size: 15px;
   }
 }
 

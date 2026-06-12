@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Backfill trade_stock_basic valuation fields from BaoStock.
+"""Backfill trade_stock_daily from BaoStock daily bars.
 
 Required packages:
-  pip install baostock pandas pymysql
+  pip install baostock pymysql
 
 Database connection is read from DB_HOST/DB_PORT/DB_NAME/DB_USERNAME/DB_PASSWORD.
 """
@@ -35,6 +35,15 @@ def decimal_or_none(raw: str | None) -> Decimal | None:
     try:
         return Decimal(raw)
     except InvalidOperation:
+        return None
+
+
+def int_or_none(raw: str | None) -> int | None:
+    if raw is None or raw == "":
+        return None
+    try:
+        return int(float(raw))
+    except ValueError:
         return None
 
 
@@ -80,17 +89,10 @@ def load_codes(conn, codes: list[str] | None, limit: int | None) -> list[str]:
         return [row["stock_code"] for row in cur.fetchall()]
 
 
-def fetch_basic(bs_code: str) -> dict[str, str] | None:
-    rs = bs.query_stock_basic(code=bs_code)
-    if rs.error_code != "0" or not rs.next():
-        return None
-    return dict(zip(rs.fields, rs.get_row_data()))
-
-
-def fetch_latest_valuation(bs_code: str) -> dict[str, str] | None:
+def fetch_daily_rows(bs_code: str, days_back: int) -> list[dict[str, str]]:
     end = dt.date.today()
-    start = end - dt.timedelta(days=21)
-    fields = "date,code,close,peTTM,pbMRQ,psTTM"
+    start = end - dt.timedelta(days=days_back)
+    fields = "date,code,open,high,low,close,volume,amount,turn"
     rs = bs.query_history_k_data_plus(
         bs_code,
         fields,
@@ -100,49 +102,56 @@ def fetch_latest_valuation(bs_code: str) -> dict[str, str] | None:
         adjustflag="3",
     )
     if rs.error_code != "0":
-        return None
-    latest = None
+        raise RuntimeError(f"{bs_code}: {rs.error_msg}")
+    rows: list[dict[str, str]] = []
     while rs.next():
-        latest = dict(zip(rs.fields, rs.get_row_data()))
-    return latest
+        rows.append(dict(zip(rs.fields, rs.get_row_data())))
+    return rows
 
 
-def update_stock(conn, project_code: str, basic: dict[str, str] | None, valuation: dict[str, str] | None) -> None:
-    if not basic and not valuation:
-        return
-
-    stock_name = basic.get("code_name") if basic else None
-    exchange = project_code.split(".", 1)[1]
-    list_date = date_or_none(basic.get("ipoDate")) if basic else None
-    pe_ttm = decimal_or_none(valuation.get("peTTM")) if valuation else None
-    pb = decimal_or_none(valuation.get("pbMRQ")) if valuation else None
-    ps_ttm = decimal_or_none(valuation.get("psTTM")) if valuation else None
-
+def upsert_rows(conn, rows: list[dict[str, str]]) -> int:
+    if not rows:
+        return 0
+    values = []
+    for row in rows:
+        project_code = to_project_code(row["code"])
+        values.append((
+            project_code,
+            date_or_none(row.get("date")),
+            decimal_or_none(row.get("open")),
+            decimal_or_none(row.get("high")),
+            decimal_or_none(row.get("low")),
+            decimal_or_none(row.get("close")),
+            int_or_none(row.get("volume")),
+            decimal_or_none(row.get("amount")),
+            decimal_or_none(row.get("turn")),
+        ))
     with conn.cursor() as cur:
-        cur.execute(
+        cur.executemany(
             """
-            UPDATE trade_stock_basic
-            SET stock_name = COALESCE(%s, stock_name),
-                exchange = COALESCE(exchange, %s),
-                list_date = COALESCE(list_date, %s),
-                pe_ttm = COALESCE(%s, pe_ttm),
-                pb = COALESCE(%s, pb),
-                ps_ttm = COALESCE(%s, ps_ttm),
-                valuation_updated_at = CASE
-                    WHEN %s IS NOT NULL OR %s IS NOT NULL OR %s IS NOT NULL THEN NOW()
-                    ELSE valuation_updated_at
-                END,
-                data_source = 'baostock'
-            WHERE stock_code = %s
+            INSERT INTO trade_stock_daily
+              (stock_code, trade_date, open_price, high_price, low_price, close_price, volume, amount, turnover_rate)
+            VALUES
+              (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+              open_price = VALUES(open_price),
+              high_price = VALUES(high_price),
+              low_price = VALUES(low_price),
+              close_price = VALUES(close_price),
+              volume = VALUES(volume),
+              amount = VALUES(amount),
+              turnover_rate = VALUES(turnover_rate)
             """,
-            (stock_name, exchange, list_date, pe_ttm, pb, ps_ttm, pe_ttm, pb, ps_ttm, project_code),
+            values,
         )
+    return len(values)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--codes", nargs="*", help="Project codes, e.g. 688279.SH 300750.SZ")
     parser.add_argument("--limit", type=int, help="Limit when syncing all local stocks")
+    parser.add_argument("--days-back", type=int, default=30)
     parser.add_argument("--max-retries", type=int, default=3)
     args = parser.parse_args()
 
@@ -152,20 +161,17 @@ def main() -> int:
     if lg.error_code != "0":
         raise RuntimeError(f"baostock login failed: {lg.error_msg}")
 
-    updated = 0
+    upserted = 0
     failures: list[str] = []
     try:
         for idx, project_code in enumerate(codes, start=1):
             for attempt in range(1, max(args.max_retries, 1) + 1):
                 try:
-                    bs_code = to_baostock_code(project_code)
-                    basic = fetch_basic(bs_code)
-                    valuation = fetch_latest_valuation(bs_code)
-                    update_stock(conn, project_code, basic, valuation)
+                    rows = fetch_daily_rows(to_baostock_code(project_code), args.days_back)
+                    upserted += upsert_rows(conn, rows)
                     conn.commit()
-                    updated += 1
                     if idx % 100 == 0:
-                        print(f"progress basic {idx}/{len(codes)} updated={updated}", flush=True)
+                        print(f"progress daily {idx}/{len(codes)} upserted_rows={upserted}", flush=True)
                     break
                 except Exception as exc:
                     conn.rollback()
@@ -178,7 +184,7 @@ def main() -> int:
         bs.logout()
         conn.close()
 
-    print(f"synced {updated} stocks from baostock; failures={len(failures)}")
+    print(f"synced {upserted} daily rows from baostock; failures={len(failures)}")
     if failures:
         for failure in failures[:20]:
             print(failure, file=os.sys.stderr)

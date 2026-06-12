@@ -248,9 +248,7 @@
     kvs += infoKV('PE-TTM', fmtDecimal(info.peTtm));
     kvs += infoKV('PB', fmtDecimal(info.pb));
     kvs += infoKV('PS-TTM', fmtDecimal(info.psTtm));
-    if (info.currentMarketCapYi != null) {
-      kvs += infoKV('市值', fmtYi(info.currentMarketCapYi));
-    }
+    kvs += infoKV('当前市值', fmtYi(info.currentMarketCapYi));
     if (info.latestNetMargin != null) {
       kvs += infoKV('净利率', pctFmt(info.latestNetMargin));
     }
@@ -270,7 +268,7 @@
     }
 
     var foot = info.updatedAt
-      ? '<div class="info-bar-foot">数据来源: ' + esc(info.dataSource || 'qmt') + ' · ' + esc(info.updatedAt) + '</div>'
+      ? '<div class="info-bar-foot">' + esc(info.updatedAt) + '</div>'
       : '';
 
     return '<div class="stock-info-bar">' +

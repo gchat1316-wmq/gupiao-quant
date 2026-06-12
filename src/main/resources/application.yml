@@ -39,6 +39,15 @@ spring:
 app:
   upload-dir: uploads
 
+baostock-sync:
+  enabled: true
+  startup-enabled: true
+  startup-days-back: 45
+  daily-days-back: 7
+  daily-cron: "0 20 18 * * MON-FRI"
+  python-command: python3
+  timeout-seconds: 1800
+
 prosperity-strong:
   enabled: true
   cron: "0 30 15 * * MON-FRI"
@@ -74,6 +83,10 @@ notification:
     cooldown-minutes: 10
     daily-dedupe: true
     cron: "0 */1 9-15 * * MON-FRI"
+  wish-pool:
+    enabled: true
+    webhook-url: ${WISH_POOL_FEISHU_WEBHOOK_URL:https://open.feishu.cn/open-apis/bot/v2/hook/a4c6882a-b4f9-438f-ad58-5f150b2730e3}
+    timeout-seconds: 10
 
 ai:
   fallback-to-mock: true            # AI 调用失败时是否回退到 mock 数据
