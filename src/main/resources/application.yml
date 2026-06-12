@@ -41,7 +41,7 @@ app:
 
 baostock-sync:
   enabled: true
-  startup-enabled: true
+  startup-enabled: false
   startup-days-back: 45
   daily-days-back: 7
   daily-cron: "0 20 18 * * MON-FRI"

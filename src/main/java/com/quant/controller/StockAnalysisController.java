@@ -1,10 +1,13 @@
 package com.quant.controller;
 
+import com.quant.dto.stockanalysis.StockAnalysisRecordListDTO;
 import com.quant.dto.stockanalysis.StockAnalysisRequest;
 import com.quant.dto.stockanalysis.StockAnalysisResponse;
+import com.quant.entity.StockAnalysisRecord;
 import com.quant.service.StockAnalysisService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -16,27 +19,116 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class StockAnalysisController {
 
+    /** 固定 API Key - 写死在后端, 前端不传 */
+    private static final String API_KEY = "wmq-gp-secret-2026";
+
     private final StockAnalysisService service;
 
-    @PostMapping("/analyze")
-    public Map<String, Object> analyze(@RequestBody StockAnalysisRequest req) {
-        if (req.getCode() == null || req.getCode().trim().isEmpty()) {
-            return error("股票代码不能为空");
+    /**
+     * 提交分析任务 (立即返回 recordId)
+     * 鉴权: ?api_key=wmq-gp-secret-2026
+     */
+    @PostMapping("/submit")
+    public Map<String, Object> submit(@RequestParam(value = "api_key", required = false) String apiKey,
+                                      @RequestBody StockAnalysisRequest req) {
+        if (!API_KEY.equals(apiKey)) {
+            return error(401, "无效的 API Key");
         }
-        log.info("个股分析请求: code={} method={}", req.getCode(), req.getMethod());
-        StockAnalysisResponse resp = service.analyze(req);
-        Map<String, Object> wrapper = new HashMap<>();
-        if (!resp.isOk()) {
-            wrapper.put("ok", false);
-            wrapper.put("code", 500);
-            wrapper.put("message", "数据获取失败, 请检查股票代码或稍后重试");
-            return wrapper;
+        try {
+            Long id = service.submit(req);
+            // 异步执行 (Spring 任务池)
+            service.executeAsync(id);
+            Map<String, Object> r = new HashMap<>();
+            r.put("ok", true);
+            r.put("recordId", id);
+            r.put("status", "PENDING");
+            r.put("message", "已提交, 预计 30-90 秒完成, 请通过 /status/{id} 查询进度");
+            return r;
+        } catch (IllegalArgumentException e) {
+            return error(400, e.getMessage());
+        } catch (Exception e) {
+            log.error("提交失败", e);
+            return error(500, "提交失败: " + e.getMessage());
         }
-        wrapper.put("ok", true);
-        wrapper.put("data", resp);
-        return wrapper;
     }
 
+    /**
+     * 查询状态
+     */
+    @GetMapping("/status/{id}")
+    public Map<String, Object> status(@PathVariable Long id) {
+        StockAnalysisRecord rec = service.getById(id);
+        if (rec == null) {
+            return error(404, "记录不存在");
+        }
+        Map<String, Object> r = new HashMap<>();
+        r.put("ok", true);
+        r.put("id", rec.getId());
+        r.put("stockCode", rec.getStockCode());
+        r.put("stockName", rec.getStockName());
+        r.put("status", rec.getStatus());
+        r.put("verdict", rec.getVerdict());
+        r.put("moatScore", rec.getMoatScore());
+        r.put("currentPrice", rec.getCurrentPrice());
+        r.put("elapsedMs", rec.getElapsedMs());
+        r.put("errorMessage", rec.getErrorMessage());
+        r.put("submittedAt", rec.getSubmittedAt());
+        r.put("startedAt", rec.getStartedAt());
+        r.put("finishedAt", rec.getFinishedAt());
+        // 如果还在 RUNNING 且 elapsedMs 缺失, 给个当前已用时间
+        if ("RUNNING".equals(rec.getStatus()) && rec.getStartedAt() != null) {
+            long runningMs = java.time.Duration.between(rec.getStartedAt(), java.time.LocalDateTime.now()).toMillis();
+            r.put("runningMs", runningMs);
+        }
+        return r;
+    }
+
+    /**
+     * 拉取完整研报 JSON
+     */
+    @GetMapping("/record/{id}")
+    public Map<String, Object> record(@PathVariable Long id) {
+        StockAnalysisRecord rec = service.getById(id);
+        if (rec == null) {
+            return error(404, "记录不存在");
+        }
+        StockAnalysisResponse resp = service.parseRecordJson(rec);
+        Map<String, Object> r = new HashMap<>();
+        r.put("ok", true);
+        r.put("id", rec.getId());
+        r.put("status", rec.getStatus());
+        r.put("stockCode", rec.getStockCode());
+        r.put("stockName", rec.getStockName());
+        r.put("method", rec.getMethod());
+        r.put("submittedAt", rec.getSubmittedAt());
+        r.put("finishedAt", rec.getFinishedAt());
+        r.put("elapsedMs", rec.getElapsedMs());
+        r.put("report", resp);
+        return r;
+    }
+
+    /**
+     * 列表 (分页)
+     */
+    @GetMapping("/list")
+    public Map<String, Object> list(
+            @RequestParam(value = "kw", required = false, defaultValue = "") String kw,
+            @RequestParam(value = "status", required = false, defaultValue = "") String status,
+            @RequestParam(value = "page", required = false, defaultValue = "0") int page,
+            @RequestParam(value = "size", required = false, defaultValue = "20") int size) {
+        Page<StockAnalysisRecordListDTO> p = service.list(kw, status, page, size);
+        Map<String, Object> r = new HashMap<>();
+        r.put("ok", true);
+        r.put("total", p.getTotalElements());
+        r.put("page", p.getNumber());
+        r.put("size", p.getSize());
+        r.put("records", p.getContent());
+        return r;
+    }
+
+    /**
+     * 健康检查 (无需鉴权)
+     */
     @GetMapping("/health")
     public Map<String, Object> health() {
         Map<String, Object> r = new HashMap<>();
@@ -47,10 +139,10 @@ public class StockAnalysisController {
         return r;
     }
 
-    private Map<String, Object> error(String message) {
+    private Map<String, Object> error(int code, String message) {
         Map<String, Object> r = new HashMap<>();
         r.put("ok", false);
-        r.put("code", 400);
+        r.put("code", code);
         r.put("message", message);
         return r;
     }

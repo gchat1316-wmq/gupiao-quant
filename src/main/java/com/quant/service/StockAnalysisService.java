@@ -1,26 +1,32 @@
 package com.quant.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.quant.config.StockAnalysisProperties;
+import com.quant.dto.stockanalysis.StockAnalysisRecordListDTO;
 import com.quant.dto.stockanalysis.StockAnalysisRequest;
 import com.quant.dto.stockanalysis.StockAnalysisResponse;
+import com.quant.entity.StockAnalysisRecord;
+import com.quant.repository.StockAnalysisRecordRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 
 /**
- * 个股分析服务
- * - 调 baostock-finance-data skill 拉数据
- * - 应用紫苏叶 + 高景气九维方法论输出研报
+ * 个股分析服务 (异步版)
+ * - submit: 创建 PENDING 记录, 立即返回 id
+ * - @Async executeAsync: 后台跑 baostock + 紫苏叶/九维, 写回 DB
+ * - getById / list: 查询记录
+ *
+ * 缓存策略: 同 code + method 的 SUCCESS 记录 1 小时内直接复用
  */
 @Slf4j
 @Service
@@ -28,34 +34,128 @@ import java.util.*;
 public class StockAnalysisService {
 
     private final StockAnalysisProperties properties;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final StockAnalysisRecordRepository repository;
+    private final ObjectMapper objectMapper = new ObjectMapper()
+            .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
+            .disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
-    public StockAnalysisResponse analyze(StockAnalysisRequest req) {
+    /** 缓存有效期 (小时) */
+    private static final int CACHE_HOURS = 1;
+
+    // ============================================================
+    // 1. 提交任务 (立即返回 recordId)
+    // ============================================================
+    @Transactional
+    public Long submit(StockAnalysisRequest req) {
+        String codeRaw = req.getCode() == null ? "" : req.getCode().trim();
+        if (codeRaw.isEmpty()) {
+            throw new IllegalArgumentException("股票代码不能为空");
+        }
+        String code = normalizeCode(codeRaw);
+        String method = req.getMethod() == null ? "full" : req.getMethod();
+        Integer years = req.getYears() == null ? 2 : req.getYears();
+        Boolean lite = req.getLite() == null ? Boolean.TRUE : req.getLite();
+        Integer quoteDays = req.getQuoteDays() == null ? 60 : req.getQuoteDays();
+
+        // 缓存命中: 1小时内同 code+method 直接复用
+        Pageable one = PageRequest.of(0, 1);
+        var existing = repository.findLatestSuccess(code, method, one);
+        if (!existing.isEmpty()) {
+            StockAnalysisRecord r = existing.getContent().get(0);
+            if (r.getFinishedAt() != null
+                    && r.getFinishedAt().isAfter(LocalDateTime.now().minusHours(CACHE_HOURS))) {
+                log.info("缓存命中: code={} method={} recordId={}", code, method, r.getId());
+                return r.getId();
+            }
+        }
+
+        // 新建 PENDING 记录
+        StockAnalysisRecord rec = new StockAnalysisRecord();
+        rec.setStockCode(code);
+        rec.setStockCodeRaw(codeRaw);
+        rec.setMethod(method);
+        rec.setYears(years);
+        rec.setLite(lite ? 1 : 0);
+        rec.setQuoteDays(quoteDays);
+        rec.setStatus("PENDING");
+        rec = repository.save(rec);
+        log.info("提交个股分析: id={} code={} method={}", rec.getId(), code, method);
+        return rec.getId();
+    }
+
+    // ============================================================
+    // 2. 异步执行 (Spring 线程池)
+    // ============================================================
+    @Async("stockAnalysisExecutor")
+    public void executeAsync(Long recordId) {
+        StockAnalysisRecord rec = repository.findById(recordId).orElse(null);
+        if (rec == null) {
+            log.error("记录不存在: id={}", recordId);
+            return;
+        }
+        if (!"PENDING".equals(rec.getStatus())) {
+            log.warn("记录非 PENDING 状态, 跳过: id={} status={}", recordId, rec.getStatus());
+            return;
+        }
+        // 更新为 RUNNING
+        rec.setStatus("RUNNING");
+        rec.setStartedAt(LocalDateTime.now());
+        rec = repository.save(rec);
+
         long start = System.currentTimeMillis();
+        try {
+            StockAnalysisRequest req = new StockAnalysisRequest();
+            req.setCode(rec.getStockCodeRaw());
+            req.setMethod(rec.getMethod());
+            req.setYears(rec.getYears());
+            req.setLite(rec.getLite() == 1);
+            req.setQuoteDays(rec.getQuoteDays());
+
+            StockAnalysisResponse resp = doAnalyze(req);
+            long elapsed = System.currentTimeMillis() - start;
+
+            // 写回结果
+            rec.setStatus("SUCCESS");
+            rec.setFinishedAt(LocalDateTime.now());
+            rec.setElapsedMs((int) elapsed);
+            if (resp != null) {
+                rec.setStockName(resp.getName());
+                rec.setCurrentPrice(resp.getCurrentPrice() == null ? null : BigDecimal.valueOf(resp.getCurrentPrice()));
+                rec.setVerdict(resp.getVerdict());
+                rec.setMoatScore(resp.getMoatScore());
+                rec.setResultJson(objectMapper.writeValueAsString(resp));
+            }
+            repository.save(rec);
+            log.info("分析完成: id={} code={} elapsed={}ms", recordId, rec.getStockCode(), elapsed);
+        } catch (Exception e) {
+            log.error("分析失败: id={}", recordId, e);
+            rec.setStatus("FAILED");
+            rec.setFinishedAt(LocalDateTime.now());
+            rec.setElapsedMs((int) (System.currentTimeMillis() - start));
+            rec.setErrorMessage(e.getMessage() == null ? e.getClass().getName() : e.getMessage());
+            repository.save(rec);
+        }
+    }
+
+    // ============================================================
+    // 3. 同步版 (供 executeAsync 内部调用, 也可被外部直接调)
+    // ============================================================
+    public StockAnalysisResponse doAnalyze(StockAnalysisRequest req) {
         String code = normalizeCode(req.getCode());
         String method = req.getMethod() == null ? "full" : req.getMethod();
 
-        // 1. 拉数据
         Map<String, Object> rawData = fetchPack(code, req);
         if (rawData == null || rawData.isEmpty()) {
-            return StockAnalysisResponse.builder()
-                    .ok(false)
-                    .code(code)
-                    .timestamp(LocalDateTime.now())
-                    .build();
+            throw new RuntimeException("baostock 数据获取失败");
         }
 
-        // 2. 解析基础信息
         Map<String, Object> basic = asMap(rawData.get("basic"));
         String name = basic == null ? code : String.valueOf(basic.getOrDefault("code_name", code));
-
         Map<String, Object> quote = asMap(rawData.get("quote"));
         Double price = quote == null ? null : parseDouble(quote.get("close"));
 
-        // 3. 财务摘要
         Map<String, Object> financialSummary = buildFinancialSummary(asList(rawData.get("financial_history")));
 
-        // 4. 紫苏叶方法
         Map<String, Object> chainPosition = null;
         Map<String, Object> competition = null;
         Map<String, Object> threeQuestions = null;
@@ -71,13 +171,11 @@ public class StockAnalysisService {
             verdict = (String) pcr.get("verdict");
         }
 
-        // 5. 高景气九维
         Map<String, Object> nineDim = null;
         if ("gaojingqi".equals(method) || "full".equals(method)) {
             nineDim = runGaoJingQi(rawData, name, price);
         }
 
-        // 6. 催化剂与风险
         List<String> catalysts = buildCatalysts(rawData, name);
         List<String> risks = buildRisks(rawData, name);
 
@@ -98,12 +196,58 @@ public class StockAnalysisService {
                 .risks(risks)
                 .rawData(rawData)
                 .timestamp(LocalDateTime.now())
-                .elapsedMs(System.currentTimeMillis() - start)
+                .elapsedMs(0L)
                 .build();
     }
 
     // ============================================================
-    // 1. 拉 baostock pack
+    // 4. 查询接口
+    // ============================================================
+    public StockAnalysisRecord getById(Long id) {
+        return repository.findById(id).orElse(null);
+    }
+
+    public StockAnalysisResponse parseRecordJson(StockAnalysisRecord rec) {
+        if (rec == null || rec.getResultJson() == null) return null;
+        try {
+            return objectMapper.readValue(rec.getResultJson(), StockAnalysisResponse.class);
+        } catch (Exception e) {
+            log.warn("解析 result_json 失败: id={}", rec.getId(), e);
+            return null;
+        }
+    }
+
+
+    public Page<StockAnalysisRecordListDTO> list(String kw, String status, int page, int size) {
+        Pageable pageable = PageRequest.of(Math.max(0, page), Math.min(50, Math.max(1, size)));
+        return repository.search(kw, status, pageable).map(this::toListDTO);
+    }
+
+    public List<StockAnalysisRecordListDTO> toListDTOList(List<StockAnalysisRecord> records) {
+        return records.stream().map(this::toListDTO).toList();
+    }
+
+    private StockAnalysisRecordListDTO toListDTO(StockAnalysisRecord r) {
+        return StockAnalysisRecordListDTO.builder()
+                .id(r.getId())
+                .stockCode(r.getStockCode())
+                .stockCodeRaw(r.getStockCodeRaw())
+                .stockName(r.getStockName())
+                .method(r.getMethod())
+                .status(r.getStatus())
+                .verdict(r.getVerdict())
+                .moatScore(r.getMoatScore())
+                .currentPrice(r.getCurrentPrice())
+                .elapsedMs(r.getElapsedMs())
+                .errorMessage(r.getErrorMessage())
+                .submittedAt(r.getSubmittedAt())
+                .startedAt(r.getStartedAt())
+                .finishedAt(r.getFinishedAt())
+                .build();
+    }
+
+    // ============================================================
+    // 5. 调 baostock (从原 service 搬过来)
     // ============================================================
     @SuppressWarnings("unchecked")
     private Map<String, Object> fetchPack(String code, StockAnalysisRequest req) {
@@ -119,53 +263,39 @@ public class StockAnalysisService {
                 cmd.add("--lite");
             }
             log.info("调 baostock: {}", String.join(" ", cmd));
-
             ProcessBuilder pb = new ProcessBuilder(cmd);
             pb.redirectErrorStream(true);
             Process process = pb.start();
-
             StringBuilder stdout = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+            try (var reader = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(process.getInputStream(), java.nio.charset.StandardCharsets.UTF_8))) {
                 String line;
-                while ((line = reader.readLine()) != null) {
-                    stdout.append(line);
-                }
+                while ((line = reader.readLine()) != null) stdout.append(line);
             }
             boolean done = process.waitFor(properties.getTimeoutSeconds(), java.util.concurrent.TimeUnit.SECONDS);
             if (!done) {
                 process.destroyForcibly();
-                log.error("baostock 调用超时 ({}s)", properties.getTimeoutSeconds());
-                return null;
+                throw new RuntimeException("baostock 调用超时 (" + properties.getTimeoutSeconds() + "s)");
             }
             if (process.exitValue() != 0) {
-                log.error("baostock 退出码非0: {}", stdout);
-                return null;
+                throw new RuntimeException("baostock 退出码 " + process.exitValue() + ": " + stdout);
             }
-            // 找 JSON 起点 (跳过 login success! 等前缀)
             String content = stdout.toString();
             int idx = content.indexOf('{');
-            if (idx < 0) {
-                log.error("baostock 输出无 JSON");
-                return null;
-            }
-            JsonNode root = objectMapper.readTree(content.substring(idx));
-            return objectMapper.convertValue(root, Map.class);
+            if (idx < 0) throw new RuntimeException("baostock 输出无 JSON");
+            return objectMapper.readValue(content.substring(idx), Map.class);
         } catch (Exception e) {
-            log.error("baostock 调用失败", e);
-            return null;
+            throw new RuntimeException("baostock 调用失败: " + e.getMessage(), e);
         }
     }
 
     // ============================================================
-    // 2. 紫苏叶方法
+    // 6. 紫苏叶 + 高景气九维 (从原 service 搬过来, 略)
     // ============================================================
     private Map<String, Object> runPurplePerilla(Map<String, Object> raw, String name) {
         Map<String, Object> result = new HashMap<>();
         Map<String, Object> industry = asMap(raw.get("industry"));
         String industryName = industry == null ? "未知" : String.valueOf(industry.getOrDefault("industry", "未知"));
-
-        // 1. 产业链位置 (基于行业名称启发式判断)
         Map<String, Object> chain = new HashMap<>();
         chain.put("industry", industryName);
         chain.put("name", name);
@@ -173,45 +303,31 @@ public class StockAnalysisService {
         chain.put("chainPath", inferChainPath(industryName, name));
         chain.put("moatType", inferMoatType(industryName, name));
         result.put("chainPosition", chain);
-
-        // 2. 竞争格局
         Map<String, Object> comp = new HashMap<>();
         comp.put("globalPlayers", inferCompetitors(industryName, name));
         comp.put("chinesePosition", inferChinesePosition(industryName, name));
         comp.put("geographicAdvantage", inferGeoAdvantage(industryName, name));
         result.put("competition", comp);
-
-        // 3. 三个问题清单
         Map<String, Object> q = new HashMap<>();
-        q.put("Q1_irreplaceable", "需要核实 - 该环节全球供应商数量与精智达对标分析");
+        q.put("Q1_irreplaceable", "需要核实 - 该环节全球供应商数量与对标分析");
         q.put("Q2_competitorCount", "需要核实 - 国内/全球具体玩家数");
         q.put("Q3_demandTrend", "需要核实 - 下游Capex订单趋势");
         q.put("note", "本数据为占位提示, 需结合个股非结构化调研");
         result.put("threeQuestions", q);
-
-        // 4. 护城河打分
         int moat = calcMoat(industryName, name);
         result.put("moatScore", moat);
-
-        // 5. 投资判定
         String verdict;
         if (moat >= 8) verdict = "盯住/就是它了";
         else if (moat >= 6) verdict = "盯住";
         else if (moat >= 4) verdict = "观望";
         else verdict = "回避";
         result.put("verdict", verdict);
-
         return result;
     }
 
-    // ============================================================
-    // 3. 高景气九维
-    // ============================================================
     private Map<String, Object> runGaoJingQi(Map<String, Object> raw, String name, Double price) {
         Map<String, Object> nine = new HashMap<>();
         List<Object> finHistory = asList(raw.get("financial_history"));
-
-        // 1. 财务质量 (基于真实数据)
         Map<String, Object> fin = new HashMap<>();
         if (!finHistory.isEmpty()) {
             Map<String, Object> latest = asMap(finHistory.get(finHistory.size() - 1));
@@ -227,15 +343,11 @@ public class StockAnalysisService {
             fin.put("epsTtm", parseDouble(prof == null ? null : prof.get("eps_ttm")));
         }
         nine.put("financial", fin);
-
-        // 2. 估值 (baostock无 PE/PB, 标注 N/A 提示)
         Map<String, Object> valuation = new HashMap<>();
         valuation.put("currentPrice", price);
         valuation.put("peTtm", "N/A (需用 eastmoney / Wind)");
         valuation.put("note", "Baostock 不提供 PE/PB/PS 估值字段");
         nine.put("valuation", valuation);
-
-        // 3. 行情
         Map<String, Object> quote = asMap(raw.get("quote"));
         Map<String, Object> mkt = new HashMap<>();
         mkt.put("close", parseDouble(quote == null ? null : quote.get("close")));
@@ -247,41 +359,22 @@ public class StockAnalysisService {
             mkt.put("periodChangePct", formatPct(quote.get("period_change_pct")));
         }
         nine.put("market", mkt);
-
-        // 4. 基础信息
-        Map<String, Object> basic = asMap(raw.get("basic"));
-        nine.put("company", basic);
-        Map<String, Object> industry = asMap(raw.get("industry"));
-        nine.put("industry", industry);
-
-        // 5. 业绩预告/分红
+        nine.put("company", asMap(raw.get("basic")));
+        nine.put("industry", asMap(raw.get("industry")));
         nine.put("forecast", raw.get("forecast"));
         nine.put("dividend", raw.get("dividend"));
-
-        // 6. 综合结论
-        Map<String, Object> conclusion = new HashMap<>();
-        conclusion.put("dataSource", "baostock (2026-06-12)");
-        conclusion.put("method", "高景气九维");
-        conclusion.put("disclaimer", "本研报为基于公开数据的事实陈述, 不构成投资建议");
-        nine.put("conclusion", conclusion);
-
         return nine;
     }
 
-    // ============================================================
-    // 4. 财务摘要
-    // ============================================================
     private Map<String, Object> buildFinancialSummary(List<Object> finHistory) {
         Map<String, Object> summary = new HashMap<>();
         if (finHistory == null || finHistory.isEmpty()) return summary;
-
         summary.put("periods", finHistory.size());
         List<String> periodLabels = new ArrayList<>();
         List<Double> roeList = new ArrayList<>();
         List<Double> gmList = new ArrayList<>();
         List<Double> nmList = new ArrayList<>();
         List<Double> yoyNiList = new ArrayList<>();
-
         for (Object o : finHistory) {
             Map<String, Object> rec = asMap(o);
             periodLabels.add(String.valueOf(rec.get("statDate")));
@@ -300,16 +393,12 @@ public class StockAnalysisService {
         return summary;
     }
 
-    // ============================================================
-    // 5. 催化剂/风险
-    // ============================================================
     private List<String> buildCatalysts(Map<String, Object> raw, String name) {
         List<String> catalysts = new ArrayList<>();
         Object forecast = raw.get("forecast");
         if (forecast instanceof List<?> list && !list.isEmpty()) {
             catalysts.add("📢 业绩预告/快报: " + list.size() + " 条记录");
         }
-        // 季度环比反转信号
         List<Object> finHistory = asList(raw.get("financial_history"));
         if (finHistory.size() >= 2) {
             Map<String, Object> latest = asMap(finHistory.get(finHistory.size() - 1));
@@ -334,12 +423,8 @@ public class StockAnalysisService {
             Map<String, Object> p = asMap(latest.get("profitability"));
             Double roe = parseDouble(p == null ? null : p.get("roe_avg"));
             Double nm = parseDouble(p == null ? null : p.get("np_margin"));
-            if (roe != null && roe < 0.05) {
-                risks.add(String.format("⚠️ ROE仅%.2f%%, 盈利质量弱", roe * 100));
-            }
-            if (nm != null && nm < 0) {
-                risks.add("⚠️ 净利率为负, 经营亏损");
-            }
+            if (roe != null && roe < 0.05) risks.add(String.format("⚠️ ROE仅%.2f%%, 盈利质量弱", roe * 100));
+            if (nm != null && nm < 0) risks.add("⚠️ 净利率为负, 经营亏损");
         }
         risks.add("⚠️ 客户集中度风险: 半导体设备公司前五大客户占比通常 >60%");
         risks.add("⚠️ 应收账款周期长, 现金流压力需关注");
@@ -347,9 +432,6 @@ public class StockAnalysisService {
         return risks;
     }
 
-    // ============================================================
-    // 启发式推断 (基于行业名/股票名, 后续可替换为更细的映射表)
-    // ============================================================
     private String inferLayer(String industry, String name) {
         if (industry.contains("半导体") || industry.contains("电子") || industry.contains("C35")) {
             if (name.contains("测") || name.contains("精")) return "第4层 - 测试设备";
