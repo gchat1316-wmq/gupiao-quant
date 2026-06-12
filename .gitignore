@@ -84,7 +84,6 @@ desktop.ini
 application-local.yml
 application-local.properties
 secrets/
-config/
 
 # ======================================
 # 临时文件
