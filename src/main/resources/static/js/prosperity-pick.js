@@ -18,15 +18,26 @@
     valuation: $('ppValuation'),
     technical: $('ppTechnical'),
     capital: $('ppCapital'),
+    purplePerilla: $('ppPurplePerilla'),
+    nineDimension: $('ppNineDimension'),
+    finChart: $('ppFinChart'),
     summary: $('ppSummary'),
     infographicBtn: $('ppInfographicBtn'),
     infographicHint: $('ppInfographicHint'),
     infographic: $('ppInfographic'),
+    reportBtn: $('ppReportBtn'),
     anchorNav: $('ppAnchorNav'),
+    // Modal
+    reportModal: $('ppReportModal'),
+    modalBackdrop: $('ppModalBackdrop'),
+    reportBody: $('ppReportBody'),
+    closeModalBtn: $('ppCloseModalBtn'),
+    printBtn: $('ppPrintBtn'),
   };
 
   let currentResult = null;
   let stepTimer = null;
+  let finChartInstance = null;
 
   // ---- 加载态步骤模拟 ----
   function startStepAnimation() {
@@ -94,6 +105,11 @@
     if (!r.ok) return null;
     return r.json();
   }
+  async function apiReportHtml(id) {
+    const r = await fetch(`${API_BASE}/${id}/report`);
+    if (!r.ok) throw new Error(parseErrorMsg(await r.text()) || `HTTP ${r.status}`);
+    return r.json();
+  }
   function parseErrorMsg(t) {
     try {
       const j = JSON.parse(t);
@@ -103,12 +119,24 @@
 
   // ---- 渲染 ----
   function renderProfile(p, data) {
-    const { stockName, stockCode, exchange, board, industry, currentPrice,
+    const { stockName, stockCode, board, industry, currentPrice,
       totalMarketCap, peTtm, pb, psTtm, latestRevenue, latestNetProfit, latestReportDate } = p || {};
     const badges = [];
     if (board) badges.push(`<span class="pp-badge">${escape(board)}</span>`);
     if (data.degraded) badges.push(`<span class="pp-badge pp-badge-warn">演示数据</span>`);
     if (data.cached) badges.push(`<span class="pp-badge">缓存</span>`);
+    // 紫苏叶判定 badge
+    if (data.verdict) {
+      let vc = 'pp-badge';
+      if (data.moatScore >= 8) vc += ' pp-badge-green';
+      else if (data.moatScore >= 6) vc += ' pp-badge-blue';
+      else if (data.moatScore >= 4) vc += ' pp-badge-yellow';
+      else vc += ' pp-badge-red';
+      badges.push(`<span class="${vc}">紫苏叶: ${escape(data.verdict)}</span>`);
+    }
+    if (data.moatScore != null) {
+      badges.push(`<span class="pp-badge">护城河 ${data.moatScore}/10</span>`);
+    }
     const meta = [];
     if (currentPrice != null) meta.push(`现价 <b>¥${currentPrice}</b>`);
     if (totalMarketCap != null) meta.push(`总市值 <b>${totalMarketCap} 亿</b>`);
@@ -133,6 +161,7 @@
       </div>
       <div class="pp-profile-actions">
         <span class="pp-cached-tag">分析日期 ${data.analysisDate || ''}</span>
+        ${data.elapsedMs ? `<span class="pp-cached-tag">耗时 ${(data.elapsedMs / 1000).toFixed(1)}s</span>` : ''}
       </div>
     `;
   }
@@ -238,6 +267,118 @@
     ].join('');
   }
 
+  // ---- 紫苏叶渲染 ----
+  function renderPurplePerilla(data) {
+    const chain = data.chainPosition;
+    const moatScore = data.moatScore;
+    const verdict = data.verdict;
+    const catalysts = data.catalysts || [];
+    const risks = data.risks || [];
+
+    if (!chain && moatScore == null && !verdict) {
+      els.purplePerilla.innerHTML = '<div class="pp-card">暂无紫苏叶数据（baostock 未启用）</div>';
+      return;
+    }
+
+    let html = '';
+    if (chain) {
+      html += [
+        pairCard('行业', chain.industry || ''),
+        pairCard('产业链位置', chain.layer || ''),
+        pairCard('护城河类型', chain.moatType || ''),
+        pairCard('拆解路径', chain.chainPath || ''),
+      ].join('');
+      // 竞争格局（如果有）
+      const comp = chain.competition;
+      if (comp) {
+        html += pairCard('全球玩家', comp.globalPlayers || '');
+        html += pairCard('中国位置', comp.chinesePosition || '');
+        html += pairCard('地缘优势', comp.geographicAdvantage || '');
+      }
+    }
+    // 护城河 + 判定
+    if (moatScore != null || verdict) {
+      let cls = 'pp-verdict-cheap';
+      if (moatScore != null) {
+        if (moatScore >= 8) cls = 'pp-verdict-cheap';
+        else if (moatScore >= 6) cls = 'pp-verdict-fair';
+        else if (moatScore >= 4) cls = 'pp-verdict-expensive';
+        else cls = 'pp-verdict-bubble';
+      }
+      html += `<div class="pp-tech-verdict">护城河评分：<b>${moatScore != null ? moatScore + '/10' : '-'}</b> · 判定：<b class="${cls}">${escape(verdict || '-')}</b></div>`;
+    }
+    // 催化剂
+    if (catalysts.length > 0) {
+      html += `<div class="pp-card" style="grid-column:1/-1;"><div class="pp-card-label">催化剂</div><div class="pp-card-value"><ul class="pp-list-mini">${catalysts.map(c => `<li>${escape(c)}</li>`).join('')}</ul></div></div>`;
+    }
+    // 风险
+    if (risks.length > 0) {
+      html += `<div class="pp-card" style="grid-column:1/-1;"><div class="pp-card-label">风险提示</div><div class="pp-card-value"><ul class="pp-list-mini">${risks.map(c => `<li>${escape(c)}</li>`).join('')}</ul></div></div>`;
+    }
+    els.purplePerilla.innerHTML = html || '<div class="pp-card">暂无数据</div>';
+  }
+
+  // ---- 九维渲染 ----
+  function renderNineDimension(data) {
+    const nine = data.nineDimension;
+    const finSummary = data.financialSummary;
+
+    if (!nine && !finSummary) {
+      els.nineDimension.innerHTML = '<div class="pp-card">暂无九维数据（baostock 未启用）</div>';
+      els.finChart.style.display = 'none';
+      return;
+    }
+
+    let html = '';
+    if (nine) {
+      const fin = nine.financial || {};
+      const mkt = nine.market || {};
+      html += pairCard('最新报告期', fin.latestPeriod || '');
+      html += pairCard('ROE', fin.roe || '');
+      html += pairCard('毛利率', fin.grossMargin || '');
+      html += pairCard('净利率', fin.netMargin || '');
+      html += pairCard('净利 YoY', fin.yoyNetProfit || '');
+      if (mkt.close) html += pairCard('收盘价', mkt.close + ' 元');
+      if (mkt.turnover) html += pairCard('换手率', mkt.turnover);
+      if (mkt.periodHigh) html += pairCard('区间最高', mkt.periodHigh);
+      if (mkt.periodLow) html += pairCard('区间最低', mkt.periodLow);
+      if (mkt.periodChangePct) html += pairCard('区间涨跌幅', mkt.periodChangePct);
+    }
+    els.nineDimension.innerHTML = html || '<div class="pp-card">暂无数据</div>';
+
+    // 财务趋势图
+    if (finSummary && finSummary.periodLabels && finSummary.periodLabels.length > 0) {
+      renderFinancialChart(finSummary);
+      els.finChart.style.display = 'block';
+    } else {
+      els.finChart.style.display = 'none';
+    }
+  }
+
+  function renderFinancialChart(fin) {
+    const canvas = document.getElementById('ppFinCanvas');
+    if (!canvas) return;
+    if (finChartInstance) finChartInstance.destroy();
+    const toPct = arr => (arr || []).map(v => v == null ? null : +(v * 100).toFixed(2));
+    finChartInstance = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: fin.periodLabels,
+        datasets: [
+          { label: 'ROE %', data: toPct(fin.roeList), borderColor: '#1e88ff', tension: 0.3 },
+          { label: '毛利率 %', data: toPct(fin.grossMarginList), borderColor: '#6c4ce6', tension: 0.3 },
+          { label: '净利率 %', data: toPct(fin.netMarginList), borderColor: '#0f9d58', tension: 0.3 },
+          { label: '净利 YoY %', data: toPct(fin.yoyNetProfitList), borderColor: '#e74c3c', borderDash: [5,5], tension: 0.3 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } },
+        scales: { y: { beginAtZero: false } }
+      }
+    });
+  }
+
   function renderSummary(s) {
     if (!s) { els.summary.innerHTML = '<div>无数据</div>'; return; }
     const bullets = (s.bullets || []).map(b => `<li>${escape(b)}</li>`).join('');
@@ -259,7 +400,7 @@
   function renderResult(data) {
     if (data && data.degraded) {
       els.result.classList.add('hidden');
-      showError('本次分析未生成真实结论，已停止展示演示数据。请稍后重试或点击“重新分析”。');
+      showError('本次分析未生成真实结论，已停止展示演示数据。请稍后重试或点击"重新分析"。');
       return;
     }
     currentResult = data;
@@ -272,6 +413,17 @@
     renderValuation(a.valuation);
     renderTechnical(a.technical);
     renderCapital(a.capital);
+    renderPurplePerilla({
+      chainPosition: data.chainPosition,
+      moatScore: data.moatScore,
+      verdict: data.verdict,
+      catalysts: data.catalysts,
+      risks: data.risks,
+    });
+    renderNineDimension({
+      nineDimension: data.nineDimension,
+      financialSummary: data.financialSummary,
+    });
     renderSummary(a.summary);
 
     // 信息图区
@@ -284,6 +436,9 @@
       els.infographicBtn.textContent = '生成信息图 ✨';
       els.infographicHint.textContent = '点击按钮异步生成可爱卡通风格信息图（需 30~60s）';
     }
+
+    // 报告详情按钮
+    els.reportBtn.style.display = 'inline-flex';
   }
 
   async function runAnalyze(keyword, force) {
@@ -337,26 +492,86 @@
     }
   }
 
+  // ---- 报告详情弹窗 ----
+  async function openReportModal() {
+    if (!currentResult || currentResult.id == null) {
+      showError('请先完成分析再查看报告');
+      return;
+    }
+    els.reportModal.classList.remove('hidden');
+    els.reportBody.innerHTML = '<div class="pp-loading-spinner"></div><div style="text-align:center;color:#6b7280;">加载中…</div>';
+    try {
+      const r = await apiReportHtml(currentResult.id);
+      if (r.html) {
+        els.reportBody.innerHTML = `<div class="pp-report-frame">${r.html}</div>`;
+      } else {
+        els.reportBody.innerHTML = '<div style="color:#6b7280;text-align:center;">报告内容为空</div>';
+      }
+    } catch (e) {
+      els.reportBody.innerHTML = `<div style="color:#991b1b;">加载失败: ${escape(e.message || e)}</div>`;
+    }
+  }
+
+  function closeReportModal() {
+    els.reportModal.classList.add('hidden');
+  }
+
+  function printReport() {
+    const content = els.reportBody.querySelector('.pp-report-frame');
+    if (!content) return;
+    const w = window.open('', '_blank');
+    w.document.write(content.innerHTML);
+    w.document.close();
+    w.focus();
+    w.print();
+  }
+
+  // ---- 近期列表 ----
   async function loadRecent() {
     try {
       const list = await apiRecent();
       const realList = (list || []).filter(r => !r.degraded);
       els.recent.innerHTML = realList.map(renderRecentItem).join('')
         || '<div class="pp-recent-empty">近 3 天暂无真实分析记录</div>';
+      // 绑定事件
       els.recent.querySelectorAll('.pp-recent-item').forEach(item => {
-        item.addEventListener('click', async () => {
-          const id = item.getAttribute('data-id');
-          const data = await apiGet(id);
-          if (data) {
-            if (data.degraded) {
-              showError('该缓存记录是演示数据，已停止展示。请重新分析获取真实结论。');
-              return;
+        const viewBtn = item.querySelector('.pp-recent-view');
+        const mainArea = item.querySelector('.pp-recent-main');
+
+        // 点击主区域 → 加载结果到页面
+        if (mainArea) {
+          mainArea.addEventListener('click', async () => {
+            const id = item.getAttribute('data-id');
+            const data = await apiGet(id);
+            if (data) {
+              if (data.degraded) {
+                showError('该缓存记录是演示数据，已停止展示。请重新分析获取真实结论。');
+                return;
+              }
+              els.keyword.value = data.stockName || data.stockCode;
+              renderResult(data);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
             }
-            els.keyword.value = data.stockName || data.stockCode;
-            renderResult(data);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }
-        });
+          });
+        }
+
+        // 点击"查看详情" → 打开报告详情弹窗
+        if (viewBtn) {
+          viewBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const id = item.getAttribute('data-id');
+            // 先加载完整数据
+            const data = await apiGet(id);
+            if (data && !data.degraded) {
+              currentResult = data;
+              renderResult(data);
+              // 然后打开报告详情
+              openReportModal();
+            } else {
+              showError('该记录无法查看详情');
+            }
+          });
+        }
       });
     } catch (e) {
       // 静默
@@ -370,17 +585,40 @@
       r.capitalVerdict ? `资金：${r.capitalVerdict}` : '',
     ].filter(Boolean);
     const summary = r.summaryOneLiner || (r.summaryBullets || [])[0] || '查看缓存分析结果';
+
+    // 护城河+判定 badges
+    let badgeHtml = '';
+    if (r.moatScore != null) badgeHtml += `<span class="pp-recent-badge">护城河 ${r.moatScore}/10</span>`;
+    if (r.verdict) badgeHtml += `<span class="pp-recent-badge pp-recent-badge-${moatColor(r.moatScore)}">${escape(r.verdict)}</span>`;
+
+    // 查看详情按钮
+    const viewDetailHtml = r.hasReport
+      ? `<button type="button" class="pp-recent-view" title="查看报告详情">📋 详情</button>`
+      : `<button type="button" class="pp-recent-view pp-recent-view-disabled" title="暂无报告详情">详情</button>`;
+
     return `
-      <button type="button" class="pp-recent-item" data-id="${r.id}">
+      <div class="pp-recent-item" data-id="${r.id}">
         <span class="pp-recent-main">
           <span class="pp-recent-name">${escape(r.stockName || r.stockCode || '')}</span>
           <span class="pp-recent-code">${escape(r.stockCode || '')}</span>
+          ${badgeHtml}
         </span>
         <span class="pp-recent-one">${escape(summary)}</span>
         ${verdicts.length ? `<span class="pp-recent-verdicts">${verdicts.slice(0, 3).map(v => `<span>${escape(v)}</span>`).join('')}</span>` : ''}
-        <span class="pp-recent-date">${escape(r.analysisDate || '')}</span>
-      </button>
+        <span class="pp-recent-actions">
+          ${viewDetailHtml}
+          <span class="pp-recent-date">${escape(r.analysisDate || '')}</span>
+        </span>
+      </div>
     `;
+  }
+
+  function moatColor(score) {
+    if (score == null) return '';
+    if (score >= 8) return 'green';
+    if (score >= 6) return 'blue';
+    if (score >= 4) return 'yellow';
+    return 'red';
   }
 
   function activateAnchor(targetId) {
@@ -413,6 +651,18 @@
     if (e.key === 'Enter') runAnalyze(els.keyword.value, false);
   });
   els.infographicBtn.addEventListener('click', runInfographic);
+  els.reportBtn.addEventListener('click', openReportModal);
+  els.closeModalBtn.addEventListener('click', closeReportModal);
+  els.modalBackdrop.addEventListener('click', closeReportModal);
+  els.printBtn.addEventListener('click', printReport);
+
+  // ESC 关闭弹窗
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !els.reportModal.classList.contains('hidden')) {
+      closeReportModal();
+    }
+  });
+
   bindAnchorNav();
 
   // 初始化

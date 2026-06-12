@@ -1,6 +1,7 @@
 package com.quant.invest;
 
 import com.quant.config.AiProperties;
+import com.quant.config.StockAnalysisProperties;
 import com.quant.dto.invest.ProsperityPickResultDTO;
 import com.quant.entity.InvestProsperityPick;
 import com.quant.entity.TradeStockBasic;
@@ -60,6 +61,8 @@ class ProsperityPickServiceTest {
         aiProperties.setFallbackToMock(true);
         aiProperties.getSensenova().setEnabled(true);
         aiProperties.getSensenova().setApiKey("test-key");
+        StockAnalysisProperties stockAnalysisProperties = new StockAnalysisProperties();
+        stockAnalysisProperties.setEnabled(false);
         service = new ProsperityPickService(
                 stockQueryService,
                 financialRepo,
@@ -68,7 +71,8 @@ class ProsperityPickServiceTest {
                 miniMaxClient,
                 senseNovaClient,
                 webSearchClient,
-                aiProperties
+                aiProperties,
+                stockAnalysisProperties
         );
     }
 

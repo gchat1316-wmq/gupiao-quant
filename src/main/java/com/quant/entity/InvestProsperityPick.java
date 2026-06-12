@@ -40,6 +40,34 @@ public class InvestProsperityPick {
     @Column(name = "image_prompt", columnDefinition = "TEXT")
     private String imagePrompt;
 
+    /** 紫苏叶产业链定位 JSON */
+    @Column(name = "chain_position", columnDefinition = "TEXT")
+    private String chainPosition;
+
+    /** 高景气九维 JSON */
+    @Column(name = "nine_dimension", columnDefinition = "TEXT")
+    private String nineDimension;
+
+    /** baostock 原始数据包 JSON */
+    @Column(name = "baostock_data", columnDefinition = "MEDIUMTEXT")
+    private String baostockData;
+
+    /** 护城河评分 1-10 */
+    @Column(name = "moat_score")
+    private Integer moatScore;
+
+    /** 紫苏叶判定: 盯住/观望/回避 等 */
+    @Column(name = "verdict", length = 64)
+    private String verdict;
+
+    /** 分析耗时 ms */
+    @Column(name = "elapsed_ms")
+    private Integer elapsedMs;
+
+    /** 报告详情 HTML (可保存/导出) */
+    @Column(name = "report_html", columnDefinition = "MEDIUMTEXT")
+    private String reportHtml;
+
     @Column(name = "degraded", nullable = false)
     private Integer degraded = 0;
 

@@ -22,11 +22,11 @@ public class SchemaInitializer implements CommandLineRunner {
     public void run(String... args) {
         ensureStockAnalysisTable();
         ensurePdfPathColumn();
+        ensureProsperityPickNewColumns();
     }
 
     private void ensurePdfPathColumn() {
         try {
-            // 幂等: 加列前先检查是否已存在
             Integer count = jdbc.queryForObject("""
                 SELECT COUNT(*) FROM information_schema.columns
                 WHERE table_schema = DATABASE()
@@ -39,6 +39,32 @@ public class SchemaInitializer implements CommandLineRunner {
             }
         } catch (Exception e) {
             log.warn("检查 pdf_path 列失败 (可忽略, 可能表还不存在): {}", e.getMessage());
+        }
+    }
+
+    private void ensureProsperityPickNewColumns() {
+        String[][] columns = {
+            {"chain_position", "TEXT", "紫苏叶产业链定位 JSON"},
+            {"nine_dimension", "TEXT", "高景气九维 JSON"},
+            {"baostock_data", "MEDIUMTEXT", "baostock 原始数据包 JSON"},
+            {"moat_score", "INT", "护城河评分 1-10"},
+            {"verdict", "VARCHAR(64)", "紫苏叶判定"},
+            {"elapsed_ms", "INT", "分析耗时 ms"},
+            {"report_html", "MEDIUMTEXT", "报告详情 HTML"}
+        };
+        for (String[] col : columns) {
+            try {
+                Integer count = jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'invest_prosperity_pick' AND column_name = '" + col[0] + "'",
+                    Integer.class);
+                if (count == null || count == 0) {
+                    String alterSql = "ALTER TABLE invest_prosperity_pick ADD COLUMN " + col[0] + " " + col[1] + " DEFAULT NULL COMMENT '" + col[2] + "'";
+                    jdbc.execute(alterSql);
+                    log.info("invest_prosperity_pick.{} 列已添加", col[0]);
+                }
+            } catch (Exception e) {
+                log.warn("检查 invest_prosperity_pick.{} 列失败 (可忽略): {}", col[0], e.getMessage());
+            }
         }
     }
 

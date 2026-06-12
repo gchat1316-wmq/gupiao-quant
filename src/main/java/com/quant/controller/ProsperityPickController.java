@@ -39,6 +39,13 @@ public class ProsperityPickController {
         return service.get(id);
     }
 
+    /** 获取报告详情 HTML（懒生成） */
+    @GetMapping("/{id}/report")
+    public Map<String, String> report(@PathVariable Long id) {
+        String html = service.getReportHtml(id);
+        return Map.of("html", html);
+    }
+
     /** 异步生成信息图（懒生成） */
     @PostMapping("/{id}/infographic")
     public Map<String, String> infographic(@PathVariable Long id) {

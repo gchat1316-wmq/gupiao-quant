@@ -1,5 +1,7 @@
 package com.quant.service.prosperitystrong;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.quant.config.ProsperityStrongProperties;
 import com.quant.entity.ProsperityHotSector;
 import com.quant.entity.ProsperityLeaderCandidate;
@@ -9,10 +11,17 @@ import com.quant.repository.TradeStockBasicRepository;
 import com.quant.repository.TradeStockDailyRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.net.URI;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,6 +45,11 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class LeaderIdentifier {
 
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final String EM_MEMBER_URL =
+            "https://push2.eastmoney.com/api/qt/clist/get?pn=1&pz=200&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281"
+                    + "&fltt=2&invt=2&fid=f3&fs=b:%s&fields=f12,f14";
+
     private final TradeStockBasicRepository basicRepo;
     private final TradeStockDailyRepository dailyRepo;
     private final ProsperityStrongProperties props;
@@ -43,12 +57,13 @@ public class LeaderIdentifier {
     public List<ProsperityLeaderCandidate> identify(LocalDate snapDate, ProsperityHotSector sector) {
         if (sector == null || sector.getSectorName() == null) return Collections.emptyList();
 
-        List<TradeStockBasic> realMembers = findMembers(sector.getSectorName());
+        MemberLookup memberLookup = lookupMembers(sector);
+        List<TradeStockBasic> realMembers = memberLookup.members();
         if (realMembers.size() > 100) {
             realMembers = realMembers.subList(0, 100);
         }
         if (realMembers.isEmpty()) {
-            log.info("板块[{}] 未找到成分股,跳过", sector.getSectorName());
+            log.info("板块[{}] 未找到成分股,跳过: {}", sector.getSectorName(), memberLookup.diagnosticMessage());
             return Collections.emptyList();
         }
 
@@ -109,7 +124,90 @@ public class LeaderIdentifier {
         return scored;
     }
 
-    private List<TradeStockBasic> findMembers(String sectorName) {
+    private MemberLookup lookupMembers(ProsperityHotSector sector) {
+        String sectorName = sector == null ? null : sector.getSectorName();
+        if (sectorName == null || sectorName.isBlank()) {
+            return new MemberLookup(List.of(), "板块名称为空");
+        }
+
+        String emDiagnostic = null;
+        if (canUseEastMoneyMembers(sector)) {
+            try {
+                List<TradeStockBasic> membersByCode = findMembersByEastMoneySectorCode(sector.getSectorCode());
+                if (!membersByCode.isEmpty()) {
+                    return new MemberLookup(membersByCode, "已通过东方财富板块成分股匹配本地股票");
+                }
+                emDiagnostic = "东方财富板块成分股为空或未映射到本地股票";
+            } catch (Exception e) {
+                log.warn("板块[{}] 东方财富成分股抓取失败: {}", sectorName, e.getMessage());
+                emDiagnostic = "东方财富板块成分股抓取失败: " + e.getMessage();
+            }
+        }
+
+        List<TradeStockBasic> localMembers = findMembersByAliases(sectorName);
+        if (!localMembers.isEmpty()) {
+            String diagnostic = emDiagnostic == null
+                    ? "已通过本地 trade_stock_basic.sector_names/别名匹配成分股"
+                    : emDiagnostic + "；已回退到本地 trade_stock_basic.sector_names/别名匹配成分股";
+            return new MemberLookup(localMembers, diagnostic);
+        }
+
+        String diagnostic = emDiagnostic == null
+                ? "本地 trade_stock_basic.sector_names 未匹配到该板块或别名"
+                : emDiagnostic + "；本地 trade_stock_basic.sector_names 未匹配到该板块或别名";
+        return new MemberLookup(List.of(), diagnostic);
+    }
+
+    private boolean canUseEastMoneyMembers(ProsperityHotSector sector) {
+        return sector != null
+                && sector.getSectorCode() != null
+                && sector.getSectorCode().startsWith("BK");
+    }
+
+    private List<TradeStockBasic> findMembersByEastMoneySectorCode(String sectorCode) throws Exception {
+        Map<String, TradeStockBasic> members = new LinkedHashMap<>();
+        for (String rawCode : fetchEastMoneyMemberCodes(sectorCode)) {
+            for (TradeStockBasic basic : basicRepo.findByStockCodePrefix(rawCode)) {
+                members.putIfAbsent(basic.getStockCode(), basic);
+            }
+        }
+        return new ArrayList<>(members.values());
+    }
+
+    List<String> fetchEastMoneyMemberCodes(String sectorCode) throws Exception {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        int timeoutMs = props.getSource().getTimeoutSeconds() * 1000;
+        factory.setConnectTimeout(timeoutMs);
+        factory.setReadTimeout(timeoutMs);
+        RestTemplate rest = new RestTemplate(factory);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.USER_AGENT, "Mozilla/5.0");
+        headers.add(HttpHeaders.REFERER, "https://quote.eastmoney.com/");
+
+        String url = String.format(EM_MEMBER_URL, sectorCode);
+        ResponseEntity<String> response = rest.exchange(URI.create(url), HttpMethod.GET, new HttpEntity<>(headers), String.class);
+        String body = response.getBody();
+        if (body == null || body.isBlank()) {
+            return List.of();
+        }
+        JsonNode root = MAPPER.readTree(body);
+        JsonNode diff = root.path("data").path("diff");
+        if (!diff.isArray() || diff.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> codes = new ArrayList<>();
+        for (JsonNode item : diff) {
+            String rawCode = item.path("f12").asText("").trim();
+            if (rawCode.matches("\\d{6}")) {
+                codes.add(rawCode);
+            }
+        }
+        return codes.stream().distinct().toList();
+    }
+
+    private List<TradeStockBasic> findMembersByAliases(String sectorName) {
         Map<String, TradeStockBasic> members = new LinkedHashMap<>();
         for (String keyword : sectorKeywords(sectorName)) {
             for (TradeStockBasic basic : basicRepo.findBySectorNameLike(keyword)) {
@@ -121,12 +219,24 @@ public class LeaderIdentifier {
 
     private List<String> sectorKeywords(String sectorName) {
         List<String> keywords = new ArrayList<>();
-        keywords.add(sectorName);
-        switch (sectorName) {
+        String normalized = normalizeSectorName(sectorName);
+        if (sectorName != null && !sectorName.isBlank()) {
+            keywords.add(sectorName.trim());
+        }
+        if (!normalized.isBlank()) {
+            keywords.add(normalized);
+        }
+        switch (normalized) {
             case "半导体" -> {
                 keywords.add("芯片");
                 keywords.add("集成电路");
                 keywords.add("中芯国际");
+                keywords.add("华为海思");
+            }
+            case "半导体及元件" -> {
+                keywords.add("芯片");
+                keywords.add("集成电路");
+                keywords.add("PCB");
                 keywords.add("华为海思");
             }
             case "光模块" -> {
@@ -143,14 +253,13 @@ public class LeaderIdentifier {
             }
             case "工业母机" -> {
                 keywords.add("机器人");
-                keywords.add("工业4.0");
                 keywords.add("智能机器");
             }
             case "创新药" -> {
-                keywords.add("创新药");
                 keywords.add("医药");
                 keywords.add("医疗器械");
                 keywords.add("基因");
+                keywords.add("CXO");
             }
             default -> {
             }
@@ -158,16 +267,27 @@ public class LeaderIdentifier {
         return keywords.stream().distinct().toList();
     }
 
-    public MemberStats memberStats(String sectorName) {
-        List<TradeStockBasic> members = findMembers(sectorName);
+    private String normalizeSectorName(String sectorName) {
+        if (sectorName == null) return "";
+        return sectorName.replaceAll("[ⅠⅡⅢⅣⅤ]+", "")
+                .replace("（", "(")
+                .replace("）", ")")
+                .replaceAll("\\s+", "")
+                .replaceAll("(概念|板块|指数|等权)$", "")
+                .trim();
+    }
+
+    public MemberStats memberStats(ProsperityHotSector sector) {
+        MemberLookup lookup = lookupMembers(sector);
+        List<TradeStockBasic> members = lookup.members();
         if (members.isEmpty()) {
-            return new MemberStats(0, 0, "本地 trade_stock_basic.sector_names 未匹配到该板块或别名");
+            return new MemberStats(0, 0, lookup.diagnosticMessage());
         }
         List<TradeStockDaily> quotes = dailyRepo.findLatestByStockCodes(
                 members.stream().map(TradeStockBasic::getStockCode).toList());
         String message = quotes.isEmpty()
-                ? "已匹配成分股,但 trade_stock_daily 无这些股票的日线行情,无法计算龙头分"
-                : "已匹配成分股和日线行情";
+                ? lookup.diagnosticMessage() + "；但 trade_stock_daily 无这些股票的日线行情,无法计算龙头分"
+                : lookup.diagnosticMessage() + "；已匹配成分股和日线行情";
         return new MemberStats(members.size(), quotes.size(), message);
     }
 
@@ -204,6 +324,8 @@ public class LeaderIdentifier {
         double total = 0.4 * yScore + 0.4 * fScore + 0.2 * tScore;
         return BigDecimal.valueOf(Math.max(0, Math.min(100, total))).setScale(2, RoundingMode.HALF_UP);
     }
+
+    private record MemberLookup(List<TradeStockBasic> members, String diagnosticMessage) {}
 
     public record MemberStats(int matchedMemberCount, int quotedMemberCount, String diagnosticMessage) {}
 }

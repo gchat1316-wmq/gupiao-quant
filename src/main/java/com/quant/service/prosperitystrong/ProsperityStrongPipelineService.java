@@ -227,7 +227,7 @@ public class ProsperityStrongPipelineService {
         return sectorList.stream().map(s -> {
             List<LeaderCandidateDTO> leaders = bySectorId.getOrDefault(s.getId(), List.of()).stream()
                     .map(this::toLeaderDTO).toList();
-            LeaderIdentifier.MemberStats stats = leaderIdentifier.memberStats(s.getSectorName());
+            LeaderIdentifier.MemberStats stats = leaderIdentifier.memberStats(s);
             return toSectorDTO(s, leaders, stats);
         }).toList();
     }
