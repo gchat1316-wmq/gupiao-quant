@@ -68,4 +68,8 @@ public class StockAnalysisRecord {
 
     @Column(name = "finished_at")
     private LocalDateTime finishedAt;
+
+    /** PDF 文件路径 (相对 uploads/ 目录) */
+    @Column(name = "pdf_path", length = 255)
+    private String pdfPath;
 }

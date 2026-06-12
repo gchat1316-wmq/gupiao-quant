@@ -361,7 +361,7 @@
               </div>
             ` : ''}
             ${showError ? `<div class="sa-error-detail">❌ 失败原因: ${escapeHtml(r.errorMessage || '未知')}</div>` : ''}
-            ${r.status === 'SUCCESS' ? `<div id="report-${r.id}"><div class="sa-empty">加载研报中...</div></div>` : ''}
+            ${r.status === 'SUCCESS' ? `<div id="report-${r.id}"><div class="sa-empty">加载研报中...</div><div style="text-align:center;margin-top:8px;"><button class="sa-btn-mini" onclick="downloadPdf(${r.id})">📄 下载 PDF 报告</button></div></div>` : ''}
             <div style="text-align:right;margin-top:6px;font-size:11px;color:#9aa4b2;">
               提交: ${submittedAt} ${r.elapsedMs != null ? '· 耗时 ' + (r.elapsedMs/1000).toFixed(1) + 's' : ''}
             </div>
@@ -611,6 +611,46 @@
       }
       floatingTimer.classList.add('show');
       ftText.textContent = `${activePolling.size} 个分析进行中`;
+    }
+
+    // ============================================================
+    // 下载 PDF
+    // ============================================================
+    async function downloadPdf(id) {
+      const btn = event && event.target;
+      const oldText = btn ? btn.textContent : '';
+      if (btn) { btn.disabled = true; btn.textContent = '生成中...'; }
+      try {
+        const resp = await fetch(`${API_BASE}/pdf/${id}`);
+        if (!resp.ok) {
+          const j = await resp.json().catch(() => ({}));
+          alert('下载失败: ' + (j.message || resp.status));
+          return;
+        }
+        // 从响应头取文件名
+        const cd = resp.headers.get('Content-Disposition') || '';
+        let fileName = 'stock-analysis-report.pdf';
+        const utf8Match = cd.match(/filename\*=UTF-8''([^;]+)/);
+        if (utf8Match) {
+          fileName = decodeURIComponent(utf8Match[1]);
+        } else {
+          const fnMatch = cd.match(/filename="?([^";]+)"?/);
+          if (fnMatch) fileName = fnMatch[1];
+        }
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (e) {
+        alert('下载失败: ' + e.message);
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = oldText; }
+      }
     }
 
     // ============================================================

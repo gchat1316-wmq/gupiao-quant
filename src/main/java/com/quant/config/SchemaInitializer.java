@@ -21,6 +21,25 @@ public class SchemaInitializer implements CommandLineRunner {
     @Override
     public void run(String... args) {
         ensureStockAnalysisTable();
+        ensurePdfPathColumn();
+    }
+
+    private void ensurePdfPathColumn() {
+        try {
+            // 幂等: 加列前先检查是否已存在
+            Integer count = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM information_schema.columns
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'stock_analysis_record'
+                  AND column_name = 'pdf_path'
+                """, Integer.class);
+            if (count == null || count == 0) {
+                jdbc.execute("ALTER TABLE stock_analysis_record ADD COLUMN pdf_path VARCHAR(255) DEFAULT NULL COMMENT 'PDF 文件路径'");
+                log.info("stock_analysis_record.pdf_path 列已添加");
+            }
+        } catch (Exception e) {
+            log.warn("检查 pdf_path 列失败 (可忽略, 可能表还不存在): {}", e.getMessage());
+        }
     }
 
     private void ensureStockAnalysisTable() {
@@ -44,6 +63,7 @@ public class SchemaInitializer implements CommandLineRunner {
                 submitted_at    DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
                 started_at      DATETIME(3) DEFAULT NULL,
                 finished_at     DATETIME(3) DEFAULT NULL,
+                pdf_path        VARCHAR(255) DEFAULT NULL COMMENT '生成的 PDF 文件相对路径',
                 INDEX idx_stock_code (stock_code),
                 INDEX idx_status (status),
                 INDEX idx_submitted_at (submitted_at)

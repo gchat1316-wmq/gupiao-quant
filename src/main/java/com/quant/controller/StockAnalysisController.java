@@ -4,6 +4,7 @@ import com.quant.dto.stockanalysis.StockAnalysisRecordListDTO;
 import com.quant.dto.stockanalysis.StockAnalysisRequest;
 import com.quant.dto.stockanalysis.StockAnalysisResponse;
 import com.quant.entity.StockAnalysisRecord;
+import com.quant.service.StockAnalysisPdfService;
 import com.quant.service.StockAnalysisService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,7 @@ public class StockAnalysisController {
     private static final String API_KEY = "wmq-gp-secret-2026";
 
     private final StockAnalysisService service;
+    private final StockAnalysisPdfService pdfService;
 
     /**
      * 提交分析任务 (立即返回 recordId)
@@ -124,6 +126,61 @@ public class StockAnalysisController {
         r.put("size", p.getSize());
         r.put("records", p.getContent());
         return r;
+    }
+
+    /**
+     * 懒生成 + 返回 PDF (一次性 stream 下载)
+     * - 首次调用生成, 之后复用
+     * - SUCCESS 状态才允许
+     */
+    @GetMapping(value = "/pdf/{id}")
+    public void pdf(@PathVariable Long id, jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
+        StockAnalysisRecord rec = service.getById(id);
+        if (rec == null) {
+            response.setStatus(404);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("{\"ok\":false,\"code\":404,\"message\":\"记录不存在\"}");
+            return;
+        }
+        if (!"SUCCESS".equals(rec.getStatus())) {
+            response.setStatus(400);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("{\"ok\":false,\"code\":400,\"message\":\"仅 SUCCESS 状态可导出, 当前: " + rec.getStatus() + "\"}");
+            return;
+        }
+        try {
+            String relativePath = pdfService.generate(rec);
+            rec.setPdfPath(relativePath);
+            service.save(rec);
+
+            java.io.File file = pdfService.resolvePdfFile(relativePath);
+            if (file == null || !file.exists()) {
+                response.setStatus(500);
+                response.setContentType("application/json;charset=UTF-8");
+                response.getWriter().write("{\"ok\":false,\"code\":500,\"message\":\"PDF 文件丢失\"}");
+                return;
+            }
+            byte[] bytes = java.nio.file.Files.readAllBytes(file.toPath());
+            // HTTP header 不允许非 ASCII, 全部 URL 编码
+            String displayName = (rec.getStockName() == null ? rec.getStockCodeRaw() : rec.getStockName())
+                    + "-" + rec.getStockCodeRaw() + "-分析报告.pdf";
+            String encoded = java.net.URLEncoder.encode(displayName, java.nio.charset.StandardCharsets.UTF_8)
+                    .replace("+", "%20");
+            response.setStatus(200);
+            response.setContentType("application/pdf;charset=UTF-8");
+            response.setContentLength(bytes.length);
+            // 使用 RFC 5987 双 filename, ASCII fallback 用 stockCode (e.g. 688627-analysis.pdf)
+            String asciiFallback = rec.getStockCodeRaw() + "-analysis.pdf";
+            response.setHeader("Content-Disposition",
+                    "attachment; filename=\"" + asciiFallback + "\"; filename*=UTF-8''" + encoded);
+            response.getOutputStream().write(bytes);
+            response.getOutputStream().flush();
+        } catch (Exception e) {
+            log.error("PDF 导出失败: id={}", id, e);
+            response.setStatus(500);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("{\"ok\":false,\"code\":500,\"message\":\"PDF 生成失败: " + e.getMessage().replace("\"", "'") + "\"}");
+        }
     }
 
     /**

@@ -207,6 +207,10 @@ public class StockAnalysisService {
         return repository.findById(id).orElse(null);
     }
 
+    public StockAnalysisRecord save(StockAnalysisRecord rec) {
+        return repository.save(rec);
+    }
+
     public StockAnalysisResponse parseRecordJson(StockAnalysisRecord rec) {
         if (rec == null || rec.getResultJson() == null) return null;
         try {
