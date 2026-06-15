@@ -26,6 +26,7 @@
   METRIC_CONFIG.forEach(function (m) { METRIC_MAP[m.key] = m; });
   const DEFAULT_KEYS = METRIC_CONFIG.filter(function (m) { return m.defaultOn; }).map(function (m) { return m.key; });
   const CHART_COLORS = ['#4c6ef5', '#82c91e', '#fab005', '#fa5252', '#15aabf', '#be4bdb'];
+  const EXPORT_TABLE_HEAD = '#0b83f6';
 
   /* ===== Formatters ===== */
   function pctFmt(v) {
@@ -267,10 +268,11 @@
       els.tablesWrap.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:16px">请至少选择一个指标</p>';
       return;
     }
+    const showInfoBars = stocks.length === 1;
     stocks.forEach(function (s) {
       const headerCols = s.quarters.map(function (q) { return '<th>' + esc(q.quarter) + '</th>'; }).join('');
       const rows = keys.map(function (key) { return rowHtml(METRIC_MAP[key].label, s.quarters, key); }).join('');
-      var hasInfo = !!s.basicInfo;
+      var hasInfo = showInfoBars && !!s.basicInfo;
       els.tablesWrap.insertAdjacentHTML('beforeend',
         (hasInfo ? buildInfoBar(s) : '') +
         '<div class="table-scroll' + (hasInfo ? ' has-info-bar' : '') + '">' +
@@ -349,6 +351,200 @@
     });
   }
 
+  function getSelectedMetricKeys() {
+    const keys = METRIC_CONFIG.filter(function (m) { return selectedKeys.has(m.key); }).map(function (m) { return m.key; });
+    return keys.length ? keys : DEFAULT_KEYS.slice();
+  }
+
+  function buildExportAxisDesc(stocks) {
+    const map = new Map();
+    stocks.forEach(function (s) {
+      (s.quarters || []).forEach(function (q) { map.set(q.reportDate, q.quarter); });
+    });
+    return Array.from(map.keys()).sort().reverse().map(function (d) { return { date: d, quarter: map.get(d) }; });
+  }
+
+  function downloadCsv(stocks) {
+    const axis = buildExportAxisDesc(stocks);
+    const keys = getSelectedMetricKeys();
+    const rows = [['股票名称', '股票代码', '指标'].concat(axis.map(function (a) { return a.quarter; }))];
+
+    stocks.forEach(function (s) {
+      const byDate = {};
+      (s.quarters || []).forEach(function (q) { byDate[q.reportDate] = q; });
+      keys.forEach(function (key) {
+        const cfg = METRIC_MAP[key];
+        rows.push([s.stockName, s.stockCode, cfg.label].concat(axis.map(function (a) {
+          const q = byDate[a.date];
+          return q ? csvValue(cfg, q[key]) : '';
+        })));
+      });
+    });
+
+    const csv = '\ufeff' + rows.map(function (row) {
+      return row.map(csvCell).join(',');
+    }).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    downloadBlob(blob, exportBaseName() + '_财务数据.csv');
+  }
+
+  function csvValue(cfg, value) {
+    if (value == null) return '';
+    const n = Number(value);
+    if (!isFinite(n)) return '';
+    if (cfg.unit === '亿') return (n / 1e8).toFixed(4);
+    return n.toFixed(4);
+  }
+
+  function csvCell(value) {
+    const s = value == null ? '' : String(value);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 800);
+  }
+
+  function exportBaseName() {
+    const names = currentData && currentData.stocks
+      ? currentData.stocks.map(function (s) { return s.stockName || s.stockCode; }).join('_')
+      : '财务分析';
+    return (names || '财务分析').replace(/[\\/:*?"<>|]/g, '_').slice(0, 80);
+  }
+
+  function loadImage(src) {
+    return new Promise(function (resolve, reject) {
+      const img = new Image();
+      img.onload = function () { resolve(img); };
+      img.onerror = reject;
+      img.src = src;
+    });
+  }
+
+  async function downloadCombinedPng(stocks) {
+    if (!chart) return;
+    const axis = buildExportAxisDesc(stocks);
+    const keys = getSelectedMetricKeys();
+    const chartImg = await loadImage(chart.toBase64Image('image/png', 1));
+    const colW = 112;
+    const firstColW = 178;
+    const left = 40;
+    const right = 40;
+    const tableW = firstColW + axis.length * colW;
+    const width = Math.max(1280, tableW + left + right);
+    const titleH = 98;
+    const chartH = 430;
+    const gap = 30;
+    const headH = 74;
+    const rowH = 52;
+    const tableGap = 30;
+    const tableH = headH + keys.length * rowH;
+    const height = titleH + chartH + gap + stocks.length * tableH + Math.max(0, stocks.length - 1) * tableGap + 42;
+    const scale = 2;
+    const canvas = document.createElement('canvas');
+    canvas.width = width * scale;
+    canvas.height = height * scale;
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#2f3745';
+    ctx.font = '700 40px "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.fillText(stocks.length > 1 ? '核心财务指标对比分析' : stocks[0].stockName + ' 财务趋势分析', width / 2, 54);
+    ctx.fillStyle = '#a1a1aa';
+    ctx.font = '500 22px "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.fillText('www.gupiaochaxun.top', width / 2, 88);
+
+    drawContainImage(ctx, chartImg, left, titleH, width - left - right, chartH);
+
+    let y = titleH + chartH + gap;
+    stocks.forEach(function (s) {
+      drawExportTable(ctx, s, axis, keys, left, y, firstColW, colW, headH, rowH);
+      y += tableH + tableGap;
+    });
+
+    await new Promise(function (resolve, reject) {
+      canvas.toBlob(function (blob) {
+        if (!blob) {
+          reject(new Error('图片生成失败'));
+          return;
+        }
+        downloadBlob(blob, exportBaseName() + '_' + METRIC_MAP[currentChartKey].label + '_图表.png');
+        resolve();
+      }, 'image/png', 0.96);
+    });
+  }
+
+  function drawContainImage(ctx, img, x, y, w, h) {
+    const ratio = Math.min(w / img.width, h / img.height);
+    const dw = img.width * ratio;
+    const dh = img.height * ratio;
+    ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+  }
+
+  function drawExportTable(ctx, stock, axis, keys, x, y, firstColW, colW, headH, rowH) {
+    const byDate = {};
+    (stock.quarters || []).forEach(function (q) { byDate[q.reportDate] = q; });
+
+    drawCell(ctx, x, y, firstColW, headH, EXPORT_TABLE_HEAD, '#dce4ee');
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '700 21px "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(stock.stockName || '', x + firstColW / 2, y + headH / 2 - 12);
+    ctx.fillText('(' + (stock.stockCode || '') + ')', x + firstColW / 2, y + headH / 2 + 14);
+
+    axis.forEach(function (a, idx) {
+      drawCell(ctx, x + firstColW + idx * colW, y, colW, headH, EXPORT_TABLE_HEAD, '#dce4ee');
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '700 20px "PingFang SC", "Microsoft YaHei", sans-serif';
+      ctx.fillText(a.quarter, x + firstColW + idx * colW + colW / 2, y + headH / 2);
+    });
+
+    keys.forEach(function (key, rowIdx) {
+      const cfg = METRIC_MAP[key];
+      const rowY = y + headH + rowIdx * rowH;
+      drawCell(ctx, x, rowY, firstColW, rowH, '#f6f8fa', '#dce4ee');
+      ctx.fillStyle = '#111827';
+      ctx.font = '700 20px "PingFang SC", "Microsoft YaHei", sans-serif';
+      ctx.fillText(cfg.label, x + firstColW / 2, rowY + rowH / 2);
+      axis.forEach(function (a, idx) {
+        const q = byDate[a.date];
+        const v = q ? q[key] : null;
+        drawCell(ctx, x + firstColW + idx * colW, rowY, colW, rowH, '#ffffff', '#dce4ee');
+        ctx.fillStyle = exportValueColor(cfg, v);
+        ctx.font = '700 19px "PingFang SC", "Microsoft YaHei", sans-serif';
+        ctx.fillText(cfg.formatter(v), x + firstColW + idx * colW + colW / 2, rowY + rowH / 2);
+      });
+    });
+  }
+
+  function drawCell(ctx, x, y, w, h, fill, stroke) {
+    ctx.fillStyle = fill;
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, w, h);
+  }
+
+  function exportValueColor(cfg, v) {
+    if (!cfg.color || v == null) return '#111827';
+    const n = Number(v);
+    if (!isFinite(n) || n === 0) return '#111827';
+    return n > 0 ? '#e11d48' : '#2f9e44';
+  }
+
   function esc(s) {
     if (s == null) return '';
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -379,12 +575,20 @@
       els.searchInput.value = '';
     }
   });
-  els.downloadBtn.addEventListener('click', function () {
-    if (!chart) return;
-    const a = document.createElement('a');
-    a.href = chart.toBase64Image('image/png', 1);
-    a.download = METRIC_MAP[currentChartKey].label + '_对比图.png';
-    document.body.appendChild(a); a.click(); a.remove();
+  els.downloadBtn.addEventListener('click', async function () {
+    if (!chart || !currentData || !currentData.stocks || !currentData.stocks.length) return;
+    els.downloadBtn.disabled = true;
+    const orig = els.downloadBtn.textContent;
+    els.downloadBtn.textContent = '生成中...';
+    try {
+      await downloadCombinedPng(currentData.stocks);
+      downloadCsv(currentData.stocks);
+    } catch (e) {
+      alert('下载失败: ' + (e.message || e));
+    } finally {
+      els.downloadBtn.disabled = false;
+      els.downloadBtn.textContent = orig;
+    }
   });
 
   els.metricDefaultBtn.addEventListener('click', function () {
