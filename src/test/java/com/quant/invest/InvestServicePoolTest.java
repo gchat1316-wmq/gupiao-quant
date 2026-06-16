@@ -17,8 +17,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Collections;
 import java.util.List;
+import java.math.BigDecimal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -84,5 +87,61 @@ class InvestServicePoolTest {
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getStockName()).isEqualTo("佰维存储");
+    }
+
+    @Test
+    @DisplayName("科技风投股票池按截图 displayOrder 排序且保留其它池")
+    void listPoolOrdersTechVcByDisplayOrder() {
+        InvestStockPool second = pool(2, "688515.SH", "裕太微", "tech_vc", 20);
+        InvestStockPool quality = pool(3, "600519.SH", "贵州茅台", "quality", null);
+        InvestStockPool first = pool(1, "688610.SH", "埃科光电", "tech_vc", 10);
+
+        when(poolRepo.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(second, quality, first));
+        when(stockBasicRepo.findByStockCodeIn(any())).thenReturn(Collections.emptyList());
+        when(financialRepo.findLatestByStockCodes(List.of("688515.SH", "600519.SH", "688610.SH"))).thenReturn(Collections.emptyList());
+        when(dailyRepo.findLatestByStockCodes(List.of("688515.SH", "600519.SH", "688610.SH"))).thenReturn(Collections.emptyList());
+        when(dailyRepo.findFirstAfterDateByStockCodes(eq(List.of("688515.SH", "600519.SH", "688610.SH")), any()))
+                .thenReturn(Collections.emptyList());
+
+        List<PoolItemDTO> result = service.listPool();
+
+        assertThat(result).extracting(PoolItemDTO::getStockName)
+                .containsExactly("埃科光电", "裕太微", "贵州茅台");
+    }
+
+    @Test
+    @DisplayName("当前市值和今年涨幅优先使用周末刷新快照")
+    void listPoolUsesPersistedSnapshotFieldsBeforeDerivedValues() {
+        InvestStockPool pool = pool(1, "688610.SH", "埃科光电", "tech_vc", 10);
+        pool.setCurrentMarketCap(new BigDecimal("144.70"));
+        pool.setYtdGainPct(new BigDecimal("244.28"));
+
+        TradeStockBasic basic = new TradeStockBasic();
+        basic.setStockCode("688610.SH");
+        basic.setStockName("埃科光电");
+        basic.setTotalShares(100_000_000L);
+
+        when(poolRepo.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(pool));
+        when(stockBasicRepo.findByStockCodeIn(any())).thenReturn(List.of(basic));
+        when(financialRepo.findLatestByStockCodes(List.of("688610.SH"))).thenReturn(Collections.emptyList());
+        when(dailyRepo.findLatestByStockCodes(List.of("688610.SH"))).thenReturn(Collections.emptyList());
+        when(dailyRepo.findFirstAfterDateByStockCodes(eq(List.of("688610.SH")), any())).thenReturn(Collections.emptyList());
+
+        PoolItemDTO item = service.listPool().get(0);
+
+        assertThat(item.getCurrentMarketCap()).isEqualByComparingTo("144.70");
+        assertThat(item.getMarketCap()).isEqualByComparingTo("144.70");
+        assertThat(item.getYtdGainPct()).isEqualByComparingTo("244.28");
+        assertThat(item.getYtdGain()).isEqualByComparingTo("244.28");
+    }
+
+    private InvestStockPool pool(Integer id, String code, String name, String poolType, Integer displayOrder) {
+        InvestStockPool pool = new InvestStockPool();
+        pool.setId(id);
+        pool.setStockCode(code);
+        pool.setStockName(name);
+        pool.setPoolType(poolType);
+        pool.setDisplayOrder(displayOrder);
+        return pool;
     }
 }

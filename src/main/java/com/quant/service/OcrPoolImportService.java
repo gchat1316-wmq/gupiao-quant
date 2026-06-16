@@ -44,10 +44,19 @@ public class OcrPoolImportService {
             "      \"overvaluedPrice\": null,\n" +
             "      \"targetBuyPrice\": null,\n" +
             "      \"targetSellPrice\": null,\n" +
+            "      \"revenue2023\": 2023年营收，单位亿元，纯数字，无则 null,\n" +
+            "      \"revenue2024\": 2024年营收，单位亿元，纯数字，无则 null,\n" +
+            "      \"revenue2025\": 2025年营收，单位亿元，纯数字，无则 null,\n" +
             "      \"revenueForecastY0\": 该股票今年（当前年度）预测营收，单位亿元，纯数字（如 50.5），无则 null,\n" +
             "      \"revenueForecastY1\": 明年预测营收（亿），无则 null,\n" +
             "      \"revenueForecastY2\": 后年预测营收（亿），无则 null,\n" +
-            "      \"memo\": \"可选备注，可记录截图的额外信息（如：毛利率42%、净利率15%、近5年最低PS 6.33倍、目前市值139亿、年初涨幅231%等）\"\n" +
+            "      \"q1GrossMargin\": 2026Q1毛利率百分比，纯数字，无则 null,\n" +
+            "      \"q1NetMargin\": 2026Q1净利率百分比，纯数字，无则 null,\n" +
+            "      \"q1RevenueGrowth\": 2026Q1营收增速百分比，纯数字，无则 null,\n" +
+            "      \"minPs5y\": 近5年最低动态PS倍数，纯数字，无则 null,\n" +
+            "      \"currentMarketCap\": 当前市值，单位亿元，纯数字，无则 null,\n" +
+            "      \"ytdGainPct\": 今年涨幅百分比，纯数字，无则 null,\n" +
+            "      \"memo\": \"可选备注\"\n" +
             "    }\n" +
             "  ]\n" +
             "}\n" +
@@ -182,9 +191,18 @@ public class OcrPoolImportService {
                         .overvaluedPrice(decimalOrNull(n, "overvaluedPrice"))
                         .targetBuyPrice(decimalOrNull(n, "targetBuyPrice"))
                         .targetSellPrice(decimalOrNull(n, "targetSellPrice"))
+                        .revenue2023(decimalOrNull(n, "revenue2023"))
+                        .revenue2024(decimalOrNull(n, "revenue2024"))
+                        .revenue2025(decimalOrNull(n, "revenue2025"))
                         .revenueForecastY0(decimalOrNull(n, "revenueForecastY0"))
                         .revenueForecastY1(decimalOrNull(n, "revenueForecastY1"))
                         .revenueForecastY2(decimalOrNull(n, "revenueForecastY2"))
+                        .q1GrossMargin(decimalOrNull(n, "q1GrossMargin"))
+                        .q1NetMargin(decimalOrNull(n, "q1NetMargin"))
+                        .q1RevenueGrowth(decimalOrNull(n, "q1RevenueGrowth"))
+                        .minPs5y(decimalOrNull(n, "minPs5y"))
+                        .currentMarketCap(decimalOrNull(n, "currentMarketCap"))
+                        .ytdGainPct(decimalOrNull(n, "ytdGainPct"))
                         .memo(textOrNull(n, "memo"))
                         .matched(false)
                         .build();
@@ -256,9 +274,18 @@ public class OcrPoolImportService {
                 saveReq.setOvervaluedPrice(it.getOvervaluedPrice());
                 saveReq.setTargetBuyPrice(it.getTargetBuyPrice());
                 saveReq.setTargetSellPrice(it.getTargetSellPrice());
+                saveReq.setRevenue2023(it.getRevenue2023());
+                saveReq.setRevenue2024(it.getRevenue2024());
+                saveReq.setRevenue2025(it.getRevenue2025());
                 saveReq.setRevenueForecastY0(it.getRevenueForecastY0());
                 saveReq.setRevenueForecastY1(it.getRevenueForecastY1());
                 saveReq.setRevenueForecastY2(it.getRevenueForecastY2());
+                saveReq.setQ1GrossMargin(it.getQ1GrossMargin());
+                saveReq.setQ1NetMargin(it.getQ1NetMargin());
+                saveReq.setQ1RevenueGrowth(it.getQ1RevenueGrowth());
+                saveReq.setMinPs5y(it.getMinPs5y());
+                saveReq.setCurrentMarketCap(it.getCurrentMarketCap());
+                saveReq.setYtdGainPct(it.getYtdGainPct());
                 investService.addToPool(saveReq);
                 imported++;
             } catch (IllegalArgumentException e) {

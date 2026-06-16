@@ -25,6 +25,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -282,7 +283,18 @@ public class InvestService {
                 .collect(Collectors.toMap(TradeStockDaily::getStockCode, d -> d, (a, b) -> a));
 
         PoolPriceContext ctx = new PoolPriceContext(basicMap, finMap, latestDailyMap, yearStartDailyMap);
-        return items.stream().map(p -> toPoolItemDTO(p, ctx)).collect(Collectors.toList());
+        return items.stream()
+                .sorted(poolDisplayComparator())
+                .map(p -> toPoolItemDTO(p, ctx))
+                .collect(Collectors.toList());
+    }
+
+    private Comparator<InvestStockPool> poolDisplayComparator() {
+        return Comparator
+                .comparing((InvestStockPool p) -> "tech_vc".equals(p.getPoolType()) ? 0 : 1)
+                .thenComparing(p -> p.getDisplayOrder() == null ? Integer.MAX_VALUE : p.getDisplayOrder())
+                .thenComparing(InvestStockPool::getCreatedAt,
+                        Comparator.nullsLast(Comparator.reverseOrder()));
     }
 
     private record PoolPriceContext(Map<String, TradeStockBasic> basicMap,
@@ -360,6 +372,9 @@ public class InvestService {
         if (req.getQ1RevenueGrowth() != null) pool.setQ1RevenueGrowth(req.getQ1RevenueGrowth());
         if (req.getMinPs5y() != null) pool.setMinPs5y(req.getMinPs5y());
         if (req.getTargetMarketCap() != null) pool.setTargetMarketCap(req.getTargetMarketCap());
+        if (req.getCurrentMarketCap() != null) pool.setCurrentMarketCap(req.getCurrentMarketCap());
+        if (req.getYtdGainPct() != null) pool.setYtdGainPct(req.getYtdGainPct());
+        if (req.getDisplayOrder() != null) pool.setDisplayOrder(req.getDisplayOrder());
         if (req.getProfitLevel() != null) pool.setProfitLevel(req.getProfitLevel());
         if (req.getValuationRange() != null) pool.setValuationRange(req.getValuationRange());
     }
@@ -409,6 +424,9 @@ public class InvestService {
             case "q1RevenueGrowth" -> pool.setQ1RevenueGrowth(parseDecimal(raw));
             case "minPs5y" -> pool.setMinPs5y(parseDecimal(raw));
             case "targetMarketCap" -> pool.setTargetMarketCap(parseDecimal(raw));
+            case "currentMarketCap" -> pool.setCurrentMarketCap(parseDecimal(raw));
+            case "ytdGainPct" -> pool.setYtdGainPct(parseDecimal(raw));
+            case "displayOrder" -> pool.setDisplayOrder(blank ? null : Integer.parseInt(raw.trim()));
             case "profitLevel" -> pool.setProfitLevel(blank ? null : raw.trim());
             case "valuationRange" -> pool.setValuationRange(blank ? null : raw.trim());
             default -> throw new IllegalArgumentException("不支持的字段：" + field);
@@ -460,8 +478,8 @@ public class InvestService {
         TradeStockDaily yearStart = ctx.yearStartDailyMap().get(code);
 
         BigDecimal latestPrice = latest != null ? latest.getClosePrice() : null;
-        BigDecimal ytdGain = computeYtdGain(latest, yearStart);
-        BigDecimal marketCap = computeMarketCap(latestPrice, basic);
+        BigDecimal ytdGain = pool.getYtdGainPct() != null ? pool.getYtdGainPct() : computeYtdGain(latest, yearStart);
+        BigDecimal marketCap = pool.getCurrentMarketCap() != null ? pool.getCurrentMarketCap() : computeMarketCap(latestPrice, basic);
 
         BigDecimal latestRevenueYoy = fin != null ? fin.getRevenueYoy() : null;
         BigDecimal latestProfitYoy = fin != null ? fin.getDeductedNetProfitYoy() : null;
@@ -491,6 +509,10 @@ public class InvestService {
                 .q1RevenueGrowth(pool.getQ1RevenueGrowth())
                 .minPs5y(pool.getMinPs5y())
                 .targetMarketCap(pool.getTargetMarketCap())
+                .currentMarketCap(pool.getCurrentMarketCap())
+                .ytdGainPct(pool.getYtdGainPct())
+                .displayOrder(pool.getDisplayOrder())
+                .poolUpdateError(pool.getPoolUpdateError())
                 .profitLevel(pool.getProfitLevel())
                 .valuationRange(pool.getValuationRange())
                 .status(pool.getStatus())

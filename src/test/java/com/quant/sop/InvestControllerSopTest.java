@@ -3,6 +3,8 @@ package com.quant.sop;
 import com.quant.controller.InvestController;
 import com.quant.dto.invest.SopCheckupDTO;
 import com.quant.service.InvestService;
+import com.quant.service.InvestPoolRefreshService;
+import com.quant.service.InvestPoolSeedService;
 import com.quant.service.OcrPoolImportService;
 import com.quant.service.PriceMonitorService;
 import org.junit.jupiter.api.DisplayName;
@@ -27,6 +29,8 @@ class InvestControllerSopTest {
     @MockBean  InvestService investService;
     @MockBean  OcrPoolImportService ocrPoolImportService;
     @MockBean  PriceMonitorService priceMonitorService;
+    @MockBean  InvestPoolSeedService investPoolSeedService;
+    @MockBean  InvestPoolRefreshService investPoolRefreshService;
 
     private SopCheckupDTO.MetricCheck metric(String label, String verdict, double latest, String tip) {
         return SopCheckupDTO.MetricCheck.builder()

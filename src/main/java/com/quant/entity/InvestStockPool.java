@@ -79,6 +79,21 @@ public class InvestStockPool {
     @Column(name = "target_market_cap", precision = 12, scale = 2)
     private BigDecimal targetMarketCap;
 
+    @Column(name = "current_market_cap", precision = 12, scale = 2)
+    private BigDecimal currentMarketCap;
+
+    @Column(name = "ytd_gain_pct", precision = 8, scale = 2)
+    private BigDecimal ytdGainPct;
+
+    @Column(name = "display_order")
+    private Integer displayOrder;
+
+    @Column(name = "pool_data_updated_at")
+    private LocalDateTime poolDataUpdatedAt;
+
+    @Column(name = "pool_update_error", length = 1000)
+    private String poolUpdateError;
+
     @Column(name = "profit_level", length = 20)
     private String profitLevel;
 

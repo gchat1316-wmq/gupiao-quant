@@ -22,6 +22,15 @@ public class OcrParsedItemDTO {
     private BigDecimal revenueForecastY0;
     private BigDecimal revenueForecastY1;
     private BigDecimal revenueForecastY2;
+    private BigDecimal revenue2023;
+    private BigDecimal revenue2024;
+    private BigDecimal revenue2025;
+    private BigDecimal q1GrossMargin;
+    private BigDecimal q1NetMargin;
+    private BigDecimal q1RevenueGrowth;
+    private BigDecimal minPs5y;
+    private BigDecimal currentMarketCap;
+    private BigDecimal ytdGainPct;
 
     private String memo;
 }

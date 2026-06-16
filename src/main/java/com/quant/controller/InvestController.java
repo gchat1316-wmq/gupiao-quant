@@ -10,6 +10,8 @@ import com.quant.dto.invest.PoolSaveRequest;
 import com.quant.dto.invest.ProsperityResultDTO;
 import com.quant.dto.invest.SopCheckupDTO;
 import com.quant.service.InvestService;
+import com.quant.service.InvestPoolRefreshService;
+import com.quant.service.InvestPoolSeedService;
 import com.quant.service.OcrPoolImportService;
 import com.quant.service.PriceMonitorService;
 import org.springframework.http.ResponseEntity;
@@ -36,13 +38,19 @@ public class InvestController {
     private final InvestService investService;
     private final OcrPoolImportService ocrService;
     private final PriceMonitorService priceMonitorService;
+    private final InvestPoolSeedService poolSeedService;
+    private final InvestPoolRefreshService poolRefreshService;
 
     public InvestController(InvestService investService,
                             OcrPoolImportService ocrService,
-                            PriceMonitorService priceMonitorService) {
+                            PriceMonitorService priceMonitorService,
+                            InvestPoolSeedService poolSeedService,
+                            InvestPoolRefreshService poolRefreshService) {
         this.investService = investService;
         this.ocrService = ocrService;
         this.priceMonitorService = priceMonitorService;
+        this.poolSeedService = poolSeedService;
+        this.poolRefreshService = poolRefreshService;
     }
 
     /** 景气度扫描 + 16季度热力表（同一接口，quarters 参数控制深度） */
@@ -108,5 +116,19 @@ public class InvestController {
     public Map<String, String> runPriceMonitor() {
         priceMonitorService.monitorPrices();
         return Map.of("message", "monitor triggered");
+    }
+
+    /** 按截图顺序重建科技风投股票池。 */
+    @PostMapping("/pool/seed/tech-vc-screenshot")
+    public Map<String, Object> seedTechVcScreenshotPool() {
+        int inserted = poolSeedService.replaceTechVcWithScreenshotPool();
+        return Map.of("message", "tech_vc pool rebuilt", "inserted", inserted);
+    }
+
+    /** 手动触发股票池周末刷新逻辑。 */
+    @PostMapping("/pool/refresh")
+    public Map<String, Object> refreshPool() {
+        int refreshed = poolRefreshService.refreshTechVcSnapshots();
+        return Map.of("message", "pool refreshed", "refreshed", refreshed);
     }
 }

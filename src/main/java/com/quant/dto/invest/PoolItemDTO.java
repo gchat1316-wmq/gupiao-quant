@@ -42,6 +42,10 @@ public class PoolItemDTO {
     private BigDecimal q1RevenueGrowth;
     private BigDecimal minPs5y;
     private BigDecimal targetMarketCap;
+    private BigDecimal currentMarketCap;
+    private BigDecimal ytdGainPct;
+    private Integer displayOrder;
+    private String poolUpdateError;
     private String profitLevel;
     private String valuationRange;
 

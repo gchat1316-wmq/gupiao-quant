@@ -23,6 +23,30 @@ public class SchemaInitializer implements CommandLineRunner {
         ensureStockAnalysisTable();
         ensurePdfPathColumn();
         ensureProsperityPickNewColumns();
+        ensureInvestStockPoolSnapshotColumns();
+    }
+
+    private void ensureInvestStockPoolSnapshotColumns() {
+        String[][] columns = {
+            {"display_order", "INT", "股票池展示顺序"},
+            {"current_market_cap", "DECIMAL(12,2)", "当前市值快照(亿元)"},
+            {"ytd_gain_pct", "DECIMAL(8,2)", "今年涨幅快照(%)"},
+            {"pool_data_updated_at", "DATETIME", "股票池数据刷新时间"},
+            {"pool_update_error", "VARCHAR(1000)", "股票池数据刷新错误"}
+        };
+        for (String[] col : columns) {
+            try {
+                Integer count = jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'invest_stock_pool' AND column_name = '" + col[0] + "'",
+                        Integer.class);
+                if (count == null || count == 0) {
+                    jdbc.execute("ALTER TABLE invest_stock_pool ADD COLUMN " + col[0] + " " + col[1] + " DEFAULT NULL COMMENT '" + col[2] + "'");
+                    log.info("invest_stock_pool.{} 列已添加", col[0]);
+                }
+            } catch (Exception e) {
+                log.warn("检查 invest_stock_pool.{} 列失败 (可忽略): {}", col[0], e.getMessage());
+            }
+        }
     }
 
     private void ensurePdfPathColumn() {

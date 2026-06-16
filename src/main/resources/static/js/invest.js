@@ -519,8 +519,8 @@
     { key: 'q1NetMargin',       label: '2026Q1<br>净利率<br>(%)', cls: 'pool-col-rate', inline: 'number' },
     { key: 'q1RevenueGrowth',   label: '2026Q1<br>营收<br>增速(%)', cls: 'pool-col-rate', inline: 'number', render: renderGrowthEditCell },
     { key: 'minPs5y',           label: '近5年<br>最低<br>PS(倍)', cls: 'pool-col-ps', inline: 'number', render: renderPsCell },
-    { key: 'targetMarketCap',   label: '目标<br>市值<br>(亿)', cls: 'pool-col-num', inline: 'number', hot: true },
-    { key: 'ytdGain',           label: '今年<br>涨幅<br>(%)', cls: 'pool-col-rate', readonly: true, render: renderPctCell },
+    { key: 'currentMarketCap',  label: '当前<br>市值<br>(亿)', cls: 'pool-col-num', readonly: true, hot: true, render: renderMarketCapCell },
+    { key: 'ytdGainPct',        label: '今年<br>涨幅<br>(%)', cls: 'pool-col-rate', readonly: true, render: renderPctCell },
     { key: 'profitLevel',       label: '盈亏<br>等级', cls: 'pool-col-tag', inline: 'text', render: renderProfitLevelCell },
     { key: 'valuationRange',    label: '估值<br>区间', cls: 'pool-col-tag', inline: 'text', render: renderValuationRangeCell },
   ];
@@ -562,8 +562,6 @@
       wrap.innerHTML = '<div class="pool-empty">暂无股票，点击「+ 加入股票池」或「📷 截图批量导入」添加</div>';
       return;
     }
-
-    items = [...items].sort((a, b) => sortNum(b.q1RevenueGrowth) - sortNum(a.q1RevenueGrowth));
 
     let head = '<thead><tr>';
     POOL_COLUMNS.forEach(c => {
@@ -631,7 +629,7 @@
   }
 
   function renderPctCell(item, col) {
-    const v = item[col.key];
+    const v = item[col.key] != null ? item[col.key] : (col.key === 'ytdGainPct' ? item.ytdGain : null);
     if (v == null) return '<span style="color:#d1d5db">—</span>';
     const n = parseFloat(v);
     const cls = n > 0 ? 'up' : (n < 0 ? 'down' : '');
@@ -678,7 +676,7 @@
     return `<div class="pool-board-head">
       <div>
         <div class="pool-board-title">适合用10倍PS来简单估测和跟踪的高科技成长股 <span>${new Date().toISOString().slice(0, 10)}</span></div>
-        <div class="pool-board-note">判断依据：2026 Q1 营收增速、毛利率/净利率、动态 PS、目标市值与今年涨幅。</div>
+        <div class="pool-board-note">判断依据：2026 Q1 营收增速、毛利率/净利率、动态 PS、当前市值与今年涨幅。</div>
       </div>
       <div class="pool-board-stats">
         <span class="pool-stat red">超高景气 ${superCount}</span>
@@ -718,7 +716,7 @@
   }
 
   function renderMarketCapCell(item) {
-    const v = item.marketCap;
+    const v = item.currentMarketCap != null ? item.currentMarketCap : item.marketCap;
     if (v == null) return '<span style="color:#d1d5db">—</span>';
     return `<span class="pool-cell-price">${parseFloat(v).toFixed(1)}</span>`;
   }
@@ -860,7 +858,7 @@
       setTimeout(() => el.classList.remove('saved'), 800);
       // 如果改了 select（持仓状态/分类），重新渲染整行（filter 可能改变）
       if (field === 'status' || field === 'poolType') renderPool();
-      if (['q1RevenueGrowth', 'q1NetMargin', 'q1GrossMargin', 'targetMarketCap', 'valuationRange', 'profitLevel'].includes(field)) renderPool();
+      if (['q1RevenueGrowth', 'q1NetMargin', 'q1GrossMargin', 'currentMarketCap', 'ytdGainPct', 'valuationRange', 'profitLevel'].includes(field)) renderPool();
     } catch (e) {
       el.classList.remove('saving');
       el.classList.add('error');
@@ -1167,9 +1165,18 @@
       <th>高估价</th>
       <th>买入价</th>
       <th>卖出价</th>
-      <th>今年营收</th>
-      <th>明年营收</th>
-      <th>后年营收</th>
+      <th>2023营收</th>
+      <th>2024营收</th>
+      <th>2025营收</th>
+      <th>2026预测</th>
+      <th>2027预测</th>
+      <th>2028预测</th>
+      <th>Q1毛利率</th>
+      <th>Q1净利率</th>
+      <th>Q1营收增速</th>
+      <th>最低PS</th>
+      <th>当前市值</th>
+      <th>今年涨幅</th>
     </tr></thead><tbody>`;
     importParsedItems.forEach((it, idx) => {
       const cls = it.matched ? '' : 'match-failed';
@@ -1198,9 +1205,18 @@
         <td><input type="number" step="0.01" data-field="overvaluedPrice" value="${it.overvaluedPrice ?? ''}" /></td>
         <td><input type="number" step="0.01" data-field="targetBuyPrice" value="${it.targetBuyPrice ?? ''}" /></td>
         <td><input type="number" step="0.01" data-field="targetSellPrice" value="${it.targetSellPrice ?? ''}" /></td>
+        <td><input type="number" step="0.01" data-field="revenue2023" value="${it.revenue2023 ?? ''}" /></td>
+        <td><input type="number" step="0.01" data-field="revenue2024" value="${it.revenue2024 ?? ''}" /></td>
+        <td><input type="number" step="0.01" data-field="revenue2025" value="${it.revenue2025 ?? ''}" /></td>
         <td><input type="number" step="0.01" data-field="revenueForecastY0" value="${it.revenueForecastY0 ?? ''}" /></td>
         <td><input type="number" step="0.01" data-field="revenueForecastY1" value="${it.revenueForecastY1 ?? ''}" /></td>
         <td><input type="number" step="0.01" data-field="revenueForecastY2" value="${it.revenueForecastY2 ?? ''}" /></td>
+        <td><input type="number" step="0.01" data-field="q1GrossMargin" value="${it.q1GrossMargin ?? ''}" /></td>
+        <td><input type="number" step="0.01" data-field="q1NetMargin" value="${it.q1NetMargin ?? ''}" /></td>
+        <td><input type="number" step="0.01" data-field="q1RevenueGrowth" value="${it.q1RevenueGrowth ?? ''}" /></td>
+        <td><input type="number" step="0.01" data-field="minPs5y" value="${it.minPs5y ?? ''}" /></td>
+        <td><input type="number" step="0.01" data-field="currentMarketCap" value="${it.currentMarketCap ?? ''}" /></td>
+        <td><input type="number" step="0.01" data-field="ytdGainPct" value="${it.ytdGainPct ?? ''}" /></td>
       </tr>`;
     });
     html += '</tbody>';

@@ -25,6 +25,16 @@ class InvestStockPoolMappingTest {
         assertColumnName("revenue2025", "rev_2025");
     }
 
+    @Test
+    @DisplayName("科技风投截图看板字段映射到持久化列")
+    void techVcSnapshotFieldsMapToColumns() throws Exception {
+        assertColumnName("displayOrder", "display_order");
+        assertColumnName("currentMarketCap", "current_market_cap");
+        assertColumnName("ytdGainPct", "ytd_gain_pct");
+        assertColumnName("poolDataUpdatedAt", "pool_data_updated_at");
+        assertColumnName("poolUpdateError", "pool_update_error");
+    }
+
     private void assertColumnName(String fieldName, String columnName) throws Exception {
         Field field = InvestStockPool.class.getDeclaredField(fieldName);
         assertThat(field.getAnnotation(Column.class).name()).isEqualTo(columnName);
