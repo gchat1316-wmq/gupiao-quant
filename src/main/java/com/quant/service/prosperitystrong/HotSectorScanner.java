@@ -38,16 +38,27 @@ public class HotSectorScanner {
                     + "&fltt=2&invt=2&fid=f3&fs=m:90+t:2"
                     + "&fields=f12,f14,f2,f3,f62,f128,f136";
 
+    private static final String A_STOCK_DATA_URL =
+            "https://push2.eastmoney.com/api/qt/clist/get?pn=1&pz=100&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281"
+                    + "&fltt=2&invt=2&fid=f3&fs=m:90+t:2"
+                    + "&fields=f2,f3,f4,f12,f13,f14,f62,f104,f105,f128,f136,f140,f141,f207";
+
     private final ProsperityStrongProperties props;
 
     public List<ProsperityHotSector> scan(LocalDate snapDate) {
+        return scan(snapDate, null);
+    }
+
+    public List<ProsperityHotSector> scan(LocalDate snapDate, String provider) {
         List<ProsperityHotSector> result = new ArrayList<>();
-        if ("eastmoney".equalsIgnoreCase(props.getSource().getSector())) {
-            try {
-                result = fetchFromEastMoney(snapDate);
-            } catch (Exception e) {
-                log.warn("东方财富板块抓取失败: {}, 将使用兜底列表", e.getMessage());
+        String source = "a_stock_data".equalsIgnoreCase(provider) ? "a_stock_data" : props.getSource().getSector();
+        if ("a_stock_data".equalsIgnoreCase(source)) {
+            result = tryFetch("a_stock_data", snapDate);
+            if (result.isEmpty()) {
+                result = tryFetch("eastmoney", snapDate);
             }
+        } else if ("eastmoney".equalsIgnoreCase(source)) {
+            result = tryFetch("eastmoney", snapDate);
         }
         if (result.isEmpty()) {
             result = mockSectors(snapDate);
@@ -66,14 +77,32 @@ public class HotSectorScanner {
         return result;
     }
 
-    private List<ProsperityHotSector> fetchFromEastMoney(LocalDate snapDate) throws Exception {
+    private List<ProsperityHotSector> tryFetch(String source, LocalDate snapDate) {
+        try {
+            return fetchFromSource(source, snapDate);
+        } catch (Exception e) {
+            log.warn("{} 板块抓取失败: {}", source, e.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<ProsperityHotSector> fetchFromSource(String source, LocalDate snapDate) throws Exception {
+        String body = fetchSectorBody(source);
+        return parseSectorBody(source, snapDate, body);
+    }
+
+    protected String fetchSectorBody(String source) throws Exception {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         int timeoutMs = props.getSource().getTimeoutSeconds() * 1000;
         factory.setConnectTimeout(timeoutMs);
         factory.setReadTimeout(timeoutMs);
         RestTemplate rest = new RestTemplate(factory);
 
-        String body = rest.getForObject(URI.create(EM_URL), String.class);
+        String url = "a_stock_data".equalsIgnoreCase(source) ? A_STOCK_DATA_URL : EM_URL;
+        return rest.getForObject(URI.create(url), String.class);
+    }
+
+    private List<ProsperityHotSector> parseSectorBody(String source, LocalDate snapDate, String body) throws Exception {
         if (body == null) throw new IllegalStateException("EastMoney 返回为空");
         JsonNode root = MAPPER.readTree(body);
         JsonNode diff = root.path("data").path("diff");
@@ -89,6 +118,7 @@ public class HotSectorScanner {
             if (code.isEmpty() || name.isEmpty()) continue;
             BigDecimal change1d = bd(item.path("f3"));
             BigDecimal inflow5d = bd(item.path("f62"));
+            BigDecimal leadStockChange = bd(item.path("f136"));
 
             ProsperityHotSector e = new ProsperityHotSector();
             e.setSnapDate(snapDate);
@@ -97,19 +127,30 @@ public class HotSectorScanner {
             e.setRankNo(++rank);
             e.setChange1d(change1d);
             e.setCapitalInflow5d(inflow5d);
+            e.setUpCount(intOrNull(item.path("f104")));
+            e.setDownCount(intOrNull(item.path("f105")));
+            e.setLeadStock(textOrNull(item.path("f140")));
+            e.setLeadStockChange(leadStockChange);
             // 5d/20d 在该接口无,后续扩展用专用接口补; persistence_days 同
-            e.setScore(estimateScore(change1d, inflow5d));
-            e.setDataSource("eastmoney");
+            e.setScore(estimateScore(change1d, inflow5d, e.getUpCount(), e.getDownCount(), leadStockChange));
+            e.setDataSource("a_stock_data".equalsIgnoreCase(source) ? "a_stock_data" : "eastmoney");
             list.add(e);
         }
         return list;
     }
 
-    private BigDecimal estimateScore(BigDecimal change1d, BigDecimal inflow5d) {
+    private BigDecimal estimateScore(BigDecimal change1d, BigDecimal inflow5d,
+                                     Integer upCount, Integer downCount,
+                                     BigDecimal leadStockChange) {
         double s1 = change1d == null ? 0 : Math.min(60, Math.max(-20, change1d.doubleValue())) + 20;
         double s2 = inflow5d == null ? 0 : Math.signum(inflow5d.doubleValue()) *
                 Math.min(40, Math.log10(Math.abs(inflow5d.doubleValue()) / 1e8 + 1) * 20);
-        double score = 0.5 * s1 + 0.5 * (s2 + 40);
+        double breadth = 50;
+        if (upCount != null && downCount != null && upCount + downCount > 0) {
+            breadth = upCount * 100.0 / (upCount + downCount);
+        }
+        double leader = leadStockChange == null ? 50 : Math.min(100, Math.max(0, leadStockChange.doubleValue() * 5 + 50));
+        double score = 0.4 * s1 + 0.3 * (s2 + 40) + 0.2 * breadth + 0.1 * leader;
         score = Math.max(0, Math.min(100, score));
         return BigDecimal.valueOf(score).setScale(2, RoundingMode.HALF_UP);
     }
@@ -126,6 +167,24 @@ public class HotSectorScanner {
             }
         }
         return BigDecimal.valueOf(n.asDouble());
+    }
+
+    private Integer intOrNull(JsonNode n) {
+        if (n == null || n.isMissingNode() || n.isNull()) return null;
+        if (n.isInt() || n.isLong()) return n.asInt();
+        String s = n.asText("").trim();
+        if (s.isEmpty() || "-".equals(s)) return null;
+        try {
+            return Integer.parseInt(s);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String textOrNull(JsonNode n) {
+        if (n == null || n.isMissingNode() || n.isNull()) return null;
+        String s = n.asText("").trim();
+        return s.isEmpty() || "-".equals(s) ? null : s;
     }
 
     /** 兜底: 常见高景气板块占位,后续可由用户手动覆盖 */

@@ -229,6 +229,8 @@ function renderSectors(list) {
         <span>当日 <strong>${fmtPct(s.change1d)}</strong></span>
         <span>5日 <strong>${fmtPct(s.change5d)}</strong></span>
         <span>5日资金流 <strong>${fmtYi(s.capitalInflow5d)}</strong></span>
+        <span>涨/跌 <strong>${s.upCount ?? '--'}/${s.downCount ?? '--'}</strong></span>
+        <span>领涨 <strong>${escapeHtml(s.leadStock || '--')}${s.leadStockChange != null ? ' ' + fmtSignedPct(s.leadStockChange) : ''}</strong></span>
       </div>
       ${s.aiNarrative ? `<div class="ps-sector-narrative">${escapeHtml(s.aiNarrative)}</div>` : ''}
       ${s.diagnosticMessage ? `

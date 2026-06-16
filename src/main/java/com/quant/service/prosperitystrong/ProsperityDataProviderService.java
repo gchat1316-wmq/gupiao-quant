@@ -21,7 +21,7 @@ public class ProsperityDataProviderService {
         String p = provider == null || provider.isBlank() ? props.getProvider() : provider;
         p = p == null || p.isBlank() ? "local" : p.trim().toLowerCase(Locale.ROOT);
         return switch (p) {
-            case "wind", "tdx", "hybrid" -> p;
+            case "wind", "tdx", "hybrid", "a_stock_data" -> p;
             default -> "local";
         };
     }
@@ -30,6 +30,9 @@ public class ProsperityDataProviderService {
         String p = normalize(provider);
         if ("local".equals(p)) {
             return "使用本地数据库/东方财富抓取链路执行";
+        }
+        if ("a_stock_data".equals(p)) {
+            return "使用 a-stock-data 风格行业板块排名字段增强热点板块,失败自动回退东方财富/本地兜底";
         }
         if ("wind".equals(p)) {
             WindAifinMarketClient.WindCheck c = windClient.verify();
@@ -48,7 +51,7 @@ public class ProsperityDataProviderService {
     }
 
     public List<ProviderCapabilityDTO> capabilities() {
-        return List.of(localCapability(), windCapability(), tdxCapability(), hybridCapability());
+        return List.of(localCapability(), aStockDataCapability(), windCapability(), tdxCapability(), hybridCapability());
     }
 
     private ProviderCapabilityDTO localCapability() {
@@ -59,6 +62,17 @@ public class ProsperityDataProviderService {
                 .verified(true)
                 .role("当前生产链路")
                 .message("板块抓取、成分股匹配、日线/财务硬筛均走本地库与现有抓取逻辑")
+                .build();
+    }
+
+    private ProviderCapabilityDTO aStockDataCapability() {
+        return ProviderCapabilityDTO.builder()
+                .code("a_stock_data")
+                .label("a-stock-data 行业板块链路")
+                .available(true)
+                .verified(true)
+                .role("热点板块增强")
+                .message("按 a-stock-data 公开能力使用东财行业板块排名字段: 涨跌幅、涨/跌家数、领涨股、资金流")
                 .build();
     }
 

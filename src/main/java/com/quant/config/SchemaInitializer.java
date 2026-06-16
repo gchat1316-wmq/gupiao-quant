@@ -24,6 +24,29 @@ public class SchemaInitializer implements CommandLineRunner {
         ensurePdfPathColumn();
         ensureProsperityPickNewColumns();
         ensureInvestStockPoolSnapshotColumns();
+        ensureProsperityHotSectorAStockColumns();
+    }
+
+    private void ensureProsperityHotSectorAStockColumns() {
+        String[][] columns = {
+            {"up_count", "INT", "板块上涨家数"},
+            {"down_count", "INT", "板块下跌家数"},
+            {"lead_stock", "VARCHAR(64)", "板块领涨股"},
+            {"lead_stock_change", "DECIMAL(8,4)", "板块领涨股涨幅(%)"}
+        };
+        for (String[] col : columns) {
+            try {
+                Integer count = jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'prosperity_hot_sector' AND column_name = '" + col[0] + "'",
+                        Integer.class);
+                if (count == null || count == 0) {
+                    jdbc.execute("ALTER TABLE prosperity_hot_sector ADD COLUMN " + col[0] + " " + col[1] + " DEFAULT NULL COMMENT '" + col[2] + "'");
+                    log.info("prosperity_hot_sector.{} 列已添加", col[0]);
+                }
+            } catch (Exception e) {
+                log.warn("检查 prosperity_hot_sector.{} 列失败 (可忽略): {}", col[0], e.getMessage());
+            }
+        }
     }
 
     private void ensureInvestStockPoolSnapshotColumns() {

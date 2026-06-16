@@ -47,6 +47,18 @@ public class ProsperityHotSector {
     @Column(name = "capital_inflow_5d", precision = 20, scale = 2)
     private BigDecimal capitalInflow5d;
 
+    @Column(name = "up_count")
+    private Integer upCount;
+
+    @Column(name = "down_count")
+    private Integer downCount;
+
+    @Column(name = "lead_stock", length = 64)
+    private String leadStock;
+
+    @Column(name = "lead_stock_change", precision = 8, scale = 4)
+    private BigDecimal leadStockChange;
+
     @Column(name = "persistence_days")
     private Integer persistenceDays;
 

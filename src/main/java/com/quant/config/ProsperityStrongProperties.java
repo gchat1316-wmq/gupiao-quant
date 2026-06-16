@@ -49,7 +49,7 @@ public class ProsperityStrongProperties {
 
     @Data
     public static class Source {
-        /** eastmoney / local */
+        /** eastmoney / a_stock_data / local */
         private String sector = "eastmoney";
         /** 网络超时秒数 */
         private int timeoutSeconds = 15;

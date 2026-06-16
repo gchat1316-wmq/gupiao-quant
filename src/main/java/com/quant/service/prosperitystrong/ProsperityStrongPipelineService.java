@@ -84,7 +84,7 @@ public class ProsperityStrongPipelineService {
         sectorRepo.flush();
 
         // ===== Step 1 =====
-        List<ProsperityHotSector> sectors = sectorScanner.scan(snapDate);
+        List<ProsperityHotSector> sectors = sectorScanner.scan(snapDate, selectedProvider);
         sectors = sectorRepo.saveAll(sectors);
         for (ProsperityHotSector s : sectors) {
             try {
@@ -286,6 +286,10 @@ public class ProsperityStrongPipelineService {
                 .rankNo(e.getRankNo()).change1d(e.getChange1d())
                 .change5d(e.getChange5d()).change20d(e.getChange20d())
                 .capitalInflow5d(e.getCapitalInflow5d())
+                .upCount(e.getUpCount())
+                .downCount(e.getDownCount())
+                .leadStock(e.getLeadStock())
+                .leadStockChange(e.getLeadStockChange())
                 .persistenceDays(e.getPersistenceDays())
                 .score(e.getScore()).aiNarrative(e.getAiNarrative())
                 .dataSource(e.getDataSource())

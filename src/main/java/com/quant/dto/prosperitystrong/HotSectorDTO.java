@@ -19,6 +19,10 @@ public class HotSectorDTO {
     private BigDecimal change5d;
     private BigDecimal change20d;
     private BigDecimal capitalInflow5d;
+    private Integer upCount;
+    private Integer downCount;
+    private String leadStock;
+    private BigDecimal leadStockChange;
     private Integer persistenceDays;
     private BigDecimal score;
     private String aiNarrative;
