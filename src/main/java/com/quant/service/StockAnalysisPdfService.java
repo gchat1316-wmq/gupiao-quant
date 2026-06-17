@@ -49,7 +49,13 @@ public class StockAnalysisPdfService {
         if (report == null) throw new IllegalStateException("研报数据为空");
 
         String codeRaw = rec.getStockCodeRaw() == null ? rec.getStockCode() : rec.getStockCodeRaw();
-        String html = renderHtml(report, rec);
+        String html = rec.getReportHtml();
+        if (html == null || html.isBlank()) {
+            html = report.getReportHtml();
+        }
+        if (html == null || html.isBlank()) {
+            html = renderHtml(report, rec);
+        }
         String fileName = String.format("stock-analysis/%s/%d-%s.pdf",
                 codeRaw,
                 rec.getId(),

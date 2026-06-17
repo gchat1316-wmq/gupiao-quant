@@ -202,96 +202,323 @@ function renderSectors(list) {
     wrap.innerHTML = '<div class="ps-empty">当日无板块数据,请先手动触发。</div>';
     return;
   }
-  wrap.innerHTML = list.map(s => {
-    const leaders = s.leaders || [];
-    const passed = leaders.filter(l => l.finalStage === 'passed').length;
-    const total = leaders.length;
-    const leaderFiltered = leaders.filter(l => l.finalStage === 'leader_filter').length;
-    const financeFiltered = leaders.filter(l => l.finalStage === 'finance_filter').length;
-    const mainlineFiltered = leaders.filter(l => l.finalStage === 'mainline_filter').length;
-    const matched = Number(s.matchedMemberCount || 0);
-    const quoted = Number(s.quotedMemberCount || 0);
-    const pipelineTotal = total || quoted || matched;
 
-    return `
-    <div class="ps-sector-card">
-      <div class="ps-sector-head-row">
-        <div>
-          <span class="ps-sector-rank">#${s.rankNo}</span>
-          <span class="ps-sector-name">${s.sectorName}</span>
-        </div>
-        <span class="ps-sector-funnel-summary">
-          匹配 ${matched} → 有行情 ${quoted} → 入龙头池 ${total} → <b>通过 ${passed}</b>
-        </span>
-      </div>
-      <div class="ps-sector-metrics">
-        <span>评分 <strong>${fmtNum(s.score)}</strong></span>
-        <span>当日 <strong>${fmtPct(s.change1d)}</strong></span>
-        <span>5日 <strong>${fmtPct(s.change5d)}</strong></span>
-        <span>5日资金流 <strong>${fmtYi(s.capitalInflow5d)}</strong></span>
-        <span>涨/跌 <strong>${s.upCount ?? '--'}/${s.downCount ?? '--'}</strong></span>
-        <span>领涨 <strong>${escapeHtml(s.leadStock || '--')}${s.leadStockChange != null ? ' ' + fmtSignedPct(s.leadStockChange) : ''}</strong></span>
-      </div>
-      ${s.aiNarrative ? `<div class="ps-sector-narrative">${escapeHtml(s.aiNarrative)}</div>` : ''}
-      ${s.diagnosticMessage ? `
-        <div class="ps-sector-diagnostic">
-          <b>过滤诊断:</b> ${escapeHtml(s.diagnosticMessage)}
-        </div>
-      ` : ''}
-      ${total > 0 ? `
-        <div class="ps-funnel">
-          <div class="ps-funnel-bar">
-            <div class="ps-funnel-seg ps-funnel-leader" style="width:${pctOf(total, leaderFiltered)}" title="龙头筛剔除 ${leaderFiltered} 只"></div>
-            <div class="ps-funnel-seg ps-funnel-finance" style="width:${pctOf(total, financeFiltered)}" title="财务筛剔除 ${financeFiltered} 只"></div>
-            <div class="ps-funnel-seg ps-funnel-mainline" style="width:${pctOf(total, mainlineFiltered)}" title="主线筛剔除 ${mainlineFiltered} 只"></div>
-            <div class="ps-funnel-seg ps-funnel-passed" style="width:${pctOf(total, passed)}" title="通过 ${passed} 只"></div>
+  // 第一段: 横向对比表
+  // 行为指标,列为板块
+  const metricRows = [
+    {
+      key: 'score',
+      label: '板块评分',
+      hint: '0.4×涨幅 + 0.4×资金流 + 0.2×持续性',
+      render: (s) => `<span class="ps-compare-score">${fmtNum(s.score)}</span>`,
+    },
+    {
+      key: 'change1d',
+      label: '当日涨幅',
+      render: (s) => changeCell(s.change1d),
+    },
+    {
+      key: 'change5d',
+      label: '5日涨幅',
+      render: (s) => changeCell(s.change5d),
+    },
+    {
+      key: 'change20d',
+      label: '20日涨幅',
+      render: (s) => changeCell(s.change20d),
+    },
+    {
+      key: 'capital',
+      label: '5日资金流',
+      render: (s) => `<span class="ps-compare-up">${fmtYi(s.capitalInflow5d)}</span>`,
+    },
+    {
+      key: 'updown',
+      label: '涨/跌',
+      render: (s) => `<span class="ps-compare-up">${s.upCount ?? '--'}</span> / <span class="ps-compare-down">${s.downCount ?? '--'}</span>`,
+    },
+    {
+      key: 'lead',
+      label: '领涨股',
+      render: (s) => `${escapeHtml(s.leadStock || '--')}${s.leadStockChange != null ? ' <span class="ps-compare-' + (Number(s.leadStockChange) >= 0 ? 'up' : 'down') + '">' + fmtSignedPct(s.leadStockChange) + '</span>' : ''}`,
+    },
+    {
+      key: 'funnel',
+      label: '漏斗',
+      hint: '龙头筛 / 财务筛 / 主线筛 / 通过',
+      render: (s, stats) => {
+        const total = stats.total;
+        if (!total) return '--';
+        return `
+          <div>
+            <span class="ps-compare-funnel-mini">
+              <i class="l" style="width:${pctOf(total, stats.leaderFiltered)}"></i>
+              <i class="f" style="width:${pctOf(total, stats.financeFiltered)}"></i>
+              <i class="m" style="width:${pctOf(total, stats.mainlineFiltered)}"></i>
+              <i class="p" style="width:${pctOf(total, stats.passed)}"></i>
+            </span>
+            <span class="ps-compare-funnel-num">${stats.leaderFiltered} / ${stats.financeFiltered} / ${stats.mainlineFiltered} / <b>${stats.passed}</b></span>
           </div>
-          <div class="ps-funnel-legend">
-            <span class="ps-legend ps-legend-leader">龙头筛剔除 ${leaderFiltered}</span>
-            <span class="ps-legend ps-legend-finance">财务筛剔除 ${financeFiltered}</span>
-            <span class="ps-legend ps-legend-mainline">主线筛剔除 ${mainlineFiltered}</span>
-            <span class="ps-legend ps-legend-passed">通过 ${passed}</span>
-          </div>
-        </div>
-        <details class="ps-leader-details">
-          <summary>查看成分股过滤明细 (${total} 只)</summary>
-          <table class="ps-table ps-leader-table">
-            <thead><tr>
-              <th>代码</th><th>名称</th><th>龙头分</th>
-              <th>Step2 快筛</th><th>Step3 财务分</th><th>Step3 结果</th>
-              <th>Step4 主线分</th><th>Step4 结果</th><th>最终</th>
-            </tr></thead>
-            <tbody>${leaders.map(l => `
-              <tr class="${stageClass(l.finalStage)}">
-                <td>${l.stockCode}</td>
-                <td>${l.stockName || '--'}</td>
-                <td>${fmtNum(l.leaderScore)}</td>
-                <td>${l.filterPassed ? '<span class="ps-check">✓</span>' : '<span class="ps-cross">✗</span> ' + (l.filterReason||'')}</td>
-                <td>${fmtNum(l.financeScore)}</td>
-                <td>${l.financePassed === true ? '<span class="ps-check">✓</span>' : (l.financePassed === false ? '<span class="ps-cross">✗</span> ' + (l.financeReason||'') : '--')}</td>
-                <td>${fmtNum(l.mainlineScore)}</td>
-                <td>${l.mainlinePassed === true ? '<span class="ps-check">✓</span>' : (l.mainlinePassed === false ? '<span class="ps-cross">✗</span>' : '--')}</td>
-                <td><span class="ps-stage-badge ${stageClass(l.finalStage)}">${stageLabel(l.finalStage)}</span></td>
-              </tr>
-            `).join('')}</tbody>
-          </table>
-        </details>
-      ` : pipelineTotal > 0 ? `
-        <div class="ps-funnel">
-          <div class="ps-funnel-bar">
-            <div class="ps-funnel-seg ps-funnel-passed" style="width:${pctOf(pipelineTotal, matched)}" title="匹配成分股 ${matched} 只"></div>
-            <div class="ps-funnel-seg ps-funnel-finance" style="width:${pctOf(pipelineTotal, Math.max(0, matched - quoted))}" title="缺少日线行情 ${Math.max(0, matched - quoted)} 只"></div>
-          </div>
-          <div class="ps-funnel-legend">
-            <span class="ps-legend ps-legend-passed">匹配成分股 ${matched}</span>
-            <span class="ps-legend ps-legend-finance">缺日线行情 ${Math.max(0, matched - quoted)}</span>
-            <span class="ps-legend ps-legend-leader">入龙头池 ${total}</span>
-          </div>
-        </div>
-      ` : ''}
+        `;
+      },
+    },
+    {
+      key: 'actions',
+      label: '操作',
+      render: (s, stats) => {
+        if (!stats.total) return '<span class="ps-compare-funnel-num">无龙头池</span>';
+        return `<button type="button" data-sector-idx="${s.__idx}">查看成分股过滤明细 (${stats.total} 只)</button>`;
+      },
+    },
+  ];
+
+  // 预先计算每个板块的 stats
+  list.forEach((s, i) => {
+    s.__idx = i;
+    s.__stats = computeSectorStats(s);
+  });
+
+  const sectorHead = list.map(s => `
+    <th>
+      <span class="ps-compare-rank">#${s.rankNo}</span>
+      <span class="ps-compare-name">${escapeHtml(s.sectorName)}</span>
+    </th>
+  `).join('');
+
+  const sectorRows = metricRows.map(row => `
+    <tr>
+      <th scope="row">
+        ${row.label}
+        ${row.hint ? `<span class="ps-row-hint">${row.hint}</span>` : ''}
+      </th>
+      ${list.map(s => `<td class="${row.key === 'actions' ? 'ps-compare-actions' : ''}">${row.render(s, s.__stats)}</td>`).join('')}
+    </tr>
+  `).join('');
+
+  const compareTable = `
+    <div class="ps-compare-wrap">
+      <table class="ps-compare-table">
+        <thead><tr>
+          <th scope="col" style="min-width:160px">板块</th>
+          ${sectorHead}
+        </tr></thead>
+        <tbody>${sectorRows}</tbody>
+      </table>
     </div>
   `;
+
+  // 第二段: 每个板块的折叠详情(叙述 / 诊断 / 大漏斗)
+  const details = list.map(s => {
+    const stats = s.__stats;
+    const hasLeaders = stats.total > 0;
+    return `
+    <details class="ps-sector-detail" data-sector-idx="${s.__idx}">
+      <summary>#${s.rankNo} ${escapeHtml(s.sectorName)} · ${hasLeaders
+        ? `入龙头池 ${stats.total} 只,通过 <b>${stats.passed}</b>`
+        : `匹配 ${stats.matched} → 有行情 ${stats.quoted} → 入龙头池 0`}</summary>
+      <div class="ps-sector-detail-body">
+        <div class="ps-sector-detail-grid">
+          <div>
+            ${s.aiNarrative ? `<div class="ps-sector-narrative">${escapeHtml(s.aiNarrative)}</div>` : '<div class="ps-sector-narrative" style="border-left-color:#ccc;color:#999">暂无 AI 板块描述</div>'}
+            ${s.diagnosticMessage ? `
+              <div class="ps-sector-diagnostic">
+                <b>过滤诊断:</b> ${escapeHtml(s.diagnosticMessage)}
+              </div>
+            ` : ''}
+          </div>
+          <div>
+            ${hasLeaders ? renderFunnelBar(stats) : renderFunnelBarNoLeaders(stats)}
+            ${hasLeaders ? `
+              <div style="margin-top:10px;text-align:right">
+                <button type="button" class="ps-btn-mini" data-sector-idx="${s.__idx}">查看成分股过滤明细 (${stats.total} 只)</button>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      </div>
+    </details>
+    `;
   }).join('');
+
+  wrap.innerHTML = compareTable + details;
+
+  // 绑定查看成分股明细按钮
+  wrap.querySelectorAll('[data-sector-idx]').forEach(btn => {
+    btn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      const idx = Number(btn.dataset.sectorIdx);
+      const sector = list[idx];
+      if (sector) openLeaderModal(sector);
+    });
+  });
+}
+
+function computeSectorStats(s) {
+  const leaders = s.leaders || [];
+  const passed = leaders.filter(l => l.finalStage === 'passed').length;
+  const total = leaders.length;
+  return {
+    leaders,
+    passed,
+    total,
+    leaderFiltered: leaders.filter(l => l.finalStage === 'leader_filter').length,
+    financeFiltered: leaders.filter(l => l.finalStage === 'finance_filter').length,
+    mainlineFiltered: leaders.filter(l => l.finalStage === 'mainline_filter').length,
+    matched: Number(s.matchedMemberCount || 0),
+    quoted: Number(s.quotedMemberCount || 0),
+  };
+}
+
+function changeCell(v) {
+  if (v == null) return '--';
+  const n = Number(v);
+  if (Number.isNaN(n)) return v;
+  const cls = n >= 0 ? 'ps-compare-up' : 'ps-compare-down';
+  return `<span class="${cls}">${fmtSignedPct(n)}</span>`;
+}
+
+function renderFunnelBar(stats) {
+  const total = stats.total;
+  return `
+    <div class="ps-funnel">
+      <div class="ps-funnel-bar">
+        <div class="ps-funnel-seg ps-funnel-leader" style="width:${pctOf(total, stats.leaderFiltered)}" title="龙头筛剔除 ${stats.leaderFiltered} 只"></div>
+        <div class="ps-funnel-seg ps-funnel-finance" style="width:${pctOf(total, stats.financeFiltered)}" title="财务筛剔除 ${stats.financeFiltered} 只"></div>
+        <div class="ps-funnel-seg ps-funnel-mainline" style="width:${pctOf(total, stats.mainlineFiltered)}" title="主线筛剔除 ${stats.mainlineFiltered} 只"></div>
+        <div class="ps-funnel-seg ps-funnel-passed" style="width:${pctOf(total, stats.passed)}" title="通过 ${stats.passed} 只"></div>
+      </div>
+      <div class="ps-funnel-legend">
+        <span class="ps-legend ps-legend-leader">龙头筛剔除 ${stats.leaderFiltered}</span>
+        <span class="ps-legend ps-legend-finance">财务筛剔除 ${stats.financeFiltered}</span>
+        <span class="ps-legend ps-legend-mainline">主线筛剔除 ${stats.mainlineFiltered}</span>
+        <span class="ps-legend ps-legend-passed">通过 ${stats.passed}</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderFunnelBarNoLeaders(stats) {
+  const pipelineTotal = stats.quoted || stats.matched;
+  if (!pipelineTotal) return '<div class="ps-compare-funnel-num">无成分股数据</div>';
+  const missQuoted = Math.max(0, stats.matched - stats.quoted);
+  return `
+    <div class="ps-funnel">
+      <div class="ps-funnel-bar">
+        <div class="ps-funnel-seg ps-funnel-passed" style="width:${pctOf(pipelineTotal, stats.matched)}" title="匹配成分股 ${stats.matched} 只"></div>
+        <div class="ps-funnel-seg ps-funnel-finance" style="width:${pctOf(pipelineTotal, missQuoted)}" title="缺日线行情 ${missQuoted} 只"></div>
+      </div>
+      <div class="ps-funnel-legend">
+        <span class="ps-legend ps-legend-passed">匹配成分股 ${stats.matched}</span>
+        <span class="ps-legend ps-legend-finance">缺日线行情 ${missQuoted}</span>
+        <span class="ps-legend ps-legend-leader">入龙头池 0</span>
+      </div>
+    </div>
+  `;
+}
+
+// ====== 成分股过滤明细 modal ======
+function openLeaderModal(sector) {
+  const modal = $('#psLeaderModal');
+  if (!modal) return;
+  const stats = computeSectorStats(sector);
+  const leaders = stats.leaders;
+
+  $('#psLeaderModalSectorName').textContent = `#${sector.rankNo} ${sector.sectorName}`;
+  $('#psLeaderModalSectorMeta').textContent = `龙头池 ${stats.total} 只 · 通过 ${stats.passed} · 龙头/财务/主线 筛剔除 ${stats.leaderFiltered}/${stats.financeFiltered}/${stats.mainlineFiltered}`;
+
+  const summary = $('#psLeaderModalSummary');
+  summary.innerHTML = `
+    <span class="ps-pill l">龙头筛剔除 <b>${stats.leaderFiltered}</b></span>
+    <span class="ps-pill f">财务筛剔除 <b>${stats.financeFiltered}</b></span>
+    <span class="ps-pill m">主线筛剔除 <b>${stats.mainlineFiltered}</b></span>
+    <span class="ps-pill p">通过 <b>${stats.passed}</b></span>
+  `;
+
+  const wrap = $('#psLeaderModalTableWrap');
+  if (!leaders.length) {
+    wrap.innerHTML = '<div class="ps-empty">本板块无龙头池股票</div>';
+  } else {
+    wrap.innerHTML = renderLeaderModalTable(leaders);
+  }
+  modal.classList.add('open');
+  modal.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLeaderModal() {
+  const modal = $('#psLeaderModal');
+  if (!modal) return;
+  modal.classList.remove('open');
+  modal.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+}
+
+function renderLeaderModalTable(leaders) {
+  const rows = leaders.map(l => {
+    // 找最早失败的阶段 + reason
+    let failedStage = null;
+    let failedReason = '';
+    if (l.filterPassed === false) {
+      failedStage = 'leader';
+      failedReason = l.filterReason || '未通过龙头快筛';
+    } else if (l.financePassed === false) {
+      failedStage = 'finance';
+      failedReason = l.financeReason || '未通过财务硬筛';
+    } else if (l.mainlinePassed === false) {
+      failedStage = 'mainline';
+      failedReason = l.mainlineReason || '未通过主线判定';
+    }
+    const rowCls = `row-${failedStage || 'passed'}`;
+    const stagePillCls = failedStage || 'passed';
+    const stagePillLabel = failedStage
+      ? ({ leader: '龙头筛', finance: '财务筛', mainline: '主线筛' }[failedStage] + ' 剔除')
+      : '全部通过';
+
+    // Step2/3/4 各自结果
+    const s2 = l.filterPassed === true
+      ? `<span class="ps-check">✓</span> 龙头分 <b>${fmtNum(l.leaderScore)}</b>`
+      : `<span class="ps-cross">✗</span> 龙头分 <b>${fmtNum(l.leaderScore)}</b><br><span class="ps-reason">${escapeHtml(l.filterReason || '未通过龙头快筛')}</span>`;
+    const s3Score = fmtNum(l.financeScore);
+    const s3 = l.financePassed === true
+      ? `<span class="ps-check">✓</span> <b class="ps-score">${s3Score}</b>`
+      : (l.financePassed === false
+        ? `<span class="ps-cross">✗</span> <b class="ps-score">${s3Score}</b><br><span class="ps-reason">${escapeHtml(l.financeReason || '未通过财务硬筛')}</span>`
+        : '--');
+    const s4Score = fmtNum(l.mainlineScore);
+    const s4 = l.mainlinePassed === true
+      ? `<span class="ps-check">✓</span> <b class="ps-score">${s4Score}</b>`
+      : (l.mainlinePassed === false
+        ? `<span class="ps-cross">✗</span> <b class="ps-score">${s4Score}</b><br><span class="ps-reason">${escapeHtml(l.mainlineReason || '未通过主线判定')}</span>`
+        : '--');
+
+    return `
+      <tr class="${rowCls}">
+        <td>${l.stockCode}</td>
+        <td>${escapeHtml(l.stockName || '--')}</td>
+        <td>${s2}</td>
+        <td>${s3}</td>
+        <td>${s4}</td>
+        <td><span class="ps-pill-mini ${stagePillCls}">${stagePillLabel}</span></td>
+        <td class="ps-reason ${failedStage ? '' : 'pass'}">${failedStage ? escapeHtml(failedReason) : '通过所有阶段,纳入候选'}</td>
+      </tr>
+    `;
+  }).join('');
+
+  return `
+    <table class="ps-leader-modal-table">
+      <thead>
+        <tr>
+          <th>代码</th><th>名称</th>
+          <th>Step2 龙头快筛</th>
+          <th>Step3 财务硬筛</th>
+          <th>Step4 主线判定</th>
+          <th>过滤环节</th>
+          <th>过滤原因(完整)</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
 }
 
 function pctOf(total, count) {
@@ -776,6 +1003,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   $$('.ps-tab').forEach(tab => {
     tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+  });
+
+  // 成分股明细弹窗
+  const modal = $('#psLeaderModal');
+  const closeBtn = $('#psLeaderModalClose');
+  if (closeBtn) closeBtn.addEventListener('click', closeLeaderModal);
+  if (modal) {
+    modal.addEventListener('click', (ev) => {
+      if (ev.target === modal) closeLeaderModal();
+    });
+  }
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape') closeLeaderModal();
   });
 
   await loadStatus();

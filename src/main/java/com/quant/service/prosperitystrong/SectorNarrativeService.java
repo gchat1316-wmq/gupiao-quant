@@ -22,7 +22,7 @@ import java.util.List;
 public class SectorNarrativeService {
 
     private static final String SYSTEM_PROMPT =
-            "你是 A 股资深景气投资分析师。请仅使用东方财富/同花顺/公司公告等一手数据,严禁引用卖方研报。" +
+            "你是 A 股资深热点选股分析师。请仅使用东方财富/同花顺/公司公告等一手数据,严禁引用卖方研报。" +
                     "输出必须中立客观,不出现 '可能/大概' 等模糊表述,核心数据加粗。" +
                     "围绕板块给出: ①板块利好/政策映射, ②近 5 个交易日资金流向, ③主要业绩兑现公司方向。" +
                     "总字数 200-400 字,纯文本,不使用 markdown。";

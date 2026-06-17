@@ -74,6 +74,9 @@ public class ProsperityLeaderCandidate {
     @Column(name = "mainline_passed")
     private Integer mainlinePassed;
 
+    @Column(name = "mainline_reason", length = 256)
+    private String mainlineReason;
+
     @Column(name = "final_stage", length = 20)
     private String finalStage;
 

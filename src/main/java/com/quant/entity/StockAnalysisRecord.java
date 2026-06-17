@@ -60,6 +60,12 @@ public class StockAnalysisRecord {
     @Column(name = "result_json", columnDefinition = "LONGTEXT")
     private String resultJson;
 
+    @Column(name = "source_payload_json", columnDefinition = "LONGTEXT")
+    private String sourcePayloadJson;
+
+    @Column(name = "report_html", columnDefinition = "LONGTEXT")
+    private String reportHtml;
+
     @Column(name = "submitted_at", insertable = false, updatable = false)
     private LocalDateTime submittedAt;
 

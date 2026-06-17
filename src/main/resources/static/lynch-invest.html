@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#1e88ff" />
+  <base href="/gp/" />
+  <title>林奇投资 · 投资助手</title>
+  <link rel="stylesheet" href="css/style.css?v=20260617-lynch" />
+  <link rel="stylesheet" href="css/study.css?v=20260617-lynch" />
+  <link rel="stylesheet" href="css/lynch-invest.css?v=20260617-lynch" />
+  <script src="js/layout.js?v=20260617-lynch" defer></script>
+  <script src="js/lynch-invest.js?v=20260617-lynch" defer></script>
+</head>
+<body>
+  <div id="siteHeader"></div>
+
+  <main class="container lynch-page">
+    <section class="lynch-hero">
+      <div class="lynch-hero-copy">
+        <div class="lynch-kicker">Peter Lynch × A 股</div>
+        <div class="lynch-hero-line">
+          <h1>林奇投资</h1>
+          <p>PEG 估值监控、单股快照、行业 PE 对比与新闻聚合的一站式工作流。</p>
+        </div>
+      </div>
+      <div class="lynch-hero-side">
+        <div class="lynch-stat">
+          <span>核心口径</span>
+          <strong>PEG = PE(TTM) / CAGR</strong>
+        </div>
+      </div>
+    </section>
+
+    <nav class="lynch-subnav" role="tablist" aria-label="林奇投资栏目">
+      <button type="button" class="lynch-subnav-tab active" role="tab" data-tab="watchlist" aria-selected="true">自选股行情</button>
+      <button type="button" class="lynch-subnav-tab" role="tab" data-tab="quote" aria-selected="false">个股分析</button>
+      <button type="button" class="lynch-subnav-tab" role="tab" data-tab="sector" aria-selected="false">板块 PEG</button>
+      <button type="button" class="lynch-subnav-tab" role="tab" data-tab="news" aria-selected="false">新闻资讯</button>
+    </nav>
+
+    <section class="lynch-pane active" data-pane="watchlist" role="tabpanel">
+      <div class="lynch-card">
+        <div class="lynch-card-head">
+          <div>
+            <h2>自选股 PEG 监控</h2>
+            <p>添加股票，持续跟踪 PEG 估值与行业位置。</p>
+          </div>
+          <div class="lynch-toolbar">
+            <input id="watchlistKeyword" type="text" placeholder="代码或名称，如 600519 / 贵州茅台" />
+            <button id="watchlistAddBtn" class="primary-btn">加入监控</button>
+          </div>
+        </div>
+        <div id="watchlistError" class="lynch-inline-error hidden"></div>
+        <div id="lynchWatchlist" class="lynch-table-shell"></div>
+      </div>
+    </section>
+
+    <section class="lynch-pane" data-pane="quote" role="tabpanel" hidden>
+      <div class="lynch-grid lynch-grid-top">
+        <section class="lynch-card">
+          <div class="lynch-card-head">
+            <div>
+              <h2>单股 PEG 快照</h2>
+              <p>输入任意一只股票，快速查看 PEG、PE 消化年限与估值评级。</p>
+            </div>
+          </div>
+          <div class="lynch-toolbar lynch-toolbar-wide">
+            <input id="quoteKeyword" type="text" placeholder="输入股票名称或代码" />
+            <button id="quoteLoadBtn" class="primary-btn">查询快照</button>
+          </div>
+          <div id="lynchQuote"></div>
+        </section>
+
+        <section class="lynch-card">
+          <div class="lynch-card-head">
+            <div>
+              <h2>AI PEG 报告</h2>
+              <p>从当前股票或自选股一键发起 PEG 报告生成，并查看历史记录。</p>
+            </div>
+          </div>
+          <div class="lynch-toolbar lynch-toolbar-wide">
+            <input id="analysisKeyword" type="text" placeholder="输入股票名称或代码" />
+            <button id="analysisCreateBtn" class="primary-btn">开始分析</button>
+          </div>
+          <div id="lynchAnalysisCurrent"></div>
+          <div id="lynchAnalysisHistory" class="lynch-history"></div>
+        </section>
+      </div>
+    </section>
+
+    <section class="lynch-pane" data-pane="sector" role="tabpanel" hidden>
+      <div class="lynch-card">
+        <div class="lynch-card-head">
+          <div>
+            <h2>行业 PE 对比</h2>
+            <p>自动识别行业，查看同板块市值靠前公司的估值分布。</p>
+          </div>
+        </div>
+        <div class="lynch-toolbar lynch-toolbar-wide">
+          <input id="sectorKeyword" type="text" placeholder="输入股票名称或代码" />
+          <button id="sectorLoadBtn" class="primary-btn">查看行业</button>
+        </div>
+        <div id="lynchSector"></div>
+      </div>
+    </section>
+
+    <section class="lynch-pane" data-pane="news" role="tabpanel" hidden>
+      <div class="lynch-card">
+        <div class="lynch-card-head">
+          <div>
+            <h2>新闻聚合</h2>
+            <p>个股新闻、公告与市场快讯汇总到同一视图。</p>
+          </div>
+        </div>
+        <div class="lynch-toolbar lynch-toolbar-wide">
+          <input id="newsKeyword" type="text" placeholder="输入股票名称或代码，不填则按自选股聚合" />
+          <button id="newsLoadBtn" class="primary-btn">刷新新闻</button>
+        </div>
+        <div id="lynchNews"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="siteFooter"></div>
+</body>
+</html>

@@ -24,7 +24,7 @@ import java.util.List;
  * 主源: 东方财富板块涨幅排行
  *   http://push2.eastmoney.com/api/qt/clist/get?fs=m:90+t:2&fields=...
  *
- * 失败兜底: 返回内置常见高景气板块作为占位（避免流水线中断）。
+ * 失败兜底: 返回内置常见热点板块作为占位（避免流水线中断）。
  */
 @Slf4j
 @Component
@@ -187,7 +187,7 @@ public class HotSectorScanner {
         return s.isEmpty() || "-".equals(s) ? null : s;
     }
 
-    /** 兜底: 常见高景气板块占位,后续可由用户手动覆盖 */
+    /** 兜底: 常见热点板块占位,后续可由用户手动覆盖 */
     private List<ProsperityHotSector> mockSectors(LocalDate snapDate) {
         String[] names = {"半导体", "光模块", "AI算力", "工业母机", "创新药"};
         List<ProsperityHotSector> list = new ArrayList<>();

@@ -2,6 +2,7 @@ package com.quant.service.prosperitystrong;
 
 import com.quant.config.ProsperityStrongProperties;
 import com.quant.entity.ProsperityHotSector;
+import com.quant.entity.ProsperityLeaderCandidate;
 import com.quant.entity.TradeStockBasic;
 import com.quant.entity.TradeStockDaily;
 import com.quant.repository.TradeStockBasicRepository;
@@ -18,6 +19,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
@@ -86,6 +88,42 @@ class LeaderIdentifierTest {
         assertThat(stats.diagnosticMessage()).contains("别名匹配");
     }
 
+    @Test
+    @DisplayName("不再使用停牌字段过滤龙头候选")
+    void identifyDoesNotFilterBySuspensionFlag() {
+        LocalDate snapDate = LocalDate.of(2026, 6, 16);
+        ProsperityHotSector sector = new ProsperityHotSector();
+        sector.setSectorName("半导体");
+
+        TradeStockBasic suspendedFlagged = basic("688001.SH", "测试科技");
+        suspendedFlagged.setIsTrading(0);
+        when(basicRepo.findBySectorNameLike("半导体")).thenReturn(List.of(suspendedFlagged));
+        when(basicRepo.findBySectorNameLike("芯片")).thenReturn(List.of());
+        when(basicRepo.findBySectorNameLike("集成电路")).thenReturn(List.of());
+        when(basicRepo.findBySectorNameLike("中芯国际")).thenReturn(List.of());
+        when(basicRepo.findBySectorNameLike("华为海思")).thenReturn(List.of());
+
+        when(dailyRepo.findLatestByStockCodes(anyList())).thenReturn(List.of(
+                quote("688001.SH", snapDate.minusDays(10), "20.00", "3.20")
+        ));
+        when(dailyRepo.findFirstAfterDateByStockCodes(anyList(), any())).thenReturn(List.of(
+                quote("688001.SH", LocalDate.of(2026, 1, 2), "10.00", "1.00")
+        ));
+        when(dailyRepo.findTop6ByStockCodeOrderByTradeDateDesc("688001.SH")).thenReturn(List.of(
+                quote("688001.SH", snapDate.minusDays(10), "20.00", "3.20"),
+                quote("688001.SH", snapDate.minusDays(11), "19.00", "2.90"),
+                quote("688001.SH", snapDate.minusDays(12), "18.00", "2.70"),
+                quote("688001.SH", snapDate.minusDays(13), "17.00", "2.50"),
+                quote("688001.SH", snapDate.minusDays(14), "16.00", "2.30")
+        ));
+
+        List<ProsperityLeaderCandidate> candidates = identifier.identify(snapDate, sector);
+
+        assertThat(candidates).hasSize(1);
+        assertThat(candidates.get(0).getFilterPassed()).isEqualTo(1);
+        assertThat(candidates.get(0).getFilterReason()).isNull();
+    }
+
     private TradeStockBasic basic(String stockCode, String stockName) {
         TradeStockBasic basic = new TradeStockBasic();
         basic.setStockCode(stockCode);
@@ -95,11 +133,15 @@ class LeaderIdentifierTest {
     }
 
     private TradeStockDaily quote(String stockCode) {
+        return quote(stockCode, LocalDate.now(), "10", "1");
+    }
+
+    private TradeStockDaily quote(String stockCode, LocalDate tradeDate, String closePrice, String turnoverRate) {
         TradeStockDaily daily = new TradeStockDaily();
         daily.setStockCode(stockCode);
-        daily.setTradeDate(LocalDate.now());
-        daily.setClosePrice(BigDecimal.TEN);
-        daily.setTurnoverRate(BigDecimal.ONE);
+        daily.setTradeDate(tradeDate);
+        daily.setClosePrice(new BigDecimal(closePrice));
+        daily.setTurnoverRate(new BigDecimal(turnoverRate));
         return daily;
     }
 }

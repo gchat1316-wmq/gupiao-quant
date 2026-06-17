@@ -6,7 +6,13 @@ import com.quant.dto.stockanalysis.StockAnalysisRecordListDTO;
 import com.quant.dto.stockanalysis.StockAnalysisRequest;
 import com.quant.dto.stockanalysis.StockAnalysisResponse;
 import com.quant.entity.StockAnalysisRecord;
+import com.quant.entity.TradeStockBasic;
+import com.quant.entity.TradeStockFinancial;
 import com.quant.repository.StockAnalysisRecordRepository;
+import com.quant.repository.TradeStockFinancialRepository;
+import com.quant.service.ai.MiniMaxClient;
+import com.quant.service.ai.SenseNovaClient;
+import com.quant.service.search.WebSearchClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -35,6 +41,12 @@ public class StockAnalysisService {
 
     private final StockAnalysisProperties properties;
     private final StockAnalysisRecordRepository repository;
+    private final StockQueryService stockQueryService;
+    private final TradeStockFinancialRepository financialRepository;
+    private final MiniMaxClient miniMaxClient;
+    private final SenseNovaClient senseNovaClient;
+    private final WebSearchClient webSearchClient;
+    private final UnifiedStockResearchService unifiedStockResearchService;
     private final ObjectMapper objectMapper = new ObjectMapper()
             .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
             .disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
@@ -51,7 +63,7 @@ public class StockAnalysisService {
         if (codeRaw.isEmpty()) {
             throw new IllegalArgumentException("股票代码不能为空");
         }
-        String code = normalizeCode(codeRaw);
+        String code = unifiedStockResearchService.normalizeCode(codeRaw);
         String method = req.getMethod() == null ? "full" : req.getMethod();
         Integer years = req.getYears() == null ? 2 : req.getYears();
         Boolean lite = req.getLite() == null ? Boolean.TRUE : req.getLite();
@@ -124,6 +136,11 @@ public class StockAnalysisService {
                 rec.setVerdict(resp.getVerdict());
                 rec.setMoatScore(resp.getMoatScore());
                 rec.setResultJson(objectMapper.writeValueAsString(resp));
+                rec.setReportHtml(resp.getReportHtml());
+                rec.setSourcePayloadJson(objectMapper.writeValueAsString(Map.of(
+                        "sourceMetadata", resp.getSourceMetadata() == null ? Collections.emptyMap() : resp.getSourceMetadata(),
+                        "rawData", resp.getRawData() == null ? Collections.emptyMap() : resp.getRawData()
+                )));
             }
             repository.save(rec);
             log.info("分析完成: id={} code={} elapsed={}ms", recordId, rec.getStockCode(), elapsed);
@@ -141,63 +158,21 @@ public class StockAnalysisService {
     // 3. 同步版 (供 executeAsync 内部调用, 也可被外部直接调)
     // ============================================================
     public StockAnalysisResponse doAnalyze(StockAnalysisRequest req) {
-        String code = normalizeCode(req.getCode());
+        String code = unifiedStockResearchService.normalizeCode(req.getCode());
         String method = req.getMethod() == null ? "full" : req.getMethod();
 
         Map<String, Object> rawData = fetchPack(code, req);
         if (rawData == null || rawData.isEmpty()) {
             throw new RuntimeException("baostock 数据获取失败");
         }
-
-        Map<String, Object> basic = asMap(rawData.get("basic"));
-        String name = basic == null ? code : String.valueOf(basic.getOrDefault("code_name", code));
-        Map<String, Object> quote = asMap(rawData.get("quote"));
-        Double price = quote == null ? null : parseDouble(quote.get("close"));
-
-        Map<String, Object> financialSummary = buildFinancialSummary(asList(rawData.get("financial_history")));
-
-        Map<String, Object> chainPosition = null;
-        Map<String, Object> competition = null;
-        Map<String, Object> threeQuestions = null;
-        Integer moatScore = null;
-        String verdict = null;
-
-        if ("purple_perilla".equals(method) || "full".equals(method)) {
-            Map<String, Object> pcr = runPurplePerilla(rawData, name);
-            chainPosition = asMap(pcr.get("chainPosition"));
-            competition = asMap(pcr.get("competition"));
-            threeQuestions = asMap(pcr.get("threeQuestions"));
-            moatScore = (Integer) pcr.get("moatScore");
-            verdict = (String) pcr.get("verdict");
-        }
-
-        Map<String, Object> nineDim = null;
-        if ("gaojingqi".equals(method) || "full".equals(method)) {
-            nineDim = runGaoJingQi(rawData, name, price);
-        }
-
-        List<String> catalysts = buildCatalysts(rawData, name);
-        List<String> risks = buildRisks(rawData, name);
-
-        return StockAnalysisResponse.builder()
-                .ok(true)
-                .code(code)
-                .name(name)
-                .currentPrice(price)
-                .method(method)
-                .verdict(verdict)
-                .moatScore(moatScore)
-                .chainPosition(chainPosition)
-                .financialSummary(financialSummary)
-                .competition(competition)
-                .threeQuestions(threeQuestions)
-                .nineDimension(nineDim)
-                .catalysts(catalysts)
-                .risks(risks)
-                .rawData(rawData)
-                .timestamp(LocalDateTime.now())
-                .elapsedMs(0L)
-                .build();
+        TradeStockBasic basic = stockQueryService.resolveStock(code).orElseGet(() -> {
+            TradeStockBasic synthetic = new TradeStockBasic();
+            synthetic.setStockCode(code);
+            synthetic.setStockName(String.valueOf(asMap(rawData.get("basic")).getOrDefault("code_name", code)));
+            return synthetic;
+        });
+        Map<String, Object> aiAnalysis = analyzeWithAi(buildPrompt(basic, rawData));
+        return unifiedStockResearchService.buildUnifiedResponse(basic, rawData, aiAnalysis, method, 0L);
     }
 
     // ============================================================
@@ -232,6 +207,20 @@ public class StockAnalysisService {
     }
 
     private StockAnalysisRecordListDTO toListDTO(StockAnalysisRecord r) {
+        String summaryOneLiner = null;
+        Integer sourceCoverage = null;
+        boolean hasReport = r.getReportHtml() != null && !r.getReportHtml().isBlank();
+        if (r.getResultJson() != null && !r.getResultJson().isBlank()) {
+            try {
+                StockAnalysisResponse response = objectMapper.readValue(r.getResultJson(), StockAnalysisResponse.class);
+                Map<String, Object> summary = response.getAnalysis() == null ? Collections.emptyMap() : asMap(response.getAnalysis().get("summary"));
+                summaryOneLiner = summary.get("oneLiner") == null ? response.getVerdict() : String.valueOf(summary.get("oneLiner"));
+                sourceCoverage = countAvailableSources(response.getSourceMetadata());
+                hasReport = hasReport || (response.getReportHtml() != null && !response.getReportHtml().isBlank());
+            } catch (Exception e) {
+                log.debug("列表解析富报告失败: id={}", r.getId(), e);
+            }
+        }
         return StockAnalysisRecordListDTO.builder()
                 .id(r.getId())
                 .stockCode(r.getStockCode())
@@ -244,10 +233,144 @@ public class StockAnalysisService {
                 .currentPrice(r.getCurrentPrice())
                 .elapsedMs(r.getElapsedMs())
                 .errorMessage(r.getErrorMessage())
+                .summaryOneLiner(summaryOneLiner)
+                .sourceCoverage(sourceCoverage)
+                .hasReport(hasReport)
                 .submittedAt(r.getSubmittedAt())
                 .startedAt(r.getStartedAt())
                 .finishedAt(r.getFinishedAt())
                 .build();
+    }
+
+    private int countAvailableSources(Map<String, Object> sourceMetadata) {
+        if (sourceMetadata == null || sourceMetadata.isEmpty()) return 0;
+        int count = 0;
+        for (Object meta : sourceMetadata.values()) {
+            if (meta instanceof Map<?, ?> map && Boolean.TRUE.equals(map.get("available"))) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private Map<String, Object> analyzeWithAi(String prompt) {
+        Exception miniMaxError;
+        try {
+            return parseAiJson(miniMaxClient.chatComplete(SYSTEM_PROMPT, prompt));
+        } catch (Exception e) {
+            miniMaxError = e;
+            log.warn("MiniMax 分析失败，尝试 SenseNova: {}", e.getMessage());
+        }
+        try {
+            return parseAiJson(senseNovaClient.chatComplete(SYSTEM_PROMPT, prompt));
+        } catch (Exception senseNovaError) {
+            String message = "MiniMax: " + miniMaxError.getMessage() + "; SenseNova: " + senseNovaError.getMessage();
+            throw new IllegalStateException("AI 调用失败: " + message, senseNovaError);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> parseAiJson(String raw) {
+        try {
+            return objectMapper.readValue(extractJson(raw), Map.class);
+        } catch (Exception e) {
+            throw new IllegalStateException("AI 返回不是合法 JSON: " + e.getMessage(), e);
+        }
+    }
+
+    private String buildPrompt(TradeStockBasic basic, Map<String, Object> rawData) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("分析日期: ").append(java.time.LocalDate.now()).append("\n");
+        sb.append("公司: ").append(basic.getStockName()).append(" ").append(basic.getStockCode()).append(" (A股)\n");
+        if (basic.getSectorNames() != null) sb.append("所属行业: ").append(basic.getSectorNames()).append("\n");
+        if (basic.getPeTtm() != null) sb.append("PE-TTM: ").append(basic.getPeTtm()).append("\n");
+        if (basic.getPb() != null) sb.append("PB: ").append(basic.getPb()).append("\n");
+        if (basic.getPsTtm() != null) sb.append("PS-TTM: ").append(basic.getPsTtm()).append("\n");
+
+        List<TradeStockFinancial> records = financialRepository.findByStockCodeOrderByReportDateDesc(basic.getStockCode())
+                .stream().limit(12).toList();
+        if (!records.isEmpty()) {
+            sb.append("\n最近 ").append(records.size()).append(" 季度财务（单位：元）:\n");
+            sb.append("报告期 | 营收 | 净利润 | EPS | ROE | 毛利率 | 净利率 | 营收同比 | 扣非同比\n");
+            for (TradeStockFinancial f : records) {
+                sb.append(f.getReportDate()).append(" | ")
+                        .append(safe(f.getRevenue())).append(" | ")
+                        .append(safe(f.getNetProfit())).append(" | ")
+                        .append(safe(f.getEps())).append(" | ")
+                        .append(safe(f.getRoe())).append(" | ")
+                        .append(safe(f.getGrossMargin())).append(" | ")
+                        .append(safe(f.getNetMargin())).append(" | ")
+                        .append(safe(f.getRevenueYoy())).append(" | ")
+                        .append(safe(f.getDeductedNetProfitYoy())).append("\n");
+            }
+        }
+
+        Map<String, Object> quote = asMap(rawData.get("quote"));
+        if (!quote.isEmpty()) {
+            sb.append("\nbaostock 行情数据:\n");
+            sb.append("收盘: ").append(safe(quote.get("close"))).append("\n");
+            sb.append("成交量: ").append(safe(quote.get("volume"))).append("\n");
+            sb.append("换手率: ").append(safe(quote.get("turn"))).append("\n");
+            sb.append("区间最高: ").append(safe(quote.get("period_high"))).append("\n");
+            sb.append("区间最低: ").append(safe(quote.get("period_low"))).append("\n");
+            sb.append("区间涨跌幅: ").append(safe(quote.get("period_change_pct"))).append("\n");
+        }
+        List<Object> finHistory = asList(rawData.get("financial_history"));
+        if (!finHistory.isEmpty()) {
+            sb.append("\nbaostock 财务历史 (近 ").append(finHistory.size()).append(" 季度):\n");
+            sb.append("报告期 | ROE | 毛利率 | 净利率 | 营收YoY | 净利YoY\n");
+            for (Object item : finHistory) {
+                Map<String, Object> rec = asMap(item);
+                Map<String, Object> p = asMap(rec.get("profitability"));
+                Map<String, Object> g = asMap(rec.get("growth"));
+                sb.append(safe(rec.get("statDate"))).append(" | ")
+                        .append(safe(p.get("roe_avg"))).append(" | ")
+                        .append(safe(p.get("gp_margin"))).append(" | ")
+                        .append(safe(p.get("np_margin"))).append(" | ")
+                        .append(safe(g.get("yoy_revenue"))).append(" | ")
+                        .append(safe(g.get("yoy_ni"))).append("\n");
+            }
+        }
+        if (!asList(rawData.get("forecast")).isEmpty()) {
+            sb.append("\nforecast 数据:\n");
+            for (Object item : asList(rawData.get("forecast"))) {
+                sb.append("- ").append(safe(item)).append("\n");
+            }
+        }
+
+        if (webSearchClient.isEnabled()) {
+            appendSearch(sb, basic.getStockName() + " 行业景气度 机构预测 目标价");
+            appendSearch(sb, basic.getStockName() + " 主力资金 北向资金 龙虎榜");
+        } else {
+            sb.append("\n（未启用联网检索，请仅基于已知信息分析）\n");
+        }
+
+        sb.append("\n请严格按照下方 JSON 格式输出，不要输出任何额外文字、不要使用 markdown：\n");
+        sb.append(JSON_SCHEMA);
+        return sb.toString();
+    }
+
+    private void appendSearch(StringBuilder sb, String query) {
+        List<WebSearchClient.SearchResult> results = webSearchClient.search(query);
+        if (results.isEmpty()) return;
+        sb.append("【").append(query).append("】\n");
+        for (WebSearchClient.SearchResult result : results) {
+            sb.append(result.toLine()).append("\n");
+        }
+    }
+
+    private String extractJson(String raw) {
+        if (raw == null) return "{}";
+        String s = raw.trim();
+        if (s.startsWith("```")) {
+            int firstNewline = s.indexOf('\n');
+            if (firstNewline > 0) s = s.substring(firstNewline + 1);
+            int lastFence = s.lastIndexOf("```");
+            if (lastFence > 0) s = s.substring(0, lastFence);
+        }
+        int start = s.indexOf('{');
+        int end = s.lastIndexOf('}');
+        return start >= 0 && end > start ? s.substring(start, end + 1) : s;
     }
 
     // ============================================================
@@ -509,9 +632,8 @@ public class StockAnalysisService {
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> asMap(Object o) {
-        if (o == null) return null;
         if (o instanceof Map) return (Map<String, Object>) o;
-        return null;
+        return Collections.emptyMap();
     }
 
     @SuppressWarnings("unchecked")
@@ -532,4 +654,66 @@ public class StockAnalysisService {
         if (d == null) return "N/A";
         return String.format("%.2f%%", d * 100);
     }
+
+    private String safe(Object v) {
+        return v == null ? "" : v.toString();
+    }
+
+    private static final String SYSTEM_PROMPT =
+            "你是一名资深的 A 股价值景气投资分析师，擅长从全球产业趋势、行业周期、国家政策、" +
+                    "公司基本面、管理层、估值、技术面、资金面进行全维度分析。" +
+                    "请严格按照用户给出的 JSON Schema 输出，不要使用 markdown，" +
+                    "不要输出任何解释或前后多余文字，输出必须是合法的 JSON。";
+
+    private static final String JSON_SCHEMA = """
+            {
+              "industry": {
+                "cyclePosition": "上行/下行 + 描述当前所处位置",
+                "lastCycleReview": "上一轮完整周期时长、顶底特征以及对比当前位置",
+                "next12mForecast": "未来12个月拐点核心触发条件、向上/向下概率与弹性",
+                "entryBarrier": "高/中/低，并说明新进入者难易度与现有竞争者增减情况",
+                "lifeStage": "导入期/成长期/成熟期/萎缩期",
+                "competition": "CR5 市场份额数据 + 公司行业地位",
+                "globalResonance": "主要国家共振程度与政策支持度"
+              },
+              "company": {
+                "businessMix": "各业务线及其营收占比，新增长曲线",
+                "quarterly12": "近12季度营收/归母/扣非净利润同比环比 + 驱动因子拆分",
+                "next2yDriver": "未来2年业绩驱动因素",
+                "moat": "护城河，可持续性与被颠覆风险",
+                "policyFit": "是否国家重点扶持，与十五五规划相关度",
+                "globalization": "海外营收过去3年占比走势",
+                "priceTrend": "过去1年产品/服务价格变化以及未来1年走势",
+                "chairman": "董事长年龄/学历/经历/专业度/企业家精神",
+                "catalysts": "概念、故事、股价催化剂"
+              },
+              "valuation": {
+                "type": "成长型/强周期/成熟稳定/亏损或周期底部",
+                "methods": [
+                  {"name":"PEG/PE/PB/PS/EV-EBITDA/DCF/股息率等","current":"当前值","reasonable":"合理区间","verdict":"便宜/合理/略贵/泡沫"}
+                ],
+                "target2026": "目标价",
+                "target2027": "目标价",
+                "verdict": "综合结论",
+                "reasoning": "估值依据"
+              },
+              "technical": {
+                "trendLine": "趋势线判断",
+                "ma": "均线判断",
+                "volume": "量价关系",
+                "macd": "MACD判断",
+                "verdict": "综合结论"
+              },
+              "capital": {
+                "mainNetIn": "主力资金情况",
+                "northbound": "北向资金情况",
+                "dragonTiger": "龙虎榜情况",
+                "verdict": "综合结论"
+              },
+              "summary": {
+                "bullets": ["最多6条要点"],
+                "oneLiner": "一句话结论"
+              }
+            }
+            """;
 }

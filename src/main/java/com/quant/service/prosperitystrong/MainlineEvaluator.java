@@ -42,11 +42,13 @@ public class MainlineEvaluator {
         double total = 0.4 * mbScore + 0.4 * nmScore + 0.2 * stability;
         total = Math.max(0, Math.min(100, total));
 
+        boolean passed = isMainline(mb);
         return new Score(
                 BigDecimal.valueOf(total).setScale(2, RoundingMode.HALF_UP),
                 BigDecimal.valueOf(mb).setScale(2, RoundingMode.HALF_UP),
                 BigDecimal.valueOf(nm).setScale(2, RoundingMode.HALF_UP),
-                isMainline(mb)
+                passed,
+                buildReason(mainBizRatio, mb, passed)
         );
     }
 
@@ -54,8 +56,20 @@ public class MainlineEvaluator {
         return mainBiz >= 50;
     }
 
+    private String buildReason(BigDecimal mainBizRatio, double mb, boolean passed) {
+        if (passed) {
+            return "主营占比 " + String.format("%.2f", mb) + "% ≥ 50%";
+        }
+        // 未通过 — 给出原因细分
+        if (mainBizRatio == null) {
+            return "主营占比数据缺失,默认按 60% 评估仍不通过(疑似打分衰减)";
+        }
+        return "主营占比 " + String.format("%.2f", mb) + "% < 50%";
+    }
+
     public record Score(BigDecimal mainlineScore,
                         BigDecimal mainBizRatio,
                         BigDecimal netMarginAvg,
-                        boolean mainlinePassed) {}
+                        boolean mainlinePassed,
+                        String mainlineReason) {}
 }

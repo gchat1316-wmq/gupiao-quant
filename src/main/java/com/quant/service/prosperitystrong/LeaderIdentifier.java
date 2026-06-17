@@ -35,7 +35,7 @@ import java.util.Map;
  * Step 2: 龙头识别
  *
  * 在板块成分股内按 (年度涨幅 + 5日涨幅 + 换手率) 加权评分,
- * 并剔除业绩预亏 / ST / 停牌 / 近5日跌停 / 次新股(<1年)。
+ * 并剔除 ST / 次新股(<1年)。不使用停牌字段过滤,该数据源不稳定。
  *
  * 为简化首阶段,从 TradeStockBasic.sectorNames 字段中模糊匹配板块名称,
  * 找出该板块内的成分股进行评分。
@@ -293,11 +293,6 @@ public class LeaderIdentifier {
 
     private String passFastFilter(TradeStockBasic basic, TradeStockDaily latest, LocalDate snapDate) {
         if (basic.getStockName() != null && basic.getStockName().contains("ST")) return "ST标的";
-        if (basic.getIsTrading() != null && basic.getIsTrading() == 0
-                && (latest == null || latest.getTradeDate() == null
-                || latest.getTradeDate().isBefore(snapDate.minusDays(3)))) {
-            return "停牌";
-        }
         if (basic.getListDate() != null && basic.getListDate().isAfter(LocalDate.now().minusYears(1))) {
             return "次新股(上市不足1年)";
         }

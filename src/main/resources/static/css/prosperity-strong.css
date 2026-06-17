@@ -168,13 +168,230 @@
   font-size: 12px;
 }
 
-/* 板块卡片 */
-.ps-sector-grid {
+/* 板块横向对比表 */
+.ps-compare-wrap {
+  overflow-x: auto;
+  border: 1px solid #e6e6ea;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(80, 0, 24, 0.04);
+}
+.ps-compare-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+}
+.ps-compare-table th,
+.ps-compare-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #f0eef0;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.ps-compare-table thead th {
+  background: linear-gradient(180deg, #fff8fb 0%, #fff 100%);
+  color: #7a0017;
+  font-weight: 700;
+  font-size: 13px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.ps-compare-table thead th:first-child,
+.ps-compare-table tbody th {
+  text-align: left;
+  background: #faf6f8;
+  color: #555;
+  font-weight: 600;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  min-width: 132px;
+  border-right: 1px solid #ececef;
+}
+.ps-compare-table thead th:first-child {
+  z-index: 3;
+}
+.ps-compare-table tbody tr:last-child td,
+.ps-compare-table tbody tr:last-child th {
+  border-bottom: none;
+}
+.ps-compare-table .ps-compare-rank {
+  display: inline-block;
+  background: linear-gradient(135deg, #ff2a49 0%, #e1062c 100%);
+  color: #fff;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 11px;
+  margin-right: 4px;
+}
+.ps-compare-table .ps-compare-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2c2c2c;
+}
+.ps-compare-table .ps-compare-score {
+  font-size: 16px;
+  font-weight: 700;
+  color: #e1062c;
+}
+.ps-compare-table .ps-compare-up { color: #c0392b; font-weight: 600; }
+.ps-compare-table .ps-compare-down { color: #1c7a4a; font-weight: 600; }
+.ps-compare-table .ps-compare-funnel-mini {
+  display: inline-flex;
+  height: 6px;
+  width: 96px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #f1f1f3;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+.ps-compare-table .ps-compare-funnel-mini i {
+  display: block;
+  height: 100%;
+  min-width: 1px;
+}
+.ps-compare-table .ps-compare-funnel-mini .l { background: #b8b8c2; }
+.ps-compare-table .ps-compare-funnel-mini .f { background: #f2b04c; }
+.ps-compare-table .ps-compare-funnel-mini .m { background: #e1062c; }
+.ps-compare-table .ps-compare-funnel-mini .p { background: #2f9e62; }
+.ps-compare-table .ps-compare-funnel-num {
+  font-size: 11px;
+  color: #666;
+}
+.ps-compare-table tbody th .ps-row-hint {
+  display: block;
+  color: #999;
+  font-size: 10px;
+  font-weight: 400;
+  margin-top: 2px;
+}
+.ps-compare-table .ps-compare-actions {
+  white-space: nowrap;
+}
+.ps-compare-table .ps-compare-actions button {
+  background: transparent;
+  border: 1px solid rgba(225, 6, 44, 0.42);
+  color: #e1062c;
+  border-radius: 4px;
+  padding: 3px 9px;
+  font-size: 12px;
+  cursor: pointer;
+  margin: 0 2px;
+}
+.ps-compare-table .ps-compare-actions button:hover { background: #fff0f3; }
+
+/* 板块详情行(每个板块的 narrative / funnel / 漏斗明细) */
+.ps-sector-detail {
+  margin: 10px 0 14px;
+  border: 1px solid #e6e6ea;
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+}
+.ps-sector-detail summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 10px 14px;
+  background: #faf6f8;
+  font-size: 13px;
+  font-weight: 600;
+  color: #7a0017;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ps-sector-detail summary::-webkit-details-marker { display: none; }
+.ps-sector-detail summary::before {
+  content: "▶";
+  font-size: 10px;
+  color: #999;
+  transition: transform .15s;
+}
+.ps-sector-detail[open] summary::before {
+  transform: rotate(90deg);
+}
+.ps-sector-detail[open] summary {
+  border-bottom: 1px solid #ececef;
+}
+.ps-sector-detail-body {
+  padding: 14px 16px;
+}
+.ps-sector-detail-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 12px;
+  grid-template-columns: minmax(260px, 1.2fr) 2fr;
+  gap: 14px;
+  align-items: start;
+}
+@media (max-width: 980px) {
+  .ps-sector-detail-grid { grid-template-columns: 1fr; }
+}
+.ps-sector-narrative {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #444;
+  background: #fcfafb;
+  border-left: 3px solid #e1062c;
+  padding: 10px 12px;
+  border-radius: 0 6px 6px 0;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.ps-sector-diagnostic {
+  margin-top: 0;
+  padding: 8px 10px;
+  color: #75520f;
+  background: #fff8e6;
+  border: 1px solid #f1dfaa;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.ps-funnel { margin-top: 12px; }
+.ps-funnel-bar {
+  display: flex;
+  height: 12px;
+  overflow: hidden;
+  background: #f1f1f3;
+  border-radius: 999px;
+}
+.ps-funnel-seg { min-width: 1px; }
+.ps-funnel-leader { background: #b8b8c2; }
+.ps-funnel-finance { background: #f2b04c; }
+.ps-funnel-mainline { background: #e1062c; }
+.ps-funnel-passed { background: #2f9e62; }
+.ps-funnel-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 8px;
+  color: #666;
+  font-size: 12px;
+}
+.ps-legend::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 5px;
+  border-radius: 2px;
+}
+.ps-legend-leader::before { background: #b8b8c2; }
+.ps-legend-finance::before { background: #f2b04c; }
+.ps-legend-mainline::before { background: #e1062c; }
+.ps-legend-passed::before { background: #2f9e62; }
+
+/* 旧版 sector 卡片保留兜底(老 JS 路径) */
+.ps-sector-grid {
+  display: block;
 }
 .ps-sector-card {
+  min-width: 0;
   border: 1px solid #e6e6ea;
   border-radius: 10px;
   padding: 14px 16px;
@@ -217,78 +434,16 @@
   color: #555;
 }
 .ps-sector-metrics span strong { color: #e1062c; }
-.ps-sector-narrative {
-  margin-top: 8px;
-  font-size: 12px;
-  line-height: 1.6;
-  color: #444;
-  background: #fcfafb;
-  border-left: 3px solid #e1062c;
-  padding: 8px 10px;
-  border-radius: 0 6px 6px 0;
-}
-.ps-sector-diagnostic {
-  margin-top: 8px;
-  padding: 8px 10px;
-  color: #75520f;
-  background: #fff8e6;
-  border: 1px solid #f1dfaa;
-  border-radius: 6px;
-  font-size: 12px;
-  line-height: 1.5;
-}
-.ps-funnel {
-  margin-top: 12px;
-}
-.ps-funnel-bar {
-  display: flex;
-  height: 10px;
-  overflow: hidden;
-  background: #f1f1f3;
-  border-radius: 999px;
-}
-.ps-funnel-seg {
-  min-width: 1px;
-}
-.ps-funnel-leader { background: #b8b8c2; }
-.ps-funnel-finance { background: #f2b04c; }
-.ps-funnel-mainline { background: #e1062c; }
-.ps-funnel-passed { background: #2f9e62; }
-.ps-funnel-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-  margin-top: 8px;
-  color: #666;
-  font-size: 11px;
-}
-.ps-legend::before {
-  content: "";
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  margin-right: 5px;
-  border-radius: 2px;
-}
-.ps-legend-leader::before { background: #b8b8c2; }
-.ps-legend-finance::before { background: #f2b04c; }
-.ps-legend-mainline::before { background: #e1062c; }
-.ps-legend-passed::before { background: #2f9e62; }
+
 .ps-leader-details {
   margin-top: 12px;
+  min-width: 0;
 }
 .ps-leader-details summary {
   color: #7a0017;
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
-}
-.ps-leader-table {
-  margin-top: 8px;
-  font-size: 12px;
-}
-.ps-leader-table td {
-  vertical-align: top;
 }
 .ps-check { color: #1c7a4a; font-weight: 700; }
 .ps-cross { color: #c0392b; font-weight: 700; }
@@ -318,6 +473,161 @@
   background: #ffe6ee;
   color: #e1062c;
 }
+
+/* 成分股过滤明细 modal 弹窗 */
+.ps-leader-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 12, 18, 0.55);
+  padding: 24px;
+}
+.ps-leader-modal.open { display: flex; }
+.ps-leader-modal-card {
+  width: min(1280px, 100%);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 20px 50px rgba(20, 0, 12, 0.32);
+  overflow: hidden;
+}
+.ps-leader-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid #ececef;
+  background: linear-gradient(90deg, #fff8fb 0%, #fff 100%);
+}
+.ps-leader-modal-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 15px;
+  color: #2c2c2c;
+}
+.ps-leader-modal-title b {
+  color: #7a0017;
+  font-size: 16px;
+}
+.ps-leader-modal-title small {
+  color: #777;
+  font-size: 12px;
+  font-weight: 400;
+}
+.ps-leader-modal-close {
+  background: transparent;
+  border: 1px solid #d9d9de;
+  color: #555;
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.ps-leader-modal-close:hover {
+  background: #faf6f8;
+  color: #e1062c;
+  border-color: #e1062c;
+}
+.ps-leader-modal-body {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 14px 20px 20px;
+  background: #fdfbfc;
+}
+.ps-leader-modal-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #555;
+}
+.ps-leader-modal-summary .ps-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #f4f4f7;
+  color: #555;
+}
+.ps-leader-modal-summary .ps-pill b { color: #2c2c2c; }
+.ps-leader-modal-summary .ps-pill.l { background: #f0f0f2; }
+.ps-leader-modal-summary .ps-pill.f { background: #fff4d8; color: #a8770b; }
+.ps-leader-modal-summary .ps-pill.m { background: #ffe6ee; color: #e1062c; }
+.ps-leader-modal-summary .ps-pill.p { background: #e7f4ee; color: #1c7a4a; }
+
+.ps-leader-modal-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+  background: #fff;
+  border: 1px solid #ececef;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.ps-leader-modal-table th,
+.ps-leader-modal-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #f0eef0;
+  text-align: right;
+  vertical-align: top;
+}
+.ps-leader-modal-table thead th {
+  position: sticky;
+  top: 0;
+  background: #faf6f8;
+  color: #555;
+  font-weight: 600;
+  font-size: 12px;
+  z-index: 1;
+}
+.ps-leader-modal-table th:nth-child(1),
+.ps-leader-modal-table td:nth-child(1),
+.ps-leader-modal-table th:nth-child(2),
+.ps-leader-modal-table td:nth-child(2) { text-align: left; }
+.ps-leader-modal-table th:nth-child(3),
+.ps-leader-modal-table th:nth-child(4),
+.ps-leader-modal-table th:nth-child(5),
+.ps-leader-modal-table th:nth-child(6),
+.ps-leader-modal-table th:nth-child(7) { text-align: center; }
+.ps-leader-modal-table td.ps-reason {
+  font-size: 12px;
+  color: #c0392b;
+  white-space: normal;
+  line-height: 1.55;
+  max-width: 360px;
+}
+.ps-leader-modal-table td.ps-reason.pass {
+  color: #1c7a4a;
+  font-weight: 600;
+}
+.ps-leader-modal-table tr.row-leader { background: #fbfafb; }
+.ps-leader-modal-table tr.row-finance { background: #fffaf0; }
+.ps-leader-modal-table tr.row-mainline { background: #fff4f7; }
+.ps-leader-modal-table tr.row-passed { background: #f3fbf6; }
+.ps-leader-modal-table .ps-pill-mini {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  background: #ececef;
+  color: #555;
+}
+.ps-leader-modal-table .ps-pill-mini.l { background: #f0f0f2; color: #555; }
+.ps-leader-modal-table .ps-pill-mini.f { background: #fff4d8; color: #a8770b; }
+.ps-leader-modal-table .ps-pill-mini.m { background: #ffe6ee; color: #e1062c; }
+.ps-leader-modal-table .ps-pill-mini.p { background: #e7f4ee; color: #1c7a4a; }
+.ps-leader-modal-table .ps-score { color: #2c2c2c; font-weight: 600; }
 
 /* 候选表 */
 .ps-table-wrap { overflow-x: auto; }

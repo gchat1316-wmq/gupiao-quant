@@ -27,5 +27,6 @@ public class LeaderCandidateDTO {
     private String financeReason;
     private BigDecimal mainlineScore;
     private Boolean mainlinePassed;
+    private String mainlineReason;
     private String finalStage;
 }

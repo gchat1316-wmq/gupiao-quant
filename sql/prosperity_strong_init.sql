@@ -1,6 +1,6 @@
 -- ============================================================
--- 高景气强势股选股 - 数据表初始化脚本
--- 来源: docs/PRD-高景气强势股选股.md
+-- 热点选股 - 数据表初始化脚本
+-- 来源: docs/PRD-热点选股.md
 -- 执行环境: MySQL 5.7+ / 8.x
 -- ============================================================
 
@@ -28,7 +28,7 @@ CREATE TABLE `prosperity_hot_sector` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_date_sector` (`snap_date`, `sector_name`),
   KEY `idx_date_rank` (`snap_date`, `rank_no`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='强势股流水线-每日热门板块快照';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='热点选股流水线-每日热门板块快照';
 
 -- ----------------------------
 -- 2. 板块龙头候选
@@ -52,7 +52,7 @@ CREATE TABLE `prosperity_leader_candidate` (
   PRIMARY KEY (`id`),
   KEY `idx_date_sector` (`snap_date`, `sector_id`),
   KEY `idx_date_code` (`snap_date`, `stock_code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='强势股流水线-板块龙头候选';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='热点选股流水线-板块龙头候选';
 
 -- ----------------------------
 -- 3. 每日最终候选 + 仓位建议
@@ -88,4 +88,4 @@ CREATE TABLE `prosperity_pick_daily` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_date_code` (`snap_date`, `stock_code`),
   KEY `idx_date_score` (`snap_date`, `combined_score`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='强势股流水线-每日候选清单+仓位建议';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='热点选股流水线-每日候选清单+仓位建议';

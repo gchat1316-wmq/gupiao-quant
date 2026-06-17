@@ -36,6 +36,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 @Slf4j
 @Service
@@ -43,6 +45,11 @@ import java.util.Objects;
 public class ProsperityStrongPipelineService {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    /** 同进程内流水线互斥,避免定时器 + 手动触发并发跑同一份快照。
+     *  历史教训: 并发 insert prosperity_hot_sector 会触发
+     *  innodb_lock_wait_timeout (50s), 前端流水线程会报 HTTP 500。 */
+    private final ReentrantLock runLock = new ReentrantLock(true);
 
     private final ProsperityStrongProperties props;
     private final HotSectorScanner sectorScanner;
@@ -52,6 +59,7 @@ public class ProsperityStrongPipelineService {
     private final PositionAdvisor positionAdvisor;
     private final SectorNarrativeService narrativeService;
     private final ProsperityDataProviderService providerService;
+    private final ProsperityStrongCleanupService cleanupService;
 
     private final ProsperityHotSectorRepository sectorRepo;
     private final ProsperityLeaderCandidateRepository leaderRepo;
@@ -61,27 +69,61 @@ public class ProsperityStrongPipelineService {
     private final TradeStockFinancialRepository financialRepo;
 
     /** 全量执行四步流水线。 */
-    @Transactional
     public PipelineRunResultDTO run(LocalDate snapDate) {
         return run(snapDate, null);
     }
 
-    /** 全量执行四步流水线。 */
+    /**
+     * 全量执行四步流水线。
+     *
+     * <p>并发策略:
+     * <ol>
+     *   <li>同进程内 {@link #runLock} 互斥, 拒绝并发触发 (前端/定时器只允许一条在跑)</li>
+     *   <li>delete 走 {@link ProsperityStrongCleanupService} 的 REQUIRES_NEW 短事务,
+     *       立刻释放 uk_date_sector 唯一键的行锁, 避免 insert 阶段锁等待</li>
+     *   <li>主体 Step1~5 在本事务内一次提交, 缩小锁持有窗口</li>
+     * </ol>
+     */
     @Transactional
     public PipelineRunResultDTO run(LocalDate snapDate, String provider) {
         LocalDateTime t0 = LocalDateTime.now();
-        String selectedProvider = providerService.normalize(provider);
-        String providerMessage = providerService.providerMessage(selectedProvider);
-        log.info("强势股流水线开始: date={}, provider={}, providerMessage={}",
-                snapDate, selectedProvider, providerMessage);
+        boolean acquired;
+        try {
+            acquired = runLock.tryLock(0, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            return PipelineRunResultDTO.builder()
+                    .snapDate(snapDate).startedAt(t0).finishedAt(LocalDateTime.now())
+                    .durationMs(0L).provider(provider == null ? "" : provider)
+                    .status("INTERRUPTED").message("流水线被中断")
+                    .build();
+        }
+        if (!acquired) {
+            log.warn("热点选股流水线正在执行中,本次请求被拒绝: snapDate={}, provider={}", snapDate, provider);
+            return PipelineRunResultDTO.builder()
+                    .snapDate(snapDate).startedAt(t0).finishedAt(LocalDateTime.now())
+                    .durationMs(0L).provider(provider == null ? "" : provider)
+                    .status("BUSY").message("流水线正在执行中,请稍后再试")
+                    .build();
+        }
+        try {
+            String selectedProvider = providerService.normalize(provider);
+            String providerMessage = providerService.providerMessage(selectedProvider);
+            log.info("热点选股流水线开始: date={}, provider={}, providerMessage={}",
+                    snapDate, selectedProvider, providerMessage);
 
-        // 幂等: 清空当日数据(覆盖式)
-        leaderRepo.deleteBySnapDate(snapDate);
-        pickRepo.deleteBySnapDate(snapDate);
-        sectorRepo.deleteBySnapDate(snapDate);
-        leaderRepo.flush();
-        pickRepo.flush();
-        sectorRepo.flush();
+            // 幂等: 清空当日数据 (独立短事务, 立刻释放行锁)
+            cleanupService.clearSnapDate(snapDate);
+
+            return runPipeline(snapDate, selectedProvider, providerMessage, t0);
+        } finally {
+            runLock.unlock();
+        }
+    }
+
+    /** 流水线主体 Step1~5, 与 {@link #run} 同事务。 */
+    private PipelineRunResultDTO runPipeline(LocalDate snapDate, String selectedProvider,
+                                             String providerMessage, LocalDateTime t0) {
 
         // ===== Step 1 =====
         List<ProsperityHotSector> sectors = sectorScanner.scan(snapDate, selectedProvider);
@@ -133,6 +175,14 @@ public class ProsperityStrongPipelineService {
             c.setFinanceReason(fin.reason());
             if (!fin.hardPassed()) {
                 c.setFinalStage("finance_filter");
+                // 财务筛不通过时仍跑一遍主线评估,把 mainlinePassed/mainlineReason
+                // 落库,供"成分股过滤明细"里给用户看全每只股票三个阶段的原因。
+                // 注意: 此处不影响 finalStage,业务过滤链仍是 step2 → step3 → step4 顺序。
+                MainlineEvaluator.Score mlForRecord = mainlineEvaluator.evaluate(
+                        null, fin.netMarginAvg4q(), fin.financeScore());
+                c.setMainlineScore(mlForRecord.mainlineScore());
+                c.setMainlinePassed(mlForRecord.mainlinePassed() ? 1 : 0);
+                c.setMainlineReason(mlForRecord.mainlineReason());
                 continue;
             }
 
@@ -141,6 +191,7 @@ public class ProsperityStrongPipelineService {
                     null, fin.netMarginAvg4q(), fin.financeScore());
             c.setMainlineScore(mainline.mainlineScore());
             c.setMainlinePassed(mainline.mainlinePassed() ? 1 : 0);
+            c.setMainlineReason(mainline.mainlineReason());
             if (!mainline.mainlinePassed() && mainline.netMarginAvg().doubleValue() < 10) {
                 c.setFinalStage("mainline_filter");
                 continue;
@@ -315,6 +366,7 @@ public class ProsperityStrongPipelineService {
                 .financeReason(e.getFinanceReason())
                 .mainlineScore(e.getMainlineScore())
                 .mainlinePassed(e.getMainlinePassed() != null && e.getMainlinePassed() == 1)
+                .mainlineReason(e.getMainlineReason())
                 .finalStage(e.getFinalStage())
                 .build();
     }

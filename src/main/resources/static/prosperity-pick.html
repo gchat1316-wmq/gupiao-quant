@@ -5,164 +5,144 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0f9d58" />
   <base href="/gp/" />
-  <title>景气度选股 · 投资助手</title>
-  <link rel="stylesheet" href="css/style.css?v=20260609-red-tech-footer" />
-  <link rel="stylesheet" href="css/study.css?v=20260609-red-tech-footer" />
-  <link rel="stylesheet" href="css/invest.css?v=20260609-red-tech" />
-  <link rel="stylesheet" href="css/prosperity-pick.css" />
-  <script src="js/layout.js?v=20260611-shared-header" defer></script>
+  <title>景气度选股 · 个股研究</title>
+  <link rel="stylesheet" href="css/style.css?v=20260617-unified-pick" />
+  <link rel="stylesheet" href="css/study.css?v=20260617-unified-pick" />
+  <link rel="stylesheet" href="css/invest.css?v=20260617-unified-pick" />
+  <link rel="stylesheet" href="css/prosperity-pick.css?v=20260617-unified-pick" />
+  <script src="js/layout.js?v=20260617-unified-pick" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <div id="siteHeader"></div>
 
   <main class="container">
-
-    <!-- Hero -->
-    <div class="pp-hero">
-      <div class="pp-hero-icon">🔍</div>
+    <section class="pp-hero">
+      <div class="pp-hero-icon">🧭</div>
       <div>
-        <h2 class="pp-hero-title">景气度选股 · AI 全维度个股研究</h2>
-        <p class="pp-hero-sub">行业 · 公司 · 估值 · 技术 · 资金 · 紫苏叶 · 九维，一键生成结构化研报</p>
+        <h2 class="pp-hero-title">景气度选股 · 统一个股研究</h2>
+        <p class="pp-hero-sub">异步提交分析任务，统一输出行业景气、公司质地、财务趋势、估值预期、技术资金与综合结论</p>
       </div>
-    </div>
+    </section>
 
-    <!-- 输入区 -->
-    <div class="pp-search-card">
+    <section class="pp-search-card">
       <div class="pp-search-row">
-        <input id="ppKeyword" type="text" placeholder="输入股票名称或代码，如：三花智控、002050" autocomplete="off" />
-        <button id="ppAnalyzeBtn" class="invest-btn">开始分析 ▶</button>
-        <button id="ppForceBtn" class="invest-btn-outline" title="强制重新分析（跳过当日缓存）">重新分析</button>
+        <input id="ppKeyword" type="text" placeholder="输入股票代码或名称，如：002050 / 三花智控 / 688627" autocomplete="off" />
+        <select id="ppMethod" class="pp-select">
+          <option value="full">统一全量报告</option>
+          <option value="purple_perilla">偏产业链</option>
+          <option value="gaojingqi">偏财务景气</option>
+        </select>
+        <button id="ppAnalyzeBtn" class="invest-btn">开始分析</button>
+        <button id="ppRefreshBtn" class="invest-btn-outline" type="button">刷新列表</button>
       </div>
-      <div class="pp-recent">
-        <div class="pp-recent-head">
-          <span class="pp-recent-label">近 3 天分析历史</span>
-          <span class="pp-recent-note">点击可快速查看缓存结果</span>
-        </div>
-        <div id="ppRecent" class="pp-recent-list"></div>
-      </div>
-    </div>
+      <div class="pp-search-note">同一股票同一分析方法 1 小时内会复用最近成功记录；报告缺少部分外部数据时会降级标注，不会中断整份报告。</div>
+    </section>
 
-    <!-- 加载态 -->
-    <div id="ppLoading" class="pp-loading hidden">
+    <section id="ppLoading" class="pp-loading hidden">
       <div class="pp-loading-spinner"></div>
-      <div class="pp-loading-text">正在分析中，请稍候 30~90 秒…</div>
+      <div class="pp-loading-text">正在生成统一富报告，请稍候 30~90 秒…</div>
       <div class="pp-loading-steps">
-        <div class="pp-step" data-step="0">① 抓取实时数据</div>
-        <div class="pp-step" data-step="1">② 紫苏叶+九维分析</div>
-        <div class="pp-step" data-step="2">③ AI 行业层分析</div>
-        <div class="pp-step" data-step="3">④ 估值与目标价</div>
-        <div class="pp-step" data-step="4">⑤ 技术与资金面</div>
-        <div class="pp-step" data-step="5">⑥ 综合总结 + 生成报告</div>
+        <div class="pp-step" data-step="0">① 拉取 baostock 与库内数据</div>
+        <div class="pp-step" data-step="1">② 生成行业与公司分析</div>
+        <div class="pp-step" data-step="2">③ 汇总估值与预期</div>
+        <div class="pp-step" data-step="3">④ 计算技术与资金面</div>
+        <div class="pp-step" data-step="4">⑤ 生成统一报告</div>
       </div>
-    </div>
+    </section>
 
-    <!-- 错误提示 -->
     <div id="ppError" class="pp-error hidden"></div>
 
-    <!-- 结果区 -->
-    <div id="ppResult" class="pp-result hidden">
+    <section class="pp-shell">
+      <div class="pp-main">
+        <section id="ppResult" class="pp-result hidden">
+          <div id="ppProfile" class="pp-profile-card"></div>
 
-      <!-- 公司速览卡 -->
-      <div id="ppProfile" class="pp-profile-card"></div>
+          <div class="pp-anchor-nav" id="ppAnchorNav" aria-label="统一报告章节导航">
+            <button type="button" class="pp-anchor active" data-target="pp-section-overview"><span>①</span> 总览</button>
+            <button type="button" class="pp-anchor" data-target="pp-section-industry"><span>②</span> 行业</button>
+            <button type="button" class="pp-anchor" data-target="pp-section-company"><span>③</span> 公司</button>
+            <button type="button" class="pp-anchor" data-target="pp-section-finance"><span>④</span> 财务</button>
+            <button type="button" class="pp-anchor" data-target="pp-section-valuation"><span>⑤</span> 估值预期</button>
+            <button type="button" class="pp-anchor" data-target="pp-section-market"><span>⑥</span> 技术资金</button>
+            <button type="button" class="pp-anchor" data-target="pp-section-summary"><span>⑦</span> 结论</button>
+          </div>
 
-      <!-- Sticky 锚点导航 -->
-      <div class="pp-anchor-nav" id="ppAnchorNav" aria-label="分析章节导航">
-        <button type="button" class="pp-anchor active" data-target="pp-section-industry"><span>①</span> 行业</button>
-        <button type="button" class="pp-anchor" data-target="pp-section-company"><span>②</span> 公司</button>
-        <button type="button" class="pp-anchor" data-target="pp-section-valuation"><span>③</span> 估值</button>
-        <button type="button" class="pp-anchor" data-target="pp-section-technical"><span>④</span> 技术</button>
-        <button type="button" class="pp-anchor" data-target="pp-section-capital"><span>⑤</span> 资金</button>
-        <button type="button" class="pp-anchor" data-target="pp-section-purple"><span>⑥</span> 紫苏叶</button>
-        <button type="button" class="pp-anchor" data-target="pp-section-nine"><span>⑦</span> 九维</button>
-        <button type="button" class="pp-anchor" data-target="pp-section-summary"><span>⑧</span> 总结</button>
+          <section id="pp-section-overview" class="pp-section">
+            <h3 class="pp-section-title"><span class="pp-section-no">①</span> 总览与来源状态</h3>
+            <div id="ppOverview" class="pp-overview-grid"></div>
+            <div id="ppSources" class="pp-source-grid"></div>
+          </section>
+
+          <section id="pp-section-industry" class="pp-section">
+            <h3 class="pp-section-title"><span class="pp-section-no">②</span> 行业景气</h3>
+            <div id="ppIndustry" class="pp-cards"></div>
+          </section>
+
+          <section id="pp-section-company" class="pp-section">
+            <h3 class="pp-section-title"><span class="pp-section-no">③</span> 公司质地</h3>
+            <div id="ppCompany" class="pp-cards"></div>
+          </section>
+
+          <section id="pp-section-finance" class="pp-section">
+            <h3 class="pp-section-title"><span class="pp-section-no">④</span> 财务趋势</h3>
+            <div class="pp-chart-wrap">
+              <canvas id="ppFinCanvas" height="240"></canvas>
+            </div>
+            <div class="pp-hint">上图来自 baostock 季度趋势；下表来自数据库最近 12 季财务。</div>
+            <div id="ppDbFinancial" class="pp-table-wrap"></div>
+          </section>
+
+          <section id="pp-section-valuation" class="pp-section">
+            <h3 class="pp-section-title"><span class="pp-section-no">⑤</span> 估值与预期</h3>
+            <div id="ppValuation" class="pp-cards"></div>
+          </section>
+
+          <section id="pp-section-market" class="pp-section">
+            <h3 class="pp-section-title"><span class="pp-section-no">⑥</span> 技术与资金</h3>
+            <div id="ppMarket" class="pp-cards"></div>
+          </section>
+
+          <section id="pp-section-summary" class="pp-section">
+            <h3 class="pp-section-title"><span class="pp-section-no">⑦</span> 催化剂、风险与结论</h3>
+            <div id="ppSummary" class="pp-summary"></div>
+            <div class="pp-action-row">
+              <button id="ppPdfBtn" class="invest-btn-outline" type="button">下载 PDF</button>
+            </div>
+          </section>
+        </section>
+
+        <section id="ppEmpty" class="pp-empty-state">
+          <div class="pp-empty-icon">📊</div>
+          <div class="pp-empty-title">统一富报告会显示在这里</div>
+          <div class="pp-empty-desc">提交分析后，可在当前页查看完整报告，也可以从右侧历史记录快速切换。</div>
+        </section>
       </div>
 
-      <!-- ① 行业 -->
-      <section id="pp-section-industry" class="pp-section">
-        <h3 class="pp-section-title"><span class="pp-section-no">①</span> 行业层面</h3>
-        <div id="ppIndustry" class="pp-cards"></div>
-      </section>
-
-      <!-- ② 公司 -->
-      <section id="pp-section-company" class="pp-section">
-        <h3 class="pp-section-title"><span class="pp-section-no">②</span> 公司层面</h3>
-        <div id="ppCompany" class="pp-cards"></div>
-      </section>
-
-      <!-- ③ 估值 -->
-      <section id="pp-section-valuation" class="pp-section">
-        <h3 class="pp-section-title"><span class="pp-section-no">③</span> 估值层面</h3>
-        <div id="ppValuation" class="pp-valuation"></div>
-      </section>
-
-      <!-- ④ 技术 -->
-      <section id="pp-section-technical" class="pp-section">
-        <h3 class="pp-section-title"><span class="pp-section-no">④</span> 技术层面</h3>
-        <div id="ppTechnical" class="pp-tech-card"></div>
-      </section>
-
-      <!-- ⑤ 资金 -->
-      <section id="pp-section-capital" class="pp-section">
-        <h3 class="pp-section-title"><span class="pp-section-no">⑤</span> 资金层面</h3>
-        <div id="ppCapital" class="pp-tech-card"></div>
-      </section>
-
-      <!-- ⑥ 紫苏叶（融合个股分析） -->
-      <section id="pp-section-purple" class="pp-section">
-        <h3 class="pp-section-title"><span class="pp-section-no">⑥</span> 紫苏叶 · 产业链定位</h3>
-        <div id="ppPurplePerilla" class="pp-cards"></div>
-      </section>
-
-      <!-- ⑦ 高景气九维 -->
-      <section id="pp-section-nine" class="pp-section">
-        <h3 class="pp-section-title"><span class="pp-section-no">⑦</span> 高景气九维</h3>
-        <div id="ppNineDimension" class="pp-cards"></div>
-        <div id="ppFinChart" class="pp-chart-wrap" style="display:none;">
-          <h4 class="pp-section-subtitle">财务趋势 (近 8 季度)</h4>
-          <canvas id="ppFinCanvas" height="240"></canvas>
-          <div class="pp-hint">数据源: baostock · 近 8 季度 ROE / 毛利率 / 净利率 / 净利 YoY</div>
+      <aside class="pp-history">
+        <div class="pp-history-head">
+          <div>
+            <div class="pp-history-title">历史分析记录</div>
+            <div class="pp-history-meta" id="ppHistoryMeta">加载中…</div>
+          </div>
         </div>
-      </section>
-
-      <!-- ⑧ 总结 -->
-      <section id="pp-section-summary" class="pp-section">
-        <h3 class="pp-section-title"><span class="pp-section-no">⑧</span> 总结</h3>
-        <div id="ppSummary" class="pp-summary"></div>
-        <div class="pp-infographic-wrap">
-          <button id="ppInfographicBtn" class="invest-btn">生成信息图 ✨</button>
-          <div id="ppInfographicHint" class="pp-info-hint">点击按钮异步生成可爱卡通风格信息图（需 30~60s）</div>
-          <div id="ppInfographic" class="pp-infographic"></div>
+        <div class="pp-history-filters">
+          <input id="ppFilterKw" type="text" placeholder="筛选代码/名称" />
+          <select id="ppFilterStatus" class="pp-select">
+            <option value="">全部状态</option>
+            <option value="SUCCESS">已完成</option>
+            <option value="RUNNING">分析中</option>
+            <option value="PENDING">待开始</option>
+            <option value="FAILED">失败</option>
+          </select>
         </div>
-        <div class="pp-report-wrap">
-          <button id="ppReportBtn" class="invest-btn-outline" style="margin-top:12px;">📄 查看报告详情</button>
-        </div>
-      </section>
-
-    </div>
-
+        <div id="ppHistoryList" class="pp-history-list"></div>
+        <div id="ppPagination" class="pp-pagination"></div>
+      </aside>
+    </section>
   </main>
 
-  <!-- 报告详情弹窗 -->
-  <div id="ppReportModal" class="pp-modal hidden">
-    <div class="pp-modal-backdrop" id="ppModalBackdrop"></div>
-    <div class="pp-modal-content">
-      <div class="pp-modal-header">
-        <h3 class="pp-modal-title">📊 报告详情</h3>
-        <div class="pp-modal-actions">
-          <button id="ppPrintBtn" class="pp-modal-btn" title="打印报告">🖨 打印</button>
-          <button id="ppCloseModalBtn" class="pp-modal-btn pp-modal-close" title="关闭">✕</button>
-        </div>
-      </div>
-      <div class="pp-modal-body" id="ppReportBody">
-        <div class="pp-loading-spinner"></div>
-        <div style="text-align:center;color:#6b7280;">加载中…</div>
-      </div>
-    </div>
-  </div>
-
   <div id="siteFooter"></div>
-
-  <script src="js/prosperity-pick.js"></script>
+  <script src="js/prosperity-pick.js?v=20260617-unified-pick"></script>
 </body>
 </html>

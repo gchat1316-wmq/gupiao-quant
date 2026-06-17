@@ -26,8 +26,14 @@ public class StockAnalysisResponse {
     private Map<String, Object> competition;
     private Map<String, Object> threeQuestions;
     private Map<String, Object> nineDimension;
+    private Map<String, Object> analysis;
+    private Map<String, Object> sourceMetadata;
+    private List<Map<String, Object>> dbFinancials;
+    private Map<String, Object> forecastSummary;
+    private Map<String, Object> externalExpectation;
     private List<String> catalysts;
     private List<String> risks;
+    private String reportHtml;
     private Map<String, Object> rawData;
     private LocalDateTime timestamp;
     private Long elapsedMs;

@@ -53,8 +53,9 @@ baostock-sync:
 stock-analysis:
   enabled: true
   api-keys: ${STOCK_ANALYSIS_API_KEYS:wmq-gp-secret-2026,wmq-local-debug}
-  python-script: /root/.agents/skills/baostock-finance-data/scripts/baostock_client.py
-  python-command: python3
+  # 优先用环境变量覆盖，默认走项目内 scripts/baostock_client.py (相对路径以项目根为 CWD)
+  python-script: ${BAOSTOCK_CLIENT_SCRIPT:scripts/baostock_client.py}
+  python-command: ${BAOSTOCK_CLIENT_PYTHON:python3}
   timeout-seconds: 90
 
 prosperity-strong:

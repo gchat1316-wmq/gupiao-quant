@@ -14,6 +14,7 @@ import com.quant.service.prosperitystrong.ProsperityStrongPipelineService;
 import com.quant.service.prosperitystrong.WindAifinMarketClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -40,11 +41,16 @@ public class ProsperityStrongController {
 
     /** 手动触发流水线(同步,可能耗时几十秒) */
     @PostMapping("/run")
-    public PipelineRunResultDTO run(
+    public ResponseEntity<PipelineRunResultDTO> run(
             @RequestParam(value = "date", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(value = "provider", required = false) String provider) {
-        return pipeline.run(date == null ? LocalDate.now() : date, provider);
+        PipelineRunResultDTO result = pipeline.run(date == null ? LocalDate.now() : date, provider);
+        // 流水线忙(并发触发被锁拒绝) → 409, 让前端可以重试
+        if ("BUSY".equalsIgnoreCase(result.getStatus())) {
+            return ResponseEntity.status(409).body(result);
+        }
+        return ResponseEntity.ok(result);
     }
 
     /** 数据链路能力诊断 */
@@ -141,7 +147,7 @@ public class ProsperityStrongController {
         pool.setTargetSellPrice(pick.getSellTarget1());
 
         String memo = String.format(
-                "[强势股推荐 %s] 板块=%s 综合分=%s 净利率=%s%% 建仓<=¥%s 目标=¥%s 止损=¥%s 仓位=%s/%s%%",
+                "[热点选股推荐 %s] 板块=%s 综合分=%s 净利率=%s%% 建仓<=¥%s 目标=¥%s 止损=¥%s 仓位=%s/%s%%",
                 pick.getSnapDate(),
                 pick.getSectorName(),
                 pick.getCombinedScore(),

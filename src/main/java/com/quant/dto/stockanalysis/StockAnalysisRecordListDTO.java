@@ -24,6 +24,9 @@ public class StockAnalysisRecordListDTO {
     private BigDecimal currentPrice;
     private Integer elapsedMs;
     private String errorMessage;
+    private String summaryOneLiner;
+    private Integer sourceCoverage;
+    private Boolean hasReport;
     private LocalDateTime submittedAt;
     private LocalDateTime startedAt;
     private LocalDateTime finishedAt;
