@@ -8,14 +8,14 @@ import com.quant.dto.techai.PositionFillDTO;
 import com.quant.dto.techai.TechAiAlertDTO;
 import com.quant.dto.techai.TechAiPoolItemDTO;
 import com.quant.entity.InvestAlert;
-import com.quant.entity.InvestPositionFill;
-import com.quant.entity.InvestStockPool;
+import com.quant.entity.TechAiPool;
+import com.quant.entity.TechAiPositionFill;
 import com.quant.entity.TechAiQuoteSnapshot;
 import com.quant.entity.TradeStockBasic;
 import com.quant.entity.TradeStockDaily;
 import com.quant.repository.InvestAlertRepository;
-import com.quant.repository.InvestPositionFillRepository;
-import com.quant.repository.InvestStockPoolRepository;
+import com.quant.repository.TechAiPoolRepository;
+import com.quant.repository.TechAiPositionFillRepository;
 import com.quant.repository.TechAiQuoteSnapshotRepository;
 import com.quant.repository.TradeStockBasicRepository;
 import com.quant.repository.TradeStockDailyRepository;
@@ -44,41 +44,43 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ * 短线 AI 监控：自 2026-06-17 起独立使用 tech_ai_pool / tech_ai_position_fill，
+ * 不再读写 invest_stock_pool / invest_position_fill，与龙江投资彻底隔离。
+ */
 @Slf4j
 @Service
 public class TechAiService {
 
-    private static final String POOL_TYPE = "tech_ai";
-
-    private final InvestStockPoolRepository poolRepository;
+    private final TechAiPoolRepository poolRepository;
+    private final TechAiPositionFillRepository fillRepository;
     private final TradeStockBasicRepository basicRepository;
     private final TradeStockDailyRepository dailyRepository;
     private final TechAiQuoteSnapshotRepository quoteRepository;
     private final InvestAlertRepository alertRepository;
-    private final InvestPositionFillRepository fillRepository;
     private final TechAiAlertRuleEngine ruleEngine;
     private final TechAiPositionEngine positionEngine;
     private final TechAiAtrCalculator atrCalculator;
     private final NotificationService notificationService;
     private final NotificationProperties notificationProperties;
 
-    public TechAiService(InvestStockPoolRepository poolRepository,
+    public TechAiService(TechAiPoolRepository poolRepository,
+                         TechAiPositionFillRepository fillRepository,
                          TradeStockBasicRepository basicRepository,
                          TradeStockDailyRepository dailyRepository,
                          TechAiQuoteSnapshotRepository quoteRepository,
                          InvestAlertRepository alertRepository,
-                         InvestPositionFillRepository fillRepository,
                          TechAiAlertRuleEngine ruleEngine,
                          TechAiPositionEngine positionEngine,
                          TechAiAtrCalculator atrCalculator,
                          NotificationService notificationService,
                          NotificationProperties notificationProperties) {
         this.poolRepository = poolRepository;
+        this.fillRepository = fillRepository;
         this.basicRepository = basicRepository;
         this.dailyRepository = dailyRepository;
         this.quoteRepository = quoteRepository;
         this.alertRepository = alertRepository;
-        this.fillRepository = fillRepository;
         this.ruleEngine = ruleEngine;
         this.positionEngine = positionEngine;
         this.atrCalculator = atrCalculator;
@@ -88,11 +90,11 @@ public class TechAiService {
 
     @Transactional(readOnly = true)
     public List<TechAiPoolItemDTO> listPool() {
-        List<InvestStockPool> pool = poolRepository.findByPoolTypeOrderByCreatedAtDesc(POOL_TYPE);
+        List<TechAiPool> pool = poolRepository.findAllByOrderByCreatedAtDesc();
         if (pool.isEmpty()) {
             return List.of();
         }
-        List<String> codes = pool.stream().map(InvestStockPool::getStockCode).toList();
+        List<String> codes = pool.stream().map(TechAiPool::getStockCode).toList();
         Map<String, TechAiQuoteSnapshot> quotes = latestQuotes(codes);
         Map<String, TradeStockBasic> basics = basics(codes);
         return pool.stream()
@@ -107,18 +109,17 @@ public class TechAiService {
             throw new IllegalArgumentException("股票代码不能为空");
         }
         String stockCode = resolveStockCode(keyword);
-        Optional<InvestStockPool> existing = poolRepository.findByStockCode(stockCode);
+        Optional<TechAiPool> existing = poolRepository.findByStockCode(stockCode);
         if (existing.isPresent()) {
-            throw new IllegalArgumentException("该股票已在股票池中：" + stockCode);
+            throw new IllegalArgumentException("该股票已在监控池中：" + stockCode);
         }
 
-        InvestStockPool pool = new InvestStockPool();
+        TechAiPool pool = new TechAiPool();
         pool.setStockCode(stockCode);
         TradeStockBasic basic = basic(stockCode);
         if (basic != null) {
             pool.setStockName(basic.getStockName());
         }
-        pool.setPoolType(POOL_TYPE);
         pool.setStatus(request.getStatus() == null || request.getStatus().isBlank() ? "watching" : request.getStatus());
         pool.setMemo(request.getMemo());
         // 持仓策略默认参数
@@ -136,15 +137,14 @@ public class TechAiService {
         pool.setRealizedPnl(BigDecimal.ZERO);
         pool.setPositionState("none");
         pool.setTakeProfitDone(0);
-        InvestStockPool saved = poolRepository.save(pool);
+        TechAiPool saved = poolRepository.save(pool);
         return toPoolDTO(saved, basic, quoteRepository.findFirstByStockCodeOrderByQuoteTimeDesc(saved.getStockCode()).orElse(null));
     }
 
     @Transactional
     public TechAiPoolItemDTO updateField(Integer id, PoolFieldUpdateRequest request) {
-        InvestStockPool pool = poolRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("股票池条目不存在：" + id));
-        ensureTechAi(pool);
+        TechAiPool pool = poolRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("监控池条目不存在：" + id));
         String field = request.getField() == null ? "" : request.getField().trim();
         String value = request.getValue();
         boolean blank = value == null || value.isBlank();
@@ -170,24 +170,22 @@ public class TechAiService {
             case "targetSellPrice" -> pool.setTargetSellPrice(parsePositiveDecimal(value, field));
             default -> throw new IllegalArgumentException("不支持的字段：" + field);
         }
-        InvestStockPool saved = poolRepository.save(pool);
+        TechAiPool saved = poolRepository.save(pool);
         return toPoolDTO(saved, basic(saved.getStockCode()), quoteRepository.findFirstByStockCodeOrderByQuoteTimeDesc(saved.getStockCode()).orElse(null));
     }
 
     @Transactional
     public void removeFromPool(Integer id) {
-        InvestStockPool pool = poolRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("股票池条目不存在：" + id));
-        ensureTechAi(pool);
+        TechAiPool pool = poolRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("监控池条目不存在：" + id));
         fillRepository.deleteByPoolId(pool.getId());
         poolRepository.delete(pool);
     }
 
     @Transactional
     public TechAiPoolItemDTO recordFill(Integer poolId, PositionFillRequest request) {
-        InvestStockPool pool = poolRepository.findById(poolId)
-                .orElseThrow(() -> new IllegalArgumentException("股票池条目不存在：" + poolId));
-        ensureTechAi(pool);
+        TechAiPool pool = poolRepository.findById(poolId)
+                .orElseThrow(() -> new IllegalArgumentException("监控池条目不存在：" + poolId));
         String action = request.getAction() == null ? "" : request.getAction().trim().toLowerCase();
         if (!List.of("open", "add", "reduce", "clear").contains(action)) {
             throw new IllegalArgumentException("不支持的操作：" + action);
@@ -212,7 +210,7 @@ public class TechAiService {
             }
         }
 
-        InvestPositionFill fill = new InvestPositionFill();
+        TechAiPositionFill fill = new TechAiPositionFill();
         fill.setPoolId(pool.getId());
         fill.setStockCode(pool.getStockCode());
         fill.setAction(action);
@@ -226,16 +224,15 @@ public class TechAiService {
         fillRepository.save(fill);
 
         recomputeAggregates(pool);
-        InvestStockPool saved = poolRepository.save(pool);
+        TechAiPool saved = poolRepository.save(pool);
         return toPoolDTO(saved, basic(saved.getStockCode()),
                 quoteRepository.findFirstByStockCodeOrderByQuoteTimeDesc(saved.getStockCode()).orElse(null));
     }
 
     @Transactional(readOnly = true)
     public List<PositionFillDTO> listFills(Integer poolId) {
-        InvestStockPool pool = poolRepository.findById(poolId)
-                .orElseThrow(() -> new IllegalArgumentException("股票池条目不存在：" + poolId));
-        ensureTechAi(pool);
+        TechAiPool pool = poolRepository.findById(poolId)
+                .orElseThrow(() -> new IllegalArgumentException("监控池条目不存在：" + poolId));
         return fillRepository.findByPoolIdOrderByFilledAtDescIdDesc(poolId).stream()
                 .map(this::toFillDTO)
                 .toList();
@@ -243,25 +240,24 @@ public class TechAiService {
 
     @Transactional
     public TechAiPoolItemDTO deleteFill(Integer poolId, Long fillId) {
-        InvestStockPool pool = poolRepository.findById(poolId)
-                .orElseThrow(() -> new IllegalArgumentException("股票池条目不存在：" + poolId));
-        ensureTechAi(pool);
-        InvestPositionFill fill = fillRepository.findById(fillId)
+        TechAiPool pool = poolRepository.findById(poolId)
+                .orElseThrow(() -> new IllegalArgumentException("监控池条目不存在：" + poolId));
+        TechAiPositionFill fill = fillRepository.findById(fillId)
                 .orElseThrow(() -> new IllegalArgumentException("成交记录不存在：" + fillId));
         if (!fill.getPoolId().equals(poolId)) {
             throw new IllegalArgumentException("成交记录与标的不匹配");
         }
         fillRepository.delete(fill);
         recomputeAggregates(pool);
-        InvestStockPool saved = poolRepository.save(pool);
+        TechAiPool saved = poolRepository.save(pool);
         return toPoolDTO(saved, basic(saved.getStockCode()),
                 quoteRepository.findFirstByStockCodeOrderByQuoteTimeDesc(saved.getStockCode()).orElse(null));
     }
 
     @Transactional(readOnly = true)
     public List<TechAiAlertDTO> listAlerts() {
-        List<String> codes = poolRepository.findByPoolTypeOrderByCreatedAtDesc(POOL_TYPE).stream()
-                .map(InvestStockPool::getStockCode)
+        List<String> codes = poolRepository.findAllByOrderByCreatedAtDesc().stream()
+                .map(TechAiPool::getStockCode)
                 .toList();
         if (codes.isEmpty()) {
             return List.of();
@@ -281,15 +277,15 @@ public class TechAiService {
         if (cfg.isRequireTradingTime() && !isTradingTime()) {
             return 0;
         }
-        List<InvestStockPool> pool = poolRepository.findByPoolTypeAndStatusNotOrderByCreatedAtDesc(POOL_TYPE, "exited");
+        List<TechAiPool> pool = poolRepository.findByStatusNotOrderByCreatedAtDesc("exited");
         if (pool.isEmpty()) {
             return 0;
         }
-        List<String> codes = pool.stream().map(InvestStockPool::getStockCode).toList();
+        List<String> codes = pool.stream().map(TechAiPool::getStockCode).toList();
         Map<String, TechAiQuoteSnapshot> quotes = latestQuotes(codes);
         Map<String, TradeStockBasic> basics = basics(codes);
         int triggered = 0;
-        for (InvestStockPool item : pool) {
+        for (TechAiPool item : pool) {
             TechAiQuoteSnapshot quote = quotes.get(item.getStockCode());
             if (quote == null) {
                 continue;
@@ -305,7 +301,7 @@ public class TechAiService {
             triggered += evaluateIntradayPosition(item, quote, cfg);
         }
         if (triggered > 0) {
-            log.info("科技AI行情监控触发 {} 条告警", triggered);
+            log.info("短线AI行情监控触发 {} 条告警", triggered);
         }
         return triggered;
     }
@@ -318,9 +314,9 @@ public class TechAiService {
         if (!cfg.isEnabled()) {
             return 0;
         }
-        List<InvestStockPool> pool = poolRepository.findByPoolTypeAndStatusNotOrderByCreatedAtDesc(POOL_TYPE, "exited");
+        List<TechAiPool> pool = poolRepository.findByStatusNotOrderByCreatedAtDesc("exited");
         int triggered = 0;
-        for (InvestStockPool item : pool) {
+        for (TechAiPool item : pool) {
             BigDecimal lots = item.getPositionLots();
             if (lots == null || lots.compareTo(BigDecimal.ZERO) <= 0) {
                 continue;
@@ -345,12 +341,12 @@ public class TechAiService {
             }
         }
         if (triggered > 0) {
-            log.info("科技AI收盘确认触发 {} 条持仓信号", triggered);
+            log.info("短线AI收盘确认触发 {} 条持仓信号", triggered);
         }
         return triggered;
     }
 
-    private int evaluateIntradayPosition(InvestStockPool item, TechAiQuoteSnapshot quote, NotificationProperties.QuoteMonitor cfg) {
+    private int evaluateIntradayPosition(TechAiPool item, TechAiQuoteSnapshot quote, NotificationProperties.QuoteMonitor cfg) {
         BigDecimal lots = item.getPositionLots();
         if (lots == null || lots.compareTo(BigDecimal.ZERO) <= 0) {
             return 0;
@@ -371,7 +367,7 @@ public class TechAiService {
         return pushPositionSignal(item, price, plan, false, cfg) ? 1 : 0;
     }
 
-    private boolean pushPositionSignal(InvestStockPool item, BigDecimal price,
+    private boolean pushPositionSignal(TechAiPool item, BigDecimal price,
                                        TechAiPositionEngine.PositionPlan plan, boolean confirm,
                                        NotificationProperties.QuoteMonitor cfg) {
         String signal = plan.getPendingSignal();
@@ -429,7 +425,7 @@ public class TechAiService {
         };
     }
 
-    private String buildPositionContent(InvestStockPool item, String stockName, BigDecimal price,
+    private String buildPositionContent(TechAiPool item, String stockName, BigDecimal price,
                                         TechAiPositionEngine.PositionPlan plan, String signal, String phase) {
         String advice = switch (signal) {
             case TechAiPositionEngine.SIGNAL_STOP -> "现价已触及移动止损，建议清仓离场。";
@@ -468,8 +464,8 @@ public class TechAiService {
         return v == null ? "-" : v.stripTrailingZeros().toPlainString();
     }
 
-    private void recomputeAggregates(InvestStockPool pool) {
-        List<InvestPositionFill> fills = fillRepository.findByPoolIdOrderByFilledAtAscIdAsc(pool.getId());
+    private void recomputeAggregates(TechAiPool pool) {
+        List<TechAiPositionFill> fills = fillRepository.findByPoolIdOrderByFilledAtAscIdAsc(pool.getId());
         BigDecimal target = pool.getTargetSellPrice();
 
         BigDecimal lots = BigDecimal.ZERO;
@@ -483,7 +479,7 @@ public class TechAiService {
         boolean tpDone = false;
         boolean scaled = false;
 
-        for (InvestPositionFill fill : fills) {
+        for (TechAiPositionFill fill : fills) {
             String action = fill.getAction();
             BigDecimal price = fill.getPrice();
             BigDecimal fl = fill.getLots();
@@ -576,7 +572,7 @@ public class TechAiService {
         pool.setStopPrice(plan.getStopPrice());
     }
 
-    private PositionFillDTO toFillDTO(InvestPositionFill fill) {
+    private PositionFillDTO toFillDTO(TechAiPositionFill fill) {
         return PositionFillDTO.builder()
                 .id(fill.getId())
                 .poolId(fill.getPoolId())
@@ -670,7 +666,7 @@ public class TechAiService {
         return sum.divide(BigDecimal.valueOf(values.size()), 4, RoundingMode.HALF_UP);
     }
 
-    private TechAiPoolItemDTO toPoolDTO(InvestStockPool item, TradeStockBasic basic, TechAiQuoteSnapshot quote) {
+    private TechAiPoolItemDTO toPoolDTO(TechAiPool item, TradeStockBasic basic, TechAiQuoteSnapshot quote) {
         BigDecimal dailyChange = quote == null ? null : pctChange(quote.getLatestPrice(), quote.getPrevClosePrice());
         BigDecimal price = quote == null ? null : quote.getLatestPrice();
         BigDecimal atr = isAtrMode(item) ? atrFor(item) : null;
@@ -732,17 +728,17 @@ public class TechAiService {
                 .build();
     }
 
-    private boolean isAtrMode(InvestStockPool item) {
+    private boolean isAtrMode(TechAiPool item) {
         return item.getUseAtr() != null && item.getUseAtr() == 1;
     }
 
-    private BigDecimal atrFor(InvestStockPool item) {
+    private BigDecimal atrFor(TechAiPool item) {
         int period = item.getAtrPeriod() == null || item.getAtrPeriod() <= 0 ? 14 : item.getAtrPeriod();
         List<TradeStockDaily> recent = dailyRepository.findTop30ByStockCodeOrderByTradeDateDesc(item.getStockCode());
         return atrCalculator.atr(recent, period);
     }
 
-    private TechAiAlertThresholds thresholds(InvestStockPool item) {
+    private TechAiAlertThresholds thresholds(TechAiPool item) {
         return TechAiAlertThresholds.builder()
                 .minute1Pct(item.getAlertMinute1mPct())
                 .minute5Pct(item.getAlertMinute5mPct())
@@ -790,7 +786,7 @@ public class TechAiService {
         return (v.equals("1") || v.equals("true") || v.equals("on") || v.equals("yes")) ? 1 : 0;
     }
 
-    private String displayStockName(InvestStockPool item, TradeStockBasic basic) {
+    private String displayStockName(TechAiPool item, TradeStockBasic basic) {
         if (basic != null && basic.getStockName() != null && !basic.getStockName().isBlank()) {
             return basic.getStockName();
         }
@@ -880,12 +876,6 @@ public class TechAiService {
             }
         }
         return result.stream().distinct().toList();
-    }
-
-    private void ensureTechAi(InvestStockPool pool) {
-        if (!POOL_TYPE.equals(pool.getPoolType())) {
-            throw new IllegalArgumentException("只能操作科技AI股票池条目");
-        }
     }
 
     private boolean isTradingTime() {

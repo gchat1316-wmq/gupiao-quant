@@ -26,7 +26,7 @@
   METRIC_CONFIG.forEach(function (m) { METRIC_MAP[m.key] = m; });
   const DEFAULT_KEYS = METRIC_CONFIG.filter(function (m) { return m.defaultOn; }).map(function (m) { return m.key; });
   const CHART_COLORS = ['#4c6ef5', '#82c91e', '#fab005', '#fa5252', '#15aabf', '#be4bdb'];
-  const EXPORT_TABLE_HEAD = '#0b83f6';
+  const EXPORT_TABLE_HEAD = '#a9001f';
 
   /* ===== Formatters ===== */
   function pctFmt(v) {

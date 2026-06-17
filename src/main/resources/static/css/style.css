@@ -676,7 +676,6 @@ body {
   transition: max-width 0.3s ease, gap 0.3s ease;
 }
 
-.search-stage > .notif-bar,
 .search-stage > .search-bar,
 .search-stage > .metric-bar {
   width: 100%;
@@ -686,14 +685,8 @@ body {
 }
 
 .search-stage.is-centered {
-  min-height: calc(100vh - 320px);
+  min-height: calc(100vh - 360px);
   justify-content: center;
-}
-
-.search-stage.is-centered .notif-bar {
-  height: 44px;
-  max-width: 720px;
-  margin: 0 auto;
 }
 
 .search-stage.is-centered .search-bar {

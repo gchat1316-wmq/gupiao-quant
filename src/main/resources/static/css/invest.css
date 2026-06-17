@@ -1039,6 +1039,11 @@
   color: #b42318 !important;
 }
 
+.pool-tag-input.valuation-bubble {
+  background: #b91c1c !important;
+  color: #fff7ed !important;
+}
+
 .pool-tag-input.valuation-empty {
   background: #f8fafc !important;
   color: #94a3b8 !important;

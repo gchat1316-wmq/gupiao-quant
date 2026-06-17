@@ -15,8 +15,7 @@
   <div id="siteHeader"></div>
 
   <main class="container">
-    <div class="search-stage is-centered" id="searchStage">
-    <!-- 通知轮播条 (demo) -->
+    <!-- 通知轮播条 (始终固定在顶部) -->
     <section class="notif-bar" id="notifBar" aria-label="系统通知">
       <div class="notif-bar-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -27,32 +26,13 @@
       <span class="notif-bar-label">通知</span>
       <div class="notif-bar-viewport">
         <ul class="notif-bar-list" id="notifList">
-          <!-- demo 数据，后续会从 API 拉取 -->
-          <li class="notif-item" data-kind="recap">
-            <span class="notif-tag tag-recap">每日复盘</span>
-            <span class="notif-text">6月17日 三大指数分化 沪指收平 半导体板块走强</span>
-            <span class="notif-time">刚刚</span>
-          </li>
-          <li class="notif-item" data-kind="analysis">
-            <span class="notif-tag tag-analysis">个股分析</span>
-            <span class="notif-text">富信科技 已生成 · 观望 · 估值泡沫偏高建议回避</span>
-            <span class="notif-time">17:51</span>
-          </li>
-          <li class="notif-item" data-kind="bigyang">
-            <span class="notif-tag tag-biyang">大阳线</span>
-            <span class="notif-text">今日暂无触发 · 上次更新 18:30</span>
-            <span class="notif-time">18:30</span>
-          </li>
-          <li class="notif-item" data-kind="ai">
-            <span class="notif-tag tag-ai">AI 监控</span>
-            <span class="notif-text">实时运行中 · 暂无新告警</span>
-            <span class="notif-time">18:38</span>
-          </li>
+          <!-- 运行时由 js/notif-bar.js 从 API 拉取填充 -->
         </ul>
       </div>
       <div class="notif-bar-dots" id="notifDots" role="tablist" aria-label="通知分页"></div>
     </section>
 
+    <div class="search-stage is-centered" id="searchStage">
     <section class="search-bar">
       <div class="search-input-wrap">
         <span class="search-icon" aria-hidden="true">
@@ -70,7 +50,6 @@
     </section>
 
     <section class="metric-bar">
-      <span class="metric-bar-label">指标</span>
       <div class="metric-chips" id="metricChipsMain"></div>
       <span class="metric-count" id="metricCount">已选 0 项</span>
       <div class="metric-actions">
@@ -102,7 +81,7 @@
       </div>
 
       <div class="footer">
-        <button id="downloadBtn" class="primary-btn wide">下载图表 + CSV</button>
+        <button id="downloadBtn" class="primary-btn wide">免费下载图表 + CSV</button>
       </div>
     </section>
 

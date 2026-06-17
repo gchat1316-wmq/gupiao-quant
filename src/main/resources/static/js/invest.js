@@ -752,8 +752,7 @@
     { key: 'minPs5y',           label: '近5年<br>最低<br>PS(倍)', cls: 'pool-col-ps', inline: 'number', render: renderPsCell },
     { key: 'currentMarketCap',  label: '当前<br>市值<br>(亿)', cls: 'pool-col-num', readonly: true, hot: true, render: renderMarketCapCell },
     { key: 'ytdGainPct',        label: '今年<br>涨幅<br>(%)', cls: 'pool-col-rate', readonly: true, render: renderPctCell },
-    { key: 'profitLevel',       label: '盈亏<br>等级', cls: 'pool-col-tag', inline: 'text', render: renderProfitLevelCell },
-    { key: 'valuationRange',    label: '估值<br>区间', cls: 'pool-col-tag', inline: 'text', render: renderValuationRangeCell },
+    { key: 'valuationRange',    label: '估值<br>情况', cls: 'pool-col-tag', inline: 'text', render: renderValuationRangeCell },
   ];
 
   function initPool() {
@@ -784,10 +783,9 @@
     const wrap = document.getElementById('poolListWrap');
     if (!wrap) return;
     let items = poolData;
-    if (poolFilter === 'super') items = poolData.filter(i => asNum(i.q1RevenueGrowth) >= 100);
-    else if (poolFilter === 'high') items = poolData.filter(i => asNum(i.q1RevenueGrowth) >= 70);
-    else if (poolFilter === 'buy') items = poolData.filter(isBuyZone);
-    else if (poolFilter === 'risk') items = poolData.filter(isRiskZone);
+    if (poolFilter === 'fair') items = poolData.filter(isFairZone);
+    else if (poolFilter === 'low') items = poolData.filter(isLowZone);
+    else if (poolFilter === 'high') items = poolData.filter(isBubbleZone);
 
     if (items.length === 0) {
       wrap.innerHTML = '<div class="pool-empty">暂无股票，点击「+ 加入股票池」或「📷 截图批量导入」添加</div>';
@@ -886,35 +884,27 @@
     </label>`;
   }
 
-  function renderProfitLevelCell(item, col) {
-    const val = item[col.key] || inferProfitLevel(item);
-    const cls = val.includes('超高') ? 'super' : (val.includes('高') ? 'high' : (val.includes('正常') ? 'normal' : 'warn'));
-    return `<input type="text" class="pool-cell-input pool-tag-input profit-${cls}" data-field="${col.key}" value="${escHtml(val)}" />`;
-  }
-
   function renderValuationRangeCell(item, col) {
-    const val = item[col.key] || inferValuationRange(item);
-    const cls = val.includes('低估') ? 'low' : (val.includes('高估') ? 'high' : (val.includes('合理') ? 'fair' : 'empty'));
+    const val = inferValuationRange(item);
+    const cls = val === '低估' ? 'low' : (val === '泡沫' ? 'bubble' : (val === '合理' ? 'fair' : 'empty'));
     return `<input type="text" class="pool-cell-input pool-tag-input valuation-${cls}" data-field="${col.key}" value="${escHtml(val)}" />`;
   }
 
   function renderPoolBoardSummary(items) {
-    const superCount = poolData.filter(i => asNum(i.q1RevenueGrowth) >= 100).length;
-    const highCount = poolData.filter(i => asNum(i.q1RevenueGrowth) >= 70).length;
-    const buyCount = poolData.filter(isBuyZone).length;
-    const riskCount = poolData.filter(isRiskZone).length;
+    const fairCount = poolData.filter(isFairZone).length;
+    const lowCount = poolData.filter(isLowZone).length;
+    const bubbleCount = poolData.filter(isBubbleZone).length;
     const avgGrowth = avg(poolData.map(i => i.q1RevenueGrowth));
     return `<div class="pool-board-head">
       <div>
         <div class="pool-board-title">适合用10倍PS来简单估测和跟踪的高科技成长股 <span>${new Date().toISOString().slice(0, 10)}</span></div>
-        <div class="pool-board-note">判断依据：2026 Q1 营收增速、毛利率/净利率、动态 PS、当前市值与今年涨幅。</div>
+        <div class="pool-board-note">判断依据：合理市值 = 明年预测营收 × 10；当前市值低于 Y1×10 为低估，超过 Y2×10 为泡沫（需警惕）。</div>
       </div>
       <div class="pool-board-stats">
-        <span class="pool-stat red">超高景气 ${superCount}</span>
-        <span class="pool-stat orange">高景气 ${highCount}</span>
-        <span class="pool-stat green">低估买入 ${buyCount}</span>
-        <span class="pool-stat gray">高估风险 ${riskCount}</span>
-        <span class="pool-stat blue">均值 ${isFinite(avgGrowth) ? avgGrowth.toFixed(1) + '%' : '—'}</span>
+        <span class="pool-stat green">合理 ${fairCount}</span>
+        <span class="pool-stat blue">低估 ${lowCount}</span>
+        <span class="pool-stat red">泡沫 ${bubbleCount}</span>
+        <span class="pool-stat orange">均值 ${isFinite(avgGrowth) ? avgGrowth.toFixed(1) + '%' : '—'}</span>
       </div>
     </div>`;
   }
@@ -988,39 +978,25 @@
     return nums.reduce((sum, n) => sum + n, 0) / nums.length;
   }
 
-  function isBuyZone(item) {
-    const explicit = item.valuationRange || '';
-    if (explicit.includes('低估')) return true;
-    const marketCap = asNum(item.marketCap);
-    const targetMarketCap = asNum(item.targetMarketCap);
-    return Number.isFinite(marketCap) && Number.isFinite(targetMarketCap) && marketCap <= targetMarketCap * 0.8;
+  function getCurrentMarketCap(item) {
+    return asNum(item.currentMarketCap != null ? item.currentMarketCap : item.marketCap);
   }
 
-  function isRiskZone(item) {
-    const explicit = item.valuationRange || '';
-    if (explicit.includes('高估')) return true;
-    const marketCap = asNum(item.marketCap);
-    const targetMarketCap = asNum(item.targetMarketCap);
-    return Number.isFinite(marketCap) && Number.isFinite(targetMarketCap) && marketCap >= targetMarketCap * 1.2;
-  }
-
-  function inferProfitLevel(item) {
-    const growth = asNum(item.q1RevenueGrowth);
-    if (!Number.isFinite(growth)) return '';
-    if (growth >= 100) return '超高景气';
-    if (growth >= 70) return '高景气';
-    if (growth >= 30) return '景气中';
-    return '正常';
-  }
-
+  // 合理市值 = 未来一年预测营收 × 10
+  // 当前市值 < Y1×10 → 低估；当前市值 > Y2×10 → 泡沫；其余 → 合理
   function inferValuationRange(item) {
-    if (isBuyZone(item)) return '低估区间';
-    if (isRiskZone(item)) return '高估区间';
-    const marketCap = asNum(item.marketCap);
-    const targetMarketCap = asNum(item.targetMarketCap);
-    if (Number.isFinite(marketCap) && Number.isFinite(targetMarketCap)) return '合理区间';
-    return '';
+    const marketCap = getCurrentMarketCap(item);
+    if (!Number.isFinite(marketCap)) return '';
+    const y1 = asNum(item.revenueForecastY1);
+    const y2 = asNum(item.revenueForecastY2);
+    if (Number.isFinite(y1) && marketCap < y1 * 10) return '低估';
+    if (Number.isFinite(y2) && marketCap > y2 * 10) return '泡沫';
+    return '合理';
   }
+
+  function isFairZone(item) { return inferValuationRange(item) === '合理'; }
+  function isLowZone(item)  { return inferValuationRange(item) === '低估'; }
+  function isBubbleZone(item){ return inferValuationRange(item) === '泡沫'; }
 
   function bindPoolEvents() {
     const wrap = document.getElementById('poolListWrap');
@@ -1089,7 +1065,7 @@
       setTimeout(() => el.classList.remove('saved'), 800);
       // 如果改了 select（持仓状态/分类），重新渲染整行（filter 可能改变）
       if (field === 'status' || field === 'poolType') renderPool();
-      if (['q1RevenueGrowth', 'q1NetMargin', 'q1GrossMargin', 'currentMarketCap', 'ytdGainPct', 'valuationRange', 'profitLevel'].includes(field)) renderPool();
+      if (['q1RevenueGrowth', 'q1NetMargin', 'q1GrossMargin', 'currentMarketCap', 'ytdGainPct', 'valuationRange'].includes(field)) renderPool();
     } catch (e) {
       el.classList.remove('saving');
       el.classList.add('error');

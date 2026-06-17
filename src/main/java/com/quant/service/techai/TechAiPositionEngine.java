@@ -3,6 +3,7 @@ package com.quant.service.techai;
 import com.quant.dto.techai.StrategyLevelDTO;
 import com.quant.entity.InvestStockPool;
 import com.quant.entity.PotentialPool;
+import com.quant.entity.TechAiPool;
 import lombok.Builder;
 import lombok.Getter;
 import org.springframework.stereotype.Component;
@@ -90,6 +91,27 @@ public class TechAiPositionEngine {
                 .build();
     }
 
+    public static PoolView from(TechAiPool p) {
+        return PoolView.builder()
+                .positionLots(p.getPositionLots())
+                .avgCost(p.getAvgCost())
+                .useAtr(p.getUseAtr())
+                .entryPrice(p.getEntryPrice())
+                .lastAddPrice(p.getLastAddPrice())
+                .peakPrice(p.getPeakPrice())
+                .addSizeSchedule(p.getAddSizeSchedule())
+                .addCount(p.getAddCount())
+                .maxLots(p.getMaxLots())
+                .atrAddMult(p.getAtrAddMult())
+                .addStepPct(p.getAddStepPct())
+                .atrTrailMult(p.getAtrTrailMult())
+                .trailPct(p.getTrailPct())
+                .stopPrice(p.getStopPrice())
+                .targetSellPrice(p.getTargetSellPrice())
+                .takeProfitDone(p.getTakeProfitDone())
+                .build();
+    }
+
     @Getter
     @Builder
     public static class PositionPlan {
@@ -111,6 +133,11 @@ public class TechAiPositionEngine {
 
     /** 兼容 PotentialPool 调用。 */
     public PositionPlan evaluate(PotentialPool p, BigDecimal price, BigDecimal atr) {
+        return evaluate(from(p), price, atr);
+    }
+
+    /** 兼容 TechAiPool 调用。 */
+    public PositionPlan evaluate(TechAiPool p, BigDecimal price, BigDecimal atr) {
         return evaluate(from(p), price, atr);
     }
 

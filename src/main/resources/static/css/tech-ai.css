@@ -720,3 +720,31 @@
 .pot-fills-tbl th { color:var(--tech-muted); background:var(--tech-surface); font-weight:600; }
 .pot-link { border:none; background:none; color:var(--tech-red); cursor:pointer; font-size:12px; padding:0; }
 .pot-link:hover { text-decoration:underline; }
+
+.tech-ai-shortcut {
+  margin: 16px 0 0;
+}
+.tech-ai-shortcut-card {
+  display: block;
+  padding: 14px 18px;
+  border: 1px dashed var(--tech-accent);
+  border-radius: 10px;
+  background: linear-gradient(120deg, var(--tech-accent-soft) 0%, #ffffff 70%);
+  text-decoration: none;
+  color: var(--tech-ink);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.tech-ai-shortcut-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(27, 127, 107, 0.12);
+}
+.tech-ai-shortcut-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--tech-accent);
+}
+.tech-ai-shortcut-desc {
+  font-size: 12px;
+  color: var(--tech-muted);
+  margin-top: 4px;
+}
