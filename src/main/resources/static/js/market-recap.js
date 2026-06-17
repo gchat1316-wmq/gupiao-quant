@@ -12,10 +12,18 @@
     detailLoadingId: null,
   };
   const DEFAULT_MARKETS = ['A股', '美股', '港股'];
+  const SHARE_FALLBACK_DELAY = 1600;
 
   function init() {
     bindGlobalHandlers();
-    loadPage(readMarketFromUrl());
+    const initialId = readIdFromUrl();
+    if (initialId) {
+      loadPage(null).then(function () {
+        loadDetail(initialId);
+      });
+    } else {
+      loadPage(readMarketFromUrl());
+    }
   }
 
   function bindGlobalHandlers() {
@@ -25,6 +33,7 @@
       const market = btn.dataset.market || '';
       if (market === state.selectedMarket && !state.error) return;
       writeMarketToUrl(market);
+      writeIdToUrl(null);
       loadPage(market);
     });
 
@@ -57,6 +66,12 @@
       const id = Number(btn.dataset.id);
       if (!id || id === state.activeDetailId || id === state.detailLoadingId) return;
       loadDetail(id);
+    });
+
+    document.getElementById('recapArticle')?.addEventListener('click', function (event) {
+      const btn = event.target.closest('[data-action="share"]');
+      if (!btn) return;
+      shareCurrentRecap();
     });
   }
 
@@ -98,10 +113,12 @@
       state.loading = false;
       render();
     }
+    return state;
   }
 
   async function loadDetail(id) {
     state.detailLoadingId = id;
+    writeIdToUrl(id);
     render();
     try {
       const detail = await fetchJson('api/market-recaps/' + id);
@@ -297,6 +314,10 @@
           return (i > 0 ? '<span class="rq-article-info-dot"></span>' : '') +
             '<span>' + escHtml(item) + '</span>';
         }).join('') +
+        '<button class="recap-share-btn" type="button" data-action="share" title="分享这篇复盘">' +
+          '<span class="recap-share-icon" aria-hidden="true">↗</span>' +
+          '<span class="recap-share-label">分享</span>' +
+        '</button>' +
       '</div>' +
       '<div class="rq-article-body">' + articleHtml + '</div>';
   }
@@ -422,6 +443,125 @@
       url.searchParams.delete('market');
     }
     window.history.replaceState({}, '', url.toString());
+  }
+
+  function readIdFromUrl() {
+    const url = new URL(window.location.href);
+    const raw = url.searchParams.get('id');
+    if (!raw) return null;
+    const num = Number(raw);
+    return Number.isFinite(num) && num > 0 ? num : null;
+  }
+
+  function writeIdToUrl(id) {
+    const url = new URL(window.location.href);
+    if (id) {
+      url.searchParams.set('id', String(id));
+    } else {
+      url.searchParams.delete('id');
+    }
+    window.history.replaceState({}, '', url.toString());
+  }
+
+  function buildShareUrl(detail) {
+    const url = new URL(window.location.href);
+    url.search = '';
+    if (detail && detail.id) {
+      url.searchParams.set('id', String(detail.id));
+    }
+    if (state.selectedMarket) {
+      url.searchParams.set('market', state.selectedMarket);
+    }
+    return url.toString();
+  }
+
+  function buildShareText(detail) {
+    const parts = [];
+    if (detail && detail.title) parts.push(detail.title);
+    const tags = [];
+    if (detail && detail.market) tags.push(detail.market);
+    if (detail && detail.tradeDate) tags.push(detail.tradeDate);
+    if (detail && detail.sentiment) tags.push(detail.sentiment);
+    if (tags.length) parts.push('「' + tags.join(' · ') + '」');
+    if (detail && detail.summaryExcerpt) {
+      const excerpt = detail.summaryExcerpt.length > 60
+        ? detail.summaryExcerpt.slice(0, 60) + '...'
+        : detail.summaryExcerpt;
+      parts.push(excerpt);
+    }
+    parts.push('来自「投资助手 · 每日复盘」');
+    return parts.join(' — ');
+  }
+
+  async function shareCurrentRecap() {
+    const detail = state.currentDetail;
+    if (!detail) return;
+    const url = buildShareUrl(detail);
+    const text = buildShareText(detail);
+
+    try {
+      if (typeof navigator !== 'undefined'
+        && typeof navigator.share === 'function'
+        && (!navigator.canShare || safeCanShare(url, text))) {
+        await navigator.share({ title: detail.title || '每日复盘', text: text, url: url });
+        showShareToast('分享已唤起');
+        return;
+      }
+    } catch (err) {
+      if (err && err.name === 'AbortError') return;
+    }
+
+    const copied = await copyToClipboard(url);
+    showShareToast(copied ? '链接已复制，去发给好友吧 👌' : '复制失败，请手动复制地址', copied ? 'success' : 'error');
+  }
+
+  function safeCanShare(url, text) {
+    try {
+      return navigator.canShare({ title: 'x', text: text, url: url });
+    } catch (e) {
+      return true;
+    }
+  }
+
+  async function copyToClipboard(text) {
+    try {
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (e) {
+      // fall through to legacy
+    }
+    try {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(textarea);
+      return ok;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function showShareToast(message, tone) {
+    let toast = document.getElementById('recapShareToast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'recapShareToast';
+      toast.className = 'recap-share-toast';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.className = 'recap-share-toast show' + (tone ? ' ' + tone : '');
+    if (toast._timer) clearTimeout(toast._timer);
+    toast._timer = setTimeout(function () {
+      toast.className = 'recap-share-toast';
+    }, SHARE_FALLBACK_DELAY);
   }
 
   function escHtml(value) {

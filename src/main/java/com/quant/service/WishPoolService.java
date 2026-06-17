@@ -48,10 +48,17 @@ public class WishPoolService {
         }
 
         String page = request.getPage() == null || request.getPage().isBlank() ? "未知页面" : request.getPage().trim();
+        String email = request.getEmail() == null || request.getEmail().isBlank() ? "" : request.getEmail().trim();
+
+        StringBuilder text = new StringBuilder("【投资助手·许愿池】\n页面：").append(page).append("\n需求：").append(wish);
+        if (!email.isEmpty()) {
+            text.append("\n联系邮箱：").append(email);
+        }
+
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("msg_type", "text");
         payload.put("content", Map.of(
-                "text", "【投资助手·许愿池】\n页面：" + page + "\n需求：" + wish
+                "text", text.toString()
         ));
 
         HttpHeaders headers = new HttpHeaders();

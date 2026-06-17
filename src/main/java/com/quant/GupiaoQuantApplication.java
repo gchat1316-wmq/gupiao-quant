@@ -7,11 +7,12 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import com.quant.config.AiProperties;
 import com.quant.config.BaostockSyncProperties;
+import com.quant.config.InvestBigYangProperties;
 import com.quant.config.NotificationProperties;
 
 @SpringBootApplication
 @EnableScheduling
-@EnableConfigurationProperties({AiProperties.class, NotificationProperties.class, BaostockSyncProperties.class})
+@EnableConfigurationProperties({AiProperties.class, NotificationProperties.class, BaostockSyncProperties.class, InvestBigYangProperties.class})
 public class GupiaoQuantApplication {
 
     public static void main(String[] args) {

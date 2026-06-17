@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#0f9d58" />
+  <meta name="theme-color" content="#e1062c" />
   <base href="/gp/" />
   <title>景气度选股 · 个股研究</title>
   <link rel="stylesheet" href="css/style.css?v=20260617-unified-pick" />
   <link rel="stylesheet" href="css/study.css?v=20260617-unified-pick" />
   <link rel="stylesheet" href="css/invest.css?v=20260617-unified-pick" />
   <link rel="stylesheet" href="css/prosperity-pick.css?v=20260617-unified-pick" />
-  <script src="js/layout.js?v=20260617-unified-pick" defer></script>
+  <script src="js/layout.js?v=20260617-recap-nav" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -63,15 +63,17 @@
             <button type="button" class="pp-anchor" data-target="pp-section-industry"><span>②</span> 行业</button>
             <button type="button" class="pp-anchor" data-target="pp-section-company"><span>③</span> 公司</button>
             <button type="button" class="pp-anchor" data-target="pp-section-finance"><span>④</span> 财务</button>
-            <button type="button" class="pp-anchor" data-target="pp-section-valuation"><span>⑤</span> 估值预期</button>
-            <button type="button" class="pp-anchor" data-target="pp-section-market"><span>⑥</span> 技术资金</button>
-            <button type="button" class="pp-anchor" data-target="pp-section-summary"><span>⑦</span> 结论</button>
+            <button type="button" class="pp-anchor" data-target="pp-section-market"><span>⑤</span> 技术资金</button>
+            <button type="button" class="pp-anchor" data-target="pp-section-summary"><span>⑥</span> 结论</button>
           </div>
 
           <section id="pp-section-overview" class="pp-section">
-            <h3 class="pp-section-title"><span class="pp-section-no">①</span> 总览与来源状态</h3>
+            <div class="pp-overview-head">
+              <h3 class="pp-section-title"><span class="pp-section-no">①</span> 总览</h3>
+              <button id="ppShareBtn" class="invest-btn-outline pp-share-btn" type="button">复制分享链接</button>
+            </div>
             <div id="ppOverview" class="pp-overview-grid"></div>
-            <div id="ppSources" class="pp-source-grid"></div>
+            <div id="ppReportTime" class="pp-report-time"></div>
           </section>
 
           <section id="pp-section-industry" class="pp-section">
@@ -86,25 +88,20 @@
 
           <section id="pp-section-finance" class="pp-section">
             <h3 class="pp-section-title"><span class="pp-section-no">④</span> 财务趋势</h3>
-            <div class="pp-chart-wrap">
+            <div id="ppFinChartWrap" class="pp-chart-wrap" style="display:none;">
               <canvas id="ppFinCanvas" height="240"></canvas>
             </div>
-            <div class="pp-hint">上图来自 baostock 季度趋势；下表来自数据库最近 12 季财务。</div>
             <div id="ppDbFinancial" class="pp-table-wrap"></div>
           </section>
 
-          <section id="pp-section-valuation" class="pp-section">
-            <h3 class="pp-section-title"><span class="pp-section-no">⑤</span> 估值与预期</h3>
-            <div id="ppValuation" class="pp-cards"></div>
-          </section>
-
           <section id="pp-section-market" class="pp-section">
-            <h3 class="pp-section-title"><span class="pp-section-no">⑥</span> 技术与资金</h3>
+            <h3 class="pp-section-title"><span class="pp-section-no">⑤</span> 技术与资金</h3>
             <div id="ppMarket" class="pp-cards"></div>
           </section>
 
           <section id="pp-section-summary" class="pp-section">
-            <h3 class="pp-section-title"><span class="pp-section-no">⑦</span> 催化剂、风险与结论</h3>
+            <h3 class="pp-section-title"><span class="pp-section-no">⑥</span> 结论</h3>
+            <div id="ppValuation" class="pp-cards pp-cards-summary"></div>
             <div id="ppSummary" class="pp-summary"></div>
             <div class="pp-action-row">
               <button id="ppPdfBtn" class="invest-btn-outline" type="button">下载 PDF</button>

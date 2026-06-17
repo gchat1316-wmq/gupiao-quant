@@ -80,6 +80,19 @@ prosperity-strong:
     connector-dir: ${TDX_CONNECTOR_DIR:${user.home}/.workbuddy/connectors-marketplace/connectors/tdx-connector}
     mcp-url: ${TDX_MCP_URL:https://txmcp.tdx.com.cn:3001/txmcp}
 
+invest-big-yang:
+  enabled: true
+  startup-enabled: true
+  min-streak-days: 1
+  max-streak-days: 2
+  candidate-lookback-days: 20
+  pullback-tolerance-pct: 2.00
+  invalid-break-pct: 5.00
+  expire-trading-days: 20
+  max-signals: 200
+  candidate-cron: "0 35 18 * * MON-FRI"
+  trigger-cron: "0 */5 9-15 * * MON-FRI"
+
 notification:
   serverchan:
     enabled: true

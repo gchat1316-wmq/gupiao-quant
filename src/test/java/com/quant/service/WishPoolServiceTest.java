@@ -40,6 +40,7 @@ class WishPoolServiceTest {
         WishSubmitRequest request = new WishSubmitRequest();
         request.setWish("希望增加复盘摘要导出，帮我每天整理晨会材料。");
         request.setPage("/gp/market-recap.html");
+        request.setEmail("user@example.com");
 
         when(restTemplate.postForEntity(eq("https://open.feishu.cn/open-apis/bot/v2/hook/test-hook"),
                 org.mockito.ArgumentMatchers.any(HttpEntity.class), eq(String.class)))
@@ -57,6 +58,28 @@ class WishPoolServiceTest {
         assertThat(String.valueOf(entity.getBody())).contains("投资助手·许愿池");
         assertThat(String.valueOf(entity.getBody())).contains("market-recap.html");
         assertThat(String.valueOf(entity.getBody())).contains("希望增加复盘摘要导出");
+        assertThat(String.valueOf(entity.getBody())).contains("联系邮箱：user@example.com");
+    }
+
+    @Test
+    @DisplayName("未填写邮箱时飞书消息不带联系邮箱字段")
+    void omitsEmailWhenBlank() {
+        WishSubmitRequest request = new WishSubmitRequest();
+        request.setWish("希望增加每日复盘导出功能。");
+        request.setPage("/gp/index.html");
+
+        when(restTemplate.postForEntity(eq("https://open.feishu.cn/open-apis/bot/v2/hook/test-hook"),
+                org.mockito.ArgumentMatchers.any(HttpEntity.class), eq(String.class)))
+                .thenReturn(ResponseEntity.ok("ok"));
+
+        service.submitWish(request);
+
+        ArgumentCaptor<HttpEntity> entityCaptor = ArgumentCaptor.forClass(HttpEntity.class);
+        verify(restTemplate).postForEntity(eq("https://open.feishu.cn/open-apis/bot/v2/hook/test-hook"),
+                entityCaptor.capture(), eq(String.class));
+
+        HttpEntity<?> entity = entityCaptor.getValue();
+        assertThat(String.valueOf(entity.getBody())).doesNotContain("联系邮箱");
     }
 
     @Test

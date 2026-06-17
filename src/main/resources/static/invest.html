@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="css/style.css?v=20260609-red-tech-footer" />
   <link rel="stylesheet" href="css/study.css?v=20260609-red-tech-footer" />
   <link rel="stylesheet" href="css/invest.css?v=20260609-red-tech" />
-  <script src="js/layout.js?v=20260611-shared-header" defer></script>
+  <script src="js/layout.js?v=20260617-recap-nav" defer></script>
 </head>
 <body>
   <div id="siteHeader"></div>
@@ -23,12 +23,17 @@
         <h2 class="invest-hero-title">龙江投资</h2>
         <p class="invest-hero-sub">价值景气投资法 · 增量市场，稀缺卡位 · 顺势而为</p>
       </div>
+      <div id="bigYangHeroAlert" class="invest-hero-alert hidden">
+        <span class="invest-hero-alert-label">大阳线提示</span>
+        <span id="bigYangHeroCount" class="invest-hero-alert-count">0</span>
+      </div>
     </div>
 
     <!-- Sub-tabs -->
     <div class="invest-tabs">
-      <button class="invest-tab" data-panel="panel-pool">股票池</button>
-      <button class="invest-tab active" data-panel="panel-prosperity">景气度扫描</button>
+      <button class="invest-tab active" data-panel="panel-pool">股票池</button>
+      <button class="invest-tab" data-panel="panel-big-yang">大阳线战法<span id="bigYangTabBadge" class="invest-tab-badge hidden">0</span></button>
+      <button class="invest-tab" data-panel="panel-prosperity">景气度扫描</button>
       <button class="invest-tab" data-panel="panel-heatmap">16季度热力表</button>
       <button class="invest-tab" data-panel="panel-valuation">估值计算器</button>
       <button class="invest-tab" data-panel="panel-sop">实战选股SOP</button>
@@ -148,7 +153,7 @@
     </div>
 
     <!-- Panel 1：景气度扫描 -->
-    <div id="panel-prosperity" class="invest-panel active">
+    <div id="panel-prosperity" class="invest-panel">
       <div class="invest-search-bar">
         <div class="invest-search-wrap">
           <input id="prosperityInput" type="text" placeholder="输入同行业多只股票，如：北方华创,长川科技" />
@@ -172,7 +177,7 @@
     </div>
 
     <!-- Panel 3：股票池 -->
-    <div id="panel-pool" class="invest-panel">
+    <div id="panel-pool" class="invest-panel active">
       <div class="pool-header">
         <div class="pool-filter-tabs">
           <button class="pool-filter-btn active" data-filter="all">全部</button>
@@ -187,6 +192,37 @@
         </div>
       </div>
       <div id="poolListWrap"></div>
+    </div>
+
+    <!-- Panel 3.5：大阳线战法 -->
+    <div id="panel-big-yang" class="invest-panel">
+      <div class="bigyang-header">
+        <div>
+          <div class="bigyang-title">大阳线股票池</div>
+          <div class="bigyang-subtitle">股票池内标的出现连续 1-2 天涨停后进入观察池，回踩首板起涨点附近时触发买入提示。</div>
+        </div>
+        <div class="bigyang-actions">
+          <button id="bigYangRunBtn" class="invest-btn-outline">立即扫描</button>
+        </div>
+      </div>
+      <div id="bigYangRunStatus" class="bigyang-run-status hidden"></div>
+      <div id="bigYangSummary" class="bigyang-summary"></div>
+      <div class="bigyang-grid">
+        <section class="bigyang-card">
+          <div class="bigyang-card-head">
+            <h3>观察池</h3>
+            <span id="bigYangSignalCount" class="bigyang-count">0</span>
+          </div>
+          <div id="bigYangSignalList" class="bigyang-list"></div>
+        </section>
+        <section class="bigyang-card">
+          <div class="bigyang-card-head">
+            <h3>买入提示消息</h3>
+            <span id="bigYangAlertCount" class="bigyang-count">0</span>
+          </div>
+          <div id="bigYangAlertList" class="bigyang-list"></div>
+        </section>
+      </div>
     </div>
 
     <!-- Panel 4：估值计算器 -->

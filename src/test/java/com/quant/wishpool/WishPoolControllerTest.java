@@ -53,6 +53,31 @@ class WishPoolControllerTest {
     }
 
     @Test
+    @DisplayName("邮箱格式不正确返回 400")
+    void invalidEmailReturns400() throws Exception {
+        mvc.perform(post("/api/wishes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"wish":"希望增加每日复盘导出","page":"/gp/index.html","email":"not-an-email"}
+                                """))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("合法邮箱与许愿一并提交成功")
+    void submitWithValidEmailReturnsSuccess() throws Exception {
+        doNothing().when(wishPoolService).submitWish(org.mockito.ArgumentMatchers.any(WishSubmitRequest.class));
+
+        mvc.perform(post("/api/wishes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"wish":"希望增加每日复盘导出功能","page":"/gp/market-recap.html","email":"user@example.com"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("已收到许愿，我们会认真评估"));
+    }
+
+    @Test
     @DisplayName("服务异常时返回 500")
     void serviceFailureReturns500() throws Exception {
         doThrow(new IllegalStateException("提交失败，请稍后再试"))

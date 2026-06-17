@@ -20,6 +20,7 @@
     initSop();
     initProsperity();
     initHeatmap();
+    initBigYang();
     initPool();
     initValuation();
     initPoolModal();
@@ -505,6 +506,236 @@
   // ===== 股票池（列表化） =====
   let poolData = [];
   let poolFilter = 'all';
+
+  // ===== 大阳线战法 =====
+  const BIG_YANG_API = 'api/invest/big-yang';
+  let bigYangState = {
+    loaded: false,
+    summary: null,
+    signals: [],
+    alerts: []
+  };
+
+  function initBigYang() {
+    loadBigYangSummary();
+    document.querySelector('.invest-tab[data-panel="panel-big-yang"]')?.addEventListener('click', () => {
+      if (!bigYangState.loaded) {
+        loadBigYangPanel();
+      }
+    });
+    document.getElementById('bigYangRunBtn')?.addEventListener('click', runBigYangScan);
+    document.getElementById('bigYangAlertList')?.addEventListener('click', async (event) => {
+      const btn = event.target.closest('[data-action="read-alert"]');
+      if (!btn) return;
+      await markBigYangAlertRead(btn.dataset.id);
+    });
+  }
+
+  async function loadBigYangSummary() {
+    try {
+      bigYangState.summary = await fetchBigYangJson(`${BIG_YANG_API}/summary`);
+      renderBigYangBadges();
+      renderBigYangSummary();
+    } catch (e) {
+      // 静默，不影响主页面
+    }
+  }
+
+  async function loadBigYangPanel() {
+    const signalList = document.getElementById('bigYangSignalList');
+    const alertList = document.getElementById('bigYangAlertList');
+    if (signalList) signalList.innerHTML = '<div class="bigyang-empty">加载中...</div>';
+    if (alertList) alertList.innerHTML = '<div class="bigyang-empty">加载中...</div>';
+    try {
+      const [summary, signals, alerts] = await Promise.all([
+        fetchBigYangJson(`${BIG_YANG_API}/summary`),
+        fetchBigYangJson(`${BIG_YANG_API}/signals`),
+        fetchBigYangJson(`${BIG_YANG_API}/alerts`)
+      ]);
+      bigYangState.summary = summary;
+      bigYangState.signals = signals || [];
+      bigYangState.alerts = alerts || [];
+      bigYangState.loaded = true;
+      renderBigYang();
+    } catch (e) {
+      if (signalList) signalList.innerHTML = `<div class="bigyang-empty error">加载失败：${escHtml(e.message)}</div>`;
+      if (alertList) alertList.innerHTML = `<div class="bigyang-empty error">加载失败：${escHtml(e.message)}</div>`;
+    }
+  }
+
+  async function runBigYangScan() {
+    const btn = document.getElementById('bigYangRunBtn');
+    if (!btn) return;
+    btn.disabled = true;
+    btn.textContent = '扫描中...';
+    try {
+      const result = await fetchBigYangJson(`${BIG_YANG_API}/run`, { method: 'POST' });
+      setBigYangRunStatus(result.message || '扫描完成', 'success');
+      await loadBigYangPanel();
+    } catch (e) {
+      setBigYangRunStatus(`扫描失败：${e.message}`, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '立即扫描';
+    }
+  }
+
+  async function markBigYangAlertRead(id) {
+    if (!id) return;
+    try {
+      await fetchBigYangJson(`${BIG_YANG_API}/alerts/${id}/read`, { method: 'POST' });
+      bigYangState.alerts = bigYangState.alerts.map(alert => {
+        if (String(alert.id) === String(id)) {
+          return { ...alert, read: true };
+        }
+        return alert;
+      });
+      if (bigYangState.summary) {
+        bigYangState.summary.unreadAlertCount = Math.max(0, (bigYangState.summary.unreadAlertCount || 0) - 1);
+      }
+      renderBigYangBadges();
+      renderBigYangSummary();
+      renderBigYangAlerts();
+    } catch (e) {
+      setBigYangRunStatus(`标记已读失败：${e.message}`, 'error');
+    }
+  }
+
+  async function fetchBigYangJson(url, options) {
+    const res = await fetch(url, options);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.message || `请求失败：${res.status}`);
+    }
+    return data;
+  }
+
+  function renderBigYang() {
+    renderBigYangBadges();
+    renderBigYangSummary();
+    renderBigYangSignals();
+    renderBigYangAlerts();
+  }
+
+  function renderBigYangBadges() {
+    const unread = bigYangState.summary?.unreadAlertCount || 0;
+    const hero = document.getElementById('bigYangHeroAlert');
+    const heroCount = document.getElementById('bigYangHeroCount');
+    const tabBadge = document.getElementById('bigYangTabBadge');
+    if (hero && heroCount) {
+      hero.classList.toggle('hidden', unread <= 0);
+      heroCount.textContent = unread;
+    }
+    if (tabBadge) {
+      tabBadge.classList.toggle('hidden', unread <= 0);
+      tabBadge.textContent = unread;
+    }
+  }
+
+  function renderBigYangSummary() {
+    const wrap = document.getElementById('bigYangSummary');
+    if (!wrap || !bigYangState.summary) return;
+    const s = bigYangState.summary;
+    wrap.innerHTML = `
+      <div class="bigyang-summary-card danger">
+        <div class="bigyang-summary-label">未读提示</div>
+        <div class="bigyang-summary-value">${s.unreadAlertCount || 0}</div>
+      </div>
+      <div class="bigyang-summary-card">
+        <div class="bigyang-summary-label">观察中</div>
+        <div class="bigyang-summary-value">${s.watchingCount || 0}</div>
+      </div>
+      <div class="bigyang-summary-card">
+        <div class="bigyang-summary-label">今日新入池</div>
+        <div class="bigyang-summary-value">${s.todayNewWatchingCount || 0}</div>
+      </div>
+      <div class="bigyang-summary-card success">
+        <div class="bigyang-summary-label">今日触发</div>
+        <div class="bigyang-summary-value">${s.todayTriggeredCount || 0}</div>
+      </div>
+      <div class="bigyang-summary-card muted">
+        <div class="bigyang-summary-label">已失效</div>
+        <div class="bigyang-summary-value">${s.expiredCount || 0}</div>
+      </div>
+    `;
+  }
+
+  function renderBigYangSignals() {
+    const wrap = document.getElementById('bigYangSignalList');
+    const count = document.getElementById('bigYangSignalCount');
+    if (!wrap) return;
+    const signals = bigYangState.signals || [];
+    if (count) count.textContent = signals.length;
+    if (!signals.length) {
+      wrap.innerHTML = '<div class="bigyang-empty">暂无大阳线候选</div>';
+      return;
+    }
+    wrap.innerHTML = signals.map(signal => {
+      const distance = signal.distanceToBasePct == null
+        ? '—'
+        : `${signal.distanceToBasePct > 0 ? '+' : ''}${Number(signal.distanceToBasePct).toFixed(2)}%`;
+      const currentPrice = signal.currentPrice == null ? '—' : Number(signal.currentPrice).toFixed(2);
+      const basePrice = signal.baseStartPrice == null ? '—' : Number(signal.baseStartPrice).toFixed(2);
+      return `
+        <article class="bigyang-item ${signal.signalStatus}">
+          <div class="bigyang-item-head">
+            <div>
+              <div class="bigyang-stock">${escHtml(signal.stockName)} <span>${escHtml(signal.stockCode)}</span></div>
+              <div class="bigyang-meta">${escHtml(signal.sourcePoolTypeLabel || '')} · ${signal.limitUpStreak} 连板 · ${signal.firstLimitUpDate || ''} ~ ${signal.lastLimitUpDate || ''}</div>
+            </div>
+            <span class="bigyang-status ${signal.signalStatus}">${bigYangStatusLabel(signal.signalStatus)}</span>
+          </div>
+          <div class="bigyang-kvs">
+            <div><label>起涨点</label><b>${basePrice}</b></div>
+            <div><label>当前价</label><b>${currentPrice}</b></div>
+            <div><label>偏离</label><b>${distance}</b></div>
+            <div><label>首板开盘</label><b>${signal.firstLimitUpOpenPrice == null ? '—' : Number(signal.firstLimitUpOpenPrice).toFixed(2)}</b></div>
+          </div>
+          <div class="bigyang-reason">${escHtml(signal.statusReason || '')}</div>
+        </article>
+      `;
+    }).join('');
+  }
+
+  function renderBigYangAlerts() {
+    const wrap = document.getElementById('bigYangAlertList');
+    const count = document.getElementById('bigYangAlertCount');
+    if (!wrap) return;
+    const alerts = bigYangState.alerts || [];
+    if (count) count.textContent = alerts.length;
+    if (!alerts.length) {
+      wrap.innerHTML = '<div class="bigyang-empty">暂无买入提示消息</div>';
+      return;
+    }
+    wrap.innerHTML = alerts.map(alert => `
+      <article class="bigyang-alert ${alert.read ? 'read' : 'unread'}">
+        <div class="bigyang-alert-head">
+          <div class="bigyang-alert-title">${escHtml(alert.title || '')}</div>
+          <div class="bigyang-alert-time">${formatDateTime(alert.triggerAt)}</div>
+        </div>
+        <div class="bigyang-alert-meta">${escHtml(alert.stockName || '')} · ${escHtml(alert.stockCode || '')} · 触发价 ${alert.triggerPrice == null ? '—' : Number(alert.triggerPrice).toFixed(2)}</div>
+        <div class="bigyang-alert-content">${escHtml(alert.content || '')}</div>
+        <div class="bigyang-alert-actions">
+          ${alert.read ? '<span class="bigyang-read-tag">已读</span>' : `<button class="invest-btn-outline" data-action="read-alert" data-id="${alert.id}">标记已读</button>`}
+        </div>
+      </article>
+    `).join('');
+  }
+
+  function setBigYangRunStatus(message, tone) {
+    const el = document.getElementById('bigYangRunStatus');
+    if (!el) return;
+    el.textContent = message || '';
+    el.className = `bigyang-run-status ${tone || ''}`;
+    el.classList.remove('hidden');
+  }
+
+  function bigYangStatusLabel(status) {
+    if (status === 'watching') return '观察中';
+    if (status === 'triggered') return '已触发';
+    if (status === 'expired') return '已失效';
+    return status || '—';
+  }
 
   // 10倍PS股票池看板列定义。inline 决定是否可内联编辑。
   const POOL_COLUMNS = [
@@ -1363,6 +1594,13 @@
     if (!str) return '';
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
               .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function formatDateTime(value) {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value).replace('T', ' ');
+    return date.toLocaleString('zh-CN', { hour12: false });
   }
 
   // ===== 公开接口（供 HTML 内联事件调用）=====

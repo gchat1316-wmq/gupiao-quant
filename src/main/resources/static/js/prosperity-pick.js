@@ -17,7 +17,7 @@
     empty: $('ppEmpty'),
     profile: $('ppProfile'),
     overview: $('ppOverview'),
-    sources: $('ppSources'),
+    reportTime: $('ppReportTime'),
     industry: $('ppIndustry'),
     company: $('ppCompany'),
     dbFinancial: $('ppDbFinancial'),
@@ -25,17 +25,20 @@
     market: $('ppMarket'),
     summary: $('ppSummary'),
     pdfBtn: $('ppPdfBtn'),
+    shareBtn: $('ppShareBtn'),
     historyMeta: $('ppHistoryMeta'),
     historyList: $('ppHistoryList'),
     pagination: $('ppPagination'),
     filterKw: $('ppFilterKw'),
     filterStatus: $('ppFilterStatus'),
     finCanvas: $('ppFinCanvas'),
+    finChartWrap: $('ppFinChartWrap'),
     anchorNav: $('ppAnchorNav')
   };
 
   let currentPage = 0;
   let currentRecordId = null;
+  let currentReport = null;
   let pollingTimers = new Map();
   let stepTimer = null;
   let finChart = null;
@@ -48,6 +51,7 @@
   els.filterKw.addEventListener('input', debounce(() => loadHistory(0), 300));
   els.filterStatus.addEventListener('change', () => loadHistory(0));
   els.pdfBtn.addEventListener('click', downloadPdf);
+  if (els.shareBtn) els.shareBtn.addEventListener('click', copyShareLink);
   els.anchorNav.addEventListener('click', onAnchorClick);
 
   initFromQuery();
@@ -56,7 +60,13 @@
   function initFromQuery() {
     const params = new URLSearchParams(window.location.search);
     const keyword = params.get('keyword');
-    if (keyword) {
+    const recordId = params.get('record');
+    if (recordId) {
+      const id = Number(recordId);
+      if (Number.isFinite(id) && id > 0) {
+        openRecord(id);
+      }
+    } else if (keyword) {
       els.keyword.value = keyword;
       submitAnalyze();
     }
@@ -260,13 +270,14 @@
     const analysis = report.analysis || {};
     const financialSummary = report.financialSummary || {};
     currentRecordId = payload.id;
+    currentReport = report;
 
     els.empty.classList.add('hidden');
     els.result.classList.remove('hidden');
 
     renderProfile(payload, report);
     renderOverview(payload, report);
-    renderSources(report.sourceMetadata || {});
+    renderReportTime(payload);
     renderCards(els.industry, [
       ['周期位置', analysis.industry?.cyclePosition],
       ['上轮周期复盘', analysis.industry?.lastCycleReview],
@@ -353,52 +364,93 @@
 
   function renderOverview(payload, report) {
     const sourceCoverage = countSources(report.sourceMetadata || {});
-    const items = [
-      ['综合结论', safeText(report.analysis?.summary?.oneLiner, report.verdict, '-')],
+    const conclusion = safeText(report.analysis?.summary?.oneLiner, report.verdict, '-');
+    const metrics = [
       ['现价', report.currentPrice == null ? '-' : `${Number(report.currentPrice).toFixed(2)} 元`],
       ['护城河', report.moatScore == null ? '-' : `${report.moatScore}/10`],
       ['来源覆盖', `${sourceCoverage}/5`],
-      ['分析方法', payload.method || report.method || '-'],
-      ['报告时间', formatTime(payload.finishedAt || payload.submittedAt)]
+      ['分析方法', payload.method || report.method || '-']
     ];
-    els.overview.innerHTML = items.map(([label, value]) => `
-      <div class="pp-overview-item">
-        <div class="pp-overview-label">${escapeHtml(label)}</div>
-        <div class="pp-overview-value">${escapeHtml(value)}</div>
+    els.overview.innerHTML = `
+      <div class="pp-overview-hero">
+        <div class="pp-overview-hero-label">综合结论</div>
+        <div class="pp-overview-hero-value">${escapeHtml(conclusion)}</div>
       </div>
-    `).join('');
+      <div class="pp-overview-metrics">
+        ${metrics.map(([label, value]) => `
+          <div class="pp-overview-metric">
+            <div class="pp-overview-metric-label">${escapeHtml(label)}</div>
+            <div class="pp-overview-metric-value">${escapeHtml(value)}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
   }
 
-  function renderSources(sourceMetadata) {
-    const order = [
-      ['db', 'DB'],
-      ['baostock', 'baostock'],
-      ['forecast', 'forecast'],
-      ['webSearch', 'web search'],
-      ['aStockData', 'a-stock-data']
-    ];
-    els.sources.innerHTML = order.map(([key, label]) => {
-      const meta = sourceMetadata[key] || {};
-      const available = meta.available === true;
-      return `
-        <div class="pp-source-item">
-          <div class="pp-source-label">${escapeHtml(label)}</div>
-          <div class="pp-source-value ${available ? 'ok' : 'miss'}">${available ? '可用' : '缺失/占位'}</div>
-          <div class="pp-card-value">${escapeHtml(meta.detail || '暂无可用结构化数据')}</div>
-        </div>
-      `;
-    }).join('');
+  function renderReportTime(payload) {
+    if (!els.reportTime) return;
+    const time = formatTime(payload.finishedAt || payload.submittedAt);
+    const elapsed = payload.elapsedMs != null ? `· 耗时 ${(payload.elapsedMs / 1000).toFixed(1)} 秒` : '';
+    els.reportTime.textContent = `报告时间：${time} ${elapsed}`;
   }
 
   function renderCards(container, items) {
     container.innerHTML = items
       .filter(([, value]) => value && String(value).trim())
-      .map(([label, value]) => `
-        <div class="pp-card">
-          <div class="pp-card-label">${escapeHtml(label)}</div>
-          <div class="pp-card-value">${escapeHtml(value)}</div>
+      .map(([label, value]) => renderCard(label, value))
+      .join('') || '<div class="pp-card"><div class="pp-card-value">暂无可用结构化数据</div></div>';
+  }
+
+  function renderCard(label, value) {
+    const text = String(value).replace(/\r\n/g, '\n').trim();
+    const { conclusion, detail } = splitConclusionAndDetail(text);
+    return `
+      <div class="pp-card">
+        <div class="pp-card-head">
+          <span class="pp-card-label">${escapeHtml(label)}</span>
         </div>
-      `).join('') || '<div class="pp-card"><div class="pp-card-value">暂无可用结构化数据</div></div>';
+        <div class="pp-card-conclusion">${escapeHtml(conclusion)}</div>
+        ${detail ? `<div class="pp-card-body">${escapeHtml(detail)}</div>` : ''}
+      </div>
+    `;
+  }
+
+  /**
+   * 把长文本启发式拆成"结论"（加粗显示的短语）+ "详情"（下面的多行说明）。
+   * 规则：按优先级找第一个合理分隔符；找不到则短文整段作结论，长文按字宽硬切。
+   */
+  function splitConclusionAndDetail(text) {
+    if (!text) return { conclusion: '', detail: '' };
+    // 纯数字/纯分数/纯符号（如 5/10、12.34元）→ 整段作结论
+    if (/^[0-9./%\-+]+(\s*[元股%万千]?)?$/.test(text)) {
+      return { conclusion: text, detail: '' };
+    }
+    const seps = [
+      { re: /[。；]\s*\n?/, len: 1 },
+      { re: /\n+/, len: 1 },
+      { re: /[：:]\s*/, len: 1 },
+      { re: /——+/, len: 2 },
+      { re: /[，,]\s*/, len: 1 },
+      { re: /[；;]\s*/, len: 1 },
+      { re: /[、]\s*/, len: 1 }
+    ];
+    for (const { re, len } of seps) {
+      const m = text.match(re);
+      if (m && m.index > 0 && m.index <= 32) {
+        const c = text.substring(0, m.index).trim();
+        const d = text.substring(m.index + m[0].length).trim();
+        if (c && d) return { conclusion: c, detail: d };
+      }
+    }
+    if (text.length <= 22) {
+      return { conclusion: text, detail: '' };
+    }
+    // 找最后一个空格/标点，把前面更精炼的部分作结论
+    const cutAt = text.search(/[\s,，:：;；。、]/);
+    if (cutAt > 4 && cutAt <= 28) {
+      return { conclusion: text.substring(0, cutAt).trim(), detail: text.substring(cutAt + 1).trim() };
+    }
+    return { conclusion: text.substring(0, 20).trim() + '…', detail: text.substring(20).trim() };
   }
 
   function renderFinancialChart(financialSummary) {
@@ -406,7 +458,9 @@
       finChart.destroy();
       finChart = null;
     }
-    if (!financialSummary.periodLabels || !financialSummary.periodLabels.length) return;
+    const hasData = financialSummary.periodLabels && financialSummary.periodLabels.length;
+    if (els.finChartWrap) els.finChartWrap.style.display = hasData ? '' : 'none';
+    if (!hasData) return;
     const toPct = (arr) => (arr || []).map((value) => value == null ? null : +(value * 100).toFixed(2));
     finChart = new Chart(els.finCanvas.getContext('2d'), {
       type: 'line',
@@ -414,7 +468,7 @@
         labels: financialSummary.periodLabels,
         datasets: [
           { label: 'ROE %', data: toPct(financialSummary.roeList), borderColor: '#1e88ff', tension: 0.3 },
-          { label: '毛利率 %', data: toPct(financialSummary.grossMarginList), borderColor: '#0f9d58', tension: 0.3 },
+          { label: '毛利率 %', data: toPct(financialSummary.grossMarginList), borderColor: '#00bcd4', tension: 0.3 },
           { label: '净利率 %', data: toPct(financialSummary.netMarginList), borderColor: '#7c3aed', tension: 0.3 },
           { label: '净利 YoY %', data: toPct(financialSummary.yoyNetProfitList), borderColor: '#ef4444', borderDash: [5, 5], tension: 0.3 }
         ]
@@ -520,6 +574,100 @@
     } catch (error) {
       showError(error.message || 'PDF 下载失败');
     }
+  }
+
+  async function copyShareLink() {
+    if (!currentRecordId) {
+      showError('请先打开一份成功完成的分析记录');
+      return;
+    }
+    const url = `${window.location.origin}${window.location.pathname}?record=${currentRecordId}`;
+    const text = buildShareText(url);
+    // 优先走 navigator.share（移动端原生面板）
+    try {
+      if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+        await navigator.share({ title: '景气度选股 · 个股研究', text, url });
+        showShareToast('分享已唤起', 'success');
+        return;
+      }
+    } catch (err) {
+      if (err && err.name === 'AbortError') return; // 用户取消
+      // 其它异常继续走复制兜底
+    }
+    // fallback：复制链接
+    const copied = await copyToClipboard(url);
+    if (copied) {
+      flashShareBtn('链接已复制');
+      showShareToast('链接已复制，去发给好友吧 👌', 'success');
+    } else {
+      flashShareBtn('复制失败');
+      showShareToast('复制失败，请手动复制地址栏 URL', 'error');
+    }
+  }
+
+  function buildShareText(url) {
+    const report = currentReport || {};
+    const name = report.name || els.keyword?.value?.trim() || '个股研究';
+    const verdict = report.verdict ? ` · ${report.verdict}` : '';
+    return `${name}${verdict} — 来自「景气度选股」\n${url}`;
+  }
+
+  async function copyToClipboard(text) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (e) {
+      // fall through to legacy
+    }
+    return legacyCopy(text);
+  }
+
+  function legacyCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try {
+      ok = document.execCommand('copy');
+    } catch (e) {
+      ok = false;
+    }
+    document.body.removeChild(ta);
+    return ok;
+  }
+
+  function flashShareBtn(label) {
+    if (!els.shareBtn) return;
+    const original = els.shareBtn.dataset.label || els.shareBtn.textContent;
+    els.shareBtn.dataset.label = original;
+    els.shareBtn.textContent = label;
+    els.shareBtn.disabled = true;
+    setTimeout(() => {
+      els.shareBtn.textContent = original;
+      els.shareBtn.disabled = false;
+    }, 1600);
+  }
+
+  function showShareToast(message, tone) {
+    let toast = document.getElementById('ppShareToast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'ppShareToast';
+      toast.className = 'pp-share-toast';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.className = 'pp-share-toast show' + (tone ? ' ' + tone : '');
+    if (toast._timer) clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => {
+      toast.className = 'pp-share-toast';
+    }, 1800);
   }
 
   function onAnchorClick(event) {

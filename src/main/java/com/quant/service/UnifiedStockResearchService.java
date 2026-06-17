@@ -6,6 +6,8 @@ import com.quant.entity.TradeStockDaily;
 import com.quant.entity.TradeStockFinancial;
 import com.quant.repository.TradeStockDailyRepository;
 import com.quant.repository.TradeStockFinancialRepository;
+import com.quant.service.ai.MiniMaxClient;
+import com.quant.service.ai.SenseNovaClient;
 import com.quant.service.search.WebSearchClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +32,8 @@ public class UnifiedStockResearchService {
     private final TradeStockFinancialRepository financialRepository;
     private final TradeStockDailyRepository dailyRepository;
     private final WebSearchClient webSearchClient;
+    private final MiniMaxClient miniMaxClient;
+    private final SenseNovaClient senseNovaClient;
 
     public StockAnalysisResponse buildUnifiedResponse(TradeStockBasic basic,
                                                      Map<String, Object> rawData,
@@ -296,15 +300,64 @@ public class UnifiedStockResearchService {
         if (results.isEmpty()) {
             return out;
         }
-        out.put("summary", results.get(0).getContent() == null || results.get(0).getContent().isBlank()
-                ? results.get(0).getTitle()
-                : results.get(0).getContent());
+        // 收集前 3 条搜索结果用于摘要
+        String raw = results.stream()
+                .limit(3)
+                .map(r -> {
+                    String title = r.getTitle() == null ? "" : r.getTitle();
+                    String content = r.getContent() == null ? "" : r.getContent();
+                    return "- " + title + "\n  " + content;
+                })
+                .reduce((a, b) -> a + "\n" + b)
+                .orElse("");
+        out.put("summary", summarizeExternalExpectation(stockName, raw, results.get(0)));
         out.put("items", results.stream().map(r -> Map.of(
                 "title", r.getTitle(),
                 "url", r.getUrl(),
                 "content", r.getContent()
         )).toList());
         return out;
+    }
+
+    /** 把联网检索出的英文研报/新闻摘要，过 LLM 翻译压缩成 2-3 句中文结论。失败时降级为第一条 content。 */
+    private String summarizeExternalExpectation(String stockName, String rawText, WebSearchClient.SearchResult first) {
+        if (rawText == null || rawText.isBlank()) return "暂无可用结构化数据";
+        String clipped = rawText.length() > 2400 ? rawText.substring(0, 2400) : rawText;
+        String sys = "你是中文金融研报助手，专注 A 股个股。把用户提供的英文/外文研究摘要翻译并压缩成 2-3 句中文结论，重点保留目标价、EPS 预测、关键业务驱动。\n"
+                + "硬性要求：\n"
+                + "1. 必须使用中文输出，不要夹杂英文原句。\n"
+                + "2. 数字与货币单位保留原文（如 \"45.63 元\"、\"2024 PE\"）。\n"
+                + "3. 控制在 80-150 字之间，分句用句号，不要输出 JSON、不要解释、不要 Markdown。\n"
+                + "4. 若信息明显无关或不足，直接输出\"暂无可靠的外部预期数据\"。";
+        String user = "股票：" + stockName + "\n以下是联网检索到的原始摘要（可能为英文）：\n" + clipped;
+        try {
+            String text = null;
+            try {
+                text = miniMaxClient.chatComplete(sys, user);
+            } catch (Exception ignore) {
+                text = null;
+            }
+            if (text == null || text.isBlank()) {
+                try {
+                    text = senseNovaClient.chatComplete(sys, user);
+                } catch (Exception ignore) {
+                    text = null;
+                }
+            }
+            if (text != null) {
+                String cleaned = text.replaceAll("\\s+", " ").trim();
+                if (cleaned.length() > 400) cleaned = cleaned.substring(0, 400) + "…";
+                return cleaned;
+            }
+        } catch (Exception e) {
+            log.warn("外部预期摘要翻译失败: {} - {}", stockName, e.getMessage());
+        }
+        // 降级：优先第一条 content，否则标题，再否则固定占位
+        String fallback = first == null ? "" : (first.getContent() != null && !first.getContent().isBlank()
+                ? first.getContent()
+                : first.getTitle());
+        if (fallback == null || fallback.isBlank()) return "暂无可用结构化数据";
+        return fallback.length() > 400 ? fallback.substring(0, 400) + "…" : fallback;
     }
 
     private List<Map<String, Object>> buildDbFinancialRows(String stockCode) {

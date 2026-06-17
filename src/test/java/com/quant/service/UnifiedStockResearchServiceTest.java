@@ -6,6 +6,8 @@ import com.quant.entity.TradeStockDaily;
 import com.quant.entity.TradeStockFinancial;
 import com.quant.repository.TradeStockDailyRepository;
 import com.quant.repository.TradeStockFinancialRepository;
+import com.quant.service.ai.MiniMaxClient;
+import com.quant.service.ai.SenseNovaClient;
 import com.quant.service.search.WebSearchClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -33,12 +35,17 @@ class UnifiedStockResearchServiceTest {
     TradeStockDailyRepository dailyRepository;
     @Mock
     WebSearchClient webSearchClient;
+    @Mock
+    MiniMaxClient miniMaxClient;
+    @Mock
+    SenseNovaClient senseNovaClient;
 
     private UnifiedStockResearchService service;
 
     @BeforeEach
     void setUp() {
-        service = new UnifiedStockResearchService(financialRepository, dailyRepository, webSearchClient);
+        service = new UnifiedStockResearchService(
+                financialRepository, dailyRepository, webSearchClient, miniMaxClient, senseNovaClient);
     }
 
     @Test

@@ -12,4 +12,6 @@ public interface InvestMarketRecapRepository extends JpaRepository<InvestMarketR
     List<String> findDistinctMarkets();
 
     List<InvestMarketRecap> findByMarketOrderByTradeDateDescIdDesc(String market);
+
+    List<InvestMarketRecap> findAllByOrderByTradeDateDescIdDesc();
 }

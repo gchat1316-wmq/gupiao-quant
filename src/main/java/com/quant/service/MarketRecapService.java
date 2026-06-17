@@ -8,6 +8,7 @@ import com.quant.dto.marketrecap.MarketRecapPageDTO;
 import com.quant.dto.marketrecap.MarketRecapSummaryDTO;
 import com.quant.dto.marketrecap.SectorCardDTO;
 import com.quant.dto.marketrecap.StrategyItemDTO;
+import com.quant.dto.marketrecap.MarketRecapBadgeDTO;
 import com.quant.entity.InvestMarketRecap;
 import com.quant.repository.InvestMarketRecapRepository;
 import com.vladsch.flexmark.ext.tables.TablesExtension;
@@ -18,6 +19,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -65,6 +67,47 @@ public class MarketRecapService {
         return repository.findById(id)
                 .map(this::toDetail)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "未找到复盘：" + id));
+    }
+
+    public MarketRecapBadgeDTO getBadgeSummary() {
+        return getBadgeSummary(LocalDate.now());
+    }
+
+    public MarketRecapBadgeDTO getBadgeSummary(LocalDate referenceDate) {
+        List<InvestMarketRecap> recaps = repository.findAllByOrderByTradeDateDescIdDesc();
+        int today = 0;
+        int yesterday = 0;
+        Long latestId = null;
+        String latestTradeDate = null;
+
+        LocalDate todayDate = referenceDate;
+        LocalDate yesterdayDate = referenceDate.minusDays(1);
+
+        for (InvestMarketRecap recap : recaps) {
+            LocalDate tradeDate = recap.getTradeDate();
+            if (tradeDate == null) {
+                continue;
+            }
+            if (latestId == null) {
+                latestId = recap.getId();
+                latestTradeDate = formatDate(tradeDate);
+            }
+            if (tradeDate.equals(todayDate)) {
+                today++;
+            } else if (tradeDate.equals(yesterdayDate)) {
+                yesterday++;
+            } else if (tradeDate.isBefore(yesterdayDate)) {
+                // 已经超出"今天/昨天"窗口,后面的更早,可以提前结束(已按 tradeDate desc 排序)
+                break;
+            }
+        }
+
+        return MarketRecapBadgeDTO.builder()
+                .today(today)
+                .yesterday(yesterday)
+                .latestId(latestId)
+                .latestTradeDate(latestTradeDate)
+                .build();
     }
 
     private List<String> sortMarkets(List<String> markets) {

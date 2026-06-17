@@ -82,6 +82,45 @@ class MarketRecapControllerTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    @DisplayName("badge 接口返回 today/yesterday/latestId 计数")
+    void returnsBadgeSummary() throws Exception {
+        when(marketRecapService.getBadgeSummary()).thenReturn(
+                com.quant.dto.marketrecap.MarketRecapBadgeDTO.builder()
+                        .today(1)
+                        .yesterday(2)
+                        .latestId(7L)
+                        .latestTradeDate("2026-06-17")
+                        .build()
+        );
+
+        mvc.perform(get("/api/market-recaps/badge"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.today").value(1))
+                .andExpect(jsonPath("$.yesterday").value(2))
+                .andExpect(jsonPath("$.latestId").value(7))
+                .andExpect(jsonPath("$.latestTradeDate").value("2026-06-17"));
+    }
+
+    @Test
+    @DisplayName("badge 接口无数据时返回全零 + null latestId")
+    void returnsEmptyBadge() throws Exception {
+        when(marketRecapService.getBadgeSummary()).thenReturn(
+                com.quant.dto.marketrecap.MarketRecapBadgeDTO.builder()
+                        .today(0)
+                        .yesterday(0)
+                        .latestId(null)
+                        .latestTradeDate(null)
+                        .build()
+        );
+
+        mvc.perform(get("/api/market-recaps/badge"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.today").value(0))
+                .andExpect(jsonPath("$.yesterday").value(0))
+                .andExpect(jsonPath("$.latestId").isEmpty());
+    }
+
     private MarketRecapPageDTO samplePage() {
         return MarketRecapPageDTO.builder()
                 .markets(List.of("A股", "港股"))

@@ -1,5 +1,6 @@
 package com.quant.controller;
 
+import com.quant.dto.marketrecap.MarketRecapBadgeDTO;
 import com.quant.dto.marketrecap.MarketRecapDetailDTO;
 import com.quant.dto.marketrecap.MarketRecapPageDTO;
 import com.quant.service.MarketRecapService;
@@ -36,5 +37,10 @@ public class MarketRecapController {
     @GetMapping("/{id}")
     public MarketRecapDetailDTO getDetail(@PathVariable Long id) {
         return marketRecapService.getDetail(id);
+    }
+
+    @GetMapping("/badge")
+    public MarketRecapBadgeDTO getBadge() {
+        return marketRecapService.getBadgeSummary();
     }
 }

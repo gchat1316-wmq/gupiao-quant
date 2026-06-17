@@ -1,5 +1,6 @@
 package com.quant.dto.wishpool;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -15,4 +16,8 @@ public class WishSubmitRequest {
 
     @Size(max = 120, message = "页面信息过长")
     private String page;
+
+    @Email(message = "邮箱格式不正确")
+    @Size(max = 120, message = "邮箱长度请控制在 120 字以内")
+    private String email;
 }

@@ -1,6 +1,7 @@
 package com.quant.marketrecap;
 
 import com.quant.dto.marketrecap.KeyDataItemDTO;
+import com.quant.dto.marketrecap.MarketRecapBadgeDTO;
 import com.quant.dto.marketrecap.MarketRecapPageDTO;
 import com.quant.dto.marketrecap.SectorCardDTO;
 import com.quant.dto.marketrecap.StrategyItemDTO;
@@ -15,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -75,6 +77,114 @@ class MarketRecapServiceTest {
         assertThat(page.getLatest().getNextDayStrategy()).hasSize(1);
         assertThat(page.getLatest().getNextDayStrategy().get(0).getLabel()).isEqualTo("策略");
         assertThat(page.getLatest().getNextDayStrategy().get(0).getValue()).isEqualTo("中仓参与，不追高，等回调低吸");
+    }
+
+    @Test
+    @DisplayName("getBadgeSummary 统计今天/昨天的复盘数")
+    void badgeSummaryCountsTodayAndYesterday() {
+        LocalDate ref = LocalDate.of(2026, 6, 17);
+        InvestMarketRecap todayA = sampleRecap();
+        todayA.setId(13L);
+        todayA.setTradeDate(ref);
+        todayA.setMarket("A股");
+
+        InvestMarketRecap todayB = sampleRecap();
+        todayB.setId(14L);
+        todayB.setTradeDate(ref);
+        todayB.setMarket("港股");
+
+        InvestMarketRecap yestA = sampleRecap();
+        yestA.setId(11L);
+        yestA.setTradeDate(ref.minusDays(1));
+        yestA.setMarket("A股");
+
+        InvestMarketRecap yestB = sampleRecap();
+        yestB.setId(12L);
+        yestB.setTradeDate(ref.minusDays(1));
+        yestB.setMarket("美股");
+
+        // repo 已按 tradeDate desc 排好
+        when(repository.findAllByOrderByTradeDateDescIdDesc())
+                .thenReturn(List.of(todayA, todayB, yestA, yestB));
+
+        MarketRecapBadgeDTO badge = service.getBadgeSummary(ref);
+
+        assertThat(badge.getToday()).isEqualTo(2);
+        assertThat(badge.getYesterday()).isEqualTo(2);
+        assertThat(badge.getLatestId()).isEqualTo(13L);
+        assertThat(badge.getLatestTradeDate()).isEqualTo("2026-06-17");
+    }
+
+    @Test
+    @DisplayName("getBadgeSummary 无数据时返回零和 null")
+    void badgeSummaryEmpty() {
+        when(repository.findAllByOrderByTradeDateDescIdDesc()).thenReturn(List.of());
+
+        MarketRecapBadgeDTO badge = service.getBadgeSummary(LocalDate.of(2026, 6, 17));
+
+        assertThat(badge.getToday()).isZero();
+        assertThat(badge.getYesterday()).isZero();
+        assertThat(badge.getLatestId()).isNull();
+        assertThat(badge.getLatestTradeDate()).isNull();
+    }
+
+    @Test
+    @DisplayName("getBadgeSummary 跳过 tradeDate 为空的记录")
+    void badgeSummarySkipsNullTradeDate() {
+        LocalDate ref = LocalDate.of(2026, 6, 17);
+        InvestMarketRecap nullDate = sampleRecap();
+        nullDate.setId(99L);
+        nullDate.setTradeDate(null);
+
+        InvestMarketRecap today = sampleRecap();
+        today.setId(13L);
+        today.setTradeDate(ref);
+
+        when(repository.findAllByOrderByTradeDateDescIdDesc())
+                .thenReturn(List.of(nullDate, today));
+
+        MarketRecapBadgeDTO badge = service.getBadgeSummary(ref);
+
+        assertThat(badge.getToday()).isEqualTo(1);
+        assertThat(badge.getYesterday()).isZero();
+        // 跳过 null tradeDate,latestId 取到第一条有效记录
+        assertThat(badge.getLatestId()).isEqualTo(13L);
+        assertThat(badge.getLatestTradeDate()).isEqualTo("2026-06-17");
+    }
+
+    @Test
+    @DisplayName("getBadgeSummary 遇到 2 天前的记录提前 break")
+    void badgeSummaryBreaksEarlyOnOldData() {
+        LocalDate ref = LocalDate.of(2026, 6, 17);
+        List<InvestMarketRecap> recaps = new ArrayList<>();
+        // 模拟 repo 返回: 今天, 昨天, 前天, 更早
+        InvestMarketRecap today = sampleRecap();
+        today.setId(13L);
+        today.setTradeDate(ref);
+        recaps.add(today);
+
+        InvestMarketRecap yest = sampleRecap();
+        yest.setId(12L);
+        yest.setTradeDate(ref.minusDays(1));
+        recaps.add(yest);
+
+        // 前天及更早就 break 了,这些不会被遍历
+        for (int i = 0; i < 5; i++) {
+            InvestMarketRecap old = sampleRecap();
+            old.setId(100L + i);
+            old.setTradeDate(ref.minusDays(2));
+            recaps.add(old);
+        }
+        when(repository.findAllByOrderByTradeDateDescIdDesc()).thenReturn(recaps);
+
+        MarketRecapBadgeDTO badge = service.getBadgeSummary(ref);
+
+        assertThat(badge.getToday()).isEqualTo(1);
+        assertThat(badge.getYesterday()).isEqualTo(1);
+    }
+
+    private static <T> T any(Class<T> clazz) {
+        return org.mockito.ArgumentMatchers.any(clazz);
     }
 
     private InvestMarketRecap sampleRecap() {
