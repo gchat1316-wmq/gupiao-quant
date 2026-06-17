@@ -186,6 +186,10 @@ public class StockAnalysisService {
         return repository.save(rec);
     }
 
+    public void deleteById(Long id) {
+        repository.deleteById(id);
+    }
+
     public StockAnalysisResponse parseRecordJson(StockAnalysisRecord rec) {
         if (rec == null || rec.getResultJson() == null) return null;
         try {

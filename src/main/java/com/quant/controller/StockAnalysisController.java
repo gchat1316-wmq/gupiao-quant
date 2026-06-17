@@ -184,6 +184,38 @@ public class StockAnalysisController {
     }
 
     /**
+     * 删除单条分析记录 (仅允许删除 FAILED 状态, 同时清理生成的 PDF 文件)
+     */
+    @DeleteMapping("/record/{id}")
+    @org.springframework.transaction.annotation.Transactional
+    public Map<String, Object> deleteRecord(@PathVariable Long id) {
+        StockAnalysisRecord rec = service.getById(id);
+        if (rec == null) {
+            return error(404, "记录不存在");
+        }
+        if (!"FAILED".equals(rec.getStatus())) {
+            return error(400, "仅允许删除 FAILED 状态的记录, 当前: " + rec.getStatus());
+        }
+        // 尝试删除关联的 PDF 文件 (失败不阻塞主流程)
+        if (rec.getPdfPath() != null && !rec.getPdfPath().isBlank()) {
+            try {
+                java.io.File pdfFile = pdfService.resolvePdfFile(rec.getPdfPath());
+                if (pdfFile != null && pdfFile.exists() && pdfFile.delete()) {
+                    log.info("随记录删除 PDF: id={} path={}", id, rec.getPdfPath());
+                }
+            } catch (Exception e) {
+                log.warn("删除 PDF 文件失败 (忽略): id={} path={}", id, rec.getPdfPath(), e);
+            }
+        }
+        service.deleteById(id);
+        Map<String, Object> r = new HashMap<>();
+        r.put("ok", true);
+        r.put("id", id);
+        r.put("message", "已删除");
+        return r;
+    }
+
+    /**
      * 健康检查 (无需鉴权)
      */
     @GetMapping("/health")

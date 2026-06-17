@@ -12,6 +12,8 @@ public interface InvestBigYangSignalRepository extends JpaRepository<InvestBigYa
 
     boolean existsByStockCodeAndSignalStatus(String stockCode, String signalStatus);
 
+    Optional<InvestBigYangSignal> findByStockCodeAndSignalStatus(String stockCode, String signalStatus);
+
     Optional<InvestBigYangSignal> findByStockCodeAndFirstLimitUpDate(String stockCode, LocalDate firstLimitUpDate);
 
     List<InvestBigYangSignal> findTop200ByOrderByUpdatedAtDescIdDesc();

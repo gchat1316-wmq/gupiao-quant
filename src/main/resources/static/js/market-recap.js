@@ -71,7 +71,7 @@
     document.getElementById('recapArticle')?.addEventListener('click', function (event) {
       const btn = event.target.closest('[data-action="share"]');
       if (!btn) return;
-      shareCurrentRecap();
+      shareCurrentRecap(btn);
     });
   }
 
@@ -493,26 +493,38 @@
     return parts.join(' — ');
   }
 
-  async function shareCurrentRecap() {
+  async function shareCurrentRecap(btn) {
     const detail = state.currentDetail;
     if (!detail) return;
     const url = buildShareUrl(detail);
-    const text = buildShareText(detail);
-
-    try {
-      if (typeof navigator !== 'undefined'
-        && typeof navigator.share === 'function'
-        && (!navigator.canShare || safeCanShare(url, text))) {
-        await navigator.share({ title: detail.title || '每日复盘', text: text, url: url });
-        showShareToast('分享已唤起');
-        return;
-      }
-    } catch (err) {
-      if (err && err.name === 'AbortError') return;
-    }
 
     const copied = await copyToClipboard(url);
-    showShareToast(copied ? '链接已复制，去发给好友吧 👌' : '复制失败，请手动复制地址', copied ? 'success' : 'error');
+    if (copied) {
+      flashShareCopied(btn);
+      showShareToast('链接已复制，去发给好友吧 👌', 'success');
+    } else {
+      showShareToast('复制失败，请手动复制地址', 'error');
+    }
+  }
+
+  function flashShareCopied(btn) {
+    if (!btn) return;
+    const label = btn.querySelector('.recap-share-label');
+    const icon = btn.querySelector('.recap-share-icon');
+    if (!label) return;
+    const originalText = label.textContent;
+    const originalTitle = btn.getAttribute('title') || '';
+    label.textContent = '已复制';
+    btn.setAttribute('title', '链接已复制');
+    btn.classList.add('is-copied');
+    if (icon) icon.textContent = '✓';
+    if (btn._copyTimer) clearTimeout(btn._copyTimer);
+    btn._copyTimer = setTimeout(function () {
+      label.textContent = originalText;
+      btn.setAttribute('title', originalTitle);
+      btn.classList.remove('is-copied');
+      if (icon) icon.textContent = '↗';
+    }, SHARE_FALLBACK_DELAY);
   }
 
   function safeCanShare(url, text) {

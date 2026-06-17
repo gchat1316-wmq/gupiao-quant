@@ -23,6 +23,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -72,12 +73,12 @@ public class InvestBigYangSignalService {
     @Transactional(readOnly = true)
     public List<BigYangSignalDTO> signals() {
         List<InvestBigYangSignal> signals = signalRepository.findTop200ByOrderByUpdatedAtDescIdDesc();
-        Map<String, TradeStockDaily> latestDailyMap = latestDailyMap(signals.stream().map(InvestBigYangSignal::getStockCode).toList());
+        Map<String, TechAiQuoteSnapshot> realtimeQuoteMap = realtimeQuoteMap(signals.stream().map(InvestBigYangSignal::getStockCode).toList());
         return signals.stream()
                 .sorted(Comparator
                         .comparingInt((InvestBigYangSignal signal) -> statusOrder(signal.getSignalStatus()))
                         .thenComparing(InvestBigYangSignal::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
-                .map(signal -> toSignalDTO(signal, latestDailyMap.get(signal.getStockCode())))
+                .map(signal -> toSignalDTO(signal, realtimeQuoteMap.get(normalizeCode(signal.getStockCode()))))
                 .toList();
     }
 
@@ -161,12 +162,15 @@ public class InvestBigYangSignalService {
         }
         int created = 0;
         for (InvestStockPool pool : sourcePools) {
-            if (signalRepository.existsByStockCodeAndSignalStatus(pool.getStockCode(), SIGNAL_STATUS_WATCHING)) {
-                continue;
-            }
             List<TradeStockDaily> recentDesc = dailyRepository.findTop30ByStockCodeOrderByTradeDateDesc(pool.getStockCode());
             LimitUpStreak streak = detectLatestStreak(pool.getStockCode(), pool.getStockName(), recentDesc);
             if (streak == null) {
+                continue;
+            }
+            Optional<InvestBigYangSignal> existingWatching = signalRepository.findByStockCodeAndSignalStatus(
+                    pool.getStockCode(), SIGNAL_STATUS_WATCHING);
+            if (existingWatching.isPresent()) {
+                refreshWatchingSignal(existingWatching.get(), pool, streak);
                 continue;
             }
             if (signalRepository.findByStockCodeAndFirstLimitUpDate(pool.getStockCode(), streak.firstLimitUpDate()).isPresent()) {
@@ -192,12 +196,28 @@ public class InvestBigYangSignalService {
         return created;
     }
 
+    private void refreshWatchingSignal(InvestBigYangSignal signal, InvestStockPool pool, LimitUpStreak streak) {
+        signal.setSourcePoolId(pool.getId());
+        signal.setSourcePoolType(pool.getPoolType());
+        signal.setStockName(displayName(pool));
+        signal.setLimitUpStreak(streak.streakDays());
+        signal.setFirstLimitUpDate(streak.firstLimitUpDate());
+        signal.setLastLimitUpDate(streak.lastLimitUpDate());
+        signal.setBaseStartPrice(streak.baseStartPrice());
+        signal.setFirstLimitUpOpenPrice(streak.firstLimitUpOpenPrice());
+        signal.setFirstLimitUpClosePrice(streak.firstLimitUpClosePrice());
+        signal.setLastLimitUpClosePrice(streak.lastLimitUpClosePrice());
+        signal.setStatusReason("连续" + streak.streakDays() + "天涨停，等待回踩首板起涨点");
+        signalRepository.save(signal);
+    }
+
     @Transactional
     TriggerResult scanTriggersInternal() {
         List<InvestBigYangSignal> watchingSignals = signalRepository.findTop200BySignalStatusOrderByUpdatedAtDescIdDesc(SIGNAL_STATUS_WATCHING);
         if (watchingSignals.isEmpty()) {
             return new TriggerResult(0, 0);
         }
+        LocalDateTime now = now();
 
         Map<Integer, InvestStockPool> sourcePoolMap = poolRepository.findAllById(
                         watchingSignals.stream()
@@ -222,7 +242,7 @@ public class InvestBigYangSignalService {
                 continue;
             }
 
-            BigDecimal currentPrice = currentPrice(signal.getStockCode(), realtimePriceMap, latestDailyMap);
+            BigDecimal currentPrice = currentPrice(signal.getStockCode(), realtimePriceMap, latestDailyMap, now);
             if (currentPrice == null || signal.getBaseStartPrice() == null || signal.getBaseStartPrice().compareTo(BigDecimal.ZERO) <= 0) {
                 continue;
             }
@@ -243,7 +263,7 @@ public class InvestBigYangSignalService {
             if (isWithinTriggerBand(currentPrice, signal.getBaseStartPrice())) {
                 signal.setSignalStatus(SIGNAL_STATUS_TRIGGERED);
                 signal.setTriggerPrice(scalePrice(currentPrice));
-                signal.setTriggerDate(LocalDate.now());
+                signal.setTriggerDate(now.toLocalDate());
                 signal.setStatusReason("价格回踩到首板起涨点附近，触发买入提示");
                 signalRepository.save(signal);
                 saveAlert(signal, currentPrice);
@@ -387,8 +407,8 @@ public class InvestBigYangSignalService {
         alertRepository.save(alert);
     }
 
-    private BigYangSignalDTO toSignalDTO(InvestBigYangSignal signal, TradeStockDaily latestDaily) {
-        BigDecimal currentPrice = latestDaily == null ? null : scalePrice(latestDaily.getClosePrice());
+    private BigYangSignalDTO toSignalDTO(InvestBigYangSignal signal, TechAiQuoteSnapshot realtimeQuote) {
+        BigDecimal currentPrice = realtimeQuote == null ? null : scalePrice(realtimeQuote.getLatestPrice());
         BigDecimal distance = pctDistance(currentPrice, signal.getBaseStartPrice());
         return BigYangSignalDTO.builder()
                 .id(signal.getId())
@@ -406,7 +426,7 @@ public class InvestBigYangSignalService {
                 .firstLimitUpClosePrice(signal.getFirstLimitUpClosePrice())
                 .lastLimitUpClosePrice(signal.getLastLimitUpClosePrice())
                 .currentPrice(currentPrice)
-                .currentPriceDate(latestDaily == null ? null : latestDaily.getTradeDate())
+                .currentPriceDate(realtimeQuote == null || realtimeQuote.getQuoteTime() == null ? null : realtimeQuote.getQuoteTime().toLocalDate())
                 .distanceToBasePct(distance)
                 .triggerPrice(signal.getTriggerPrice())
                 .triggerDate(signal.getTriggerDate())
@@ -436,13 +456,23 @@ public class InvestBigYangSignalService {
     }
 
     private Map<String, BigDecimal> realtimePriceMap(List<String> codes) {
+        return realtimeQuoteMap(codes).values().stream()
+                .filter(snapshot -> snapshot.getLatestPrice() != null)
+                .collect(Collectors.toMap(
+                        snapshot -> normalizeCode(snapshot.getStockCode()),
+                        snapshot -> scalePrice(snapshot.getLatestPrice()),
+                        (a, b) -> a
+                ));
+    }
+
+    private Map<String, TechAiQuoteSnapshot> realtimeQuoteMap(List<String> codes) {
         if (codes == null || codes.isEmpty()) {
             return Map.of();
         }
-        Map<String, BigDecimal> result = new HashMap<>();
+        Map<String, TechAiQuoteSnapshot> result = new HashMap<>();
         for (TechAiQuoteSnapshot snapshot : eastMoneyRealtimeQuoteService.fetch(codes).values()) {
             if (snapshot.getLatestPrice() != null) {
-                result.put(normalizeCode(snapshot.getStockCode()), scalePrice(snapshot.getLatestPrice()));
+                putNewerQuote(result, snapshot);
             }
         }
         List<String> missing = codes.stream()
@@ -451,20 +481,57 @@ public class InvestBigYangSignalService {
         if (!missing.isEmpty()) {
             for (TechAiQuoteSnapshot snapshot : sinaRealtimeQuoteService.fetch(missing).values()) {
                 if (snapshot.getLatestPrice() != null) {
-                    result.put(normalizeCode(snapshot.getStockCode()), scalePrice(snapshot.getLatestPrice()));
+                    putNewerQuote(result, snapshot);
                 }
             }
         }
         return result;
     }
 
-    private BigDecimal currentPrice(String stockCode, Map<String, BigDecimal> realtimePriceMap, Map<String, TradeStockDaily> latestDailyMap) {
-        BigDecimal realtime = realtimePriceMap.get(normalizeCode(stockCode));
-        if (positive(realtime)) {
-            return realtime;
+    private void putNewerQuote(Map<String, TechAiQuoteSnapshot> quotes, TechAiQuoteSnapshot snapshot) {
+        if (snapshot == null || snapshot.getStockCode() == null || snapshot.getLatestPrice() == null) {
+            return;
         }
+        String key = normalizeCode(snapshot.getStockCode());
+        TechAiQuoteSnapshot existing = quotes.get(key);
+        if (existing == null || existing.getQuoteTime() == null
+                || (snapshot.getQuoteTime() != null && snapshot.getQuoteTime().isAfter(existing.getQuoteTime()))) {
+            quotes.put(key, snapshot);
+        }
+    }
+
+    private BigDecimal currentPrice(String stockCode,
+                                    Map<String, BigDecimal> realtimePriceMap,
+                                    Map<String, TradeStockDaily> latestDailyMap,
+                                    LocalDateTime now) {
         TradeStockDaily latestDaily = latestDailyMap.get(stockCode);
-        return latestDaily == null ? null : scalePrice(latestDaily.getClosePrice());
+        if (isTradingSession(now)) {
+            BigDecimal realtime = realtimePriceMap.get(normalizeCode(stockCode));
+            if (positive(realtime)) {
+                return realtime;
+            }
+            return latestDaily == null ? null : scalePrice(latestDaily.getClosePrice());
+        }
+        if (latestDaily == null || !now.toLocalDate().equals(latestDaily.getTradeDate())) {
+            return null;
+        }
+        return scalePrice(latestDaily.getClosePrice());
+    }
+
+    LocalDateTime now() {
+        return LocalDateTime.now();
+    }
+
+    private boolean isTradingSession(LocalDateTime now) {
+        switch (now.getDayOfWeek()) {
+            case SATURDAY, SUNDAY -> {
+                return false;
+            }
+            default -> {
+                LocalTime time = now.toLocalTime();
+                return !time.isBefore(LocalTime.of(9, 0)) && !time.isAfter(LocalTime.of(15, 0));
+            }
+        }
     }
 
     private List<InvestStockPool> sourcePools() {

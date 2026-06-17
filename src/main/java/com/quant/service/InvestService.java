@@ -2,9 +2,6 @@ package com.quant.service;
 
 import com.quant.dto.invest.PoolItemDTO;
 import com.quant.dto.invest.PoolSaveRequest;
-import com.quant.dto.invest.ProsperityQuarterDTO;
-import com.quant.dto.invest.ProsperityResultDTO;
-import com.quant.dto.invest.ProsperityStockDTO;
 import com.quant.dto.invest.SopCheckupDTO;
 import com.quant.dto.invest.PoolFieldUpdateRequest;
 import com.quant.entity.InvestStockPool;
@@ -39,9 +36,6 @@ import java.util.stream.Collectors;
 @Service
 public class InvestService {
 
-    private static final int DEFAULT_QUARTERS = 8;
-    private static final int MAX_QUARTERS = 16;
-
     private final TradeStockBasicRepository stockBasicRepository;
     private final TradeStockFinancialRepository financialRepository;
     private final TradeStockDailyRepository dailyRepository;
@@ -57,110 +51,7 @@ public class InvestService {
         this.poolRepository = poolRepository;
     }
 
-    // ===== 景气度扫描 =====
-
-    @Cacheable(value = "prosperity", key = "#keywords + '_' + (#quarters ?: 0)")
-    @Transactional(readOnly = true)
-    public ProsperityResultDTO queryProsperity(String keywords, Integer quarters) {
-        int limit = (quarters == null || quarters <= 0) ? DEFAULT_QUARTERS : Math.min(quarters, MAX_QUARTERS);
-        List<String> tokens = parseKeywords(keywords);
-
-        List<ProsperityStockDTO> stocks = new ArrayList<>();
-        List<String> notFound = new ArrayList<>();
-        Map<String, String> allQuarterDates = new LinkedHashMap<>();
-
-        for (String token : tokens) {
-            Optional<TradeStockBasic> infoOpt = resolveStock(token);
-            if (infoOpt.isEmpty()) {
-                notFound.add(token);
-                continue;
-            }
-            TradeStockBasic info = infoOpt.get();
-            List<TradeStockFinancial> allRecords = financialRepository
-                    .findByStockCodeOrderByReportDateDesc(info.getStockCode());
-            // 建立日期索引，用于计算同比
-            Map<java.time.LocalDate, TradeStockFinancial> dateMap = allRecords.stream()
-                    .collect(Collectors.toMap(TradeStockFinancial::getReportDate, r -> r, (a, b) -> a));
-            List<TradeStockFinancial> records = allRecords.stream().limit(limit).collect(Collectors.toList());
-
-            // 转为升序，方便识别转折点
-            List<TradeStockFinancial> asc = new ArrayList<>(records);
-            java.util.Collections.reverse(asc);
-
-            List<ProsperityQuarterDTO> quarterDTOs = buildQuarterDTOs(asc, dateMap);
-            String latestLevel = quarterDTOs.isEmpty() ? "unknown"
-                    : quarterDTOs.get(quarterDTOs.size() - 1).getRevenueLevel();
-
-            stocks.add(ProsperityStockDTO.builder()
-                    .stockCode(info.getStockCode())
-                    .stockName(info.getStockName())
-                    .latestLevel(latestLevel)
-                    .quarters(quarterDTOs)
-                    .build());
-
-            for (ProsperityQuarterDTO q : quarterDTOs) {
-                allQuarterDates.put(q.getReportDate(), q.getQuarter());
-            }
-        }
-
-        List<String> quarterAxis = allQuarterDates.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-                .map(Map.Entry::getValue)
-                .distinct()
-                .collect(Collectors.toList());
-
-        String sectorLevel = calcSectorLevel(stocks);
-        String sectorSummary = buildSectorSummary(sectorLevel);
-
-        return ProsperityResultDTO.builder()
-                .requested(tokens.size())
-                .matched(stocks.size())
-                .notFound(notFound)
-                .sectorLevel(sectorLevel)
-                .sectorSummary(sectorSummary)
-                .quarterAxis(quarterAxis)
-                .stocks(stocks)
-                .build();
-    }
-
-    private List<ProsperityQuarterDTO> buildQuarterDTOs(List<TradeStockFinancial> ascRecords,
-                                                          Map<java.time.LocalDate, TradeStockFinancial> dateMap) {
-        List<ProsperityQuarterDTO> result = new ArrayList<>();
-        for (int i = 0; i < ascRecords.size(); i++) {
-            TradeStockFinancial f = ascRecords.get(i);
-            java.time.LocalDate prevYear = f.getReportDate().minusYears(1);
-            TradeStockFinancial prev = dateMap.get(prevYear);
-            BigDecimal ry = f.getRevenueYoy() != null ? f.getRevenueYoy()
-                    : calcYoy(f.getRevenue(), prev != null ? prev.getRevenue() : null);
-            BigDecimal py = f.getDeductedNetProfitYoy() != null ? f.getDeductedNetProfitYoy()
-                    : calcYoy(f.getNetProfit(), prev != null ? prev.getNetProfit() : null);
-
-            boolean revTurn = false;
-            boolean profTurn = false;
-            if (i > 0) {
-                BigDecimal prevRy = ascRecords.get(i - 1).getRevenueYoy();
-                BigDecimal prevPy = ascRecords.get(i - 1).getDeductedNetProfitYoy();
-                revTurn = prevRy != null && ry != null
-                        && prevRy.compareTo(BigDecimal.ZERO) < 0
-                        && ry.compareTo(BigDecimal.ZERO) > 0;
-                profTurn = prevPy != null && py != null
-                        && prevPy.compareTo(BigDecimal.ZERO) < 0
-                        && py.compareTo(BigDecimal.ZERO) > 0;
-            }
-
-            result.add(ProsperityQuarterDTO.builder()
-                    .quarter(formatQuarter(f.getReportDate()))
-                    .reportDate(f.getReportDate().toString())
-                    .revenueYoy(ry)
-                    .deductedNetProfitYoy(py)
-                    .revenueLevel(prosperityLevel(ry))
-                    .profitLevel(prosperityLevel(py))
-                    .revenueTurnaround(revTurn)
-                    .profitTurnaround(profTurn)
-                    .build());
-        }
-        return result;
-    }
+    // ===== 通用工具方法（供股票池 + SOP 共用）=====
 
     private BigDecimal calcYoy(BigDecimal current, BigDecimal prev) {
         if (current == null || prev == null || prev.compareTo(BigDecimal.ZERO) == 0) return null;
@@ -178,30 +69,6 @@ public class InvestService {
         return "low";
     }
 
-    private String calcSectorLevel(List<ProsperityStockDTO> stocks) {
-        if (stocks.isEmpty()) return "UNKNOWN";
-        // 高景气：最新季度营收同比 ≥ 20%（约 4倍 GDP），对应 "high" 等级（≥30%）或 medium 中 ≥ 20% 的部分
-        // 这里简化：只有 "high"（≥30%）才算高景气板块计数
-        long highCount = stocks.stream()
-                .filter(s -> "high".equals(s.getLatestLevel()))
-                .count();
-        long lowCount = stocks.stream()
-                .filter(s -> "low".equals(s.getLatestLevel()) || "weak".equals(s.getLatestLevel()))
-                .count();
-        double total = stocks.size();
-        if (highCount / total >= 0.6) return "HIGH";
-        if (lowCount / total >= 0.6) return "LOW";
-        return "MIXED";
-    }
-
-    private String buildSectorSummary(String sectorLevel) {
-        return switch (sectorLevel) {
-            case "HIGH" -> "高景气板块 ✓ 多数公司营收高速增长，顺势布局";
-            case "LOW" -> "低景气板块，谨慎 — 行业整体增速偏低";
-            default -> "景气分化，关注龙头 — 建议聚焦营收持续高增长的公司";
-        };
-    }
-
     private String formatQuarter(LocalDate d) {
         int year = d.getYear() % 100;
         int q = switch (d.getMonthValue()) {
@@ -212,15 +79,6 @@ public class InvestService {
             default -> (d.getMonthValue() - 1) / 3 + 1;
         };
         return String.format("%02dQ%d", year, q);
-    }
-
-    private List<String> parseKeywords(String raw) {
-        if (raw == null || raw.isBlank()) return List.of();
-        return Arrays.stream(raw.split("[,，;； \t]+"))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .distinct()
-                .collect(Collectors.toList());
     }
 
     private Optional<TradeStockBasic> resolveStock(String token) {

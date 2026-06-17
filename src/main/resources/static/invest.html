@@ -33,8 +33,6 @@
     <div class="invest-tabs">
       <button class="invest-tab active" data-panel="panel-pool">股票池</button>
       <button class="invest-tab" data-panel="panel-big-yang">大阳线战法<span id="bigYangTabBadge" class="invest-tab-badge hidden">0</span></button>
-      <button class="invest-tab" data-panel="panel-prosperity">景气度扫描</button>
-      <button class="invest-tab" data-panel="panel-heatmap">16季度热力表</button>
       <button class="invest-tab" data-panel="panel-valuation">估值计算器</button>
       <button class="invest-tab" data-panel="panel-sop">实战选股SOP</button>
       <a href="study.html" class="invest-tab-study-link">学习搭子 →</a>
@@ -68,16 +66,6 @@
               <li>是否由 <b>技术进步</b> 推动财富增长（AI / 新能源 / 半导体 / 创新药）</li>
               <li>是否获得 <b>国家政策</b> 长期支持</li>
             </ul>
-          </div>
-          <div class="sop-tool">
-            <div class="sop-tool-title">🧰 增量赛道库 · 一键景气扫描</div>
-            <div class="sop-tool-hint">点击赛道徽章，自动跳转「景气度扫描」并对该赛道代表公司进行批量扫描。</div>
-            <div id="sopTrackChips" class="sop-track-chips"></div>
-            <div class="sop-tool-divider">或自定义关键词：</div>
-            <div class="sop-custom-track">
-              <input id="sopCustomTrackInput" type="text" placeholder="如：北方华创,长川科技,中微公司" />
-              <button id="sopCustomTrackBtn" class="invest-btn-outline">扫描景气</button>
-            </div>
           </div>
         </div>
       </div>
@@ -150,30 +138,6 @@
           </div>
         </div>
       </div>
-    </div>
-
-    <!-- Panel 1：景气度扫描 -->
-    <div id="panel-prosperity" class="invest-panel">
-      <div class="invest-search-bar">
-        <div class="invest-search-wrap">
-          <input id="prosperityInput" type="text" placeholder="输入同行业多只股票，如：北方华创,长川科技" />
-        </div>
-        <button id="prosperityQueryBtn" class="invest-btn">扫描景气</button>
-      </div>
-      <p style="font-size:12px;color:#9ca3af;margin:-12px 0 16px">以 GDP 增速 5% 为基准，营收同比 ≥20% 为高景气。对比同行业多公司，判断板块整体景气度。</p>
-      <div id="prosperityResult"></div>
-    </div>
-
-    <!-- Panel 2：16季度热力表 -->
-    <div id="panel-heatmap" class="invest-panel">
-      <div class="invest-search-bar">
-        <div class="invest-search-wrap">
-          <input id="heatmapInput" type="text" placeholder="输入股票名称或代码，如：北方华创" />
-        </div>
-        <button id="heatmapQueryBtn" class="invest-btn">生成热力表</button>
-      </div>
-      <p style="font-size:12px;color:#9ca3af;margin:-12px 0 16px">展示近 16 个季度增速变化，★ 标注由负转正的关键转折点，把握最佳布局窗口。</p>
-      <div id="heatmapResult"></div>
     </div>
 
     <!-- Panel 3：股票池 -->

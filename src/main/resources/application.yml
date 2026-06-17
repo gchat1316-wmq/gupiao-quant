@@ -43,7 +43,7 @@ baostock-sync:
   enabled: true
   startup-enabled: false
   startup-days-back: 45
-  daily-days-back: 7
+  daily-days-back: 30
   daily-cron: "0 20 18 * * MON-FRI"
   python-command: python3
   timeout-seconds: 1800

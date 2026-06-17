@@ -407,17 +407,17 @@ body {
   border: 1px solid #fcd7c5;
   border-radius: 16px;
   box-shadow: 0 6px 18px rgba(232, 113, 75, 0.10);
-  min-height: 104px;
+  min-height: 136px;
 }
 
 .donate-card .donate-qr {
-  width: 80px;
-  height: 80px;
+  width: 112px;
+  height: 112px;
   flex-shrink: 0;
   border-radius: 8px;
   background: #fff;
   border: 1px solid #fed7aa;
-  padding: 4px;
+  padding: 6px;
   box-sizing: border-box;
   overflow: hidden;
   align-self: center;
@@ -640,8 +640,8 @@ body {
     padding: 10px 14px;
   }
   .donate-card .donate-qr {
-    width: 64px;
-    height: 64px;
+    width: 88px;
+    height: 88px;
   }
   .wishpool-shell {
     border-radius: 12px;

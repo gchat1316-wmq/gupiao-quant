@@ -654,6 +654,45 @@ body { background: linear-gradient(180deg, #fcfcfd 0%, #f8fafc 100%); }
 .pp-status-pending { color: #92400e; }
 .pp-status-failed { color: var(--pp-danger); }
 
+.pp-history-top-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.pp-history-delete {
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  background: #fff;
+  color: var(--pp-danger);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .15s, border-color .15s, color .15s;
+}
+
+.pp-history-delete:hover {
+  background: rgba(220, 38, 38, 0.08);
+  border-color: var(--pp-danger);
+}
+
+.pp-history-delete:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.pp-history-item.is-failed {
+  border-color: rgba(220, 38, 38, 0.18);
+  background: linear-gradient(180deg, #fef2f2 0%, #f8fafc 100%);
+}
+
+.pp-history-item.is-failed:hover {
+  border-color: var(--pp-danger);
+}
+
 .pp-history-summary {
   margin: 8px 0;
   color: #334155;

@@ -19,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -78,12 +79,76 @@ class InvestBigYangSignalServiceTest {
     }
 
     @Test
+    @DisplayName("盘后日线未更新时不触发买点提示")
+    void skipsTriggerWhenAfterHoursDailyIsStale() {
+        service = new InvestBigYangSignalService(
+                signalRepository,
+                poolRepository,
+                alertRepository,
+                dailyRepository,
+                eastMoneyRealtimeQuoteService,
+                sinaRealtimeQuoteService,
+                freshProps()
+        ) {
+            @Override
+            LocalDateTime now() {
+                return LocalDateTime.of(2026, 6, 17, 21, 8, 0);
+            }
+        };
+        InvestBigYangSignal signal = watchingSignal();
+        when(signalRepository.findTop200BySignalStatusOrderByUpdatedAtDescIdDesc(InvestBigYangSignalService.SIGNAL_STATUS_WATCHING))
+                .thenReturn(List.of(signal));
+        when(poolRepository.findAllById(anyCollection())).thenReturn(List.of(pool("000001.SZ", "平安银行")));
+        when(eastMoneyRealtimeQuoteService.fetch(anyList())).thenReturn(Map.of("000001.SZ", quote("000001.SZ", "10.18")));
+        when(dailyRepository.findLatestByStockCodes(anyCollection())).thenReturn(List.of(
+                daily("000001.SZ", "2026-06-11", "10.60", "10.70", "10.10", "10.55")
+        ));
+
+        InvestBigYangSignalService.TriggerResult result = service.scanTriggersInternal();
+
+        assertThat(result.triggeredCount()).isEqualTo(0);
+        assertThat(result.expiredCount()).isEqualTo(0);
+        verify(alertRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("信号列表返回最新收盘日期")
+    void signalsExposeLatestDailyDate() {
+        InvestBigYangSignal signal = watchingSignal();
+        when(signalRepository.findTop200ByOrderByUpdatedAtDescIdDesc()).thenReturn(List.of(signal));
+        when(eastMoneyRealtimeQuoteService.fetch(anyList())).thenReturn(Map.of(
+                "000001.SZ", quote("000001.SZ", "10.66", LocalDateTime.of(2026, 6, 17, 15, 0))
+        ));
+
+        List<com.quant.dto.invest.BigYangSignalDTO> dtos = service.signals();
+
+        assertThat(dtos).hasSize(1);
+        assertThat(dtos.get(0).getCurrentPriceDate()).isEqualTo(LocalDate.of(2026, 6, 17));
+        assertThat(dtos.get(0).getCurrentPrice()).isEqualByComparingTo("10.66");
+    }
+
+    @Test
+    @DisplayName("信号列表不再回退显示旧日线收盘价")
+    void signalsDoNotFallbackToStaleDailyClose() {
+        InvestBigYangSignal signal = watchingSignal();
+        when(signalRepository.findTop200ByOrderByUpdatedAtDescIdDesc()).thenReturn(List.of(signal));
+        when(eastMoneyRealtimeQuoteService.fetch(anyList())).thenReturn(Map.of());
+        when(sinaRealtimeQuoteService.fetch(anyList())).thenReturn(Map.of());
+
+        List<com.quant.dto.invest.BigYangSignalDTO> dtos = service.signals();
+
+        assertThat(dtos).hasSize(1);
+        assertThat(dtos.get(0).getCurrentPrice()).isNull();
+        assertThat(dtos.get(0).getCurrentPriceDate()).isNull();
+    }
+
+    @Test
     @DisplayName("连续一字涨停后进入观察池")
     void createsWatchingSignalAfterLimitUpStreak() {
         InvestStockPool pool = pool("000001.SZ", "平安银行");
         when(poolRepository.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(pool));
-        when(signalRepository.existsByStockCodeAndSignalStatus("000001.SZ", InvestBigYangSignalService.SIGNAL_STATUS_WATCHING))
-                .thenReturn(false);
+        when(signalRepository.findByStockCodeAndSignalStatus("000001.SZ", InvestBigYangSignalService.SIGNAL_STATUS_WATCHING))
+                .thenReturn(Optional.empty());
         when(signalRepository.findByStockCodeAndFirstLimitUpDate("000001.SZ", LocalDate.of(2026, 6, 11)))
                 .thenReturn(Optional.empty());
         when(dailyRepository.findTop30ByStockCodeOrderByTradeDateDesc("000001.SZ")).thenReturn(List.of(
@@ -105,8 +170,52 @@ class InvestBigYangSignalServiceTest {
     }
 
     @Test
+    @DisplayName("已有观察中信号会按最新日线回算首板开盘价")
+    void refreshesWatchingSignalBasePriceFromLatestDaily() {
+        InvestStockPool pool = pool("000001.SZ", "平安银行");
+        InvestBigYangSignal existing = watchingSignal();
+        existing.setBaseStartPrice(new BigDecimal("60.73"));
+        existing.setFirstLimitUpOpenPrice(new BigDecimal("60.73"));
+        existing.setFirstLimitUpClosePrice(new BigDecimal("66.55"));
+        existing.setLastLimitUpClosePrice(new BigDecimal("66.55"));
+        when(poolRepository.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(pool));
+        when(signalRepository.findByStockCodeAndSignalStatus("000001.SZ", InvestBigYangSignalService.SIGNAL_STATUS_WATCHING))
+                .thenReturn(Optional.of(existing));
+        when(dailyRepository.findTop30ByStockCodeOrderByTradeDateDesc("000001.SZ")).thenReturn(List.of(
+                daily("000001.SZ", "2026-05-27", "50.99", "57.83", "50.14", "55.02"),
+                daily("000001.SZ", "2026-05-26", "53.83", "55.29", "49.60", "52.58"),
+                daily("000001.SZ", "2026-05-25", "46.36", "50.80", "46.36", "50.80"),
+                daily("000001.SZ", "2026-05-22", "45.37", "46.66", "44.14", "45.81")
+        ));
+
+        int created = service.scanCandidatesInternal();
+
+        assertThat(created).isEqualTo(0);
+        ArgumentCaptor<InvestBigYangSignal> captor = ArgumentCaptor.forClass(InvestBigYangSignal.class);
+        verify(signalRepository).save(captor.capture());
+        InvestBigYangSignal saved = captor.getValue();
+        assertThat(saved.getBaseStartPrice()).isEqualByComparingTo("46.36");
+        assertThat(saved.getFirstLimitUpOpenPrice()).isEqualByComparingTo("46.36");
+        assertThat(saved.getFirstLimitUpDate()).isEqualTo(LocalDate.of(2026, 5, 25));
+    }
+
+    @Test
     @DisplayName("价格回踩起涨点附近时触发买点提示")
     void triggersAlertWhenPricePullsBackToBase() {
+        service = new InvestBigYangSignalService(
+                signalRepository,
+                poolRepository,
+                alertRepository,
+                dailyRepository,
+                eastMoneyRealtimeQuoteService,
+                sinaRealtimeQuoteService,
+                freshProps()
+        ) {
+            @Override
+            LocalDateTime now() {
+                return LocalDateTime.of(2026, 6, 17, 10, 5, 0);
+            }
+        };
         InvestBigYangSignal signal = watchingSignal();
         when(signalRepository.findTop200BySignalStatusOrderByUpdatedAtDescIdDesc(InvestBigYangSignalService.SIGNAL_STATUS_WATCHING))
                 .thenReturn(List.of(signal));
@@ -134,6 +243,20 @@ class InvestBigYangSignalServiceTest {
     @Test
     @DisplayName("跌破起涨点保护线时失效，不再生成提示")
     void expiresSignalWhenPriceBreaksBelowBase() {
+        service = new InvestBigYangSignalService(
+                signalRepository,
+                poolRepository,
+                alertRepository,
+                dailyRepository,
+                eastMoneyRealtimeQuoteService,
+                sinaRealtimeQuoteService,
+                freshProps()
+        ) {
+            @Override
+            LocalDateTime now() {
+                return LocalDateTime.of(2026, 6, 17, 10, 5, 0);
+            }
+        };
         InvestBigYangSignal signal = watchingSignal();
         when(signalRepository.findTop200BySignalStatusOrderByUpdatedAtDescIdDesc(InvestBigYangSignalService.SIGNAL_STATUS_WATCHING))
                 .thenReturn(List.of(signal));
@@ -176,6 +299,18 @@ class InvestBigYangSignalServiceTest {
         return signal;
     }
 
+    private InvestBigYangProperties freshProps() {
+        InvestBigYangProperties props = new InvestBigYangProperties();
+        props.setEnabled(true);
+        props.setMinStreakDays(1);
+        props.setMaxStreakDays(2);
+        props.setCandidateLookbackDays(20);
+        props.setPullbackTolerancePct(BigDecimal.valueOf(2));
+        props.setInvalidBreakPct(BigDecimal.valueOf(5));
+        props.setExpireTradingDays(20);
+        return props;
+    }
+
     private TradeStockDaily daily(String stockCode, String date, String open, String high, String low, String close) {
         TradeStockDaily daily = new TradeStockDaily();
         daily.setStockCode(stockCode);
@@ -188,9 +323,14 @@ class InvestBigYangSignalServiceTest {
     }
 
     private TechAiQuoteSnapshot quote(String stockCode, String latestPrice) {
+        return quote(stockCode, latestPrice, LocalDateTime.of(2026, 6, 17, 10, 0));
+    }
+
+    private TechAiQuoteSnapshot quote(String stockCode, String latestPrice, LocalDateTime quoteTime) {
         TechAiQuoteSnapshot snapshot = new TechAiQuoteSnapshot();
         snapshot.setStockCode(stockCode);
         snapshot.setLatestPrice(new BigDecimal(latestPrice));
+        snapshot.setQuoteTime(quoteTime);
         return snapshot;
     }
 }

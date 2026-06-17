@@ -7,7 +7,6 @@ import com.quant.dto.invest.OcrParseResultDTO;
 import com.quant.dto.invest.PoolFieldUpdateRequest;
 import com.quant.dto.invest.PoolItemDTO;
 import com.quant.dto.invest.PoolSaveRequest;
-import com.quant.dto.invest.ProsperityResultDTO;
 import com.quant.dto.invest.SopCheckupDTO;
 import com.quant.service.InvestService;
 import com.quant.service.InvestPoolRefreshService;
@@ -51,14 +50,6 @@ public class InvestController {
         this.priceMonitorService = priceMonitorService;
         this.poolSeedService = poolSeedService;
         this.poolRefreshService = poolRefreshService;
-    }
-
-    /** 景气度扫描 + 16季度热力表（同一接口，quarters 参数控制深度） */
-    @GetMapping("/prosperity")
-    public ProsperityResultDTO queryProsperity(
-            @RequestParam("keywords") String keywords,
-            @RequestParam(value = "quarters", required = false) Integer quarters) {
-        return investService.queryProsperity(keywords, quarters);
     }
 
     /** 实战选股 SOP · 三大数字体检 */

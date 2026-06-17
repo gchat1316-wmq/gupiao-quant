@@ -99,7 +99,7 @@ def fetch_daily_rows(bs_code: str, days_back: int) -> list[dict[str, str]]:
         start_date=start.isoformat(),
         end_date=end.isoformat(),
         frequency="d",
-        adjustflag="3",
+        adjustflag="2",
     )
     if rs.error_code != "0":
         raise RuntimeError(f"{bs_code}: {rs.error_msg}")

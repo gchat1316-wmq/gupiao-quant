@@ -275,7 +275,7 @@ CREATE TABLE `study_course` (
   `summary` text COMMENT '课程简介',
   `cover_text` varchar(200) DEFAULT NULL COMMENT '封面文字 / emoji',
   `cover_color` varchar(20) DEFAULT '#e8f5e9',
-  `owner` varchar(64) DEFAULT '智谱清言创建',
+  `owner` varchar(64) DEFAULT NULL,
   `source_type` varchar(20) DEFAULT 'upload' COMMENT 'upload/cloud/url',
   `visibility` varchar(10) DEFAULT 'private' COMMENT 'private/public',
   `status` varchar(20) DEFAULT 'ready' COMMENT 'processing/ready',

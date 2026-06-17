@@ -143,14 +143,21 @@
       if (record.moatScore != null) tags.push(`<span class="pp-history-tag">护城河 ${record.moatScore}/10</span>`);
       if (record.sourceCoverage != null) tags.push(`<span class="pp-history-tag">来源 ${record.sourceCoverage}</span>`);
       if (record.hasReport) tags.push('<span class="pp-history-tag">富报告</span>');
+      const isFailed = record.status === 'FAILED';
+      const deleteBtn = isFailed
+        ? `<button class="pp-history-delete" type="button" data-action="delete" data-id="${record.id}" title="删除这条失败记录">删除</button>`
+        : '';
       return `
-        <div class="pp-history-item" data-id="${record.id}">
+        <div class="pp-history-item${isFailed ? ' is-failed' : ''}" data-id="${record.id}">
           <div class="pp-history-top">
             <div>
               <div class="pp-history-name">${escapeHtml(record.stockName || record.stockCodeRaw || record.stockCode || '-')}</div>
               <div class="pp-history-code">${escapeHtml(record.stockCodeRaw || record.stockCode || '-')} · ${price}</div>
             </div>
-            <div class="pp-history-status ${statusClass(record.status)}">${escapeHtml(record.status || '-')}</div>
+            <div class="pp-history-top-right">
+              <div class="pp-history-status ${statusClass(record.status)}">${escapeHtml(record.status || '-')}</div>
+              ${deleteBtn}
+            </div>
           </div>
           <div class="pp-history-summary">${escapeHtml(record.summaryOneLiner || record.verdict || '等待统一富报告生成')}</div>
           <div class="pp-history-tags">${tags.join('')}</div>
@@ -162,8 +169,51 @@
       `;
     }).join('');
     els.historyList.querySelectorAll('.pp-history-item').forEach((item) => {
-      item.addEventListener('click', () => openRecord(Number(item.dataset.id)));
+      item.addEventListener('click', (event) => {
+        if (event.target.closest('[data-action="delete"]')) return;
+        openRecord(Number(item.dataset.id));
+      });
     });
+    els.historyList.querySelectorAll('[data-action="delete"]').forEach((btn) => {
+      btn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const id = Number(btn.dataset.id);
+        deleteRecord(id, btn);
+      });
+    });
+  }
+
+  async function deleteRecord(id, btn) {
+    if (!confirm(`确认删除这条失败的个股分析记录 (#${id})？\n关联 PDF 会一起清理，此操作不可恢复。`)) {
+      return;
+    }
+    if (btn) {
+      btn.disabled = true;
+      btn.dataset.originalLabel = btn.dataset.originalLabel || btn.textContent;
+      btn.textContent = '删除中…';
+    }
+    try {
+      const response = await fetch(`${API_BASE}/record/${id}?api_key=${encodeURIComponent(API_KEY)}`, {
+        method: 'DELETE'
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok || json.ok === false) {
+        throw new Error(json.message || `删除失败: ${response.status}`);
+      }
+      // 重新加载当前页; 如果当前页空了且不是第 0 页, 退回上一页
+      await loadHistory(currentPage);
+      if (!els.historyList.querySelector('.pp-history-item[data-id]')) {
+        const prevPage = Math.max(0, currentPage - 1);
+        if (prevPage !== currentPage) await loadHistory(prevPage);
+      }
+      showShareToast('已删除', 'success');
+    } catch (error) {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = btn.dataset.originalLabel || '删除';
+      }
+      showError(error.message || '删除失败');
+    }
   }
 
   function renderPagination(total, page, size) {
@@ -582,22 +632,10 @@
       return;
     }
     const url = `${window.location.origin}${window.location.pathname}?record=${currentRecordId}`;
-    const text = buildShareText(url);
-    // 优先走 navigator.share（移动端原生面板）
-    try {
-      if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
-        await navigator.share({ title: '景气度选股 · 个股研究', text, url });
-        showShareToast('分享已唤起', 'success');
-        return;
-      }
-    } catch (err) {
-      if (err && err.name === 'AbortError') return; // 用户取消
-      // 其它异常继续走复制兜底
-    }
-    // fallback：复制链接
+    // 直接复制链接（不再走 navigator.share，避免移动端只唤起系统面板导致"没复制"）
     const copied = await copyToClipboard(url);
     if (copied) {
-      flashShareBtn('链接已复制');
+      flashShareBtn('已复制');
       showShareToast('链接已复制，去发给好友吧 👌', 'success');
     } else {
       flashShareBtn('复制失败');
