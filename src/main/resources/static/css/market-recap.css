@@ -838,11 +838,11 @@
 }
 
 .rq-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   margin-bottom: 10px;
-  padding: 5px;
+  padding: 6px;
   border-radius: 10px;
   background: #f7f8fa;
   border: 1px solid var(--bg);
@@ -853,21 +853,25 @@
 }
 
 .rq-list-item {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 7px 10px;
+  gap: 6px;
+  flex: 0 0 auto;
+  max-width: 100%;
+  min-width: 0;
+  padding: 6px 10px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 999px;
   background: transparent;
   color: var(--text-mid);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 500;
   text-align: left;
   cursor: pointer;
   transition: background 0.12s ease, color 0.12s ease;
   font-family: inherit;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .rq-list-item:hover {
@@ -956,6 +960,99 @@
 
 .rq-article-info-line {
   align-items: center;
+}
+
+/* ── Article head (title row + share button) ───────────────────────── */
+
+.recap-article-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f2f5;
+}
+
+.recap-article-head-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.recap-article-head-title {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recap-article-head-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: center;
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+@media (max-width: 768px) {
+  .recap-article-head-title {
+    font-size: 16px;
+    white-space: normal;
+  }
+}
+
+/* ── One-liner 定性结构化 ────────────────────────────────────────── */
+
+.recap-oneliner {
+  margin: 16px 0 22px;
+  padding: 14px 16px 14px 18px;
+  border-left: 3px solid var(--recap-red, #a41534);
+  background: linear-gradient(135deg, var(--recap-soft, rgba(164, 21, 52, 0.06)), rgba(247, 249, 252, 0.6));
+  border-radius: 0 12px 12px 0;
+  color: var(--text);
+}
+
+.recap-oneliner-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--recap-red, #a41534);
+  letter-spacing: 0.18em;
+  margin-bottom: 8px;
+  text-transform: none;
+}
+
+.recap-oneliner-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.recap-oneliner-theme {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.55;
+}
+
+.recap-oneliner-theme :is(strong, b) {
+  color: var(--recap-red, #a41534);
+  font-weight: 700;
+}
+
+.recap-oneliner-point {
+  font-size: 13.5px;
+  color: var(--text-mid);
+  line-height: 1.7;
+  padding-left: 0;
+}
+
+.recap-oneliner-point :is(strong, b) {
+  color: var(--text);
+  font-weight: 600;
 }
 
 .recap-share-btn {

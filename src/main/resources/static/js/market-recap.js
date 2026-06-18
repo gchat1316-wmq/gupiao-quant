@@ -302,24 +302,45 @@
     if (!el || !detail) return;
 
     const articleHtml = detail.contentHtml || '<p class="rq-empty">暂无正文</p>';
-    const infoItems = [
-      detail.market,
-      detail.tradeDate,
-      detail.sentiment
-    ].filter(Boolean);
+    // 从渲染好的 HTML 中抽出第一个 H1 作为正文标题;同时把 H1 从正文里抠掉,避免重复显示。
+    const extracted = extractFirstHeading(articleHtml);
+    const heading = extracted.heading || (detail.tradeDate ? detail.tradeDate + ' ' + (detail.market || '') + '盘后复盘' : '每日复盘');
+    const bodyHtml = extracted.remainder || articleHtml;
+    // info line 只保留市场和情绪标签;日期已在顶部日期列表中展示,这里不再重复。
+    const infoItems = [detail.market, detail.sentiment].filter(Boolean);
 
     el.innerHTML =
-      '<div class="rq-article-info rq-article-info-line">' +
-        infoItems.map(function (item, i) {
-          return (i > 0 ? '<span class="rq-article-info-dot"></span>' : '') +
-            '<span>' + escHtml(item) + '</span>';
-        }).join('') +
+      '<header class="recap-article-head">' +
+        '<div class="recap-article-head-main">' +
+          '<h2 class="recap-article-head-title">' + escHtml(heading) + '</h2>' +
+          (infoItems.length
+            ? '<div class="recap-article-head-meta">' +
+                infoItems.map(function (item, i) {
+                  return (i > 0 ? '<span class="rq-article-info-dot"></span>' : '') +
+                    '<span>' + escHtml(item) + '</span>';
+                }).join('') +
+              '</div>'
+            : '') +
+        '</div>' +
         '<button class="recap-share-btn" type="button" data-action="share" title="分享这篇复盘">' +
           '<span class="recap-share-icon" aria-hidden="true">↗</span>' +
           '<span class="recap-share-label">分享</span>' +
         '</button>' +
-      '</div>' +
-      '<div class="rq-article-body">' + articleHtml + '</div>';
+      '</header>' +
+      '<div class="rq-article-body">' + bodyHtml + '</div>';
+  }
+
+  /**
+   * 从已渲染的 HTML 字符串里抽出第一个 <h1>...</h1>。
+   * 返回 { heading, remainder }。heading 是去掉标签后的纯文本;remainder 是去掉这段 H1 后的 HTML。
+   */
+  function extractFirstHeading(html) {
+    if (!html) return { heading: '', remainder: '' };
+    const match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+    if (!match) return { heading: '', remainder: html };
+    const heading = String(match[1] || '').replace(/<[^>]+>/g, '').trim();
+    const remainder = (html.slice(0, match.index) + html.slice(match.index + match[0].length)).trim();
+    return { heading: heading, remainder: remainder };
   }
 
   function renderTimeline() {

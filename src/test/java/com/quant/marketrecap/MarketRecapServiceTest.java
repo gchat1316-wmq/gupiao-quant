@@ -3,6 +3,7 @@ package com.quant.marketrecap;
 import com.quant.dto.marketrecap.KeyDataItemDTO;
 import com.quant.dto.marketrecap.MarketRecapBadgeDTO;
 import com.quant.dto.marketrecap.MarketRecapPageDTO;
+import com.quant.dto.marketrecap.MarketRecapSummaryDTO;
 import com.quant.dto.marketrecap.SectorCardDTO;
 import com.quant.dto.marketrecap.StrategyItemDTO;
 import com.quant.entity.InvestMarketRecap;

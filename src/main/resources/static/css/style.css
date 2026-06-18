@@ -1037,3 +1037,12 @@ body {
     font-size: 14px;
   }
 }
+.notif-text a {
+  color: var(--base);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  pointer-events: auto;
+}
+.notif-text a:hover {
+  filter: brightness(1.15);
+}

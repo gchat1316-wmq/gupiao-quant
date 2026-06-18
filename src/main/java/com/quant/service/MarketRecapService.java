@@ -24,9 +24,12 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 public class MarketRecapService {
@@ -48,6 +51,9 @@ public class MarketRecapService {
         return sortMarkets(repository.findDistinctMarkets());
     }
 
+    /** 时间轴最多保留的交易日数。超过则截断,避免列表无限增长遮挡正文。 */
+    static final int TIMELINE_RECENT_DAYS = 6;
+
     public MarketRecapPageDTO getPage(String requestedMarket) {
         List<String> markets = listMarkets();
         String selectedMarket = pickMarket(markets, requestedMarket);
@@ -55,11 +61,22 @@ public class MarketRecapService {
                 ? List.of()
                 : repository.findByMarketOrderByTradeDateDescIdDesc(selectedMarket);
 
+        // 按 trade_date 去重,同一天只保留 id 最大(最新生成)的一条;
+        // 然后再按 trade_date desc 取最近 N 天,确保用户看到的是连续 N 个交易日而不是 N 条记录。
+        LinkedHashMap<LocalDate, InvestMarketRecap> dedup = new LinkedHashMap<>();
+        for (InvestMarketRecap recap : recaps) {
+            if (recap.getTradeDate() == null) continue;
+            dedup.putIfAbsent(recap.getTradeDate(), recap);
+        }
+        List<InvestMarketRecap> timelineSource = dedup.values().stream()
+                .limit(TIMELINE_RECENT_DAYS)
+                .toList();
+
         return MarketRecapPageDTO.builder()
                 .markets(markets)
                 .selectedMarket(selectedMarket)
                 .latest(recaps.isEmpty() ? null : toDetail(recaps.get(0)))
-                .timeline(recaps.stream().map(this::toSummary).toList())
+                .timeline(timelineSource.stream().map(this::toSummary).toList())
                 .build();
     }
 
@@ -268,11 +285,74 @@ public class MarketRecapService {
         return List.of();
     }
 
+    /** 匹配 markdown 渲染后的「一句话定性」blockquote。DOTALL 以容纳跨行内容。 */
+    private static final Pattern ONELINER_PATTERN = Pattern.compile(
+            "<blockquote>\\s*<p>\\s*<strong>一句话定性</strong>\\s*[:：]\\s*(.+?)</p>\\s*</blockquote>",
+            Pattern.DOTALL);
+
     private String renderMarkdown(String markdown) {
         if (!hasText(markdown)) {
             return "";
         }
-        return htmlRenderer.render(markdownParser.parse(markdown));
+        String html = htmlRenderer.render(markdownParser.parse(markdown));
+        return structureOneLiner(html);
+    }
+
+    /**
+     * 把「一句话定性」blockquote 拆成结构化 HTML:
+     * <ul>
+     *   <li>第一条(或「——」前那段)作为 theme</li>
+     *   <li>其余按「;」分段,每段一行</li>
+     * </ul>
+     * 现有数据都是单段密集文字,加结构后视觉更易扫读。
+     */
+    private String structureOneLiner(String html) {
+        if (html == null || html.isEmpty()) return html;
+        Matcher m = ONELINER_PATTERN.matcher(html);
+        if (!m.find()) return html;
+        StringBuffer sb = new StringBuffer(html.length() + 64);
+        int cursor = 0;
+        do {
+            sb.append(html, cursor, m.start());
+            sb.append(buildOneLinerHtml(m.group(1).trim()));
+            cursor = m.end();
+        } while (m.find());
+        sb.append(html, cursor, html.length());
+        return sb.toString();
+    }
+
+    private String buildOneLinerHtml(String content) {
+        StringBuilder out = new StringBuilder(content.length() + 96);
+        out.append("<blockquote class=\"recap-oneliner\">");
+        out.append("<div class=\"recap-oneliner-label\">一句话定性</div>");
+        out.append("<div class=\"recap-oneliner-body\">");
+
+        int emDashIdx = content.indexOf("——");
+        String[] points;
+        if (emDashIdx > 0) {
+            // 主题:第一段「——」前的部分(含破折号),作为粗体大主题
+            String theme = content.substring(0, emDashIdx + 1).trim();
+            String rest = content.substring(emDashIdx + 1).trim();
+            out.append("<div class=\"recap-oneliner-theme\">").append(theme).append("</div>");
+            points = rest.split(";");
+        } else {
+            points = content.split(";");
+        }
+
+        for (int i = 0; i < points.length; i++) {
+            String point = points[i].trim();
+            if (point.isEmpty()) continue;
+            // 去掉末尾的句号,避免视觉重复
+            if (point.endsWith("。")) point = point.substring(0, point.length() - 1);
+            if (i == 0 && emDashIdx < 0) {
+                out.append("<div class=\"recap-oneliner-theme\">").append(point).append("</div>");
+            } else {
+                out.append("<div class=\"recap-oneliner-point\">").append(point).append("</div>");
+            }
+        }
+
+        out.append("</div></blockquote>");
+        return out.toString();
     }
 
     private JsonNode readJsonNode(String raw) {

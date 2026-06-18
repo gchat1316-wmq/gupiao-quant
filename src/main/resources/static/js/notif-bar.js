@@ -56,6 +56,32 @@
       .replace(/"/g, '&quot;');
   }
 
+  /**
+   * 把文本中的 http/https URL 转成可点击的 a 标签。
+   * 非 URL 部分仍做 HTML 转义，避免 XSS。
+   */
+  function linkifyText(s) {
+    if (s == null) return '';
+    const urlRe = /(https?:\/\/[^\s<>"{}|\\^`[\]]+)/gi;
+    const raw = String(s);
+    let out = '';
+    let last = 0;
+    let m;
+    while ((m = urlRe.exec(raw)) !== null) {
+      out += escapeHtml(raw.slice(last, m.index));
+      let url = m[1];
+      // 去掉末尾常见标点，避免 URL 把句号/逗号包含进去
+      const cleanUrl = url.replace(/[.,;!?\)\]\'\"]+$/, '');
+      const delta = url.length - cleanUrl.length;
+      urlRe.lastIndex -= delta;
+      out += '<a href="' + escapeHtml(cleanUrl) + '" target="_blank" rel="noopener noreferrer" ' +
+             'onclick="event.stopPropagation();">' + escapeHtml(cleanUrl) + '</a>';
+      last = urlRe.lastIndex;
+    }
+    out += escapeHtml(raw.slice(last));
+    return out;
+  }
+
   /* ===== 4 个数据源 ===== */
   function fetchRecap() {
     return fetch('api/market-recaps/badge', { headers: { Accept: 'application/json' } })
@@ -169,28 +195,34 @@
   }
 
   function render() {
-    list.innerHTML = items.map(function (it, i) {
+    list.innerHTML = items.map(function (it) {
       const tag = TAG_CONFIG[it.kind] || { label: '通知', cls: 'tag-recap' };
-      const li = document.createElement('li');
-      li.className = 'notif-item' + (i === 0 ? ' active' : '');
-      li.dataset.kind = it.kind;
-      if (it.href) li.style.cursor = 'pointer';
-      li.innerHTML =
+      const hrefAttr = it.href ? ' data-href="' + escapeHtml(it.href) + '" style="cursor:pointer;"' : '';
+      return '<li class="notif-item" data-kind="' + escapeHtml(it.kind || '') + '"' + hrefAttr + '>' +
         '<span class="notif-tag ' + tag.cls + '">' + escapeHtml(tag.label) + '</span>' +
-        '<span class="notif-text">' + escapeHtml(it.text) + '</span>' +
-        '<span class="notif-time">' + escapeHtml(it.time) + '</span>';
-      if (it.href) {
-        li.addEventListener('click', function () { window.location.href = it.href; });
-      }
-      return li.outerHTML;
+        '<span class="notif-text">' + linkifyText(it.text) + '</span>' +
+        '<span class="notif-time">' + escapeHtml(it.time) + '</span>' +
+        '</li>';
     }).join('');
+
+    // 事件委托：点击非链接区域跳转到条目 href，点击链接则交给浏览器
+    list.onclick = function (e) {
+      const link = e.target.closest('a');
+      if (link) {
+        e.stopPropagation();
+        return;
+      }
+      const item = e.target.closest('.notif-item');
+      if (!item) return;
+      const href = item.dataset.href;
+      if (href) window.location.href = href;
+    };
 
     dotsWrap.innerHTML = items.map(function (_, i) {
       return '<button class="notif-dot' + (i === 0 ? ' active' : '') +
         '" data-i="' + i + '" aria-label="切换到第 ' + (i + 1) + ' 条"></button>';
     }).join('');
 
-    // 重新挂点击事件（点击条目跳转已在创建时绑定）
     dotsWrap.onclick = function (e) {
       const btn = e.target.closest('.notif-dot');
       if (!btn) return;
