@@ -3,6 +3,7 @@ package com.quant.invest;
 import com.quant.dto.invest.PoolItemDTO;
 import com.quant.entity.InvestStockPool;
 import com.quant.entity.TradeStockBasic;
+import com.quant.entity.TradeStockDaily;
 import com.quant.repository.InvestStockPoolRepository;
 import com.quant.repository.TradeStockBasicRepository;
 import com.quant.repository.TradeStockDailyRepository;
@@ -110,8 +111,8 @@ class InvestServicePoolTest {
     }
 
     @Test
-    @DisplayName("当前市值和今年涨幅优先使用周末刷新快照")
-    void listPoolUsesPersistedSnapshotFieldsBeforeDerivedValues() {
+    @DisplayName("当前市值优先使用最新价和总股本推导，缺失时再回退快照")
+    void listPoolPrefersDerivedMarketCapBeforePersistedSnapshot() {
         InvestStockPool pool = pool(1, "688610.SH", "埃科光电", "tech_vc", 10);
         pool.setCurrentMarketCap(new BigDecimal("144.70"));
         pool.setYtdGainPct(new BigDecimal("244.28"));
@@ -119,7 +120,36 @@ class InvestServicePoolTest {
         TradeStockBasic basic = new TradeStockBasic();
         basic.setStockCode("688610.SH");
         basic.setStockName("埃科光电");
-        basic.setTotalShares(100_000_000L);
+        basic.setTotalShares(68_000_000L);
+
+        TradeStockDaily latest = new TradeStockDaily();
+        latest.setStockCode("688610.SH");
+        latest.setClosePrice(new BigDecimal("241.07"));
+
+        when(poolRepo.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(pool));
+        when(stockBasicRepo.findByStockCodeIn(any())).thenReturn(List.of(basic));
+        when(financialRepo.findLatestByStockCodes(List.of("688610.SH"))).thenReturn(Collections.emptyList());
+        when(dailyRepo.findLatestByStockCodes(List.of("688610.SH"))).thenReturn(List.of(latest));
+        when(dailyRepo.findFirstAfterDateByStockCodes(eq(List.of("688610.SH")), any())).thenReturn(Collections.emptyList());
+
+        PoolItemDTO item = service.listPool().get(0);
+
+        assertThat(item.getCurrentMarketCap()).isEqualByComparingTo("144.70");
+        assertThat(item.getMarketCap()).isEqualByComparingTo("163.93");
+        assertThat(item.getYtdGainPct()).isEqualByComparingTo("244.28");
+        assertThat(item.getYtdGain()).isEqualByComparingTo("244.28");
+    }
+
+    @Test
+    @DisplayName("缺少最新价时当前市值回退到股票池快照")
+    void listPoolFallsBackToPersistedMarketCapSnapshot() {
+        InvestStockPool pool = pool(1, "688610.SH", "埃科光电", "tech_vc", 10);
+        pool.setCurrentMarketCap(new BigDecimal("144.70"));
+
+        TradeStockBasic basic = new TradeStockBasic();
+        basic.setStockCode("688610.SH");
+        basic.setStockName("埃科光电");
+        basic.setTotalShares(68_000_000L);
 
         when(poolRepo.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(pool));
         when(stockBasicRepo.findByStockCodeIn(any())).thenReturn(List.of(basic));
@@ -131,8 +161,6 @@ class InvestServicePoolTest {
 
         assertThat(item.getCurrentMarketCap()).isEqualByComparingTo("144.70");
         assertThat(item.getMarketCap()).isEqualByComparingTo("144.70");
-        assertThat(item.getYtdGainPct()).isEqualByComparingTo("244.28");
-        assertThat(item.getYtdGain()).isEqualByComparingTo("244.28");
     }
 
     private InvestStockPool pool(Integer id, String code, String name, String poolType, Integer displayOrder) {

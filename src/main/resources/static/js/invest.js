@@ -682,7 +682,7 @@
   }
 
   function renderMarketCapCell(item) {
-    const v = item.currentMarketCap != null ? item.currentMarketCap : item.marketCap;
+    const v = item.marketCap != null ? item.marketCap : item.currentMarketCap;
     if (v == null) return '<span style="color:#d1d5db">—</span>';
     return `<span class="pool-cell-price">${parseFloat(v).toFixed(1)}</span>`;
   }
@@ -724,7 +724,7 @@
   }
 
   function getCurrentMarketCap(item) {
-    return asNum(item.currentMarketCap != null ? item.currentMarketCap : item.marketCap);
+    return asNum(item.marketCap != null ? item.marketCap : item.currentMarketCap);
   }
 
   // 合理市值 = 未来一年预测营收 × 10

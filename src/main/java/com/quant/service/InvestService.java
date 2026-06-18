@@ -337,7 +337,8 @@ public class InvestService {
 
         BigDecimal latestPrice = latest != null ? latest.getClosePrice() : null;
         BigDecimal ytdGain = pool.getYtdGainPct() != null ? pool.getYtdGainPct() : computeYtdGain(latest, yearStart);
-        BigDecimal marketCap = pool.getCurrentMarketCap() != null ? pool.getCurrentMarketCap() : computeMarketCap(latestPrice, basic);
+        BigDecimal computedMarketCap = computeMarketCap(latestPrice, basic);
+        BigDecimal marketCap = computedMarketCap != null ? computedMarketCap : pool.getCurrentMarketCap();
 
         BigDecimal latestRevenueYoy = fin != null ? fin.getRevenueYoy() : null;
         BigDecimal latestProfitYoy = fin != null ? fin.getDeductedNetProfitYoy() : null;
