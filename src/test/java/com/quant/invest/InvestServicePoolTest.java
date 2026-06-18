@@ -3,11 +3,10 @@ package com.quant.invest;
 import com.quant.dto.invest.PoolItemDTO;
 import com.quant.entity.InvestStockPool;
 import com.quant.entity.TradeStockBasic;
-import com.quant.entity.TradeStockDaily;
 import com.quant.repository.InvestStockPoolRepository;
 import com.quant.repository.TradeStockBasicRepository;
-import com.quant.repository.TradeStockDailyRepository;
 import com.quant.repository.TradeStockFinancialRepository;
+import com.quant.service.AStockDataQuoteService;
 import com.quant.service.InvestService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -31,14 +30,14 @@ class InvestServicePoolTest {
 
     @Mock TradeStockBasicRepository stockBasicRepo;
     @Mock TradeStockFinancialRepository financialRepo;
-    @Mock TradeStockDailyRepository dailyRepo;
     @Mock InvestStockPoolRepository poolRepo;
+    @Mock AStockDataQuoteService quoteService;
 
     InvestService service;
 
     @BeforeEach
     void setUp() {
-        service = new InvestService(stockBasicRepo, financialRepo, dailyRepo, poolRepo);
+        service = new InvestService(stockBasicRepo, financialRepo, poolRepo, quoteService);
     }
 
     @Test
@@ -54,9 +53,9 @@ class InvestServicePoolTest {
         when(stockBasicRepo.findByStockCodeIn(org.mockito.ArgumentMatchers.argThat(codes ->
                 codes.contains("688296")))).thenReturn(Collections.emptyList());
         when(financialRepo.findLatestByStockCodes(List.of("688296"))).thenReturn(Collections.emptyList());
-        when(dailyRepo.findLatestByStockCodes(List.of("688296"))).thenReturn(Collections.emptyList());
-        when(dailyRepo.findFirstAfterDateByStockCodes(org.mockito.ArgumentMatchers.eq(List.of("688296")),
-                org.mockito.ArgumentMatchers.any())).thenReturn(Collections.emptyList());
+        when(quoteService.fetchQuotes(List.of("688296"))).thenReturn(Collections.emptyMap());
+        when(quoteService.fetchYearStartCloses(org.mockito.ArgumentMatchers.eq(List.of("688296")),
+                org.mockito.ArgumentMatchers.any())).thenReturn(Collections.emptyMap());
 
         List<PoolItemDTO> result = service.listPool();
 
@@ -80,9 +79,9 @@ class InvestServicePoolTest {
         when(stockBasicRepo.findByStockCodeIn(org.mockito.ArgumentMatchers.argThat(codes ->
                 codes.contains("688525.sh") && codes.contains("688525.SH")))).thenReturn(List.of(basic));
         when(financialRepo.findLatestByStockCodes(List.of("688525.sh"))).thenReturn(Collections.emptyList());
-        when(dailyRepo.findLatestByStockCodes(List.of("688525.sh"))).thenReturn(Collections.emptyList());
-        when(dailyRepo.findFirstAfterDateByStockCodes(org.mockito.ArgumentMatchers.eq(List.of("688525.sh")),
-                org.mockito.ArgumentMatchers.any())).thenReturn(Collections.emptyList());
+        when(quoteService.fetchQuotes(List.of("688525.sh"))).thenReturn(Collections.emptyMap());
+        when(quoteService.fetchYearStartCloses(org.mockito.ArgumentMatchers.eq(List.of("688525.sh")),
+                org.mockito.ArgumentMatchers.any())).thenReturn(Collections.emptyMap());
 
         List<PoolItemDTO> result = service.listPool();
 
@@ -100,9 +99,9 @@ class InvestServicePoolTest {
         when(poolRepo.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(second, quality, first));
         when(stockBasicRepo.findByStockCodeIn(any())).thenReturn(Collections.emptyList());
         when(financialRepo.findLatestByStockCodes(List.of("688515.SH", "600519.SH", "688610.SH"))).thenReturn(Collections.emptyList());
-        when(dailyRepo.findLatestByStockCodes(List.of("688515.SH", "600519.SH", "688610.SH"))).thenReturn(Collections.emptyList());
-        when(dailyRepo.findFirstAfterDateByStockCodes(eq(List.of("688515.SH", "600519.SH", "688610.SH")), any()))
-                .thenReturn(Collections.emptyList());
+        when(quoteService.fetchQuotes(List.of("688515.SH", "600519.SH", "688610.SH"))).thenReturn(Collections.emptyMap());
+        when(quoteService.fetchYearStartCloses(eq(List.of("688515.SH", "600519.SH", "688610.SH")), any()))
+                .thenReturn(Collections.emptyMap());
 
         List<PoolItemDTO> result = service.listPool();
 
@@ -111,40 +110,55 @@ class InvestServicePoolTest {
     }
 
     @Test
-    @DisplayName("当前市值优先使用最新价和总股本推导，缺失时再回退快照")
+    @DisplayName("当前市值、今年涨幅和估值情况都按实时数据派生")
     void listPoolPrefersDerivedMarketCapBeforePersistedSnapshot() {
         InvestStockPool pool = pool(1, "688610.SH", "埃科光电", "tech_vc", 10);
         pool.setCurrentMarketCap(new BigDecimal("144.70"));
         pool.setYtdGainPct(new BigDecimal("244.28"));
+        pool.setValuationRange("泡沫");
+        pool.setRevenueForecastY1(new BigDecimal("10.15"));
+        pool.setRevenueForecastY2(new BigDecimal("14.08"));
 
         TradeStockBasic basic = new TradeStockBasic();
         basic.setStockCode("688610.SH");
         basic.setStockName("埃科光电");
         basic.setTotalShares(68_000_000L);
 
-        TradeStockDaily latest = new TradeStockDaily();
-        latest.setStockCode("688610.SH");
-        latest.setClosePrice(new BigDecimal("241.07"));
+        AStockDataQuoteService.QuoteSnapshot quote = new AStockDataQuoteService.QuoteSnapshot(
+                "688610.SH",
+                new BigDecimal("239.99"),
+                new BigDecimal("239.70"),
+                new BigDecimal("163.19"),
+                null,
+                "a-stock-data/tencent"
+        );
 
         when(poolRepo.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(pool));
         when(stockBasicRepo.findByStockCodeIn(any())).thenReturn(List.of(basic));
         when(financialRepo.findLatestByStockCodes(List.of("688610.SH"))).thenReturn(Collections.emptyList());
-        when(dailyRepo.findLatestByStockCodes(List.of("688610.SH"))).thenReturn(List.of(latest));
-        when(dailyRepo.findFirstAfterDateByStockCodes(eq(List.of("688610.SH")), any())).thenReturn(Collections.emptyList());
+        when(quoteService.fetchQuotes(List.of("688610.SH"))).thenReturn(java.util.Map.of("688610.SH", quote));
+        when(quoteService.fetchYearStartCloses(eq(List.of("688610.SH")), any()))
+                .thenReturn(java.util.Map.of("688610.SH", new BigDecimal("70.00")));
 
         PoolItemDTO item = service.listPool().get(0);
 
-        assertThat(item.getCurrentMarketCap()).isEqualByComparingTo("144.70");
-        assertThat(item.getMarketCap()).isEqualByComparingTo("163.93");
-        assertThat(item.getYtdGainPct()).isEqualByComparingTo("244.28");
-        assertThat(item.getYtdGain()).isEqualByComparingTo("244.28");
+        assertThat(item.getLatestPrice()).isEqualByComparingTo("239.99");
+        assertThat(item.getCurrentMarketCap()).isEqualByComparingTo("163.19");
+        assertThat(item.getMarketCap()).isEqualByComparingTo("163.19");
+        assertThat(item.getYtdGainPct()).isEqualByComparingTo("242.84");
+        assertThat(item.getYtdGain()).isEqualByComparingTo("242.84");
+        assertThat(item.getValuationRange()).isEqualTo("泡沫");
     }
 
     @Test
-    @DisplayName("缺少最新价时当前市值回退到股票池快照")
-    void listPoolFallsBackToPersistedMarketCapSnapshot() {
+    @DisplayName("缺少行情时当前市值和估值情况不再回退旧快照")
+    void listPoolNoLongerFallsBackToPersistedDerivedSnapshots() {
         InvestStockPool pool = pool(1, "688610.SH", "埃科光电", "tech_vc", 10);
         pool.setCurrentMarketCap(new BigDecimal("144.70"));
+        pool.setYtdGainPct(new BigDecimal("244.28"));
+        pool.setValuationRange("泡沫");
+        pool.setRevenueForecastY1(new BigDecimal("10.15"));
+        pool.setRevenueForecastY2(new BigDecimal("14.08"));
 
         TradeStockBasic basic = new TradeStockBasic();
         basic.setStockCode("688610.SH");
@@ -154,13 +168,16 @@ class InvestServicePoolTest {
         when(poolRepo.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(pool));
         when(stockBasicRepo.findByStockCodeIn(any())).thenReturn(List.of(basic));
         when(financialRepo.findLatestByStockCodes(List.of("688610.SH"))).thenReturn(Collections.emptyList());
-        when(dailyRepo.findLatestByStockCodes(List.of("688610.SH"))).thenReturn(Collections.emptyList());
-        when(dailyRepo.findFirstAfterDateByStockCodes(eq(List.of("688610.SH")), any())).thenReturn(Collections.emptyList());
+        when(quoteService.fetchQuotes(List.of("688610.SH"))).thenReturn(Collections.emptyMap());
+        when(quoteService.fetchYearStartCloses(eq(List.of("688610.SH")), any())).thenReturn(Collections.emptyMap());
 
         PoolItemDTO item = service.listPool().get(0);
 
-        assertThat(item.getCurrentMarketCap()).isEqualByComparingTo("144.70");
-        assertThat(item.getMarketCap()).isEqualByComparingTo("144.70");
+        assertThat(item.getCurrentMarketCap()).isNull();
+        assertThat(item.getMarketCap()).isNull();
+        assertThat(item.getYtdGainPct()).isNull();
+        assertThat(item.getYtdGain()).isNull();
+        assertThat(item.getValuationRange()).isNull();
     }
 
     private InvestStockPool pool(Integer id, String code, String name, String poolType, Integer displayOrder) {

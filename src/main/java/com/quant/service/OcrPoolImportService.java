@@ -54,8 +54,6 @@ public class OcrPoolImportService {
             "      \"q1NetMargin\": 2026Q1净利率百分比，纯数字，无则 null,\n" +
             "      \"q1RevenueGrowth\": 2026Q1营收增速百分比，纯数字，无则 null,\n" +
             "      \"minPs5y\": 近5年最低动态PS倍数，纯数字，无则 null,\n" +
-            "      \"currentMarketCap\": 当前市值，单位亿元，纯数字，无则 null,\n" +
-            "      \"ytdGainPct\": 今年涨幅百分比，纯数字，无则 null,\n" +
             "      \"memo\": \"可选备注\"\n" +
             "    }\n" +
             "  ]\n" +
@@ -284,8 +282,6 @@ public class OcrPoolImportService {
                 saveReq.setQ1NetMargin(it.getQ1NetMargin());
                 saveReq.setQ1RevenueGrowth(it.getQ1RevenueGrowth());
                 saveReq.setMinPs5y(it.getMinPs5y());
-                saveReq.setCurrentMarketCap(it.getCurrentMarketCap());
-                saveReq.setYtdGainPct(it.getYtdGainPct());
                 investService.addToPool(saveReq);
                 imported++;
             } catch (IllegalArgumentException e) {

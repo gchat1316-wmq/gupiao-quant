@@ -497,7 +497,7 @@
     { key: 'minPs5y',           label: '近5年<br>最低<br>PS(倍)', cls: 'pool-col-ps', inline: 'number', render: renderPsCell },
     { key: 'currentMarketCap',  label: '当前<br>市值<br>(亿)', cls: 'pool-col-num', readonly: true, hot: true, render: renderMarketCapCell },
     { key: 'ytdGainPct',        label: '今年<br>涨幅<br>(%)', cls: 'pool-col-rate', readonly: true, render: renderPctCell },
-    { key: 'valuationRange',    label: '估值<br>情况', cls: 'pool-col-tag', inline: 'text', render: renderValuationRangeCell },
+    { key: 'valuationRange',    label: '估值<br>情况', cls: 'pool-col-tag', readonly: true, render: renderValuationRangeCell },
   ];
 
   function initPool() {
@@ -566,7 +566,7 @@
       </div>
       <div class="pool-list-foot">
         <span>共 ${poolData.length} 只，当前显示 ${items.length} 只</span>
-        <span>数据来源：invest_stock_pool</span>
+        <span>数据来源：invest_stock_pool + a-stock-data（腾讯行情 / 复权日K）+ trade_stock_basic</span>
       </div>
       ${renderPoolCharts(items)}`;
 
@@ -603,7 +603,9 @@
   }
 
   function renderPctCell(item, col) {
-    const v = item[col.key] != null ? item[col.key] : (col.key === 'ytdGainPct' ? item.ytdGain : null);
+    const v = col.key === 'ytdGainPct'
+      ? (item.ytdGain != null ? item.ytdGain : item.ytdGainPct)
+      : item[col.key];
     if (v == null) return '<span style="color:#d1d5db">—</span>';
     const n = parseFloat(v);
     const cls = n > 0 ? 'up' : (n < 0 ? 'down' : '');
@@ -632,7 +634,8 @@
   function renderValuationRangeCell(item, col) {
     const val = inferValuationRange(item);
     const cls = val === '低估' ? 'low' : (val === '泡沫' ? 'bubble' : (val === '合理' ? 'fair' : 'empty'));
-    return `<input type="text" class="pool-cell-input pool-tag-input valuation-${cls}" data-field="${col.key}" value="${escHtml(val)}" />`;
+    if (!val) return '<span style="color:#d1d5db">—</span>';
+    return `<span class="pool-tag-input valuation-${cls}">${escHtml(val)}</span>`;
   }
 
   function renderPoolBoardSummary(items) {
@@ -734,6 +737,7 @@
     if (!Number.isFinite(marketCap)) return '';
     const y1 = asNum(item.revenueForecastY1);
     const y2 = asNum(item.revenueForecastY2);
+    if (!Number.isFinite(y1) && !Number.isFinite(y2)) return '';
     if (Number.isFinite(y1) && marketCap < y1 * 10) return '低估';
     if (Number.isFinite(y2) && marketCap > y2 * 10) return '泡沫';
     return '合理';
@@ -810,7 +814,7 @@
       setTimeout(() => el.classList.remove('saved'), 800);
       // 如果改了 select（持仓状态/分类），重新渲染整行（filter 可能改变）
       if (field === 'status' || field === 'poolType') renderPool();
-      if (['q1RevenueGrowth', 'q1NetMargin', 'q1GrossMargin', 'currentMarketCap', 'ytdGainPct', 'valuationRange'].includes(field)) renderPool();
+      if (['q1RevenueGrowth', 'q1NetMargin', 'q1GrossMargin', 'revenueForecastY1', 'revenueForecastY2'].includes(field)) renderPool();
     } catch (e) {
       el.classList.remove('saving');
       el.classList.add('error');
@@ -1127,8 +1131,6 @@
       <th>Q1净利率</th>
       <th>Q1营收增速</th>
       <th>最低PS</th>
-      <th>当前市值</th>
-      <th>今年涨幅</th>
     </tr></thead><tbody>`;
     importParsedItems.forEach((it, idx) => {
       const cls = it.matched ? '' : 'match-failed';
@@ -1167,8 +1169,6 @@
         <td><input type="number" step="0.01" data-field="q1NetMargin" value="${it.q1NetMargin ?? ''}" /></td>
         <td><input type="number" step="0.01" data-field="q1RevenueGrowth" value="${it.q1RevenueGrowth ?? ''}" /></td>
         <td><input type="number" step="0.01" data-field="minPs5y" value="${it.minPs5y ?? ''}" /></td>
-        <td><input type="number" step="0.01" data-field="currentMarketCap" value="${it.currentMarketCap ?? ''}" /></td>
-        <td><input type="number" step="0.01" data-field="ytdGainPct" value="${it.ytdGainPct ?? ''}" /></td>
       </tr>`;
     });
     html += '</tbody>';

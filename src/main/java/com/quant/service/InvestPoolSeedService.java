@@ -56,8 +56,6 @@ public class InvestPoolSeedService {
         pool.setQ1NetMargin(row.netMargin());
         pool.setQ1RevenueGrowth(row.revenueGrowth());
         pool.setMinPs5y(row.minPs5y());
-        pool.setCurrentMarketCap(row.currentMarketCap());
-        pool.setYtdGainPct(row.ytdGainPct());
         return pool;
     }
 

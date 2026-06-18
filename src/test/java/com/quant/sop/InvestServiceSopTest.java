@@ -5,8 +5,8 @@ import com.quant.entity.TradeStockBasic;
 import com.quant.entity.TradeStockFinancial;
 import com.quant.repository.InvestStockPoolRepository;
 import com.quant.repository.TradeStockBasicRepository;
-import com.quant.repository.TradeStockDailyRepository;
 import com.quant.repository.TradeStockFinancialRepository;
+import com.quant.service.AStockDataQuoteService;
 import com.quant.service.InvestService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -32,14 +32,14 @@ class InvestServiceSopTest {
 
     @Mock TradeStockBasicRepository stockBasicRepo;
     @Mock TradeStockFinancialRepository financialRepo;
-    @Mock TradeStockDailyRepository dailyRepo;
     @Mock InvestStockPoolRepository poolRepo;
+    @Mock AStockDataQuoteService quoteService;
 
     InvestService service;
 
     @BeforeEach
     void setUp() {
-        service = new InvestService(stockBasicRepo, financialRepo, dailyRepo, poolRepo);
+        service = new InvestService(stockBasicRepo, financialRepo, poolRepo, quoteService);
     }
 
     private TradeStockBasic stockBasic(String code, String name) {

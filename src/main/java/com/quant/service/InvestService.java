@@ -6,11 +6,9 @@ import com.quant.dto.invest.SopCheckupDTO;
 import com.quant.dto.invest.PoolFieldUpdateRequest;
 import com.quant.entity.InvestStockPool;
 import com.quant.entity.TradeStockBasic;
-import com.quant.entity.TradeStockDaily;
 import com.quant.entity.TradeStockFinancial;
 import com.quant.repository.InvestStockPoolRepository;
 import com.quant.repository.TradeStockBasicRepository;
-import com.quant.repository.TradeStockDailyRepository;
 import com.quant.repository.TradeStockFinancialRepository;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -38,17 +36,17 @@ public class InvestService {
 
     private final TradeStockBasicRepository stockBasicRepository;
     private final TradeStockFinancialRepository financialRepository;
-    private final TradeStockDailyRepository dailyRepository;
     private final InvestStockPoolRepository poolRepository;
+    private final AStockDataQuoteService aStockDataQuoteService;
 
     public InvestService(TradeStockBasicRepository stockBasicRepository,
                          TradeStockFinancialRepository financialRepository,
-                         TradeStockDailyRepository dailyRepository,
-                         InvestStockPoolRepository poolRepository) {
+                         InvestStockPoolRepository poolRepository,
+                         AStockDataQuoteService aStockDataQuoteService) {
         this.stockBasicRepository = stockBasicRepository;
         this.financialRepository = financialRepository;
-        this.dailyRepository = dailyRepository;
         this.poolRepository = poolRepository;
+        this.aStockDataQuoteService = aStockDataQuoteService;
     }
 
     // ===== 通用工具方法（供股票池 + SOP 共用）=====
@@ -132,15 +130,12 @@ public class InvestService {
         Map<String, TradeStockFinancial> finMap = financialRepository.findLatestByStockCodes(codes).stream()
                 .collect(Collectors.toMap(TradeStockFinancial::getStockCode, f -> f));
 
-        Map<String, TradeStockDaily> latestDailyMap = dailyRepository.findLatestByStockCodes(codes).stream()
-                .collect(Collectors.toMap(TradeStockDaily::getStockCode, d -> d, (a, b) -> a));
-
         LocalDate yearStart = LocalDate.of(LocalDate.now().getYear(), 1, 1);
-        Map<String, TradeStockDaily> yearStartDailyMap = dailyRepository
-                .findFirstAfterDateByStockCodes(codes, yearStart).stream()
-                .collect(Collectors.toMap(TradeStockDaily::getStockCode, d -> d, (a, b) -> a));
+        Map<String, AStockDataQuoteService.QuoteSnapshot> quoteMap = aStockDataQuoteService.fetchQuotes(codes).values().stream()
+                .collect(Collectors.toMap(snapshot -> normalizeCodeKey(snapshot.stockCode()), snapshot -> snapshot, (a, b) -> a));
+        Map<String, BigDecimal> yearStartCloseMap = aStockDataQuoteService.fetchYearStartCloses(codes, yearStart);
 
-        PoolPriceContext ctx = new PoolPriceContext(basicMap, finMap, latestDailyMap, yearStartDailyMap);
+        PoolPriceContext ctx = new PoolPriceContext(basicMap, finMap, quoteMap, yearStartCloseMap);
         return items.stream()
                 .sorted(poolDisplayComparator())
                 .map(p -> toPoolItemDTO(p, ctx))
@@ -157,8 +152,8 @@ public class InvestService {
 
     private record PoolPriceContext(Map<String, TradeStockBasic> basicMap,
                                     Map<String, TradeStockFinancial> finMap,
-                                    Map<String, TradeStockDaily> latestDailyMap,
-                                    Map<String, TradeStockDaily> yearStartDailyMap) { }
+                                    Map<String, AStockDataQuoteService.QuoteSnapshot> quoteMap,
+                                    Map<String, BigDecimal> yearStartCloseMap) { }
 
     private Set<String> expandCodeVariants(List<String> codes) {
         Set<String> variants = new LinkedHashSet<>();
@@ -230,11 +225,9 @@ public class InvestService {
         if (req.getQ1RevenueGrowth() != null) pool.setQ1RevenueGrowth(req.getQ1RevenueGrowth());
         if (req.getMinPs5y() != null) pool.setMinPs5y(req.getMinPs5y());
         if (req.getTargetMarketCap() != null) pool.setTargetMarketCap(req.getTargetMarketCap());
-        if (req.getCurrentMarketCap() != null) pool.setCurrentMarketCap(req.getCurrentMarketCap());
-        if (req.getYtdGainPct() != null) pool.setYtdGainPct(req.getYtdGainPct());
         if (req.getDisplayOrder() != null) pool.setDisplayOrder(req.getDisplayOrder());
         if (req.getProfitLevel() != null) pool.setProfitLevel(req.getProfitLevel());
-        if (req.getValuationRange() != null) pool.setValuationRange(req.getValuationRange());
+        clearDerivedSnapshotFields(pool);
     }
 
     /**
@@ -282,13 +275,11 @@ public class InvestService {
             case "q1RevenueGrowth" -> pool.setQ1RevenueGrowth(parseDecimal(raw));
             case "minPs5y" -> pool.setMinPs5y(parseDecimal(raw));
             case "targetMarketCap" -> pool.setTargetMarketCap(parseDecimal(raw));
-            case "currentMarketCap" -> pool.setCurrentMarketCap(parseDecimal(raw));
-            case "ytdGainPct" -> pool.setYtdGainPct(parseDecimal(raw));
             case "displayOrder" -> pool.setDisplayOrder(blank ? null : Integer.parseInt(raw.trim()));
             case "profitLevel" -> pool.setProfitLevel(blank ? null : raw.trim());
-            case "valuationRange" -> pool.setValuationRange(blank ? null : raw.trim());
             default -> throw new IllegalArgumentException("不支持的字段：" + field);
         }
+        clearDerivedSnapshotFields(pool);
         return toPoolItemDTO(poolRepository.save(pool));
     }
 
@@ -313,18 +304,17 @@ public class InvestService {
         TradeStockFinancial fin = financialRepository
                 .findByStockCodeOrderByReportDateDesc(code)
                 .stream().findFirst().orElse(null);
-        TradeStockDaily latestDaily = dailyRepository
-                .findFirstByStockCodeOrderByTradeDateDesc(code).orElse(null);
-        TradeStockDaily yearStartDaily = dailyRepository
-                .findFirstByStockCodeAndTradeDateGreaterThanEqualOrderByTradeDateAsc(
-                        code, LocalDate.of(LocalDate.now().getYear(), 1, 1))
-                .orElse(null);
+        LocalDate yearStart = LocalDate.of(LocalDate.now().getYear(), 1, 1);
+        AStockDataQuoteService.QuoteSnapshot quote = aStockDataQuoteService.fetchQuotes(List.of(code)).values().stream()
+                .findFirst().orElse(null);
+        BigDecimal yearStartClose = aStockDataQuoteService.fetchYearStartCloses(List.of(code), yearStart)
+                .get(normalizeCodeKey(code));
 
-        Map<String, TradeStockBasic> basicMap = basic != null ? Map.of(code, basic) : Map.of();
+        Map<String, TradeStockBasic> basicMap = basic != null ? Map.of(normalizeCodeKey(code), basic) : Map.of();
         Map<String, TradeStockFinancial> finMap = fin != null ? Map.of(code, fin) : Map.of();
-        Map<String, TradeStockDaily> latestDailyMap = latestDaily != null ? Map.of(code, latestDaily) : Map.of();
-        Map<String, TradeStockDaily> yearStartDailyMap = yearStartDaily != null ? Map.of(code, yearStartDaily) : Map.of();
-        return toPoolItemDTO(pool, new PoolPriceContext(basicMap, finMap, latestDailyMap, yearStartDailyMap));
+        Map<String, AStockDataQuoteService.QuoteSnapshot> quoteMap = quote != null ? Map.of(normalizeCodeKey(code), quote) : Map.of();
+        Map<String, BigDecimal> yearStartCloseMap = yearStartClose != null ? Map.of(normalizeCodeKey(code), yearStartClose) : Map.of();
+        return toPoolItemDTO(pool, new PoolPriceContext(basicMap, finMap, quoteMap, yearStartCloseMap));
     }
 
     private PoolItemDTO toPoolItemDTO(InvestStockPool pool, PoolPriceContext ctx) {
@@ -332,13 +322,14 @@ public class InvestService {
         TradeStockBasic basic = ctx.basicMap().get(normalizeCodeKey(code));
         String stockName = displayStockName(pool, basic);
         TradeStockFinancial fin = ctx.finMap().get(code);
-        TradeStockDaily latest = ctx.latestDailyMap().get(code);
-        TradeStockDaily yearStart = ctx.yearStartDailyMap().get(code);
+        AStockDataQuoteService.QuoteSnapshot quote = ctx.quoteMap().get(normalizeCodeKey(code));
 
-        BigDecimal latestPrice = latest != null ? latest.getClosePrice() : null;
-        BigDecimal ytdGain = pool.getYtdGainPct() != null ? pool.getYtdGainPct() : computeYtdGain(latest, yearStart);
-        BigDecimal computedMarketCap = computeMarketCap(latestPrice, basic);
-        BigDecimal marketCap = computedMarketCap != null ? computedMarketCap : pool.getCurrentMarketCap();
+        BigDecimal latestPrice = quote == null ? null : quote.latestPrice();
+        BigDecimal ytdGain = computeYtdGain(latestPrice, ctx.yearStartCloseMap().get(normalizeCodeKey(code)));
+        BigDecimal computedMarketCap = quote != null && quote.totalMarketCapYi() != null
+                ? quote.totalMarketCapYi()
+                : computeMarketCap(latestPrice, basic);
+        String valuationRange = inferValuationRange(computedMarketCap, pool.getRevenueForecastY1(), pool.getRevenueForecastY2());
 
         BigDecimal latestRevenueYoy = fin != null ? fin.getRevenueYoy() : null;
         BigDecimal latestProfitYoy = fin != null ? fin.getDeductedNetProfitYoy() : null;
@@ -368,25 +359,31 @@ public class InvestService {
                 .q1RevenueGrowth(pool.getQ1RevenueGrowth())
                 .minPs5y(pool.getMinPs5y())
                 .targetMarketCap(pool.getTargetMarketCap())
-                .currentMarketCap(pool.getCurrentMarketCap())
-                .ytdGainPct(pool.getYtdGainPct())
+                .currentMarketCap(computedMarketCap)
+                .ytdGainPct(ytdGain)
                 .displayOrder(pool.getDisplayOrder())
                 .poolUpdateError(pool.getPoolUpdateError())
                 .profitLevel(pool.getProfitLevel())
-                .valuationRange(pool.getValuationRange())
+                .valuationRange(valuationRange)
                 .status(pool.getStatus())
                 .statusLabel(statusLabel(pool.getStatus()))
                 .alertState(pool.getAlertState())
                 .lastAlertAt(pool.getLastAlertAt())
                 .latestPrice(latestPrice)
                 .ytdGain(ytdGain)
-                .marketCap(marketCap)
+                .marketCap(computedMarketCap)
                 .latestRevenueYoy(latestRevenueYoy)
                 .latestProfitYoy(latestProfitYoy)
                 .latestLevel(latestLevel)
                 .createdAt(pool.getCreatedAt())
                 .updatedAt(pool.getUpdatedAt())
                 .build();
+    }
+
+    private void clearDerivedSnapshotFields(InvestStockPool pool) {
+        pool.setCurrentMarketCap(null);
+        pool.setYtdGainPct(null);
+        pool.setValuationRange(null);
     }
 
     private TradeStockBasic findBasicByPoolCode(String code) {
@@ -407,13 +404,10 @@ public class InvestService {
         return pool.getStockCode();
     }
 
-    private BigDecimal computeYtdGain(TradeStockDaily latest, TradeStockDaily yearStart) {
-        if (latest == null || yearStart == null) return null;
-        BigDecimal close = latest.getClosePrice();
-        BigDecimal base = yearStart.getClosePrice();
-        if (close == null || base == null || base.compareTo(BigDecimal.ZERO) == 0) return null;
-        return close.subtract(base)
-                .divide(base, 6, RoundingMode.HALF_UP)
+    private BigDecimal computeYtdGain(BigDecimal latestPrice, BigDecimal yearStartClose) {
+        if (latestPrice == null || yearStartClose == null || yearStartClose.compareTo(BigDecimal.ZERO) == 0) return null;
+        return latestPrice.subtract(yearStartClose)
+                .divide(yearStartClose, 6, RoundingMode.HALF_UP)
                 .multiply(BigDecimal.valueOf(100))
                 .setScale(2, RoundingMode.HALF_UP);
     }
@@ -423,6 +417,22 @@ public class InvestService {
         BigDecimal totalShares = BigDecimal.valueOf(basic.getTotalShares());
         BigDecimal totalCap = totalShares.multiply(latestPrice);
         return totalCap.divide(BigDecimal.valueOf(100_000_000L), 2, RoundingMode.HALF_UP);
+    }
+
+    private String inferValuationRange(BigDecimal marketCap, BigDecimal revenueForecastY1, BigDecimal revenueForecastY2) {
+        if (marketCap == null) return null;
+        BigDecimal fairCapY1 = revenueForecastY1 == null ? null : revenueForecastY1.multiply(BigDecimal.TEN);
+        BigDecimal fairCapY2 = revenueForecastY2 == null ? null : revenueForecastY2.multiply(BigDecimal.TEN);
+        if (fairCapY1 != null && marketCap.compareTo(fairCapY1) < 0) {
+            return "低估";
+        }
+        if (fairCapY2 != null && marketCap.compareTo(fairCapY2) > 0) {
+            return "泡沫";
+        }
+        if (fairCapY1 == null && fairCapY2 == null) {
+            return null;
+        }
+        return "合理";
     }
 
     private String statusLabel(String status) {
