@@ -1,6 +1,56 @@
 (async function () {
   'use strict';
 
+  // ============================================================
+  // 皮肤系统：localStorage 记忆 + 顶栏切换
+  // ============================================================
+  var SKIN_STORAGE_KEY = 'gp.skin';
+  var SKIN_DEFAULT = 'tech';
+  var VALID_SKINS = ['tech', 'bull'];
+
+  function getStoredSkin() {
+    try {
+      var v = localStorage.getItem(SKIN_STORAGE_KEY);
+      if (VALID_SKINS.indexOf(v) !== -1) return v;
+    } catch (e) { /* 隐私模式可能抛错 */ }
+    return SKIN_DEFAULT;
+  }
+
+  function applySkin(skin, options) {
+    if (VALID_SKINS.indexOf(skin) === -1) skin = SKIN_DEFAULT;
+    document.documentElement.setAttribute('data-theme', skin);
+    if (!options || options.persist !== false) {
+      try { localStorage.setItem(SKIN_STORAGE_KEY, skin); } catch (e) { /* ignore */ }
+    }
+    // 同步所有切换器按钮的 active 态
+    document.querySelectorAll('.skin-switch').forEach(function (sw) {
+      sw.querySelectorAll('.skin-btn').forEach(function (b) {
+        b.classList.toggle('active', b.dataset.skin === skin);
+      });
+    });
+    // 通知其他模块（chart、地图、图表等）重新画
+    try { document.dispatchEvent(new CustomEvent('skin:changed', { detail: { skin: skin } })); } catch (e) { /* ignore */ }
+  }
+
+  // 启动时立刻应用，避免 FOUC（与 <head> 里内联脚本或提前渲染冲突时为兜底）
+  applySkin(getStoredSkin(), { persist: false });
+
+  function bindSkinSwitch() {
+    document.querySelectorAll('.skin-switch').forEach(function (sw) {
+      // 防止重复绑定
+      if (sw.dataset.bound === '1') return;
+      sw.dataset.bound = '1';
+      sw.addEventListener('click', function (e) {
+        var btn = e.target.closest('.skin-btn');
+        if (!btn || !sw.contains(btn)) return;
+        applySkin(btn.dataset.skin);
+      });
+    });
+  }
+
+  // ============================================================
+  // Header 渲染
+  // ============================================================
   function isActive(matches) {
     const pathname = window.location.pathname;
     return matches.some(function (part) {
@@ -14,7 +64,7 @@
     if (!mount) return;
 
     try {
-      const response = await fetch('header.html?v=20260617-recap-badge', { cache: 'no-cache' });
+      const response = await fetch('header.html?v=20260618-skin-switch', { cache: 'no-cache' });
       if (!response.ok) throw new Error('header load failed');
       mount.innerHTML = await response.text();
     } catch (e) {
@@ -36,6 +86,10 @@
               '<a href="prosperity-strong.html" class="nav-link" data-match="prosperity-strong.html">热点强势选股</a>' +
               '<a href="study.html" class="nav-link" data-match="study.html,course.html,node.html,card.html,quiz.html">学习搭子</a>' +
             '</nav>' +
+            '<div class="skin-switch" id="skinSwitch" role="group" aria-label="皮肤切换">' +
+              '<button type="button" class="skin-btn" data-skin="tech"><span class="dot"></span>科技蓝</button>' +
+              '<button type="button" class="skin-btn" data-skin="bull"><span class="dot"></span>牛市红</button>' +
+            '</div>' +
           '</div>' +
         '</header>';
     }
@@ -45,6 +99,7 @@
       link.classList.toggle('active', isActive(matches));
     });
 
+    bindSkinSwitch();
     loadRecapBadge(mount);
   }
 
@@ -191,7 +246,9 @@
     }
   }
 
+  // Header 渲染后再统一绑一次切换器（兜底：fallback HTML 路径下也有按钮）
   await renderHeader();
+  bindSkinSwitch();
   renderFooter();
   bindWishPool();
 }());

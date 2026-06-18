@@ -1,0 +1,192 @@
+/* =============================================================
+ * skin.css — 全局皮肤系统（必须第一个加载）
+ *
+ * 主题命名：
+ *   - data-theme="tech"（默认）：科技蓝
+ *       基础色 #2563eb + 强调色 #d63950
+ *   - data-theme="bull"      ：牛市红
+ *       基础色 #d63950 + 强调色 #2563eb
+ *
+ * 涨跌色（--up / --down）与主题无关，固定保持 A 股习惯
+ *   涨/正数 → 玫红 #d63950
+ *   跌/负数 → 绿   #16a34a
+ *
+ * 策略：
+ *   1. 在 :root 上提供所有 token 的默认（科技蓝）
+ *   2. :root[data-theme="bull"] 整体覆盖基础/强调色
+ *   3. 把各模块的旧变量名（--primary / --invest-gold / --study-green
+ *      / --pp-primary / --recap-red / --tech-cyan 等）全部映射到当前
+ *      主题对应的基础/强调色，让现有 var() 用法零成本跟随
+ *   4. 各 CSS 文件自己的 :root 段要去掉对这些旧变量名的硬编码赋值
+ *      （只保留非颜色变量：圆角、阴影、布局尺寸等）
+ *
+ * 在各 HTML <head> 里要这样写（顺序很重要）：
+ *   <link rel="stylesheet" href="css/skin.css?v=...">
+ *   <link rel="stylesheet" href="css/style.css?v=...">
+ *   <link rel="stylesheet" href="css/study.css?v=...">
+ *   <link rel="stylesheet" href="css/<page>.css?v=...">
+ * ============================================================= */
+
+/* ---- 主题：默认 / 科技蓝 ---- */
+:root,
+:root[data-theme="tech"] {
+  /* —— 基础色（结构性：按钮、链接、表格表头、关键状态）—— */
+  --base: #2563eb;
+  --base-hover: #1d4ed8;
+  --base-soft: #eff6ff;
+  --base-faint: #f5f9ff;
+  --base-border: #c7d7f7;
+  --base-text: #1e40af;
+  --base-deep: #1e3a8a;
+  --base-gradient: linear-gradient(135deg, #4f8cff 0%, #2563eb 100%);
+  --base-glow: rgba(37, 99, 235, 0.18);
+
+  /* —— 强调色（突出表达：标题、评分、关键数据、强调 Tag）—— */
+  --accent: #d63950;
+  --accent-soft: #fceff2;
+  --accent-faint: #fff7f9;
+  --accent-border: #f3c4cd;
+  --accent-text: #a02841;
+  --accent-deep: #7a1f33;
+  --accent-gradient: linear-gradient(135deg, #e85872 0%, #d63950 100%);
+  --accent-glow: rgba(214, 57, 80, 0.18);
+
+  /* —— 涨跌色（与主题无关，固定）—— */
+  --up: #d63950;
+  --down: #16a34a;
+
+  /* —— 中性色（不随主题变）—— */
+  --text: #0f172a;
+  --text-mid: #475569;
+  --text-soft: #94a3b8;
+  --border: #eef1f5;
+  --bg: #f6f7f9;
+  --card-bg: #ffffff;
+  --card-bg-soft: #f6f8fd;
+
+  /* —— 卡片 / 玻璃透明（不随主题变）—— */
+  --top-nav-bg: rgba(22, 27, 43, 0.98);
+  --top-nav-bg-mid: rgba(68, 5, 19, 0.97);
+  --top-nav-text: rgba(255, 255, 255, 0.78);
+  --top-nav-text-strong: rgba(255, 255, 255, 0.96);
+  --top-nav-text-soft: rgba(255, 255, 255, 0.62);
+  --top-nav-line-soft: rgba(255, 255, 255, 0.14);
+  --top-nav-hover: rgba(255, 255, 255, 0.08);
+  --card-bg-strong: rgba(255, 255, 255, 0.92);
+  --card-bg-soft: rgba(246, 248, 253, 0.96);
+  --accent-faint-strong: rgba(251, 242, 245, 0.96);
+  --base-border-strong: rgba(191, 211, 237, 0.92);
+  --border-strong: rgba(184, 201, 224, 0.88);
+  --shadow-soft: rgba(22, 27, 43, 0.04);
+  --base-glow-strong: rgba(225, 6, 44, 0.96);
+  --down-glow: rgba(22, 163, 74, 0.18);
+  --down-soft: #f0fdf4;
+  --down-border: #bbf7d0;
+
+  /* —— 兼容旧变量名（让所有现有 CSS 零成本跟随主题）—— */
+  --primary: var(--base);
+  --primary-hover: var(--base-hover);
+  --primary-glow: var(--base-glow);
+  --green: var(--down);
+  --red: var(--up);
+  --table-head: var(--base-deep);
+  --text-muted: var(--text-mid);
+  --tech-cyan: var(--base);
+
+  /* 各模块主色 → 主题基础色 */
+  --invest-gold: var(--base);
+  --invest-gold-soft: var(--base-soft);
+  --invest-gold-border: var(--base-border);
+  --study-green: var(--base);
+  --study-green-deep: var(--base-deep);
+  --study-green-soft: var(--base-soft);
+  --pp-primary: var(--base);
+  --pp-primary-hover: var(--base-hover);
+  --pp-accent: var(--accent);
+  --pp-border: var(--base-border);
+  --pp-soft: var(--base-soft);
+  --pp-soft-blue: var(--accent-soft);
+  --recap-red: var(--base);
+  --recap-red-deep: var(--base-deep);
+  --recap-soft: var(--base-soft);
+  --recap-line: var(--border);
+  --recap-card: var(--card-bg);
+}
+
+/* ---- 主题：牛市红 ---- */
+:root[data-theme="bull"] {
+  --base: #d63950;
+  --base-hover: #b8273d;
+  --base-soft: #fceff2;
+  --base-faint: #fff7f9;
+  --base-border: #f3c4cd;
+  --base-text: #a02841;
+  --base-deep: #7a1f33;
+  --base-gradient: linear-gradient(135deg, #e85872 0%, #d63950 100%);
+  --base-glow: rgba(214, 57, 80, 0.18);
+
+  --accent: #2563eb;
+  --accent-soft: #eff6ff;
+  --accent-faint: #f5f9ff;
+  --accent-border: #c7d7f7;
+  --accent-text: #1e40af;
+  --accent-deep: #1e3a8a;
+  --accent-gradient: linear-gradient(135deg, #4f8cff 0%, #2563eb 100%);
+  --accent-glow: rgba(37, 99, 235, 0.18);
+
+  /* --up / --down / 中性色 不变 */
+}
+
+/* ============================================================
+ * 顶栏皮肤切换器
+ * ============================================================ */
+.skin-switch {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  padding: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+}
+
+.skin-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.78);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.skin-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.skin-btn.active {
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.skin-btn .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+:root[data-theme="tech"] .skin-btn[data-skin="tech"] .dot { background: #2563eb; }
+:root[data-theme="bull"] .skin-btn[data-skin="bull"] .dot { background: #d63950; }

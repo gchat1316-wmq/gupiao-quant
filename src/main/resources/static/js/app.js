@@ -25,8 +25,25 @@
   const METRIC_MAP = {};
   METRIC_CONFIG.forEach(function (m) { METRIC_MAP[m.key] = m; });
   const DEFAULT_KEYS = METRIC_CONFIG.filter(function (m) { return m.defaultOn; }).map(function (m) { return m.key; });
-  const CHART_COLORS = ['#4c6ef5', '#82c91e', '#fab005', '#fa5252', '#15aabf', '#be4bdb'];
-  const EXPORT_TABLE_HEAD = '#a9001f';
+
+  /* ===== 主题感知：从 CSS 变量读当前主题色 =====
+     这样 chart 配色 + 导出 PNG 都跟随 skin.css 的当前主题 */
+  function getCssVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+  function currentChartPalette() {
+    // tech 偏冷：蓝/青/绿/紫/橙/粉；bull 偏暖：玫红/橙/深红/紫/金/粉
+    var theme = document.documentElement.getAttribute('data-theme') || 'tech';
+    return {
+      tech: ['#2563eb', '#0891b2', '#16a34a', '#7c3aed', '#ea580c', '#db2777'],
+      bull: ['#d63950', '#ea580c', '#dc2626', '#a855f7', '#ca8a04', '#db2777']
+    }[theme] || ['#2563eb', '#0891b2', '#16a34a', '#7c3aed', '#ea580c', '#db2777'];
+  }
+  function currentBase() { return getCssVar('--base') || '#2563eb'; }
+  function currentAccent() { return getCssVar('--accent') || '#d63950'; }
+  function currentUp() { return getCssVar('--up') || '#d63950'; }
+  function currentDown() { return getCssVar('--down') || '#16a34a'; }
+  function currentBorder() { return getCssVar('--border') || '#eef1f5'; }
 
   /* ===== Formatters ===== */
   function pctFmt(v) {
@@ -319,7 +336,7 @@
         if (v == null) return null;
         return isYi ? Number(v) / 1e8 : Number(v);
       });
-      const color = CHART_COLORS[idx % CHART_COLORS.length];
+      const color = currentChartPalette()[idx % 6];
       return { label: s.stockName, data, borderColor: color, backgroundColor: color + '33',
                tension: 0.3, spanGaps: true, pointRadius: 3, pointHoverRadius: 5, borderWidth: 2 };
     });
@@ -344,7 +361,7 @@
           }
         },
         scales: {
-          y: { ticks: { callback: function (val) { return val + (cfg.unit || ''); } }, grid: { color: '#eef1f5' } },
+          y: { ticks: { callback: function (val) { return val + (cfg.unit || ''); } }, grid: { color: currentBorder() } },
           x: { grid: { display: false } }
         }
       }
@@ -497,7 +514,7 @@
     const byDate = {};
     (stock.quarters || []).forEach(function (q) { byDate[q.reportDate] = q; });
 
-    drawCell(ctx, x, y, firstColW, headH, EXPORT_TABLE_HEAD, '#dce4ee');
+    drawCell(ctx, x, y, firstColW, headH, currentBase(), '#dce4ee');
     ctx.fillStyle = '#ffffff';
     ctx.font = '700 21px "PingFang SC", "Microsoft YaHei", sans-serif';
     ctx.textAlign = 'center';
@@ -506,7 +523,7 @@
     ctx.fillText('(' + (stock.stockCode || '') + ')', x + firstColW / 2, y + headH / 2 + 14);
 
     axis.forEach(function (a, idx) {
-      drawCell(ctx, x + firstColW + idx * colW, y, colW, headH, EXPORT_TABLE_HEAD, '#dce4ee');
+      drawCell(ctx, x + firstColW + idx * colW, y, colW, headH, currentBase(), '#dce4ee');
       ctx.fillStyle = '#ffffff';
       ctx.font = '700 20px "PingFang SC", "Microsoft YaHei", sans-serif';
       ctx.fillText(a.quarter, x + firstColW + idx * colW + colW / 2, y + headH / 2);
@@ -540,9 +557,9 @@
 
   function exportValueColor(cfg, v) {
     if (!cfg.color || v == null) return '#111827';
-    const n = Number(v);
+    var n = Number(v);
     if (!isFinite(n) || n === 0) return '#111827';
-    return n > 0 ? '#e11d48' : '#2f9e44';
+    return n > 0 ? currentUp() : currentDown();
   }
 
   function esc(s) {
@@ -615,5 +632,12 @@
 
   window.addEventListener('DOMContentLoaded', function () {
     renderMetricBar();
+  });
+
+  /* ===== 皮肤切换：重新画 chart（让 chart 颜色跟随当前主题） ===== */
+  document.addEventListener('skin:changed', function () {
+    if (chart && currentData && currentData.stocks) {
+      renderChart(currentData.stocks, currentChartKey);
+    }
   });
 })();

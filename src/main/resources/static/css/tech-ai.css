@@ -1,3 +1,5 @@
+/* tech-ai 页面有自己独立的科技绿调性（--tech-accent）
+   这套保持不变，不跟主题切换；其它跟随主题 */
 .tech-ai-page {
   --tech-ink: #12312f;
   --tech-muted: #6b7a78;
@@ -736,7 +738,7 @@
 }
 .tech-ai-shortcut-card:hover {
   transform: translateY(-1px);
-  box-shadow: 0 10px 24px rgba(27, 127, 107, 0.12);
+  box-shadow: 0 10px 24px var(--tech-glow, rgba(27, 127, 107, 0.12));
 }
 .tech-ai-shortcut-title {
   font-size: 16px;

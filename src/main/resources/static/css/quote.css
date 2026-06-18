@@ -15,7 +15,7 @@
 .quote-block-title {
   font-size: 18px;
   font-weight: 700;
-  color: #111827;
+  color: var(--text);
   margin: 0;
 }
 
@@ -46,7 +46,7 @@
   outline: 0;
   font-size: 14px;
   background: transparent;
-  color: #1f2937;
+  color: var(--text);
 }
 
 .quote-add-btn {
@@ -54,7 +54,7 @@
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
-  background: var(--study-green, #2e7d32);
+  background: var(--study-green);
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -66,7 +66,7 @@
 }
 
 .quote-add-btn:hover {
-  background: var(--study-green-deep, #1b5e20);
+  background: var(--study-green-deep);
 }
 
 /* ===== Quote Feed ===== */
@@ -92,7 +92,7 @@
 .quote-content {
   font-size: 16px;
   line-height: 1.75;
-  color: #1f2937;
+  color: var(--text);
   font-weight: 500;
   margin-bottom: 12px;
   white-space: pre-wrap;
@@ -111,13 +111,13 @@
   align-items: center;
   gap: 4px;
   font-size: 13px;
-  color: #4b5563;
+  color: var(--text-mid);
   font-weight: 600;
 }
 
 .quote-source {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--text-soft);
 }
 
 .quote-tags {
@@ -130,9 +130,9 @@
 .quote-tag {
   display: inline-block;
   padding: 2px 10px;
-  background: #f0fdf4;
-  color: #16a34a;
-  border: 1px solid #bbf7d0;
+  background: var(--down-soft);
+  color: var(--down);
+  border: 1px solid var(--down-border);
   border-radius: 20px;
   font-size: 12px;
   cursor: pointer;
@@ -140,7 +140,7 @@
 }
 
 .quote-tag:hover {
-  background: #dcfce7;
+  background: var(--down-soft);
 }
 
 .quote-actions {
@@ -154,11 +154,11 @@
   align-items: center;
   gap: 5px;
   background: none;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 20px;
   padding: 5px 14px;
   font-size: 13px;
-  color: #6b7280;
+  color: var(--text-mid);
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -166,8 +166,8 @@
 .quote-like-btn:hover,
 .quote-like-btn.liked {
   border-color: #fca5a5;
-  color: #ef4444;
-  background: #fff5f5;
+  color: var(--up);
+  background: var(--base-soft);
 }
 
 .quote-import-btn {
@@ -179,19 +179,19 @@
   border-radius: 20px;
   padding: 5px 14px;
   font-size: 13px;
-  color: #3b82f6;
+  color: var(--base);
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .quote-import-btn:hover {
-  background: #eff6ff;
+  background: var(--base-soft);
 }
 
 .quote-import-btn.imported {
   border-color: #a7f3d0;
   color: #059669;
-  background: #f0fdf4;
+  background: var(--down-soft);
   cursor: default;
 }
 
@@ -212,20 +212,20 @@
   border-radius: 8px;
   padding: 10px 32px;
   font-size: 14px;
-  color: #6b7280;
+  color: var(--text-mid);
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .quote-load-more-btn:hover {
   background: #f9fafb;
-  color: #374151;
+  color: var(--text-mid);
 }
 
 .quote-empty {
   text-align: center;
   padding: 48px 0;
-  color: #9ca3af;
+  color: var(--text-soft);
   font-size: 15px;
 }
 
@@ -247,7 +247,7 @@
   background: none;
   border: none;
   font-size: 14px;
-  color: #6b7280;
+  color: var(--text-mid);
   cursor: pointer;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
@@ -255,8 +255,8 @@
 }
 
 .quote-modal-tab.active {
-  color: var(--study-green, #2e7d32);
-  border-bottom-color: var(--study-green, #2e7d32);
+  color: var(--study-green);
+  border-bottom-color: var(--study-green);
   font-weight: 600;
 }
 
@@ -269,7 +269,7 @@
 
 .quote-form-label {
   font-size: 13px;
-  color: #374151;
+  color: var(--text-mid);
   font-weight: 500;
 }
 
@@ -279,7 +279,7 @@
   border-radius: 8px;
   padding: 10px 12px;
   font-size: 14px;
-  color: #1f2937;
+  color: var(--text);
   outline: none;
   transition: border-color 0.15s;
   font-family: inherit;
@@ -289,7 +289,7 @@
 
 .quote-form-input:focus,
 .quote-form-textarea:focus {
-  border-color: var(--study-green, #2e7d32);
+  border-color: var(--study-green);
 }
 
 .quote-form-textarea {
@@ -303,13 +303,13 @@
 
 .quote-form-hint {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--text-soft);
   margin-top: 2px;
 }
 
 .quote-form-hint-inline {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--text-soft);
   font-weight: 400;
   margin-left: 6px;
 }
@@ -325,9 +325,9 @@
 .quote-tag-chip {
   display: inline-block;
   padding: 4px 12px;
-  background: #f3f4f6;
-  color: #6b7280;
-  border: 1px solid #e5e7eb;
+  background: var(--bg);
+  color: var(--text-mid);
+  border: 1px solid var(--border);
   border-radius: 20px;
   font-size: 13px;
   cursor: pointer;
@@ -336,20 +336,20 @@
 }
 
 .quote-tag-chip:hover {
-  background: #e5e7eb;
-  color: #374151;
+  background: var(--border);
+  color: var(--text-mid);
 }
 
 .quote-tag-chip.selected {
-  background: #f0fdf4;
-  color: #16a34a;
+  background: var(--down-soft);
+  color: var(--down);
   border-color: #86efac;
   font-weight: 600;
 }
 
 .quote-tag-chip.custom.selected {
-  background: #eff6ff;
-  color: #2563eb;
+  background: var(--base-soft);
+  color: var(--base);
   border-color: #bfdbfe;
 }
 

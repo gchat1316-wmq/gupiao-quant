@@ -1,13 +1,12 @@
-/* ===== 龙江投资模块 ===== */
+/* ===== 龙江投资模块 =====
+   颜色 token 由 css/skin.css 提供（必须先加载）
+   这里只保留模块特有、非颜色的 token */
 :root {
-  --invest-gold: #e1062c;
-  --invest-gold-soft: #fff0f3;
-  --invest-gold-border: #ffb3c1;
-  --invest-green-high: #1a7a4a;
-  --invest-green-mid: #52c41a;
+  --invest-green-high: var(--down);
+  --invest-green-mid: var(--down);
   --invest-yellow: #faad14;
   --invest-red: #ff4d4f;
-  --invest-gray: #9ca3af;
+  --invest-gray: var(--text-soft);
   --invest-card-radius: 12px;
 }
 
@@ -22,8 +21,8 @@
   align-items: center;
   gap: 24px;
   background:
-    linear-gradient(135deg, rgba(255, 42, 73, 0.11) 0%, #ffffff 56%),
-    linear-gradient(90deg, rgba(0, 212, 255, 0.10), transparent 34%);
+    linear-gradient(135deg, var(--base-glow) 0%, #ffffff 56%),
+    linear-gradient(90deg, var(--accent-glow), transparent 34%);
   border: 1px solid var(--invest-gold-border);
   padding: 20px 24px;
   border-radius: 16px;
@@ -37,14 +36,14 @@
   gap: 10px;
   padding: 10px 14px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #fff1f2 0%, #ffffff 100%);
-  border: 1px solid #fecdd3;
-  box-shadow: 0 10px 24px rgba(225, 6, 44, 0.08);
+  background: linear-gradient(135deg, var(--base-faint) 0%, #ffffff 100%);
+  border: 1px solid var(--base-border);
+  box-shadow: 0 10px 24px var(--base-glow);
 }
 
 .invest-hero-alert-label {
   font-size: 12px;
-  color: #9f1239;
+  color: var(--accent-text);
   font-weight: 700;
 }
 
@@ -56,7 +55,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #e1062c;
+  background: var(--base);
   color: #fff;
   font-size: 14px;
   font-weight: 800;
@@ -79,13 +78,13 @@
   font-size: 24px;
   font-weight: 800;
   margin: 0 0 6px;
-  color: #7a0017;
+  color: var(--accent-text);
   letter-spacing: 1px;
 }
 
 .invest-hero-sub {
   font-size: 13px;
-  color: #6b7280;
+  color: var(--text-mid);
   margin: 0;
 }
 
@@ -94,7 +93,7 @@
   display: flex;
   gap: 4px;
   margin-bottom: 24px;
-  border-bottom: 2px solid #e5e7eb;
+  border-bottom: 2px solid var(--border);
   padding-bottom: 0;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -105,7 +104,7 @@
   border: none;
   font-size: 15px;
   font-weight: 600;
-  color: #6b7280;
+  color: var(--text-mid);
   padding: 10px 18px 12px;
   cursor: pointer;
   position: relative;
@@ -133,7 +132,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #e1062c;
+  background: var(--base);
   color: #fff;
   font-size: 10px;
   font-weight: 800;
@@ -153,7 +152,7 @@
   align-self: center;
   font-size: 13px;
   font-weight: 500;
-  color: #9ca3af;
+  color: var(--text-soft);
   text-decoration: none;
   padding: 6px 12px;
   border-radius: 16px;
@@ -162,8 +161,8 @@
 }
 
 .invest-tab-study-link:hover {
-  background: #f3f4f6;
-  color: #374151;
+  background: var(--bg);
+  color: var(--text-mid);
 }
 
 /* ===== Search bar (reuse style) ===== */
@@ -198,7 +197,7 @@
 }
 
 .invest-btn {
-  background: linear-gradient(135deg, #ff2a49 0%, var(--invest-gold) 58%, #8f001b 100%);
+  background: linear-gradient(135deg, var(--base) 0%, var(--invest-gold) 58%, var(--base-deep) 100%);
   color: #fff;
   border: 0;
   border-radius: var(--radius);
@@ -212,7 +211,7 @@
 }
 
 .invest-btn:hover {
-  background: linear-gradient(135deg, #ff3b59 0%, #c40025 58%, #730016 100%);
+  background: linear-gradient(135deg, #ff3b59 0%, #c40025 58%, var(--base-deep) 100%);
 }
 
 .invest-btn-outline {
@@ -250,12 +249,12 @@
 
 .pool-filter-btn {
   background: #fff;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 16px;
   font-size: 13px;
   padding: 4px 14px;
   cursor: pointer;
-  color: #374151;
+  color: var(--text-mid);
   transition: all 0.15s;
 }
 
@@ -275,7 +274,7 @@
 /* ===== 列表化股票池 ===== */
 #poolListWrap {
   overflow: hidden;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 8px;
   background: #fff;
   box-shadow: var(--shadow);
@@ -288,7 +287,7 @@
   gap: 16px;
   padding: 14px 18px;
   background: #fbfcfe;
-  border-bottom: 1px solid #edf0f5;
+  border-bottom: 1px solid var(--border);
 }
 
 .pool-table-scroll {
@@ -315,7 +314,7 @@
 .pool-board-note {
   margin-top: 8px;
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-mid);
 }
 
 /* ===== 大阳线战法 ===== */
@@ -331,13 +330,13 @@
 .bigyang-title {
   font-size: 20px;
   font-weight: 800;
-  color: #7a0017;
+  color: var(--accent-text);
 }
 
 .bigyang-subtitle {
   margin-top: 6px;
   font-size: 13px;
-  color: #6b7280;
+  color: var(--text-mid);
   max-width: 760px;
   line-height: 1.6;
 }
@@ -355,12 +354,12 @@
 
 .bigyang-run-status.success {
   border-color: #86efac;
-  background: #f0fdf4;
+  background: var(--down-soft);
   color: #166534;
 }
 
 .bigyang-run-status.error {
-  border-color: #fecaca;
+  border-color: var(--base-border);
   background: #fef2f2;
   color: #991b1b;
 }
@@ -381,30 +380,30 @@
 }
 
 .bigyang-summary-card.danger {
-  background: #fff1f2;
-  border-color: #fecdd3;
+  background: var(--base-faint);
+  border-color: var(--base-border);
 }
 
 .bigyang-summary-card.success {
-  background: #f0fdf4;
-  border-color: #bbf7d0;
+  background: var(--down-soft);
+  border-color: var(--down-border);
 }
 
 .bigyang-summary-card.muted {
-  background: #f8fafc;
+  background: var(--bg);
   border-color: #e2e8f0;
 }
 
 .bigyang-summary-label {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-mid);
 }
 
 .bigyang-summary-value {
   margin-top: 6px;
   font-size: 26px;
   font-weight: 800;
-  color: #111827;
+  color: var(--text);
 }
 
 .bigyang-grid {
@@ -415,7 +414,7 @@
 
 .bigyang-card {
   background: #fff;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 16px;
   box-shadow: var(--shadow);
   overflow: hidden;
@@ -427,15 +426,15 @@
   justify-content: space-between;
   gap: 12px;
   padding: 14px 16px;
-  border-bottom: 1px solid #eef2f7;
-  background: linear-gradient(180deg, #fcfcfd 0%, #f8fafc 100%);
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--bg) 0%, var(--bg) 100%);
 }
 
 .bigyang-card-head h3 {
   margin: 0;
   font-size: 15px;
   font-weight: 800;
-  color: #1f2937;
+  color: var(--text);
 }
 
 .bigyang-count {
@@ -462,11 +461,11 @@
   padding: 24px 12px;
   text-align: center;
   font-size: 13px;
-  color: #9ca3af;
+  color: var(--text-soft);
 }
 
 .bigyang-empty.error {
-  color: #dc2626;
+  color: var(--up);
 }
 
 .bigyang-item,
@@ -482,11 +481,11 @@
 }
 
 .bigyang-item.triggered {
-  background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%);
+  background: linear-gradient(180deg, var(--down-soft) 0%, #ffffff 100%);
 }
 
 .bigyang-item.expired {
-  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+  background: linear-gradient(180deg, var(--bg) 0%, #ffffff 100%);
 }
 
 .bigyang-item-head,
@@ -500,13 +499,13 @@
 .bigyang-stock {
   font-size: 15px;
   font-weight: 800;
-  color: #111827;
+  color: var(--text);
 }
 
 .bigyang-stock span {
   margin-left: 8px;
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--text-soft);
   font-family: ui-monospace, SFMono-Regular, monospace;
   font-weight: 600;
 }
@@ -516,7 +515,7 @@
 .bigyang-alert-time {
   margin-top: 4px;
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-mid);
 }
 
 .bigyang-status {
@@ -536,13 +535,13 @@
 }
 
 .bigyang-status.triggered {
-  background: #dcfce7;
+  background: var(--down-soft);
   color: #166534;
 }
 
 .bigyang-status.expired {
-  background: #e5e7eb;
-  color: #4b5563;
+  background: var(--border);
+  color: var(--text-mid);
 }
 
 .bigyang-kvs {
@@ -555,46 +554,46 @@
 .bigyang-kvs div {
   padding: 10px 12px;
   border-radius: 10px;
-  background: #f8fafc;
-  border: 1px solid #eef2f7;
+  background: var(--bg);
+  border: 1px solid var(--border);
 }
 
 .bigyang-kvs label {
   display: block;
   font-size: 11px;
-  color: #6b7280;
+  color: var(--text-mid);
   margin-bottom: 4px;
 }
 
 .bigyang-kvs b {
   font-size: 14px;
-  color: #111827;
+  color: var(--text);
 }
 
 .bigyang-kvs small {
   display: block;
   margin-top: 4px;
   font-size: 11px;
-  color: #6b7280;
+  color: var(--text-mid);
 }
 
 .bigyang-reason,
 .bigyang-alert-content {
   margin-top: 12px;
   font-size: 13px;
-  color: #374151;
+  color: var(--text-mid);
   line-height: 1.7;
 }
 
 .bigyang-alert.unread {
-  border-color: #fecdd3;
-  box-shadow: 0 8px 24px rgba(225, 6, 44, 0.06);
+  border-color: var(--base-border);
+  box-shadow: 0 8px 24px var(--base-glow);
 }
 
 .bigyang-alert-title {
   font-size: 14px;
   font-weight: 800;
-  color: #111827;
+  color: var(--text);
 }
 
 .bigyang-alert-actions {
@@ -609,8 +608,8 @@
   height: 28px;
   padding: 0 10px;
   border-radius: 999px;
-  background: #f3f4f6;
-  color: #6b7280;
+  background: var(--bg);
+  color: var(--text-mid);
   font-size: 12px;
   font-weight: 700;
 }
@@ -637,8 +636,8 @@
 
 .pool-stat.red { background: #fee2e2; color: #b42318; }
 .pool-stat.orange { background: #ffedd5; color: #c2410c; }
-.pool-stat.green { background: #dcfce7; color: #047857; }
-.pool-stat.gray { background: #eef2f7; color: #475569; }
+.pool-stat.green { background: var(--down-soft); color: #047857; }
+.pool-stat.gray { background: var(--border); color: var(--text-mid); }
 .pool-stat.blue { background: #e0f2fe; color: #0369a1; }
 
 .pool-table {
@@ -655,7 +654,7 @@
   font-weight: 800;
   text-align: center;
   padding: 7px 4px;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  border-right: 1px solid var(--top-nav-hover);
   border-bottom: 1px solid #1e2f40;
   white-space: normal;
   position: sticky;
@@ -670,7 +669,7 @@
   position: sticky;
   left: 0;
   background: #fff;
-  border-right: 1px solid #e5e7eb;
+  border-right: 1px solid var(--border);
   z-index: 4;
   width: 108px;
   min-width: 108px;
@@ -746,8 +745,8 @@
 
 .pool-table tbody td {
   padding: 6px 4px;
-  border-bottom: 1px solid #edf0f5;
-  border-right: 1px solid #edf0f5;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
   text-align: center;
   vertical-align: middle;
   white-space: nowrap;
@@ -768,7 +767,7 @@
 
 .pool-cell-name .name {
   font-weight: 700;
-  color: #111827;
+  color: var(--text);
   font-size: 12px;
   max-width: 96px;
   overflow: hidden;
@@ -778,7 +777,7 @@
 
 .pool-cell-name .code {
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--text-soft);
   font-family: ui-monospace, SFMono-Regular, monospace;
 }
 
@@ -870,7 +869,7 @@
 }
 
 .pool-growth-edit.calm {
-  color: #475569;
+  color: var(--text-mid);
   font-weight: 700;
 }
 
@@ -892,7 +891,7 @@
 
 .pool-tag-input.profit-normal {
   background: #f1f5f9 !important;
-  color: #475569 !important;
+  color: var(--text-mid) !important;
 }
 
 .pool-tag-input.profit-warn {
@@ -901,7 +900,7 @@
 }
 
 .pool-tag-input.valuation-low {
-  background: #dcfce7 !important;
+  background: var(--down-soft) !important;
   color: #047857 !important;
 }
 
@@ -916,18 +915,18 @@
 }
 
 .pool-tag-input.valuation-bubble {
-  background: #b91c1c !important;
+  background: var(--up) !important;
   color: #fff7ed !important;
 }
 
 .pool-tag-input.valuation-empty {
-  background: #f8fafc !important;
-  color: #94a3b8 !important;
+  background: var(--bg) !important;
+  color: var(--text-soft) !important;
 }
 
 .pool-table input.pool-cell-input:hover,
 .pool-table select.pool-cell-select:hover {
-  border-color: #e5e7eb;
+  border-color: var(--border);
   background: #fff;
 }
 
@@ -935,12 +934,12 @@
 .pool-table select.pool-cell-select:focus {
   border-color: var(--invest-gold);
   background: #fffaf0;
-  box-shadow: 0 0 0 2px rgba(212, 160, 23, 0.2);
+  box-shadow: 0 0 0 2px var(--warn-glow, rgba(212, 160, 23, 0.2));
 }
 
 .pool-table input.pool-cell-input.saving {
   border-color: #93c5fd;
-  background: #eff6ff;
+  background: var(--base-soft);
 }
 
 .pool-table input.pool-cell-input.saved {
@@ -972,7 +971,7 @@
 }
 
 .pool-cell-pct.up {
-  color: #b91c1c;
+  color: var(--up);
   font-weight: 600;
 }
 
@@ -987,7 +986,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: pointer;
-  color: #4b5563;
+  color: var(--text-mid);
   text-align: left;
   padding: 0 4px;
 }
@@ -997,7 +996,7 @@
 }
 
 .pool-cell-memo.empty {
-  color: #d1d5db;
+  color: var(--border);
   font-style: italic;
 }
 
@@ -1009,12 +1008,12 @@
 
 .pool-row-btn {
   background: none;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 4px;
   font-size: 11px;
   padding: 2px 5px;
   cursor: pointer;
-  color: #6b7280;
+  color: var(--text-mid);
 }
 
 .pool-row-btn:hover {
@@ -1024,14 +1023,14 @@
 
 .pool-row-btn.danger:hover {
   border-color: #fca5a5;
-  color: #dc2626;
+  color: var(--up);
 }
 
 .pool-list-foot {
   padding: 12px 16px;
   font-size: 12px;
-  color: #9ca3af;
-  border-top: 1px solid #f1f3f5;
+  color: var(--text-soft);
+  border-top: 1px solid var(--bg);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1044,12 +1043,12 @@
   gap: 18px;
   padding: 18px;
   background: #fff;
-  border-top: 1px solid #eef2f7;
+  border-top: 1px solid var(--border);
 }
 
 .pool-chart-section h3 {
   margin: 0 0 12px;
-  color: #1f2937;
+  color: var(--text);
   font-size: 14px;
   font-weight: 800;
 }
@@ -1060,9 +1059,9 @@
   align-items: flex-end;
   gap: 14px;
   padding: 24px 8px 34px;
-  border-top: 1px solid #e5e7eb;
-  border-bottom: 1px solid #e5e7eb;
-  background: repeating-linear-gradient(to top, #fff 0, #fff 35px, #f3f4f6 36px);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: repeating-linear-gradient(to top, #fff 0, #fff 35px, var(--bg) 36px);
 }
 
 .pool-bar-item {
@@ -1089,7 +1088,7 @@
 }
 
 .pool-bar.revenue {
-  background: linear-gradient(180deg, #ef4444 0%, #f97316 65%, #64748b 100%);
+  background: linear-gradient(180deg, var(--up) 0%, #f97316 65%, var(--text-mid) 100%);
 }
 
 .pool-bar.margin {
@@ -1099,7 +1098,7 @@
 .pool-bar-value {
   position: absolute;
   bottom: calc(var(--bar-height, 0%) + 4px);
-  color: #64748b;
+  color: var(--text-mid);
   font-size: 10px;
   font-weight: 700;
   white-space: nowrap;
@@ -1112,7 +1111,7 @@
   width: 64px;
   transform: translateX(-50%) rotate(-28deg);
   transform-origin: top center;
-  color: #475569;
+  color: var(--text-mid);
   font-size: 10px;
   white-space: nowrap;
   overflow: hidden;
@@ -1129,7 +1128,7 @@
 
 .pool-card {
   background: #fff;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: var(--invest-card-radius);
   padding: 16px;
   display: flex;
@@ -1153,12 +1152,12 @@
 .pool-stock-name {
   font-size: 16px;
   font-weight: 700;
-  color: #111827;
+  color: var(--text);
 }
 
 .pool-stock-code {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--text-soft);
   margin-top: 2px;
 }
 
@@ -1178,8 +1177,8 @@
 }
 
 .badge-quality {
-  background: #dbeafe;
-  color: #1e40af;
+  background: var(--base-soft);
+  color: var(--base-text);
 }
 
 .badge-tech {
@@ -1188,8 +1187,8 @@
 }
 
 .badge-watching {
-  background: #f3f4f6;
-  color: #374151;
+  background: var(--bg);
+  color: var(--text-mid);
 }
 
 .badge-holding {
@@ -1204,7 +1203,7 @@
 
 .pool-memo {
   font-size: 13px;
-  color: #374151;
+  color: var(--text-mid);
   line-height: 1.5;
   background: #f9fafb;
   border-radius: 6px;
@@ -1223,7 +1222,7 @@
 
 .pool-target {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-mid);
 }
 
 .pool-target span {
@@ -1238,12 +1237,12 @@
 
 .pool-action-btn {
   background: none;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 12px;
   padding: 3px 10px;
   cursor: pointer;
-  color: #6b7280;
+  color: var(--text-mid);
   transition: all 0.15s;
 }
 
@@ -1254,12 +1253,12 @@
 
 .pool-action-btn.danger:hover {
   border-color: #fca5a5;
-  color: #dc2626;
+  color: var(--up);
 }
 
 .pool-empty {
   text-align: center;
-  color: #9ca3af;
+  color: var(--text-soft);
   padding: 48px 0;
   font-size: 14px;
 }
@@ -1274,7 +1273,7 @@
 
 .valuation-card {
   background: #fff;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: var(--invest-card-radius);
   padding: 24px;
   box-shadow: var(--shadow);
@@ -1283,13 +1282,13 @@
 .valuation-card-title {
   font-size: 16px;
   font-weight: 700;
-  color: #111827;
+  color: var(--text);
   margin: 0 0 6px;
 }
 
 .valuation-card-subtitle {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--text-soft);
   margin: 0 0 20px;
 }
 
@@ -1308,11 +1307,11 @@
 .valuation-field label {
   font-size: 13px;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-mid);
 }
 
 .valuation-field input {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 14px;
@@ -1327,7 +1326,7 @@
 
 .valuation-field .hint {
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--text-soft);
 }
 
 .valuation-result {
@@ -1358,8 +1357,8 @@
 
 .valuation-result.empty {
   background: #f9fafb;
-  color: #9ca3af;
-  border: 1px solid #e5e7eb;
+  color: var(--text-soft);
+  border: 1px solid var(--border);
   font-weight: 400;
 }
 
@@ -1372,18 +1371,18 @@
 }
 
 .ps-table th {
-  background: #f3f4f6;
+  background: var(--bg);
   padding: 8px;
   text-align: center;
   font-weight: 600;
-  color: #374151;
-  border: 1px solid #e5e7eb;
+  color: var(--text-mid);
+  border: 1px solid var(--border);
 }
 
 .ps-table td {
   padding: 8px;
   text-align: center;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   font-weight: 500;
 }
 
@@ -1395,7 +1394,7 @@
 .invest-modal-mask {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.5);
+  background: var(--text-mid-alpha, rgba(15, 23, 42, 0.5));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1427,7 +1426,7 @@
   border: 0;
   font-size: 24px;
   cursor: pointer;
-  color: #6b7280;
+  color: var(--text-mid);
   line-height: 1;
 }
 
@@ -1446,13 +1445,13 @@
 .invest-modal-field label {
   font-size: 13px;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-mid);
 }
 
 .invest-modal-field input,
 .invest-modal-field select,
 .invest-modal-field textarea {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 14px;
@@ -1492,13 +1491,13 @@
 .sop-intro-title {
   font-size: 18px;
   font-weight: 800;
-  color: #111827;
+  color: var(--text);
   margin-bottom: 4px;
 }
 
 .sop-intro-sub {
   font-size: 13px;
-  color: #6b7280;
+  color: var(--text-mid);
   margin-bottom: 16px;
 }
 
@@ -1542,7 +1541,7 @@
 
 .sop-step {
   background: #fff;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: var(--invest-card-radius);
   padding: 20px 24px;
   margin-bottom: 20px;
@@ -1555,7 +1554,7 @@
   gap: 12px;
   margin-bottom: 16px;
   padding-bottom: 12px;
-  border-bottom: 1px dashed #e5e7eb;
+  border-bottom: 1px dashed var(--border);
 }
 
 .sop-step-badge {
@@ -1572,7 +1571,7 @@
 .sop-step-title {
   font-size: 17px;
   font-weight: 700;
-  color: #111827;
+  color: var(--text);
 }
 
 .sop-step-body {
@@ -1583,8 +1582,8 @@
 }
 
 .sop-step-lesson {
-  background: #fafbfc;
-  border: 1px solid #eef0f3;
+  background: var(--bg);
+  border: 1px solid var(--bg);
   border-radius: 10px;
   padding: 14px 16px;
 }
@@ -1592,7 +1591,7 @@
 .sop-lesson-title {
   font-size: 13px;
   font-weight: 700;
-  color: #374151;
+  color: var(--text-mid);
   margin-bottom: 8px;
 }
 
@@ -1600,7 +1599,7 @@
   margin: 0;
   padding-left: 18px;
   font-size: 13px;
-  color: #4b5563;
+  color: var(--text-mid);
   line-height: 1.7;
 }
 
@@ -1609,7 +1608,7 @@
 }
 
 .sop-lesson-list b {
-  color: #111827;
+  color: var(--text);
 }
 
 .sop-lesson-tip {
@@ -1633,13 +1632,13 @@
 .sop-tool-title {
   font-size: 14px;
   font-weight: 700;
-  color: #111827;
+  color: var(--text);
   margin-bottom: 4px;
 }
 
 .sop-tool-hint {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-mid);
   margin-bottom: 12px;
   line-height: 1.5;
 }
@@ -1660,11 +1659,11 @@
 .sop-5a-field label {
   font-size: 12px;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-mid);
 }
 
 .sop-5a-field input {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 14px;
@@ -1682,8 +1681,8 @@
 }
 
 .sop-5a-dim {
-  background: #fafbfc;
-  border: 1px solid #eef0f3;
+  background: var(--bg);
+  border: 1px solid var(--bg);
   border-radius: 8px;
   padding: 10px 12px;
 }
@@ -1698,7 +1697,7 @@
 .sop-5a-dim-title {
   font-size: 13px;
   font-weight: 700;
-  color: #111827;
+  color: var(--text);
 }
 
 .sop-5a-dim-score {
@@ -1709,7 +1708,7 @@
 
 .sop-5a-dim-hint {
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--text-soft);
   margin-bottom: 6px;
   line-height: 1.5;
 }
@@ -1723,9 +1722,9 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   background: #fff;
-  color: #9ca3af;
+  color: var(--text-soft);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
@@ -1756,7 +1755,7 @@
 .sop-5a-score {
   font-size: 14px;
   font-weight: 700;
-  color: #111827;
+  color: var(--text);
 }
 
 .sop-5a-score span {
@@ -1773,7 +1772,7 @@
 .sop-5a-verdict {
   font-size: 12px;
   font-weight: 600;
-  color: #6b7280;
+  color: var(--text-mid);
 }
 
 .sop-5a-verdict.pass { color: #065f46; }
@@ -1794,7 +1793,7 @@
 
 .sop-checkup-bar input {
   flex: 1;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 10px 14px;
   font-size: 14px;
@@ -1813,7 +1812,7 @@
 
 .sop-checkup-empty {
   text-align: center;
-  color: #9ca3af;
+  color: var(--text-soft);
   padding: 24px;
   font-size: 13px;
 }
@@ -1821,7 +1820,7 @@
 .sop-checkup-header {
   margin-bottom: 14px;
   padding: 12px 14px;
-  background: #fafbfc;
+  background: var(--bg);
   border-radius: 8px;
   border-left: 3px solid var(--invest-gold);
 }
@@ -1829,12 +1828,12 @@
 .sop-checkup-stock {
   font-size: 15px;
   font-weight: 700;
-  color: #111827;
+  color: var(--text);
 }
 
 .sop-checkup-code {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--text-soft);
   font-weight: 500;
   margin-left: 8px;
 }
@@ -1854,7 +1853,7 @@
 
 .sop-checkup-card {
   background: #fff;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 14px;
   display: flex;
@@ -1871,7 +1870,7 @@
 .sop-checkup-label {
   font-size: 13px;
   font-weight: 700;
-  color: #111827;
+  color: var(--text);
 }
 
 .sop-checkup-verdict {
@@ -1898,11 +1897,11 @@
 
 .sop-checkup-latest {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-mid);
 }
 
 .sop-checkup-latest b {
-  color: #111827;
+  color: var(--text);
   font-size: 14px;
 }
 
@@ -1913,16 +1912,16 @@
 
 .sop-spark-empty {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--text-soft);
   text-align: center;
   padding: 12px 0;
 }
 
 .sop-checkup-tip {
   font-size: 12px;
-  color: #4b5563;
+  color: var(--text-mid);
   line-height: 1.5;
-  background: #fafbfc;
+  background: var(--bg);
   border-radius: 6px;
   padding: 6px 10px;
 }
@@ -1994,7 +1993,7 @@
 /* ===== Import modal ===== */
 .import-tip {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-mid);
   background: #f9fafb;
   border-left: 3px solid var(--invest-gold);
   padding: 8px 12px;
@@ -2003,13 +2002,13 @@
 }
 
 .import-upload-area {
-  border: 2px dashed #d1d5db;
+  border: 2px dashed var(--border);
   border-radius: 12px;
   padding: 36px 24px;
   text-align: center;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
-  background: #fafbfc;
+  background: var(--bg);
 }
 
 .import-upload-area:hover,
@@ -2025,13 +2024,13 @@
 
 .import-upload-text {
   font-size: 14px;
-  color: #4b5563;
+  color: var(--text-mid);
   font-weight: 600;
 }
 
 .import-upload-hint {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--text-soft);
   margin-top: 4px;
 }
 
@@ -2045,7 +2044,7 @@
 .import-preview img {
   max-width: 100%;
   max-height: 360px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 8px;
 }
 
@@ -2054,12 +2053,12 @@
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: #4b5563;
+  color: var(--text-mid);
 }
 
 .import-default-poolType select {
   padding: 4px 8px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 13px;
 }
@@ -2068,7 +2067,7 @@
   max-height: 50vh;
   overflow-y: auto;
   overflow-x: auto;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 8px;
 }
 
@@ -2081,7 +2080,7 @@
 .import-result-table th,
 .import-result-table td {
   padding: 6px 8px;
-  border-bottom: 1px solid #f1f3f5;
+  border-bottom: 1px solid var(--bg);
   text-align: center;
   white-space: nowrap;
 }
@@ -2091,7 +2090,7 @@
   position: sticky;
   top: 0;
   font-weight: 600;
-  color: #4b5563;
+  color: var(--text-mid);
 }
 
 .import-result-table input[type="checkbox"] {
@@ -2123,7 +2122,7 @@
 }
 
 .import-result-table .match-status.ok {
-  color: #15803d;
+  color: var(--down);
   font-size: 11px;
 }
 
@@ -2145,13 +2144,13 @@
   align-items: center;
   gap: 12px;
   padding: 32px;
-  color: #6b7280;
+  color: var(--text-mid);
 }
 
 .import-loading-spinner {
   width: 32px;
   height: 32px;
-  border: 3px solid #e5e7eb;
+  border: 3px solid var(--border);
   border-top-color: var(--invest-gold);
   border-radius: 50%;
   animation: import-spin 0.8s linear infinite;

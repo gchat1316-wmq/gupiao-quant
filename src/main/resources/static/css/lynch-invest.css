@@ -7,7 +7,7 @@
 .lynch-hero,
 .lynch-card {
   background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(169, 0, 31, 0.12);
+  border: 1px solid var(--base-glow);
   box-shadow: var(--shadow);
   border-radius: 16px;
 }
@@ -19,9 +19,9 @@
   gap: 18px;
   padding: 18px 22px;
   background:
-    radial-gradient(circle at top right, rgba(0, 212, 255, 0.14), transparent 34%),
-    radial-gradient(circle at left top, rgba(225, 6, 44, 0.14), transparent 34%),
-    rgba(255, 255, 255, 0.94);
+    radial-gradient(circle at top right, var(--accent-glow), transparent 34%),
+    radial-gradient(circle at left top, var(--base-glow), transparent 34%),
+    var(--card-bg);
 }
 
 .lynch-hero-copy {
@@ -62,7 +62,7 @@
 .lynch-stat {
   padding: 12px 16px;
   border-radius: 14px;
-  background: linear-gradient(135deg, rgba(225, 6, 44, 0.05), rgba(0, 212, 255, 0.05));
+  background: linear-gradient(135deg, var(--base-glow), var(--accent-glow));
   border: 1px solid rgba(0, 0, 0, 0.05);
   min-width: 280px;
 }
@@ -147,7 +147,7 @@
 .lynch-table th,
 .lynch-table td {
   padding: 10px 8px;
-  border-bottom: 1px solid #edf0f5;
+  border-bottom: 1px solid var(--border);
   text-align: left;
 }
 
@@ -169,7 +169,7 @@
 
 .lynch-chip.good {
   color: #166534;
-  background: #dcfce7;
+  background: var(--down-soft);
 }
 
 .lynch-chip.warn {
@@ -183,7 +183,7 @@
 }
 
 .lynch-inline-error {
-  color: #b91c1c;
+  color: var(--up);
   margin-bottom: 12px;
   font-size: 13px;
 }
@@ -233,7 +233,7 @@
   margin: 0;
   padding: 12px 14px;
   font-size: 15px;
-  border-bottom: 1px solid #edf0f5;
+  border-bottom: 1px solid var(--border);
 }
 
 .lynch-news-list,
@@ -261,8 +261,8 @@
 }
 
 .lynch-history-btn:hover {
-  border-color: rgba(225, 6, 44, 0.22);
-  box-shadow: 0 8px 24px rgba(225, 6, 44, 0.08);
+  border-color: var(--base-glow);
+  box-shadow: 0 8px 24px var(--base-glow);
 }
 
 .lynch-report {
@@ -324,7 +324,7 @@
   gap: 6px;
   padding: 6px;
   background: rgba(255, 255, 255, 0.86);
-  border: 1px solid rgba(169, 0, 31, 0.12);
+  border: 1px solid var(--base-glow);
   border-radius: 12px;
   box-shadow: var(--shadow);
   overflow-x: auto;
@@ -349,12 +349,12 @@
 
 .lynch-subnav-tab:hover {
   color: var(--text);
-  background: rgba(225, 6, 44, 0.06);
+  background: var(--base-glow);
 }
 
 .lynch-subnav-tab.active {
   color: #fff;
-  background: linear-gradient(135deg, #ff2a49 0%, var(--primary) 56%, #8f001b 100%);
+  background: linear-gradient(135deg, var(--base) 0%, var(--primary) 56%, var(--base-deep) 100%);
   box-shadow: 0 8px 22px var(--primary-glow);
 }
 

@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="blue">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>财务分析页 · 皮肤切换（默认蓝）</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-size: 14px;
+  line-height: 1.5;
+}
+body { background: #f6f7f9; color: #1a1a1f; }
+
+/* ============================================================
+ * 皮肤 token：基础色 + 强调色 + 涨跌色（涨/跌 固定不变）
+ * ============================================================ */
+
+/* —— 蓝版（默认）：基础蓝 + 强调玫红 —— */
+:root[data-theme="blue"] {
+  /* 基础色（结构性） */
+  --base: #2563eb;
+  --base-hover: #1d4ed8;
+  --base-soft: #eff6ff;
+  --base-faint: #f5f9ff;
+  --base-border: #c7d7f7;
+  --base-text: #1e40af;
+  --base-gradient: linear-gradient(135deg, #4f8cff 0%, #2563eb 100%);
+  --base-glow: rgba(37, 99, 235, 0.18);
+
+  /* 强调色（突出表达：标题/评分/关键数字） */
+  --accent: #d63950;
+  --accent-soft: #fceff2;
+  --accent-faint: #fff7f9;
+  --accent-border: #f3c4cd;
+  --accent-text: #a02841;
+  --accent-deep: #7a1f33;
+  --accent-gradient: linear-gradient(135deg, #e85872 0%, #d63950 100%);
+  --accent-glow: rgba(214, 57, 80, 0.18);
+
+  /* 涨跌色（与主题无关，固定） */
+  --up: #d63950;
+  --down: #16a34a;
+
+  --text: #0f172a;
+  --text-mid: #475569;
+  --text-soft: #94a3b8;
+  --border: #eef1f5;
+}
+
+/* —— 红版：基础玫红 + 强调蓝 —— */
+:root[data-theme="red"] {
+  --base: #d63950;
+  --base-hover: #b8273d;
+  --base-soft: #fceff2;
+  --base-faint: #fff7f9;
+  --base-border: #f3c4cd;
+  --base-text: #a02841;
+  --base-gradient: linear-gradient(135deg, #e85872 0%, #d63950 100%);
+  --base-glow: rgba(214, 57, 80, 0.18);
+
+  --accent: #2563eb;
+  --accent-soft: #eff6ff;
+  --accent-faint: #f5f9ff;
+  --accent-border: #c7d7f7;
+  --accent-text: #1e40af;
+  --accent-deep: #1e3a8a;
+  --accent-gradient: linear-gradient(135deg, #4f8cff 0%, #2563eb 100%);
+  --accent-glow: rgba(37, 99, 235, 0.18);
+
+  --up: #d63950;
+  --down: #16a34a;
+
+  --text: #1a1a1f;
+  --text-mid: #4b5563;
+  --text-soft: #9494a0;
+  --border: #eef0f3;
+}
+
+/* ============================================================
+ * 顶栏（导航 + 皮肤切换）
+ * ============================================================ */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.site-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--text);
+  font-size: 15px;
+}
+.site-logo .mark {
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  background: var(--base-gradient);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+}
+.site-nav { display: flex; gap: 4px; }
+.site-nav a {
+  padding: 6px 12px;
+  border-radius: 6px;
+  text-decoration: none;
+  color: var(--text-mid);
+  font-size: 13px;
+  transition: all 0.15s;
+}
+.site-nav a:hover { background: var(--base-soft); color: var(--base-text); }
+.site-nav a.active { background: var(--base-soft); color: var(--base-text); font-weight: 500; }
+
+/* 皮肤切换 */
+.skin-switch {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+  background: #f6f7f9;
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.skin-btn {
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-mid);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+.skin-btn:hover { color: var(--text); }
+.skin-btn.active {
+  background: #fff;
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+.skin-btn .dot { width: 8px; height: 8px; border-radius: 50%; }
+:root[data-theme="blue"] .skin-btn[data-skin="blue"]  .dot { background: #2563eb; }
+:root[data-theme="red"]  .skin-btn[data-skin="red"]   .dot { background: #d63950; }
+
+/* ============================================================
+ * 内容容器
+ * ============================================================ */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+/* —— Hero（标题用强调色） —— */
+.hero {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 22px 24px;
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, var(--accent-faint) 0%, #ffffff 60%),
+    linear-gradient(90deg, var(--base-soft), transparent 30%);
+  border: 1px solid var(--accent-border);
+  margin-bottom: 18px;
+}
+.hero-icon {
+  width: 64px; height: 64px;
+  border-radius: 18px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 36px;
+  background: #fff;
+  box-shadow: 0 8px 20px var(--accent-glow);
+}
+.hero-title { margin: 0 0 6px; font-size: 22px; color: var(--accent-text); font-weight: 700; }
+.hero-sub { margin: 0; font-size: 13px; color: var(--text-mid); }
+
+/* —— 搜索卡 —— */
+.search-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-bottom: 18px;
+}
+.search-row { display: flex; gap: 10px; align-items: center; }
+.search-row input, .search-row select {
+  height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  padding: 0 14px;
+  font-size: 13px;
+  color: var(--text);
+  font-family: inherit;
+  outline: none;
+}
+.search-row input { flex: 1; }
+.search-row input:focus, .search-row select:focus {
+  border-color: var(--base);
+  box-shadow: 0 0 0 3px var(--base-glow);
+}
+.btn {
+  height: 42px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: inherit;
+}
+.btn-primary {
+  background: var(--base-gradient);
+  color: #fff;
+  box-shadow: 0 2px 8px var(--base-glow);
+}
+.btn-ghost {
+  background: #fff;
+  color: var(--base-text);
+  border: 1px solid var(--base-border);
+}
+
+/* —— 章节卡 —— */
+.section {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  margin-bottom: 18px;
+  overflow: hidden;
+}
+.section-head {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+.section-head .no {
+  width: 24px; height: 24px;
+  border-radius: 7px;
+  background: var(--base-soft);
+  color: var(--base-text);
+  font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 600;
+}
+.section-body { padding: 18px 20px; }
+
+/* —— 评分卡（强调色） —— */
+.rating {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  background: var(--accent-faint);
+  border-radius: 12px;
+  border: 1px solid var(--accent-border);
+  margin-bottom: 16px;
+}
+.rating-score {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--accent-text);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.rating-info { flex: 1; }
+.rating-label { font-size: 12px; color: var(--text-soft); }
+.rating-text { font-size: 14px; color: var(--text); font-weight: 500; margin-top: 2px; }
+
+/* —— 基础信息网格 —— */
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+.profile-item { padding: 4px 0; }
+.profile-label { font-size: 11px; color: var(--text-soft); margin-bottom: 2px; }
+.profile-value { font-size: 14px; color: var(--text); font-weight: 500; }
+.profile-value.up   { color: var(--up); }
+.profile-value.down { color: var(--down); }
+
+/* —— Tag —— */
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  padding: 3px 9px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid;
+}
+.tag-base    { background: var(--base-soft);    color: var(--base-text);    border-color: var(--base-border); }
+.tag-accent  { background: var(--accent-soft);  color: var(--accent-text);  border-color: var(--accent-border); }
+.tag-ok      { background: #f0fdf4;             color: #15803d;              border-color: #bbf7d0; }
+.tag-warn    { background: #fff7ed;             color: #b45309;              border-color: #fed7aa; }
+.tag-neutral { background: #f6f7f9;             color: #4b5563;              border-color: #e5e7eb; }
+.tag .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+/* —— 财务图占位 —— */
+.chart-placeholder {
+  height: 200px;
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, var(--base-faint) 0%, #fff 100%);
+  border: 1px dashed var(--base-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-soft);
+  font-size: 12px;
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.chart-placeholder::before {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 65%;
+  background: var(--accent-glow);
+  clip-path: polygon(0 70%, 8% 50%, 18% 60%, 28% 35%, 38% 45%, 50% 25%, 60% 40%, 70% 30%, 82% 50%, 92% 35%, 100% 55%, 100% 100%, 0 100%);
+  opacity: 0.6;
+}
+.chart-legend {
+  position: absolute;
+  top: 12px; left: 16px;
+  display: flex; gap: 14px;
+  font-size: 11px;
+  color: var(--text-mid);
+}
+.chart-legend span { display: flex; align-items: center; gap: 4px; }
+.chart-legend .sw { width: 8px; height: 8px; border-radius: 2px; }
+
+/* —— 财务表 —— */
+.fin-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px; }
+.fin-table th {
+  text-align: right;
+  padding: 9px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-soft);
+  background: var(--base-faint);
+  border-bottom: 1px solid var(--border);
+}
+.fin-table th:first-child { text-align: left; }
+.fin-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.fin-table td:first-child { text-align: left; color: var(--text-mid); }
+.fin-table tr:last-child td { border-bottom: none; }
+.fin-table tr:hover td { background: var(--base-faint); }
+.fin-table .up   { color: var(--up); font-weight: 500; }
+.fin-table .down { color: var(--down); font-weight: 500; }
+
+/* —— 子卡（行业景气） —— */
+.subcard {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+.subcard-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.subcard-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.subcard-body { font-size: 12px; color: var(--text-mid); line-height: 1.6; }
+
+/* —— 进度条 —— */
+.progress {
+  height: 6px;
+  background: #f1f3f5;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+.progress-bar { height: 100%; background: var(--base-gradient); border-radius: 3px; }
+
+/* —— 历史记录 —— */
+.hist-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.hist-item:last-child { border-bottom: none; }
+.hist-item .name { flex: 1; color: var(--text); }
+.hist-item .time { color: var(--text-soft); font-size: 11px; font-variant-numeric: tabular-nums; }
+
+/* —— 章节锚导航 —— */
+.anchor-nav {
+  display: flex;
+  gap: 4px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 18px;
+  overflow-x: auto;
+}
+.anchor {
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-mid);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.anchor:hover { background: var(--base-soft); color: var(--base-text); }
+.anchor.active { background: var(--base-soft); color: var(--base-text); }
+.anchor span { color: var(--base); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<!-- 顶栏：导航 + 皮肤切换 -->
+<header class="site-header">
+  <div class="site-logo">
+    <div class="mark">Q</div>
+    <span>股票量化</span>
+  </div>
+  <nav class="site-nav">
+    <a href="#">首页</a>
+    <a href="#">财务对比</a>
+    <a href="#" class="active">个股研究</a>
+    <a href="#">学习搭子</a>
+    <a href="#">龙江投资</a>
+  </nav>
+  <div class="skin-switch" id="skinSwitch">
+    <button class="skin-btn active" data-skin="blue"><span class="dot"></span>蓝版</button>
+    <button class="skin-btn" data-skin="red"><span class="dot"></span>红版</button>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Hero（标题用强调色） -->
+  <div class="hero">
+    <div class="hero-icon">🧭</div>
+    <div>
+      <h2 class="hero-title">景气度选股 · 统一个股研究</h2>
+      <p class="hero-sub">异步提交分析任务，统一输出行业景气、公司质地、财务趋势、估值预期、技术资金与综合结论</p>
+    </div>
+  </div>
+
+  <!-- 搜索卡 -->
+  <div class="search-card">
+    <div class="search-row">
+      <input value="002050 三花智控" />
+      <select>
+        <option>统一全量报告</option>
+      </select>
+      <button class="btn btn-primary">开始分析</button>
+      <button class="btn btn-ghost">刷新</button>
+    </div>
+  </div>
+
+  <!-- 章节锚 -->
+  <div class="anchor-nav">
+    <button class="anchor active"><span>①</span> 总览</button>
+    <button class="anchor"><span>②</span> 行业</button>
+    <button class="anchor"><span>③</span> 公司</button>
+    <button class="anchor"><span>④</span> 财务</button>
+    <button class="anchor"><span>⑤</span> 技术资金</button>
+    <button class="anchor"><span>⑥</span> 结论</button>
+  </div>
+
+  <!-- 总览 -->
+  <div class="section">
+    <div class="section-head">
+      <span class="no">①</span> 总览
+      <button class="btn btn-ghost" style="margin-left:auto;height:30px;padding:0 12px;font-size:12px;">复制分享</button>
+    </div>
+    <div class="section-body">
+      <div class="rating">
+        <div class="rating-score">82</div>
+        <div class="rating-info">
+          <div class="rating-label">综合评分</div>
+          <div class="rating-text">行业景气向上，公司质地优秀，建议关注</div>
+        </div>
+        <div class="tags">
+          <span class="tag tag-accent"><span class="dot"></span>景气向上</span>
+          <span class="tag tag-base"><span class="dot"></span>估值合理</span>
+        </div>
+      </div>
+
+      <div class="profile-grid">
+        <div class="profile-item"><div class="profile-label">股票代码</div><div class="profile-value">002050</div></div>
+        <div class="profile-item"><div class="profile-label">股票名称</div><div class="profile-value">三花智控</div></div>
+        <div class="profile-item"><div class="profile-label">所属行业</div><div class="profile-value">家电零部件</div></div>
+        <div class="profile-item"><div class="profile-label">最新价</div><div class="profile-value">¥ 28.45</div></div>
+        <div class="profile-item"><div class="profile-label">涨跌幅</div><div class="profile-value up">+3.42%</div></div>
+        <div class="profile-item"><div class="profile-label">总市值</div><div class="profile-value">¥ 962 亿</div></div>
+        <div class="profile-item"><div class="profile-label">市盈率</div><div class="profile-value">28.4</div></div>
+        <div class="profile-item"><div class="profile-label">市净率</div><div class="profile-value">5.2</div></div>
+        <div class="profile-item"><div class="profile-label">ROE</div><div class="profile-value up">+18.6%</div></div>
+        <div class="profile-item"><div class="profile-label">负债率</div><div class="profile-value down">-2.1%</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 财务趋势 -->
+  <div class="section">
+    <div class="section-head"><span class="no">④</span> 财务趋势</div>
+    <div class="section-body">
+      <div class="chart-placeholder">
+        <div class="chart-legend">
+          <span><span class="sw" style="background:var(--base)"></span>营收（基础色）</span>
+          <span><span class="sw" style="background:var(--accent)"></span>利润（强调色）</span>
+        </div>
+        营收 / 利润趋势图
+      </div>
+      <table class="fin-table">
+        <thead>
+          <tr>
+            <th>指标</th>
+            <th>2023Q1</th>
+            <th>2023Q4</th>
+            <th>2024Q1</th>
+            <th>2024Q2</th>
+            <th>2024Q3</th>
+            <th>2024Q4</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>毛利率</td>
+            <td>26.8%</td>
+            <td>28.1%</td>
+            <td>27.5%</td>
+            <td>28.3%</td>
+            <td>29.0%</td>
+            <td class="up">+29.4%</td>
+          </tr>
+          <tr>
+            <td>营收同比</td>
+            <td class="up">+12.3%</td>
+            <td class="up">+15.6%</td>
+            <td class="up">+18.2%</td>
+            <td class="up">+22.4%</td>
+            <td class="up">+25.1%</td>
+            <td class="up">+28.6%</td>
+          </tr>
+          <tr>
+            <td>扣非同比</td>
+            <td class="up">+8.4%</td>
+            <td class="up">+11.2%</td>
+            <td class="up">+14.5%</td>
+            <td class="up">+19.8%</td>
+            <td class="up">+22.3%</td>
+            <td class="up">+24.7%</td>
+          </tr>
+          <tr>
+            <td>费用率</td>
+            <td>12.4%</td>
+            <td>11.8%</td>
+            <td>11.5%</td>
+            <td>11.2%</td>
+            <td>10.9%</td>
+            <td class="down">-10.6%</td>
+          </tr>
+          <tr>
+            <td>净利率</td>
+            <td>8.2%</td>
+            <td>9.1%</td>
+            <td>9.5%</td>
+            <td>10.2%</td>
+            <td>10.8%</td>
+            <td class="up">+11.4%</td>
+          </tr>
+          <tr>
+            <td>资产负债率</td>
+            <td>52.3%</td>
+            <td>51.8%</td>
+            <td>50.2%</td>
+            <td>49.5%</td>
+            <td>48.7%</td>
+            <td class="down">-2.1%</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 行业景气 -->
+  <div class="section">
+    <div class="section-head"><span class="no">②</span> 行业景气</div>
+    <div class="section-body">
+      <div class="subcard">
+        <div class="subcard-head">
+          <div class="subcard-title">新能源车热管理</div>
+          <span class="tag tag-accent"><span class="dot"></span>景气向上</span>
+        </div>
+        <div class="subcard-body">全球新能源车渗透率持续提升，热管理单车价值量从 2500 元提升至 4500 元，行业进入快速增长期。公司是全球热管理零部件龙头，份额稳步提升。</div>
+        <div class="progress"><div class="progress-bar" style="width: 78%;"></div></div>
+      </div>
+      <div class="subcard">
+        <div class="subcard-head">
+          <div class="subcard-title">人形机器人零部件</div>
+          <span class="tag tag-base"><span class="dot"></span>观察中</span>
+        </div>
+        <div class="subcard-body">执行器、丝杠等环节处于产业化前夜，公司技术储备充分，未来 2-3 年可能成为第二增长曲线。当前已小幅放量，但贡献尚不显著。</div>
+        <div class="progress"><div class="progress-bar" style="width: 45%;"></div></div>
+      </div>
+      <div class="subcard">
+        <div class="subcard-head">
+          <div class="subcard-title">传统制冷业务</div>
+          <span class="tag tag-warn"><span class="dot"></span>承压</span>
+        </div>
+        <div class="subcard-body">受地产链拖累，传统空调零部件需求偏弱，板块同比 <span style="color:var(--down);font-weight:500;">-3.2%</span>，公司主动收缩低毛利订单，毛利率反而提升。</div>
+        <div class="progress"><div class="progress-bar" style="width: 30%; background: linear-gradient(135deg, #fbbf24, #f59e0b);"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 历史记录 -->
+  <div class="section">
+    <div class="section-head">历史分析记录</div>
+    <div class="section-body" style="padding: 0;">
+      <div class="hist-item">
+        <span class="tag tag-ok"><span class="dot"></span>已完成</span>
+        <span class="name">002594 比亚迪 · 统一全量报告</span>
+        <span class="time">14:23</span>
+      </div>
+      <div class="hist-item">
+        <span class="tag tag-base"><span class="dot"></span>分析中</span>
+        <span class="name">688981 中芯国际 · 偏产业链</span>
+        <span class="time">14:18</span>
+      </div>
+      <div class="hist-item">
+        <span class="tag tag-warn"><span class="dot"></span>失败</span>
+        <span class="name">300750 宁德时代 · 偏财务景气</span>
+        <span class="time">14:05</span>
+      </div>
+      <div class="hist-item">
+        <span class="tag tag-ok"><span class="dot"></span>已完成</span>
+        <span class="name">600519 贵州茅台 · 统一全量报告</span>
+        <span class="time">昨日</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const switchEl = document.getElementById('skinSwitch');
+  switchEl.addEventListener('click', e => {
+    const btn = e.target.closest('.skin-btn');
+    if (!btn) return;
+    const skin = btn.dataset.skin;
+    document.documentElement.setAttribute('data-theme', skin);
+    switchEl.querySelectorAll('.skin-btn').forEach(b => b.classList.toggle('active', b === btn));
+  });
+</script>
+
+</body>
+</html>
