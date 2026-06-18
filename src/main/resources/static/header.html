@@ -18,13 +18,22 @@
       <a href="lynch-invest.html" class="nav-link" data-match="lynch-invest.html">林奇投资</a>
       <a href="study.html" class="nav-link" data-match="study.html,course.html,node.html,card.html,quiz.html">学习搭子</a>
     </nav>
-    <div class="skin-switch" id="skinSwitch" role="group" aria-label="皮肤切换">
-      <button type="button" class="skin-btn" data-skin="tech" title="科技蓝">
-        <span class="dot"></span>科技蓝
+    <div class="skin-switch" id="skinSwitch" data-skin="tech">
+      <button type="button" class="skin-toggle" aria-haspopup="listbox" aria-expanded="false" aria-controls="skinMenu" title="切换皮肤">
+        <span class="dot"></span>
+        <span class="label">科技蓝</span>
+        <svg class="caret" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
+          <path d="M2 4 L6 8 L10 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
       </button>
-      <button type="button" class="skin-btn" data-skin="bull" title="牛市红">
-        <span class="dot"></span>牛市红
-      </button>
+      <ul id="skinMenu" class="skin-menu" role="listbox" aria-label="皮肤" hidden>
+        <li role="option" data-skin="tech" aria-selected="true">
+          <span class="dot"></span>科技蓝
+        </li>
+        <li role="option" data-skin="bull" aria-selected="false">
+          <span class="dot"></span>牛市红
+        </li>
+      </ul>
     </div>
   </div>
 </header>

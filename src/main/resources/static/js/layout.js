@@ -22,14 +22,46 @@
     if (!options || options.persist !== false) {
       try { localStorage.setItem(SKIN_STORAGE_KEY, skin); } catch (e) { /* ignore */ }
     }
-    // 同步所有切换器按钮的 active 态
+    // 同步所有切换器
     document.querySelectorAll('.skin-switch').forEach(function (sw) {
-      sw.querySelectorAll('.skin-btn').forEach(function (b) {
-        b.classList.toggle('active', b.dataset.skin === skin);
+      sw.setAttribute('data-skin', skin);
+      // 更新按钮上的 label + dot
+      var label = sw.querySelector('.skin-toggle .label');
+      if (label) label.textContent = skin === 'bull' ? '牛市红' : '科技蓝';
+      // 更新菜单项的 aria-selected
+      sw.querySelectorAll('.skin-menu li[data-skin]').forEach(function (li) {
+        li.setAttribute('aria-selected', li.dataset.skin === skin ? 'true' : 'false');
       });
     });
     // 通知其他模块（chart、地图、图表等）重新画
     try { document.dispatchEvent(new CustomEvent('skin:changed', { detail: { skin: skin } })); } catch (e) { /* ignore */ }
+  }
+
+  function closeSkinMenu(sw) {
+    var menu = sw.querySelector('.skin-menu');
+    var toggle = sw.querySelector('.skin-toggle');
+    if (menu) menu.hidden = true;
+    if (toggle) toggle.setAttribute('aria-expanded', 'false');
+  }
+
+  function toggleSkinMenu(sw) {
+    var menu = sw.querySelector('.skin-menu');
+    var toggle = sw.querySelector('.skin-toggle');
+    if (!menu || !toggle) return;
+    var isOpen = !menu.hidden;
+    if (isOpen) {
+      closeSkinMenu(sw);
+    } else {
+      // 先关掉其他已展开的菜单
+      document.querySelectorAll('.skin-switch .skin-menu').forEach(function (m) {
+        if (m !== menu) m.hidden = true;
+      });
+      document.querySelectorAll('.skin-toggle').forEach(function (t) {
+        t.setAttribute('aria-expanded', 'false');
+      });
+      menu.hidden = false;
+      toggle.setAttribute('aria-expanded', 'true');
+    }
   }
 
   // 启动时立刻应用，避免 FOUC（与 <head> 里内联脚本或提前渲染冲突时为兜底）
@@ -40,12 +72,48 @@
       // 防止重复绑定
       if (sw.dataset.bound === '1') return;
       sw.dataset.bound = '1';
-      sw.addEventListener('click', function (e) {
-        var btn = e.target.closest('.skin-btn');
-        if (!btn || !sw.contains(btn)) return;
-        applySkin(btn.dataset.skin);
-      });
+
+      var toggle = sw.querySelector('.skin-toggle');
+      var menu = sw.querySelector('.skin-menu');
+
+      // 点击按钮 → 展开/收起
+      if (toggle) {
+        toggle.addEventListener('click', function (e) {
+          e.stopPropagation();
+          toggleSkinMenu(sw);
+        });
+      }
+
+      // 点击菜单项 → 切主题 + 收起
+      if (menu) {
+        menu.addEventListener('click', function (e) {
+          var li = e.target.closest('li[data-skin]');
+          if (!li) return;
+          applySkin(li.dataset.skin);
+          closeSkinMenu(sw);
+        });
+      }
     });
+
+    // 点击页面其它位置 → 关闭所有皮肤菜单（只绑一次）
+    if (!document.body.dataset.skinOutsideBound) {
+      document.body.dataset.skinOutsideBound = '1';
+      document.addEventListener('click', function () {
+        document.querySelectorAll('.skin-switch .skin-menu').forEach(function (m) {
+          if (!m.hidden) m.hidden = true;
+        });
+        document.querySelectorAll('.skin-toggle[aria-expanded="true"]').forEach(function (t) {
+          t.setAttribute('aria-expanded', 'false');
+        });
+      });
+      // ESC 键关闭
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+          document.querySelectorAll('.skin-switch .skin-menu').forEach(function (m) { m.hidden = true; });
+          document.querySelectorAll('.skin-toggle[aria-expanded="true"]').forEach(function (t) { t.setAttribute('aria-expanded', 'false'); });
+        }
+      });
+    }
   }
 
   // ============================================================
@@ -67,7 +135,7 @@
       const response = await fetch('header.html?v=20260618-skin-switch', { cache: 'no-cache' });
       if (!response.ok) throw new Error('header load failed');
       mount.innerHTML = await response.text();
-    } catch (e) {
+    }           catch (e) {
       mount.innerHTML =
         '<header class="top-nav">' +
           '<div class="nav-inner">' +
@@ -86,9 +154,18 @@
               '<a href="prosperity-strong.html" class="nav-link" data-match="prosperity-strong.html">热点强势选股</a>' +
               '<a href="study.html" class="nav-link" data-match="study.html,course.html,node.html,card.html,quiz.html">学习搭子</a>' +
             '</nav>' +
-            '<div class="skin-switch" id="skinSwitch" role="group" aria-label="皮肤切换">' +
-              '<button type="button" class="skin-btn" data-skin="tech"><span class="dot"></span>科技蓝</button>' +
-              '<button type="button" class="skin-btn" data-skin="bull"><span class="dot"></span>牛市红</button>' +
+            '<div class="skin-switch" id="skinSwitch" data-skin="tech">' +
+              '<button type="button" class="skin-toggle" aria-haspopup="listbox" aria-expanded="false" aria-controls="skinMenu" title="切换皮肤">' +
+                '<span class="dot"></span>' +
+                '<span class="label">科技蓝</span>' +
+                '<svg class="caret" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">' +
+                  '<path d="M2 4 L6 8 L10 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' +
+                '</svg>' +
+              '</button>' +
+              '<ul id="skinMenu" class="skin-menu" role="listbox" aria-label="皮肤" hidden>' +
+                '<li role="option" data-skin="tech" aria-selected="true"><span class="dot"></span>科技蓝</li>' +
+                '<li role="option" data-skin="bull" aria-selected="false"><span class="dot"></span>牛市红</li>' +
+              '</ul>' +
             '</div>' +
           '</div>' +
         '</header>';
