@@ -184,6 +184,206 @@ class MarketRecapServiceTest {
         assertThat(badge.getYesterday()).isEqualTo(1);
     }
 
+    // ────────────────────── 时间轴限 6 天 / 去重 ──────────────────────
+
+    @Test
+    @DisplayName("timeline 截断到最近 6 个交易日,超出部分被丢弃")
+    void timelineLimitsToRecent6Days() {
+        List<InvestMarketRecap> recaps = new ArrayList<>();
+        // 模拟最近 10 个交易日,每条 tradeDate 唯一
+        for (int i = 0; i < 10; i++) {
+            InvestMarketRecap r = sampleRecap();
+            r.setId(100L + i);
+            r.setTradeDate(LocalDate.of(2026, 6, 18).minusDays(i));
+            recaps.add(r);
+        }
+        when(repository.findDistinctMarkets()).thenReturn(List.of("A股"));
+        when(repository.findByMarketOrderByTradeDateDescIdDesc("A股")).thenReturn(recaps);
+
+        MarketRecapPageDTO page = service.getPage("A股");
+
+        assertThat(page.getTimeline()).hasSize(MarketRecapService.TIMELINE_RECENT_DAYS);
+        // 应该保留最近 6 天(2026-06-18 到 2026-06-13)
+        List<String> dates = page.getTimeline().stream()
+                .map(MarketRecapSummaryDTO::getTradeDate)
+                .toList();
+        assertThat(dates).containsExactly(
+                "2026-06-18", "2026-06-17", "2026-06-16", "2026-06-15", "2026-06-14", "2026-06-13");
+    }
+
+    @Test
+    @DisplayName("timeline 同一天多条记录只保留第一条(已按 id desc 排序)")
+    void timelineDeduplicatesByTradeDate() {
+        List<InvestMarketRecap> recaps = new ArrayList<>();
+        // 2026-06-18 有 2 条(都是最新一条先入列表), 2026-06-17 有 1 条, 2026-06-16 有 1 条
+        InvestMarketRecap d18a = sampleRecap();
+        d18a.setId(20L);
+        d18a.setTradeDate(LocalDate.of(2026, 6, 18));
+        recaps.add(d18a);
+
+        InvestMarketRecap d18b = sampleRecap();
+        d18b.setId(19L);
+        d18b.setTradeDate(LocalDate.of(2026, 6, 18));
+        recaps.add(d18b);
+
+        InvestMarketRecap d17 = sampleRecap();
+        d17.setId(18L);
+        d17.setTradeDate(LocalDate.of(2026, 6, 17));
+        recaps.add(d17);
+
+        InvestMarketRecap d16 = sampleRecap();
+        d16.setId(17L);
+        d16.setTradeDate(LocalDate.of(2026, 6, 16));
+        recaps.add(d16);
+
+        when(repository.findDistinctMarkets()).thenReturn(List.of("A股"));
+        when(repository.findByMarketOrderByTradeDateDescIdDesc("A股")).thenReturn(recaps);
+
+        MarketRecapPageDTO page = service.getPage("A股");
+
+        // 应该只有 3 条(去重后 3 个不同 tradeDate)
+        assertThat(page.getTimeline()).hasSize(3);
+        List<String> dates = page.getTimeline().stream()
+                .map(MarketRecapSummaryDTO::getTradeDate)
+                .toList();
+        assertThat(dates).containsExactly("2026-06-18", "2026-06-17", "2026-06-16");
+        // latest 仍然是 id=20 那条
+        assertThat(page.getLatest().getId()).isEqualTo(20L);
+    }
+
+    @Test
+    @DisplayName("timeline 中 tradeDate 为 null 的记录被跳过")
+    void timelineSkipsNullTradeDate() {
+        List<InvestMarketRecap> recaps = new ArrayList<>();
+        InvestMarketRecap nullDate = sampleRecap();
+        nullDate.setId(99L);
+        nullDate.setTradeDate(null);
+        recaps.add(nullDate);
+
+        InvestMarketRecap valid = sampleRecap();
+        valid.setId(10L);
+        valid.setTradeDate(LocalDate.of(2026, 6, 18));
+        recaps.add(valid);
+
+        when(repository.findDistinctMarkets()).thenReturn(List.of("A股"));
+        when(repository.findByMarketOrderByTradeDateDescIdDesc("A股")).thenReturn(recaps);
+
+        MarketRecapPageDTO page = service.getPage("A股");
+
+        // null tradeDate 那条不算入 timeline
+        assertThat(page.getTimeline()).hasSize(1);
+        assertThat(page.getTimeline().get(0).getTradeDate()).isEqualTo("2026-06-18");
+    }
+
+    // ────────────────────── 一句话定性 结构化 ──────────────────────
+
+    @Test
+    @DisplayName("一句话定性:含「——」和「;」时拆成 theme + 多个 point")
+    void oneLinerWithEmDashAndSemicolons() {
+        InvestMarketRecap r = sampleRecap();
+        r.setContent("""
+                # 测试标题
+
+                > **一句话定性**: 极致分化日——科创板"硬科技三剑客"(半导体/PCB/CPO/GPU)继续高举高打;沪指却在银行/保险/券商/电力/煤炭等蓝筹杀跌下-0.43% 收4090.48;**指数结构性撕裂**,3350只下跌,科技权重独撑深市+创指。
+
+                ## 一、指数
+
+                | 指数 | 收盘 |
+                |------|------|
+                | 上证 | 4090.48 |
+                """);
+        when(repository.findDistinctMarkets()).thenReturn(List.of("A股"));
+        when(repository.findByMarketOrderByTradeDateDescIdDesc("A股")).thenReturn(List.of(r));
+
+        MarketRecapPageDTO page = service.getPage("A股");
+        String html = page.getLatest().getContentHtml();
+
+        // 结构化 blockquote 存在
+        assertThat(html).contains("recap-oneliner");
+        assertThat(html).contains("recap-oneliner-theme");
+        assertThat(html).contains("recap-oneliner-point");
+        // theme 部分(破折号前的部分)独立出来
+        assertThat(html).containsPattern("recap-oneliner-theme[^<]*极致分化日——");
+        // 3 个分号拆出 3 个 point (HTML 可能在同一行, 数 occurrences 而不是行数)
+        long points = countOccurrences(html, "recap-oneliner-point");
+        assertThat(points).isEqualTo(3);
+        // 末尾句号被去掉
+        assertThat(html).doesNotContain("独撑深市+创指。");
+        assertThat(html).contains("独撑深市+创指");
+    }
+
+    @Test
+    @DisplayName("一句话定性:不含「——」时第一段作为 theme,其余按「;」分段")
+    void oneLinerWithoutEmDash() {
+        InvestMarketRecap r = sampleRecap();
+        r.setContent("""
+                # 测试
+
+                > **一句话定性**: 普涨格局形成;沪指+1.28%;深成指+3.02%;创业板+3.93%
+
+                正文略
+                """);
+        when(repository.findDistinctMarkets()).thenReturn(List.of("A股"));
+        when(repository.findByMarketOrderByTradeDateDescIdDesc("A股")).thenReturn(List.of(r));
+
+        MarketRecapPageDTO page = service.getPage("A股");
+        String html = page.getLatest().getContentHtml();
+
+        assertThat(html).contains("recap-oneliner-theme");
+        assertThat(html).contains("recap-oneliner-point");
+        // 4 段(1 theme + 3 point)
+        assertThat(countOccurrences(html, "recap-oneliner-theme")).isEqualTo(1);
+        assertThat(countOccurrences(html, "recap-oneliner-point")).isEqualTo(3);
+    }
+
+    private static long countOccurrences(String haystack, String needle) {
+        long count = 0;
+        int idx = 0;
+        while ((idx = haystack.indexOf(needle, idx)) != -1) {
+            count++;
+            idx += needle.length();
+        }
+        return count;
+    }
+
+    @Test
+    @DisplayName("一句话定性:没有 blockquote 时不影响其它 markdown 渲染")
+    void oneLinerAbsentLeavesHtmlUntouched() {
+        InvestMarketRecap r = sampleRecap();
+        // sampleRecap 默认没有 一句话定性 blockquote
+        when(repository.findDistinctMarkets()).thenReturn(List.of("A股"));
+        when(repository.findByMarketOrderByTradeDateDescIdDesc("A股")).thenReturn(List.of(r));
+
+        MarketRecapPageDTO page = service.getPage("A股");
+        String html = page.getLatest().getContentHtml();
+
+        assertThat(html).doesNotContain("recap-oneliner");
+        // 原有 markdown 元素仍然存在
+        assertThat(html).contains("<h1>");
+        assertThat(html).contains("<table");
+    }
+
+    @Test
+    @DisplayName("一句话定性:中文冒号「：」也能匹配")
+    void oneLinerAcceptsChineseColon() {
+        InvestMarketRecap r = sampleRecap();
+        r.setContent("""
+                # 测试
+
+                > **一句话定性**：普涨;沪指+1.28%;深成指+3.02%
+
+                正文
+                """);
+        when(repository.findDistinctMarkets()).thenReturn(List.of("A股"));
+        when(repository.findByMarketOrderByTradeDateDescIdDesc("A股")).thenReturn(List.of(r));
+
+        MarketRecapPageDTO page = service.getPage("A股");
+        String html = page.getLatest().getContentHtml();
+
+        assertThat(html).contains("recap-oneliner-theme");
+        assertThat(html).contains("recap-oneliner-point");
+    }
+
     private static <T> T any(Class<T> clazz) {
         return org.mockito.ArgumentMatchers.any(clazz);
     }

@@ -52,7 +52,10 @@ public class MarketRecapService {
     }
 
     /** 时间轴最多保留的交易日数。超过则截断,避免列表无限增长遮挡正文。 */
-    static final int TIMELINE_RECENT_DAYS = 6;
+    public static final int TIMELINE_RECENT_DAYS = 6;
+
+    /** 中文破折号「——」长度(2 个字符)。 */
+    private static final int EM_DASH_LENGTH = 2;
 
     public MarketRecapPageDTO getPage(String requestedMarket) {
         List<String> markets = listMarkets();
@@ -290,6 +293,15 @@ public class MarketRecapService {
             "<blockquote>\\s*<p>\\s*<strong>一句话定性</strong>\\s*[:：]\\s*(.+?)</p>\\s*</blockquote>",
             Pattern.DOTALL);
 
+    /**
+     * 在已渲染的 HTML 上按「;」分段。
+     * 思路:先把 HTML 实体(如 {@code &quot;})里的分号替换成零宽占位符,
+     * 实体之外的「;」才是真正的语义分隔符;split 完再把占位符还原回「;」。
+     * Java 不支持不定长负向回顾,这种 mask 写法比正则更稳。
+     */
+    private static final Pattern HTML_ENTITY = Pattern.compile("&(#\\d+|#x[0-9a-fA-F]+|[a-zA-Z]+);");
+    private static final String ENTITY_SEMI_PLACEHOLDER = "SEMI_ESCAPED";
+
     private String renderMarkdown(String markdown) {
         if (!hasText(markdown)) {
             return "";
@@ -331,12 +343,12 @@ public class MarketRecapService {
         String[] points;
         if (emDashIdx > 0) {
             // 主题:第一段「——」前的部分(含破折号),作为粗体大主题
-            String theme = content.substring(0, emDashIdx + 1).trim();
-            String rest = content.substring(emDashIdx + 1).trim();
+            String theme = content.substring(0, emDashIdx + EM_DASH_LENGTH).trim();
+            String rest = content.substring(emDashIdx + EM_DASH_LENGTH).trim();
             out.append("<div class=\"recap-oneliner-theme\">").append(theme).append("</div>");
-            points = rest.split(";");
+            points = splitOnTopLevelSemicolon(rest);
         } else {
-            points = content.split(";");
+            points = splitOnTopLevelSemicolon(content);
         }
 
         for (int i = 0; i < points.length; i++) {
@@ -353,6 +365,26 @@ public class MarketRecapService {
 
         out.append("</div></blockquote>");
         return out.toString();
+    }
+
+    private static String[] splitOnTopLevelSemicolon(String text) {
+        if (text == null || text.isEmpty()) return new String[]{text == null ? "" : text};
+        // 1. 把所有 HTML 实体内的 ; 替换成占位符
+        Matcher m = HTML_ENTITY.matcher(text);
+        StringBuffer sb = new StringBuffer(text.length());
+        while (m.find()) {
+            String entity = m.group();
+            String masked = entity.replace(";", ENTITY_SEMI_PLACEHOLDER);
+            m.appendReplacement(sb, Matcher.quoteReplacement(masked));
+        }
+        m.appendTail(sb);
+        // 2. 现在剩下的 ; 都是真正的分隔符
+        String[] parts = sb.toString().split(";");
+        // 3. 把占位符还原成 ;
+        for (int i = 0; i < parts.length; i++) {
+            parts[i] = parts[i].replace(ENTITY_SEMI_PLACEHOLDER, ";");
+        }
+        return parts;
     }
 
     private JsonNode readJsonNode(String raw) {

@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 算力产业链深度分析 · 投研看板</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg-0: #0a0e1a;
+      --bg-1: #0f1421;
+      --bg-2: #151b2e;
+      --bg-3: #1c2238;
+      --border: #232b44;
+      --text-0: #e6e8eb;
+      --text-1: #9aa3b8;
+      --text-2: #6b7592;
+      --accent-purple: #8b5cf6;
+      --accent-orange: #f59e0b;
+      --accent-cyan: #06b6d4;
+      --green: #10b981;
+      --red: #ef4444;
+      --yellow: #fbbf24;
+      --gradient-purple: linear-gradient(90deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+      --gradient-orange: linear-gradient(90deg, #f97316 0%, #f59e0b 100%);
+      --gradient-cyan: linear-gradient(90deg, #06b6d4 0%, #3b82f6 100%);
+    }
+    body {
+      background: var(--bg-0);
+      color: var(--text-0);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Microsoft YaHei", sans-serif;
+      min-height: 100vh;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ===== Header ===== */
+    header.topbar {
+      background: var(--bg-1);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand h1 {
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    .brand h1 span { color: var(--accent-purple); }
+    .brand .meta {
+      font-size: 12px;
+      color: var(--text-2);
+      margin-top: 4px;
+    }
+    .brand .meta b { color: var(--text-1); font-weight: 500; }
+
+    /* ===== Nav ===== */
+    nav.tabs {
+      background: var(--bg-1);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+    nav.tabs::-webkit-scrollbar { height: 4px; }
+    nav.tabs::-webkit-scrollbar-thumb { background: var(--bg-3); border-radius: 2px; }
+    nav.tabs button {
+      background: transparent;
+      color: var(--text-1);
+      border: none;
+      padding: 14px 20px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    nav.tabs button:hover { color: var(--text-0); }
+    nav.tabs button.active {
+      color: var(--accent-purple);
+      border-bottom-color: var(--accent-purple);
+    }
+
+    /* ===== Main ===== */
+    main { padding: 24px 32px 64px; }
+    .tab-panel { display: none; animation: fade 0.2s ease; }
+    .tab-panel.active { display: block; }
+    @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+    .panel-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--text-0);
+    }
+    .panel-subtitle {
+      font-size: 13px;
+      color: var(--text-2);
+      margin-bottom: 20px;
+    }
+
+    /* ===== Card ===== */
+    .card {
+      background: var(--bg-1);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .card h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-0);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card h3::before {
+      content: "";
+      width: 3px;
+      height: 14px;
+      background: var(--gradient-purple);
+      border-radius: 2px;
+    }
+
+    /* ===== Grid ===== */
+    .grid { display: grid; gap: 16px; }
+    .grid-2 { grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .grid-4 { grid-template-columns: repeat(4, 1fr); }
+    @media (max-width: 1100px) { .grid-3, .grid-4 { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 700px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
+
+    /* ===== Metric Card ===== */
+    .metric {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .metric::after {
+      content: "";
+      position: absolute;
+      top: 0; right: 0;
+      width: 80px; height: 80px;
+      background: var(--gradient-purple);
+      opacity: 0.06;
+      border-radius: 50%;
+      transform: translate(30%, -30%);
+    }
+    .metric .label {
+      font-size: 12px;
+      color: var(--text-2);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .metric .label .badge {
+      background: var(--bg-3);
+      color: var(--text-1);
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+    .metric .value {
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text-0);
+      font-feature-settings: "tnum";
+    }
+    .metric .value .unit {
+      font-size: 14px;
+      color: var(--text-1);
+      margin-left: 4px;
+      font-weight: 400;
+    }
+    .metric .desc { font-size: 11px; color: var(--text-2); margin-top: 6px; }
+
+    /* ===== Table ===== */
+    table.data {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    table.data th, table.data td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    table.data th {
+      color: var(--text-2);
+      font-weight: 500;
+      font-size: 12px;
+      background: var(--bg-2);
+      position: sticky; top: 0;
+    }
+    table.data tr:hover td { background: var(--bg-2); }
+    table.data td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    table.data td.pos { color: var(--green); font-weight: 600; }
+    table.data td.neg { color: var(--red); font-weight: 600; }
+    table.data td.warn { color: var(--yellow); }
+    table.data td.ok { color: var(--green); }
+
+    /* ===== Stock Card ===== */
+    .stock {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .stock .head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 10px;
+    }
+    .stock .name { font-size: 15px; font-weight: 600; color: var(--text-0); }
+    .stock .name .code { color: var(--text-2); font-size: 12px; font-weight: 400; margin-left: 6px; }
+    .stock .pe { font-size: 13px; color: var(--text-1); }
+    .stock .pe b { color: var(--accent-purple); font-size: 16px; }
+    .stock .logic {
+      font-size: 12px;
+      color: var(--text-1);
+      line-height: 1.6;
+      margin-bottom: 10px;
+    }
+    .stock .score-bar {
+      height: 4px;
+      background: var(--bg-3);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+    .stock .score-bar .fill {
+      height: 100%;
+      background: var(--gradient-purple);
+    }
+
+    /* ===== Conclusion box ===== */
+    .conclusion {
+      background: var(--bg-2);
+      border-left: 3px solid;
+      padding: 12px 16px;
+      border-radius: 4px;
+      font-size: 13px;
+      line-height: 1.7;
+      margin-bottom: 8px;
+    }
+    .conclusion.ok { border-color: var(--green); }
+    .conclusion.warn { border-color: var(--red); }
+    .conclusion.info { border-color: var(--accent-cyan); }
+    .conclusion .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-right: 8px;
+    }
+    .conclusion.ok .tag { background: rgba(16,185,129,0.15); color: var(--green); }
+    .conclusion.warn .tag { background: rgba(239,68,68,0.15); color: var(--red); }
+    .conclusion.info .tag { background: rgba(6,182,212,0.15); color: var(--accent-cyan); }
+
+    /* ===== Progress bar (BOM) ===== */
+    .bom-bar {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+    .bom-bar .lbl { width: 140px; color: var(--text-1); }
+    .bom-bar .bar { flex: 1; height: 22px; background: var(--bg-3); border-radius: 3px; overflow: hidden; position: relative; margin: 0 12px; }
+    .bom-bar .bar .fill {
+      height: 100%;
+      background: var(--gradient-purple);
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      color: white;
+      font-weight: 600;
+      font-size: 11px;
+    }
+    .bom-bar .val { width: 120px; text-align: right; color: var(--text-0); font-variant-numeric: tabular-nums; font-weight: 500; }
+
+    /* ===== News list ===== */
+    .news-item {
+      display: flex;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .news-item:last-child { border-bottom: none; }
+    .news-item .time {
+      color: var(--text-2);
+      font-size: 11px;
+      white-space: nowrap;
+      min-width: 60px;
+    }
+    .news-item .src {
+      color: var(--accent-purple);
+      font-size: 11px;
+      min-width: 80px;
+    }
+    .news-item .title { flex: 1; color: var(--text-0); }
+    .news-item .title:hover { color: var(--accent-purple); cursor: pointer; }
+
+    /* ===== Chart container ===== */
+    .chart-wrap {
+      position: relative;
+      height: 280px;
+    }
+    .chart-wrap.tall { height: 360px; }
+
+    /* ===== Tag ===== */
+    .tag-pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      background: var(--bg-3);
+      color: var(--text-1);
+      margin-right: 4px;
+    }
+    .tag-pill.purple { background: rgba(139,92,246,0.15); color: var(--accent-purple); }
+    .tag-pill.green { background: rgba(16,185,129,0.15); color: var(--green); }
+    .tag-pill.orange { background: rgba(245,158,11,0.15); color: var(--accent-orange); }
+    .tag-pill.cyan { background: rgba(6,182,212,0.15); color: var(--accent-cyan); }
+
+    /* ===== Misc ===== */
+    .small { font-size: 11px; color: var(--text-2); }
+    .muted { color: var(--text-2); }
+    .gap-bottom { margin-bottom: 16px; }
+    .row-flex { display: flex; gap: 16px; flex-wrap: wrap; }
+    .row-flex > * { flex: 1; min-width: 280px; }
+    .note-bar {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--text-1);
+      margin-bottom: 16px;
+    }
+    .note-bar b { color: var(--accent-purple); }
+  </style>
+</head>
+<body>
+
+  <!-- ===== Header ===== -->
+  <header class="topbar">
+    <div class="brand">
+      <h1>AI 算力产业链 <span>深度分析</span></h1>
+      <div class="meta">更新时间：<b>2024-05-27</b> · 数据来源：<b>1171 条研报</b> + LightCounting + SemiAnalysis + Bernstein · 演示版本</div>
+    </div>
+    <div style="font-size:12px;color:var(--text-2);">方法论 + 工具链</div>
+  </header>
+
+  <!-- ===== Tabs ===== -->
+  <nav class="tabs" id="tabs">
+    <button data-tab="t1" class="active">总览</button>
+    <button data-tab="t2">光模块</button>
+    <button data-tab="t3">PCB/HDI</button>
+    <button data-tab="t4">HBM/存储</button>
+    <button data-tab="t5">CPU/GPU</button>
+    <button data-tab="t6">下游企业</button>
+    <button data-tab="t7">算力能源</button>
+    <button data-tab="t8">太空算力</button>
+    <button data-tab="t9">核心标的</button>
+    <button data-tab="t10">估值全景</button>
+    <button data-tab="t11">AI 新闻</button>
+  </nav>
+
+  <main>
+
+    <!-- ============================================================ -->
+    <!-- TAB 1: 总览 -->
+    <!-- ============================================================ -->
+    <section id="t1" class="tab-panel active">
+      <div class="panel-title">AI 算力产业总览</div>
+      <div class="panel-subtitle">NVIDIA GB200 NVL72 单机柜 BOM 拆解 + 核心结论 + Top 5 标的</div>
+
+      <div class="grid grid-4 gap-bottom">
+        <div class="metric">
+          <div class="label">L1 模块评分 <span class="badge">估值分位 &lt; 50%</span></div>
+          <div class="value">63.8</div>
+          <div class="desc">综合评分（行业景气 + 业绩 + 估值）</div>
+        </div>
+        <div class="metric">
+          <div class="label">产业链环节 <span class="badge">5 级架构</span></div>
+          <div class="value">14</div>
+          <div class="desc">上游材料 → 器件 → 模组 → 系统 → 下游</div>
+        </div>
+        <div class="metric">
+          <div class="label">核心标的 <span class="badge">6 月深度覆盖</span></div>
+          <div class="value">15</div>
+          <div class="desc">A 股 + 海外 + 未上市</div>
+        </div>
+        <div class="metric">
+          <div class="label">单机柜 BOM <span class="badge">NVL72 · 72×B200</span></div>
+          <div class="value">$3<span class="unit">M</span></div>
+          <div class="desc">约 2,160 万人民币 / 柜</div>
+        </div>
+      </div>
+
+      <div class="grid grid-2 gap-bottom">
+        <div class="card">
+          <h3>核心结论 · 估值合理区间</h3>
+          <div class="conclusion ok"><span class="tag">OK</span>PCB/HDI 估值相对合理，产能壁垒高 + 业绩确定性强</div>
+          <div class="conclusion ok"><span class="tag">OK</span>北美云厂商资本开支 Q1 环比 +60%，全年指引超预期</div>
+          <div class="conclusion ok"><span class="tag">OK</span>UBB 全面升级，GB200 单柜价值量翻倍</div>
+        </div>
+        <div class="card">
+          <h3>估值偏高风险</h3>
+          <div class="conclusion warn"><span class="tag">RISK</span>光模块龙头 ~2025 预测 PE 42x，业绩兑现压力大</div>
+          <div class="conclusion warn"><span class="tag">RISK</span>国产 GPU ~PE 241x，估值显著高于海外对标</div>
+          <div class="conclusion warn"><span class="tag">RISK</span>国产 AI 芯片 ~PE 60x，需警惕涨价信仰破局</div>
+        </div>
+      </div>
+
+      <div class="grid grid-2 gap-bottom">
+        <div class="card">
+          <h3>NVIDIA B200 单卡 BOM 拆解（~$30,000）</h3>
+          <div class="bom-bar"><span class="lbl">GPU Die</span><div class="bar"><div class="fill" style="width:37%">37%</div></div><span class="val">~$11,000</span></div>
+          <div class="bom-bar"><span class="lbl">HBM3e</span><div class="bar"><div class="fill" style="width:32%">32%</div></div><span class="val">~$9,500</span></div>
+          <div class="bom-bar"><span class="lbl">CoWoS 封装</span><div class="bar"><div class="fill" style="width:10%">10%</div></div><span class="val">~$3,000</span></div>
+          <div class="bom-bar"><span class="lbl">ABF 载板</span><div class="bar"><div class="fill" style="width:4%">4%</div></div><span class="val">~$1,200</span></div>
+          <div class="bom-bar"><span class="lbl">散热模组</span><div class="bar"><div class="fill" style="width:3%">3%</div></div><span class="val">~$900</span></div>
+          <div class="bom-bar"><span class="lbl">测试 / 良率</span><div class="bar"><div class="fill" style="width:5%">5%</div></div><span class="val">~$1,500</span></div>
+          <div class="bom-bar"><span class="lbl">辅助元件</span><div class="bar"><div class="fill" style="width:2%">2%</div></div><span class="val">~$600</span></div>
+          <div class="bom-bar"><span class="lbl">其他 (PCB/连接器)</span><div class="bar"><div class="fill" style="width:7%">7%</div></div><span class="val">~$2,300</span></div>
+        </div>
+
+        <div class="card">
+          <h3>GB200 NVL72 单机柜 BOM 拆解（~$3M）</h3>
+          <div class="bom-bar"><span class="lbl">GPU 模组 (72×B200)</span><div class="bar"><div class="fill" style="width:72%">72%</div></div><span class="val">~$2,160K</span></div>
+          <div class="bom-bar"><span class="lbl">PCB / HDI</span><div class="bar"><div class="fill" style="width:6%">6%</div></div><span class="val">~$179K</span></div>
+          <div class="bom-bar"><span class="lbl">液冷系统</span><div class="bar"><div class="fill" style="width:4%">4%</div></div><span class="val">~$120K</span></div>
+          <div class="bom-bar"><span class="lbl">光模块</span><div class="bar"><div class="fill" style="width:4%">4%</div></div><span class="val">~$120K</span></div>
+          <div class="bom-bar"><span class="lbl">CPU</span><div class="bar"><div class="fill" style="width:3%">3%</div></div><span class="val">~$90K</span></div>
+          <div class="bom-bar"><span class="lbl">NVLink / 网线</span><div class="bar"><div class="fill" style="width:3%">3%</div></div><span class="val">~$90K</span></div>
+          <div class="bom-bar"><span class="lbl">电源</span><div class="bar"><div class="fill" style="width:3%">3%</div></div><span class="val">~$90K</span></div>
+          <div class="bom-bar"><span class="lbl">机柜 / 装配</span><div class="bar"><div class="fill" style="width:5%">5%</div></div><span class="val">~$151K</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Top 5 核心标的（综合评分）</h3>
+        <table class="data">
+          <thead>
+            <tr><th>标的</th><th>代码</th><th>环节</th><th class="num">综合评分</th><th>不可替代性</th><th>核心优势</th><th class="num">PE (TTM)</th><th class="num">市值 (亿)</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>沪电股份</td><td>002463</td><td><span class="tag-pill purple">PCB</span></td><td class="num"><b>82</b></td><td><span class="tag-pill green">高</span> UBB / 交换机主供</td><td>层数 44 层工艺壁垒，北美云客户绑定</td><td class="num">28x</td><td class="num">580</td></tr>
+            <tr><td>胜宏科技</td><td>300476</td><td><span class="tag-pill purple">HDI</span></td><td class="num"><b>79</b></td><td><span class="tag-pill green">高</span> 英伟达 HDI 一供</td><td>mSAP 工艺产能领先，UBB 良率最高</td><td class="num">32x</td><td class="num">340</td></tr>
+            <tr><td>中际旭创</td><td>300308</td><td><span class="tag-pill cyan">光模块</span></td><td class="num"><b>77</b></td><td><span class="tag-pill green">高</span> 全球 800G/1.6T 一供</td><td>绑定 NVIDIA + Google，1.6T 率先量产</td><td class="num">35x</td><td class="num">1,250</td></tr>
+            <tr><td>工业富联</td><td>601138</td><td><span class="tag-pill orange">系统集成</span></td><td class="num"><b>74</b></td><td><span class="tag-pill orange">中</span> GB200 整柜代工</td><td>整柜 NPI 能力 + 液冷集成</td><td class="num">22x</td><td class="num">4,200</td></tr>
+            <tr><td>寒武纪</td><td>688256</td><td><span class="tag-pill orange">国产 AI 芯片</span></td><td class="num"><b>68</b></td><td><span class="tag-pill orange">中</span> 思元 590 推理主控</td><td>训练端突破 + 国产化替代预期</td><td class="num warn">~241x</td><td class="num">2,800</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- TAB 2: 光模块 -->
+    <!-- ============================================================ -->
+    <section id="t2" class="tab-panel">
+      <div class="panel-title">光模块深度分析</div>
+      <div class="panel-subtitle">1.6T 光模块 BOM 拆解 + 中际旭创 / 天孚通信 / 源杰科技 标的分析</div>
+
+      <div class="grid grid-3 gap-bottom">
+        <div class="metric">
+          <div class="label">全球 1.6T 市场 <span class="badge">2025E</span></div>
+          <div class="value">~$30<span class="unit">亿</span></div>
+          <div class="desc">2026E 翻倍至 ~$60 亿</div>
+        </div>
+        <div class="metric">
+          <div class="label">中际旭创全球份额</div>
+          <div class="value">50<span class="unit">%+</span></div>
+          <div class="desc">800G / 1.6T 双代际领跑</div>
+        </div>
+        <div class="metric">
+          <div class="label">单只 BOM <span class="badge">1.6T</span></div>
+          <div class="value">$850–1,500</div>
+          <div class="desc">较 800G 单价 +150-180%</div>
+        </div>
+      </div>
+
+      <div class="card gap-bottom">
+        <h3>1.6T 光模块 BOM 拆解</h3>
+        <table class="data">
+          <thead>
+            <tr><th>子部件</th><th>占比</th><th>金额 ($)</th><th>技术壁垒</th><th>海外供应商</th><th>A 股标的</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>EML 激光器芯片</td><td>25–30%</td><td class="num">$300–400</td><td><span class="tag-pill red">极高</span></td><td>Coherent / Lumentum / Broadcom</td><td><b>源杰科技</b>（国产突破）</td></tr>
+            <tr><td>PAM4 DSP 芯片</td><td>20–25%</td><td class="num">$200–350</td><td><span class="tag-pill red">极高</span></td><td>Broadcom / Marvell</td><td>—</td></tr>
+            <tr><td>光纤组件</td><td>8–12%</td><td class="num">$80–150</td><td><span class="tag-pill orange">高</span></td><td>YOFC / Coherent</td><td>—</td></tr>
+            <tr><td>TIA / Driver</td><td>5–8%</td><td class="num">$50–100</td><td><span class="tag-pill orange">高</span></td><td>Semtech / MACOM</td><td><b>天孚通信</b></td></tr>
+            <tr><td>柔性 PCB (FPC)</td><td>5–7%</td><td class="num">$50–90</td><td><span class="tag-pill orange">中</span></td><td>—</td><td><b>沪电 / 深南</b></td></tr>
+            <tr><td>MPO / MTP 连接器</td><td>4–6%</td><td class="num">$40–80</td><td><span class="tag-pill orange">中</span></td><td>US Conec / Senko</td><td>—</td></tr>
+            <tr><td>透镜 / 光学组件</td><td>4–6%</td><td class="num">$40–80</td><td><span class="tag-pill orange">中</span></td><td>Lumentum / Fabrinet</td><td>—</td></tr>
+            <tr><td>封装与测试</td><td>10–15%</td><td class="num">$100–200</td><td><span class="tag-pill purple">高</span></td><td>Fabrinet (主代工)</td><td>中际旭创 (自研封装)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="grid grid-2 gap-bottom">
+        <div class="stock">
+          <div class="head">
+            <span class="name">中际旭创 <span class="code">300308.SZ</span></span>
+            <span class="pe">PE <b>35x</b> · 市值 <b>1,250 亿</b></span>
+          </div>
+          <div class="logic">
+            全球光模块绝对龙头，800G 份额 50%+，1.6T 率先量产交付北美四大云。<br>
+            <b>不可替代性：</b>与 NVIDIA / Google / Meta 的深度定制合作 + 自研硅光 + Fabrinet 之外的封装能力。<br>
+            <b>2025E 利润增速：</b><span class="pos">+262%</span>
+          </div>
+          <div class="small">综合不可替代性</div>
+          <div class="score-bar"><div class="fill" style="width:90%"></div></div>
+        </div>
+        <div class="stock">
+          <div class="head">
+            <span class="name">天孚通信 <span class="code">300394.SZ</span></span>
+            <span class="pe">PE <b>40x</b> · 市值 <b>540 亿</b></span>
+          </div>
+          <div class="logic">
+            光模块"无源器件 + 有源封装"平台型供应商，深度绑定中际旭创 / Coherent。<br>
+            <b>不可替代性：</b>FAU / MPO / 隔离器多项市占第一，硅光无源器件先发优势。<br>
+            <b>2025E 利润增速：</b><span class="pos">+85%</span>
+          </div>
+          <div class="small">综合不可替代性</div>
+          <div class="score-bar"><div class="fill" style="width:78%"></div></div>
+        </div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="card">
+          <h3>全球 1.6T 光模块竞争格局</h3>
+          <table class="data">
+            <thead><tr><th>厂商</th><th>国别</th><th class="num">份额</th><th>关键客户</th></tr></thead>
+            <tbody>
+              <tr><td><b>中际旭创</b></td><td>🇨🇳</td><td class="num">50%+</td><td>NVIDIA / Google / Meta</td></tr>
+              <tr><td>Coherent / Finisar</td><td>🇺🇸</td><td class="num">~15%</td><td>AWS / Microsoft</td></tr>
+              <tr><td>Fabrinet (代工)</td><td>🇺🇸/TH</td><td class="num">~12%</td><td>多家品牌客户</td></tr>
+              <tr><td>Cisco / Acacia</td><td>🇺🇸</td><td class="num">~8%</td><td>自用 + 电信</td></tr>
+              <tr><td>新易盛</td><td>🇨🇳</td><td class="num">~6%</td><td>AWS / Meta</td></tr>
+              <tr><td>Source Photonics</td><td>🇺🇸</td><td class="num">~5%</td><td>电信运营商</td></tr>
+              <tr><td>其他</td><td>—</td><td class="num">~4%</td><td>—</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card">
+          <h3>800G → 1.6T 成本对比（单只 BOM）</h3>
+          <table class="data">
+            <thead><tr><th>子部件</th><th class="num">800G ($)</th><th class="num">1.6T ($)</th><th class="num">变化</th></tr></thead>
+            <tbody>
+              <tr><td>EML 光芯片</td><td class="num">800–1,000</td><td class="num">2,000–2,800</td><td class="num pos">+150–180%</td></tr>
+              <tr><td>PAM4 DSP</td><td class="num">350–450</td><td class="num">700–900</td><td class="num pos">+100%</td></tr>
+              <tr><td>光纤组件</td><td class="num">60–90</td><td class="num">120–180</td><td class="num pos">+100%</td></tr>
+              <tr><td>TIA / Driver</td><td class="num">30–50</td><td class="num">60–100</td><td class="num pos">+100%</td></tr>
+              <tr><td>封装测试</td><td class="num">80–120</td><td class="num">150–220</td><td class="num pos">+85%</td></tr>
+              <tr style="background:var(--bg-2);font-weight:600;"><td>合计</td><td class="num">~$1,300</td><td class="num">~$3,000</td><td class="num pos">+130%</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- TAB 3: PCB / HDI -->
+    <!-- ============================================================ -->
+    <section id="t3" class="tab-panel">
+      <div class="panel-title">PCB / HDI 深度分析</div>
+      <div class="panel-subtitle">AI 服务器 PCB 类型与价值量 + 价值拆解（$100 → $300 / GPU）+ 标的卡片</div>
+
+      <div class="grid grid-4 gap-bottom">
+        <div class="metric">
+          <div class="label">UBB 单价（单柜）</div>
+          <div class="value">$171<span class="unit">K</span></div>
+          <div class="desc">20-26 层 M8 材料</div>
+        </div>
+        <div class="metric">
+          <div class="label">层数升级</div>
+          <div class="value">20→44<span class="unit">层</span></div>
+          <div class="desc">工艺壁垒极高</div>
+        </div>
+        <div class="metric">
+          <div class="label">PCB 单 GPU 价值</div>
+          <div class="value">$100→300</div>
+          <div class="desc">材料 + 工艺 + 尺寸三重升级</div>
+        </div>
+        <div class="metric">
+          <div class="label">沪电 + 胜宏合计份额</div>
+          <div class="value">~60<span class="unit">%</span></div>
+          <div class="desc">UBB + HDI 国内双寡头</div>
+        </div>
+      </div>
+
+      <div class="card gap-bottom">
+        <h3>AI 服务器 PCB 类型与价值量</h3>
+        <table class="data">
+          <thead>
+            <tr><th>类型</th><th>层数</th><th>材料</th><th class="num">单价 ($/张)</th><th class="num">单机柜价值</th><th>海外供应商</th><th>A 股主供</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><b>UBB 通用底板</b></td><td>20-26 层</td><td>M8 Ultra Low Loss</td><td class="num">$8,000-12,000</td><td class="num">~$90K</td><td>—</td><td><b>胜宏科技</b>（份额第一）</td></tr>
+            <tr><td>GPU 主板 HDI</td><td>12-16 层</td><td>M6/M7</td><td class="num">$600-900</td><td class="num">~$54K</td><td>—</td><td><b>沪电股份</b> / 胜宏</td></tr>
+            <tr><td>交换机背板</td><td>30-40 层</td><td>M8</td><td class="num">$4,000-6,000</td><td class="num">~$15K</td><td>—</td><td><b>沪电股份</b>（份额第一）</td></tr>
+            <tr><td>Switch 主板 PCB</td><td>16-20 层</td><td>M6</td><td class="num">$1,500-2,500</td><td class="num">~$8K</td><td>—</td><td>沪电 / 胜宏</td></tr>
+            <tr><td>电源 PCB</td><td>8-12 层</td><td>FR4 + 厚铜</td><td class="num">$300-500</td><td class="num">~$4K</td><td>—</td><td>深南电路 / 兴森科技</td></tr>
+            <tr style="background:var(--bg-2);font-weight:600;"><td>合计（单柜）</td><td>—</td><td>—</td><td>—</td><td class="num">~$171K</td><td>—</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card gap-bottom">
+        <h3>PCB 价值拆解：$100 → $300 / GPU</h3>
+        <div class="grid grid-2">
+          <div>
+            <div class="bom-bar"><span class="lbl">层数翻倍</span><div class="bar"><div class="fill" style="width:80%">+80%</div></div><span class="val">20→44 层</span></div>
+            <div class="bom-bar"><span class="lbl">材料升级</span><div class="bar"><div class="fill" style="width:70%">+70%</div></div><span class="val">M6→M8</span></div>
+            <div class="bom-bar"><span class="lbl">工艺升级</span><div class="bar"><div class="fill" style="width:50%">+50%</div></div><span class="val">减成法→mSAP</span></div>
+            <div class="bom-bar"><span class="lbl">尺寸变大</span><div class="bar"><div class="fill" style="width:100%">+100%</div></div><span class="val">配合 HBM 堆叠</span></div>
+          </div>
+          <div>
+            <div class="conclusion info"><span class="tag">DRIVER</span>UBB 升级是本轮 PCB 价值量翻倍的核心驱动，胜宏科技作为 NVIDIA UBB 一供直接受益。</div>
+            <div class="conclusion info"><span class="tag">MATERIAL</span>M8 Ultra Low Loss 覆铜板目前由日企（松下 / 三菱瓦斯）和台企（联茂电子）主导，国产替代空间大。</div>
+            <div class="conclusion ok"><span class="tag">壁垒</span>44 层压合 + mSAP 工艺全球仅 5 家厂商能做，新进入者难度极高。</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-3">
+        <div class="stock">
+          <div class="head">
+            <span class="name">沪电股份 <span class="code">002463.SZ</span></span>
+            <span class="pe">PE <b>28x</b></span>
+          </div>
+          <div class="logic">
+            <b>核心定位：</b>北美云客户交换机背板主供，44 层工艺国内最强。<br>
+            <b>业绩催化：</b>AI 交换机订单 2024 H2 加速，UBB 良率突破。<br>
+            <b>不可替代性：</b>绑定 Cisco / Arista，交换机 PCB 份额第一。
+          </div>
+          <div class="small">综合评分 82 · 不可替代性 9/10</div>
+          <div class="score-bar"><div class="fill" style="width:82%"></div></div>
+        </div>
+        <div class="stock">
+          <div class="head">
+            <span class="name">胜宏科技 <span class="code">300476.SZ</span></span>
+            <span class="pe">PE <b>32x</b></span>
+          </div>
+          <div class="logic">
+            <b>核心定位：</b>NVIDIA UBB 一供，mSAP 产能全球第一。<br>
+            <b>业绩催化：</b>GB200 单柜 UBB 价值量翻倍，2025 业绩翻倍预期。<br>
+            <b>不可替代性：</b>英伟达指定供应商，替代风险极低。
+          </div>
+          <div class="small">综合评分 79 · 不可替代性 9/10</div>
+          <div class="score-bar"><div class="fill" style="width:79%"></div></div>
+        </div>
+        <div class="stock">
+          <div class="head">
+            <span class="name">深南电路 <span class="code">002916.SZ</span></span>
+            <span class="pe">PE <b>35x</b></span>
+          </div>
+          <div class="logic">
+            <b>核心定位：</b>通信 + 服务器 PCB 综合龙头，IC 载板布局完整。<br>
+            <b>业绩催化：</b>AI 服务器订单加速，FCBGA 载板国产替代。<br>
+            <b>不可替代性：</b>封装基板技术国内最全。
+          </div>
+          <div class="small">综合评分 68 · 不可替代性 7/10</div>
+          <div class="score-bar"><div class="fill" style="width:68%"></div></div>
+        </div>
+      </div>
+
+      <div class="card gap-bottom" style="margin-top:16px;">
+        <h3>全球 PCB 竞争格局 + 材料等级价差</h3>
+        <div class="grid grid-2">
+          <div>
+            <table class="data">
+              <thead><tr><th>厂商</th><th>国别</th><th>AI 服务器 PCB 角色</th></tr></thead>
+              <tbody>
+                <tr><td><b>沪电股份</b></td><td>🇨🇳</td><td>交换机背板 / GPU 主板</td></tr>
+                <tr><td><b>胜宏科技</b></td><td>🇨🇳</td><td>UBB / HDI 一供</td></tr>
+                <tr><td>TTM Technologies</td><td>🇺🇸</td><td>北美云客户主供</td></tr>
+                <tr><td>Unimicron</td><td>🇹🇼</td><td>高端 IC 载板</td></tr>
+                <tr><td>深南电路</td><td>🇨🇳</td><td>通信 + 服务器</td></tr>
+                <tr><td>Nan Ya PCB</td><td>🇹🇼</td><td>ABF 载板</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div>
+            <table class="data">
+              <thead><tr><th>CCL 材料等级</th><th class="num">单价 ($/㎡)</th><th>应用</th></tr></thead>
+              <tbody>
+                <tr><td>Standard FR4</td><td class="num">$8-15</td><td>消费电子</td></tr>
+                <tr><td>Mid Loss</td><td class="num">$30-50</td><td>普通服务器</td></tr>
+                <tr><td>Low Loss</td><td class="num">$80-120</td><td>AI 服务器主板</td></tr>
+                <tr><td>Very Low Loss (M6)</td><td class="num">$150-220</td><td>HDI / GPU OAM</td></tr>
+                <tr><td>Ultra Low Loss (M7/M8)</td><td class="num">$400-600</td><td>UBB / 背板</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- TAB 4: HBM / 存储 -->
+    <!-- ============================================================ -->
+    <section id="t4" class="tab-panel">
+      <div class="panel-title">HBM / 存储 深度分析</div>
+      <div class="panel-subtitle">HBM3e 单颗成本拆解 + 代际演进 + A 股关联</div>
+
+      <div class="note-bar">
+        ⚠️ <b>A 股没有 HBM 直接标的</b>。间接受益环节：<b>封装测试</b>（通富微电 / 长川科技）+ <b>设备</b>（北方华创 / 中微）+ <b>TSV 材料</b>。
+      </div>
+
+      <div class="grid grid-4 gap-bottom">
+        <div class="metric">
+          <div class="label">SK Hynix 全球份额</div>
+          <div class="value">~70<span class="unit">%</span></div>
+          <div class="desc">HBM3 / HBM3e 绝对领先</div>
+        </div>
+        <div class="metric">
+          <div class="label">HBM3e 单颗成本</div>
+          <div class="value">~$280</div>
+          <div class="desc">12 层堆叠，单颗 24GB</div>
+        </div>
+        <div class="metric">
+          <div class="label">B200 单卡 HBM 颗数</div>
+          <div class="value">8<span class="unit">颗</span></div>
+          <div class="desc">总容量 192GB</div>
+        </div>
+        <div class="metric">
+          <div class="label">2025E HBM 市场</div>
+          <div class="value">~$80<span class="unit">B</span></div>
+          <div class="desc">YoY +90%</div>
+        </div>
+      </div>
+
+      <div class="grid grid-2 gap-bottom">
+        <div class="card">
+          <h3>HBM3e 单颗成本拆解（~$280）</h3>
+          <div class="bom-bar"><span class="lbl">DRAM Die（12 层）</span><div class="bar"><div class="fill" style="width:55%">55%</div></div><span class="val">~$155</span></div>
+          <div class="bom-bar"><span class="lbl">TSV 工艺</span><div class="bar"><div class="fill" style="width:15%">15%</div></div><span class="val">~$42</span></div>
+          <div class="bom-bar"><span class="lbl">先进封装</span><div class="bar"><div class="fill" style="width:12%">12%</div></div><span class="val">~$34</span></div>
+          <div class="bom-bar"><span class="lbl">测试</span><div class="bar"><div class="fill" style="width:8%">8%</div></div><span class="val">~$22</span></div>
+          <div class="bom-bar"><span class="lbl">基板 / PCB</span><div class="bar"><div class="fill" style="width:6%">6%</div></div><span class="val">~$17</span></div>
+          <div class="bom-bar"><span class="lbl">其他</span><div class="bar"><div class="fill" style="width:4%">4%</div></div><span class="val">~$10</span></div>
+        </div>
+
+        <div class="card">
+          <h3>HBM 代际演进</h3>
+          <table class="data">
+            <thead><tr><th>代际</th><th>堆叠层数</th><th>单颗容量</th><th>带宽 (GB/s)</th><th class="num">单颗 $</th></tr></thead>
+            <tbody>
+              <tr><td>HBM2</td><td>8 层</td><td>8 GB</td><td>410</td><td class="num">~$50</td></tr>
+              <tr><td>HBM2e</td><td>8 / 12 层</td><td>16 GB</td><td>460</td><td class="num">~$90</td></tr>
+              <tr><td>HBM3</td><td>8 / 12 层</td><td>16-24 GB</td><td>820</td><td class="num">~$160</td></tr>
+              <tr style="background:rgba(139,92,246,0.1);"><td><b>HBM3e</b></td><td><b>12 层</b></td><td><b>24-36 GB</b></td><td><b>1,200</b></td><td class="num"><b>~$280</b></td></tr>
+              <tr><td>HBM4 (2026)</td><td>16 层</td><td>48 GB</td><td>1,800</td><td class="num warn">~$450</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>全球 HBM 竞争格局</h3>
+        <table class="data">
+          <thead><tr><th>厂商</th><th>国别</th><th class="num">HBM3e 份额</th><th>关键客户</th><th>技术节点</th></tr></thead>
+          <tbody>
+            <tr><td><b>SK Hynix</b></td><td>🇰🇷</td><td class="num">~70%</td><td>NVIDIA（主供）</td><td>1bnm / 1anm</td></tr>
+            <tr><td>Samsung</td><td>🇰🇷</td><td class="num">~20%</td><td>AMD / Google</td><td>1bnm</td></tr>
+            <tr><td>Micron</td><td>🇺🇸</td><td class="num">~10%</td><td>NVIDIA（二供）</td><td>1bnm</td></tr>
+            <tr><td>CXMT (长鑫)</td><td>🇨🇳</td><td class="num">研发中</td><td>—</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card gap-bottom" style="margin-top:16px;">
+        <h3>A 股关联标的（HBM 间接受益）</h3>
+        <div class="grid grid-3">
+          <div class="stock">
+            <div class="head">
+              <span class="name">通富微电 <span class="code">002156.SZ</span></span>
+              <span class="pe">PE <b>42x</b></span>
+            </div>
+            <div class="logic">
+              <b>角色：</b>HBM 封装 + AMD CPU/GPU 封测主供。<br>
+              <b>受益逻辑：</b>AMD MI300 放量 + HBM 国产化封装订单。
+            </div>
+          </div>
+          <div class="stock">
+            <div class="head">
+              <span class="name">长川科技 <span class="code">300604.SZ</span></span>
+              <span class="pe">PE <b>55x</b></span>
+            </div>
+            <div class="logic">
+              <b>角色：</b>半导体测试设备龙头，HBM 测试机国产唯一。<br>
+              <b>受益逻辑：</b>HBM 测试机订单 + SoC 测试主控国产替代。
+            </div>
+          </div>
+          <div class="stock">
+            <div class="head">
+              <span class="name">雅克科技 <span class="code">002409.SZ</span></span>
+              <span class="pe">PE <b>38x</b></span>
+            </div>
+            <div class="logic">
+              <b>角色：</b>前驱体材料 + TSV 深孔填充材料主供。<br>
+              <b>受益逻辑：</b>HBM 扩产 + 先进封装材料放量。
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- TAB 5: CPU / GPU -->
+    <!-- ============================================================ -->
+    <section id="t5" class="tab-panel">
+      <div class="panel-title">CPU / GPU 深度分析</div>
+      <div class="panel-subtitle">推理时代 CPU 角色提升 + 国产 AI 芯片竞争格局</div>
+
+      <div class="grid grid-4 gap-bottom">
+        <div class="metric">
+          <div class="label">2024 中国 AI 芯片市场</div>
+          <div class="value">1,206<span class="unit">亿</span></div>
+          <div class="desc">YoY +85%</div>
+        </div>
+        <div class="metric">
+          <div class="label">2025 国产化率</div>
+          <div class="value">46<span class="unit">%</span></div>
+          <div class="desc">从 30% → 46% 跃升</div>
+        </div>
+        <div class="metric">
+          <div class="label">2025 国产 AI 芯片交付</div>
+          <div class="value">165<span class="unit">万颗</span></div>
+          <div class="desc">训练 35 万 + 推理 130 万</div>
+        </div>
+        <div class="metric">
+          <div class="label">华为昇腾份额</div>
+          <div class="value">23<span class="unit">%</span></div>
+          <div class="desc">国产绝对龙头</div>
+        </div>
+      </div>
+
+      <div class="card gap-bottom">
+        <h3>推理时代：CPU 角色提升逻辑链</h3>
+        <div class="conclusion info"><span class="tag">TREND</span>Agent 应用爆发 → Tokenization 处理激增 → KV Cache 管理需求 → CPU 协同地位上升</div>
+        <div class="conclusion info"><span class="tag">DATA</span>单次 Agent 调用平均 4,200 次 CPU 指令调度，是传统推理的 8 倍</div>
+        <div class="conclusion ok"><span class="tag">受益</span>海光信息（x86 永久授权）+ 寒武纪（自研指令集）双线受益</div>
+      </div>
+
+      <div class="grid grid-2 gap-bottom">
+        <div class="stock">
+          <div class="head">
+            <span class="name">海光信息 <span class="code">688041.SH</span></span>
+            <span class="pe">PE <b>78x</b></span>
+          </div>
+          <div class="logic">
+            <b>核心定位：</b>x86 永久授权 + 深算 DCU 国内唯一对标 AMD CDNA。<br>
+            <b>业绩催化：</b>三大运营商 + 互联网 DCU 订单加速，2024 营收预计 +120%。<br>
+            <b>不可替代性：</b>x86 生态在政企 + 金融 + 电信几乎垄断，DCU 是国产唯一兼容 CUDA 替代路径。
+          </div>
+          <div class="small">综合评分 76 · 不可替代性 9/10</div>
+          <div class="score-bar"><div class="fill" style="width:76%"></div></div>
+        </div>
+        <div class="stock">
+          <div class="head">
+            <span class="name">寒武纪 <span class="code">688256.SH</span></span>
+            <span class="pe">PE <b class="warn">~241x</b></span>
+          </div>
+          <div class="logic">
+            <b>核心定位：</b>思元 590 训练端突破 + 思元 370 推理放量。<br>
+            <b>业绩催化：</b>国产替代 + 训练芯片首次规模出货。<br>
+            <b>风险：</b>估值过高（PE 241x），需警惕业绩兑现不及预期。
+          </div>
+          <div class="small">综合评分 68 · 估值偏高</div>
+          <div class="score-bar"><div class="fill" style="width:68%"></div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>国产 AI 芯片竞争格局</h3>
+        <table class="data">
+          <thead><tr><th>厂商</th><th>代表产品</th><th class="num">份额</th><th>对标 H100 性能</th><th>生态</th></tr></thead>
+          <tbody>
+            <tr><td><b>华为昇腾</b></td><td>910C / 910B</td><td class="num">23%</td><td>~60% (FP16)</td><td>CANN (CUDA-like)</td></tr>
+            <tr><td><b>寒武纪</b></td><td>思元 590 / 370</td><td class="num">9%</td><td>~50%</td><td>自研 MLU</td></tr>
+            <tr><td><b>海光信息</b></td><td>深算 DCU</td><td class="num">8%</td><td>~55%</td><td><span class="tag-pill green">ROCm 兼容</span></td></tr>
+            <tr><td>壁仞科技</td><td>BR104</td><td class="num">4%</td><td>~45%</td><td>自研 BIRENSUPA</td></tr>
+            <tr><td>摩尔线程</td><td>MTT S4000</td><td class="num">3%</td><td>~35%</td><td>MUSA</td></tr>
+            <tr><td>天数智芯</td><td>天垓 100</td><td class="num">2%</td><td>~40%</td><td>自研</td></tr>
+            <tr><td>其他 + 进口</td><td>—</td><td class="num">51%</td><td>—</td><td>NVIDIA CUDA 主导</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- TAB 6: 下游企业 -->
+    <!-- ============================================================ -->
+    <section id="t6" class="tab-panel">
+      <div class="panel-title">算力下游企业</div>
+      <div class="panel-subtitle">全球云厂商资本开支 + 大模型公司估值格局</div>
+
+      <div class="card gap-bottom">
+        <h3>全球云厂商 2024 资本开支</h3>
+        <table class="data">
+          <thead><tr><th>云厂商</th><th class="num">Q1 实际 ($B)</th><th class="num">2024 全年指引 ($B)</th><th class="num">YoY</th><th>AI 占比</th></tr></thead>
+          <tbody>
+            <tr><td><b>Amazon (AWS)</b></td><td class="num">44.2</td><td class="num">~210</td><td class="num pos">+60%</td><td>~55%</td></tr>
+            <tr><td><b>Microsoft</b></td><td class="num">31.9</td><td class="num">~190</td><td class="num pos">+57%</td><td>~60%</td></tr>
+            <tr><td><b>Google</b></td><td class="num">23.9</td><td class="num">~110</td><td class="num pos">+49%</td><td>~50%</td></tr>
+            <tr><td><b>Meta</b></td><td class="num">13.7</td><td class="num">~95</td><td class="num pos">+42%</td><td>~45%</td></tr>
+            <tr style="background:var(--bg-2);font-weight:600;"><td>四大合计</td><td class="num">113.7</td><td class="num">~605</td><td class="num pos">+52%</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card gap-bottom">
+        <h3>国内互联网厂商 2024 资本开支</h3>
+        <table class="data">
+          <thead><tr><th>厂商</th><th class="num">2024 指引 (亿 RMB)</th><th class="num">YoY</th><th>重点投向</th></tr></thead>
+          <tbody>
+            <tr><td><b>阿里巴巴</b></td><td class="num">3,800+</td><td class="num pos">+200%</td><td>通义 + 云 + 平头哥</td></tr>
+            <tr><td><b>腾讯</b></td><td class="num">360+</td><td class="num pos">+80%</td><td>混元 + GPU 集群</td></tr>
+            <tr><td><b>字节跳动</b></td><td class="num">2,000+</td><td class="num pos">+100%</td><td>豆包 + 自研芯片</td></tr>
+            <tr><td>百度</td><td class="num">~200</td><td class="num pos">+15%</td><td>文心 + 自动驾驶</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="grid grid-2 gap-bottom">
+        <div class="card">
+          <h3>海外大模型公司估值</h3>
+          <table class="data">
+            <thead><tr><th>公司</th><th class="num">估值 ($B)</th><th>最新一轮</th><th>2024 营收 ($B)</th></tr></thead>
+            <tbody>
+              <tr><td><b>OpenAI</b></td><td class="num">~840</td><td>2024-02 融资</td><td class="num">~3.5</td></tr>
+              <tr><td><b>Anthropic</b></td><td class="num">~80</td><td>2024-03 融资</td><td class="num">~1.0</td></tr>
+              <tr><td>xAI</td><td class="num">~50</td><td>2024-05 融资</td><td class="num">~0.1</td></tr>
+              <tr><td>Inflection</td><td class="num">~4</td><td>2023 融资</td><td class="num">—</td></tr>
+              <tr><td>Cohere</td><td class="num">~5</td><td>2024-06 融资</td><td class="num">~0.2</td></tr>
+            </tbody>
+          </table>
+          <div class="note-bar" style="margin-top:12px;">⚠️ <b>数据可能滞后</b>，建议接入 API 实时更新</div>
+        </div>
+
+        <div class="card">
+          <h3>国内大模型公司格局</h3>
+          <table class="data">
+            <thead><tr><th>梯队</th><th>公司</th><th class="num">估值 ($B)</th><th>代表产品</th></tr></thead>
+            <tbody>
+              <tr><td rowspan="2"><span class="tag-pill green">第一梯队</span></td><td>智谱 AI</td><td class="num">~3.0</td><td>GLM-4 / ChatGLM</td></tr>
+              <tr><td>月之暗面</td><td class="num">~3.0</td><td>Kimi (长文本)</td></tr>
+              <tr><td rowspan="3"><span class="tag-pill orange">第二梯队</span></td><td>MiniMax</td><td class="num">~2.5</td><td>MiniMax / Hailuo</td></tr>
+              <tr><td>百川智能</td><td class="num">~2.0</td><td>Baichuan</td></tr>
+              <tr><td>零一万物</td><td class="num">~1.5</td><td>Yi</td></tr>
+              <tr><td rowspan="2"><span class="tag-pill cyan">中国头部</span></td><td>阿里通义</td><td class="num">—（已上市）</td><td>Qwen2.5</td></tr>
+              <tr><td>DeepSeek</td><td class="num">未公开</td><td>DeepSeek-V2</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- TAB 7: 算力能源 -->
+    <!-- ============================================================ -->
+    <section id="t7" class="tab-panel">
+      <div class="panel-title">算力能源（AI 的尽头是能源）</div>
+      <div class="panel-subtitle">功耗演进 + 全球数据中心用电 + 液冷革命 + 中美能源结构对比</div>
+
+      <div class="grid grid-4 gap-bottom">
+        <div class="metric">
+          <div class="label">GPU 功耗演进</div>
+          <div class="value">700→1,400<span class="unit">W</span></div>
+          <div class="desc">A100 → B200</div>
+        </div>
+        <div class="metric">
+          <div class="label">2026E 美国数据中心</div>
+          <div class="value">580<span class="unit">TWh</span></div>
+          <div class="desc">占总用电 ~6%</div>
+        </div>
+        <div class="metric">
+          <div class="label">2030E 中国数据中心</div>
+          <div class="value">7,000<span class="unit">亿 kWh</span></div>
+          <div class="desc">占总用电 ~10%</div>
+        </div>
+        <div class="metric">
+          <div class="label">单柜功耗</div>
+          <div class="value">120<span class="unit">kW</span></div>
+          <div class="desc">GB200 NVL72</div>
+        </div>
+      </div>
+
+      <div class="grid grid-2 gap-bottom">
+        <div class="card">
+          <h3>GPU 芯片功耗演进</h3>
+          <div class="chart-wrap"><canvas id="chartPower"></canvas></div>
+        </div>
+        <div class="card">
+          <h3>风冷 vs 液冷对比</h3>
+          <table class="data">
+            <thead><tr><th>指标</th><th>风冷</th><th>液冷</th></tr></thead>
+            <tbody>
+              <tr><td>PUE</td><td>1.4-1.6</td><td class="pos">1.05-1.15</td></tr>
+              <tr><td>制冷能耗占比</td><td>35-45%</td><td class="pos">5-10%</td></tr>
+              <tr><td>单机柜最高功耗</td><td>~40 kW</td><td class="pos">~120 kW</td></tr>
+              <tr><td>噪音</td><td>高</td><td>极低</td></tr>
+              <tr><td>Capex 溢价</td><td>基准</td><td class="warn">+30-50%</td></tr>
+              <tr><td>Opex 节约</td><td>—</td><td class="pos">~40%</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="grid grid-2 gap-bottom">
+        <div class="card">
+          <h3>🇨🇳 中国能源结构与算力矛盾</h3>
+          <div class="bom-bar"><span class="lbl">煤电</span><div class="bar"><div class="fill" style="width:60%;background:linear-gradient(90deg,#ef4444,#f97316);">60%</div></div><span class="val">主力</span></div>
+          <div class="bom-bar"><span class="lbl">风电 + 光伏</span><div class="bar"><div class="fill" style="width:18%;background:linear-gradient(90deg,#10b981,#06b6d4);">18%</div></div><span class="val">西部集中</span></div>
+          <div class="bom-bar"><span class="lbl">水电</span><div class="bar"><div class="fill" style="width:14%;background:linear-gradient(90deg,#3b82f6,#06b6d4);">14%</div></div><span class="val">西南为主</span></div>
+          <div class="bom-bar"><span class="lbl">核电</span><div class="bar"><div class="fill" style="width:5%;background:linear-gradient(90deg,#8b5cf6,#a855f7);">5%</div></div><span class="val">沿海</span></div>
+          <div class="bom-bar"><span class="lbl">天然气</span><div class="bar"><div class="fill" style="width:3%;background:linear-gradient(90deg,#f59e0b,#fbbf24);">3%</div></div><span class="val">调峰</span></div>
+          <div class="conclusion warn" style="margin-top:12px;"><span class="tag">矛盾</span>数据中心需求集中在东部一线，但清洁能源集中在西部，存在"东数西算"的输电损耗与延迟问题。</div>
+        </div>
+
+        <div class="card">
+          <h3>🇺🇸 美国能源演进路径</h3>
+          <div class="bom-bar"><span class="lbl">天然气（页岩气革命）</span><div class="bar"><div class="fill" style="width:42%;background:linear-gradient(90deg,#10b981,#06b6d4);">42%</div></div><span class="val">快速扩产</span></div>
+          <div class="bom-bar"><span class="lbl">核电（含 SMR）</span><div class="bar"><div class="fill" style="width:18%;background:linear-gradient(90deg,#8b5cf6,#a855f7);">18%</div></div><span class="val">SMR 试点</span></div>
+          <div class="bom-bar"><span class="lbl">可再生</span><div class="bar"><div class="fill" style="width:22%;background:linear-gradient(90deg,#10b981,#84cc16);">22%</div></div><span class="val">风 + 光</span></div>
+          <div class="bom-bar"><span class="lbl">煤电</span><div class="bar"><div class="fill" style="width:15%;background:linear-gradient(90deg,#6b7280,#9ca3af);">15%</div></div><span class="val">持续退役</span></div>
+          <div class="bom-bar"><span class="lbl">其他</span><div class="bar"><div class="fill" style="width:3%;">3%</div></div><span class="val">—</span></div>
+          <div class="conclusion ok" style="margin-top:12px;"><span class="tag">优势</span>天然气 + SMR 核电 + 可再生 三足鼎立，能源弹性大，AI 算力不受电力短缺制约。</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>A 股算力能源 / 液冷标的</h3>
+        <div class="grid grid-3">
+          <div class="stock">
+            <div class="head">
+              <span class="name">英维克 <span class="code">002837.SZ</span></span>
+              <span class="pe">PE <b>42x</b></span>
+            </div>
+            <div class="logic">
+              <b>核心定位：</b>液冷全栈解决方案龙头，冷板式 + 浸没式双路径。<br>
+              <b>订单催化：</b>字节 + 腾讯液冷订单加速，2024 H2 集中确认。
+            </div>
+          </div>
+          <div class="stock">
+            <div class="head">
+              <span class="name">高澜股份 <span class="code">300499.SZ</span></span>
+              <span class="pe">PE <b>58x</b></span>
+            </div>
+            <div class="logic">
+              <b>核心定位：</b>液冷板 + CDU 主供，特高压水冷老牌龙头。<br>
+              <b>订单催化：</b>阿里 + 腾讯液冷服务器订单。
+            </div>
+          </div>
+          <div class="stock">
+            <div class="head">
+              <span class="name">科华数据 <span class="code">002335.SZ</span></span>
+              <span class="pe">PE <b>32x</b></span>
+            </div>
+            <div class="logic">
+              <b>核心定位：</b>UPS + 数据中心配电 + 液冷一体化。<br>
+              <b>订单催化：</b>三大运营商 IDC 招标主力中标。
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- TAB 8: 太空算力 -->
+    <!-- ============================================================ -->
+    <section id="t8" class="tab-panel">
+      <div class="panel-title">太空算力</div>
+      <div class="panel-subtitle">为什么太空算力是终极解决方案 + 中美竞赛 + 产业链全景</div>
+
+      <div class="grid grid-3 gap-bottom">
+        <div class="card">
+          <h3>地面瓶颈 #1：能源</h3>
+          <div class="metric" style="margin-top:8px;">
+            <div class="value">-30%</div>
+            <div class="desc">地面数据中心制冷损耗下界</div>
+          </div>
+          <div class="conclusion warn" style="margin-top:8px;"><span class="tag">痛点</span>数据中心 30%+ 电能用于散热，太阳能效率反而低</div>
+        </div>
+        <div class="card">
+          <h3>地面瓶颈 #2：散热</h3>
+          <div class="metric" style="margin-top:8px;">
+            <div class="value">~40°C</div>
+            <div class="desc">即使液冷，散热终极限</div>
+          </div>
+          <div class="conclusion warn" style="margin-top:8px;"><span class="tag">痛点</span>大气温度决定散热终极限，液冷只能优化传导</div>
+        </div>
+        <div class="card">
+          <h3>地面瓶颈 #3：土地</h3>
+          <div class="metric" style="margin-top:8px;">
+            <div class="value">120<span class="unit">kW/柜</span></div>
+            <div class="desc">单机柜功率密度极限</div>
+          </div>
+          <div class="conclusion warn" style="margin-top:8px;"><span class="tag">痛点</span>一线城市数据中心审批受限，电价 + 地价双高</div>
+        </div>
+      </div>
+
+      <div class="card gap-bottom">
+        <h3>🌌 为什么太空算力是终极解决方案？</h3>
+        <div class="conclusion ok"><span class="tag">∞</span>太阳辐射 1,361 W/㎡（无大气损耗、无夜间中断 GEO 轨道），是地面光伏的 5-8 倍</div>
+        <div class="conclusion ok"><span class="tag">-270°C</span>太空背景温度接近绝对零度，散热效率理论无限</div>
+        <div class="conclusion ok"><span class="tag">解耦</span>能源 + 散热 + 土地三大地面瓶颈全部解除</div>
+        <div class="conclusion info"><span class="tag">演进</span>天地协同 → 天地互备 → 天基主算：预计 2030 年开始天基主算试点</div>
+      </div>
+
+      <div class="grid grid-2 gap-bottom">
+        <div class="card">
+          <h3>🚀 全球竞赛：SpaceX vs 中国</h3>
+          <table class="data">
+            <thead><tr><th>方案</th><th>主体</th><th>进展</th><th>算力规模</th></tr></thead>
+            <tbody>
+              <tr><td><b>Starlink + xAI</b></td><td>SpaceX / xAI</td><td>2024 启动</td><td>100K H100 级</td></tr>
+              <tr><td><b>星网 + 国智</b></td><td>中国星网</td><td>2024 试点</td><td>10K 国产 GPU</td></tr>
+              <tr><td>Project Kuiper</td><td>Amazon</td><td>2027 部署</td><td>—</td></tr>
+              <tr><td>BlueBird</td><td>AST SpaceMobile</td><td>2025 测试</td><td>—</td></tr>
+              <tr><td>之江实验室</td><td>中国之江</td><td>2024 试验</td><td>—</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card">
+          <h3>📈 技术演进路径</h3>
+          <div class="conclusion info" style="margin-bottom:8px;"><span class="tag">V1</span><b>天地协同</b>：地面训练 + 太空推理下行（2024-2026）</div>
+          <div class="conclusion info" style="margin-bottom:8px;"><span class="tag">V2</span><b>天地互备</b>：算力调度跨天地，故障自动切换（2027-2029）</div>
+          <div class="conclusion ok" style="margin-bottom:8px;"><span class="tag">V3</span><b>天基主算</b>：GEO 轨道大型算力站，直接服务星链用户（2030+）</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>🔗 太空算力产业链全景</h3>
+        <div class="grid grid-3">
+          <div class="card" style="background:var(--bg-2);">
+            <h3>上游：核心元器件</h3>
+            <div class="tag-pill purple">抗辐射 GPU</div>
+            <div class="tag-pill purple">抗辐射 HBM</div>
+            <div class="tag-pill purple">太阳能电池阵</div>
+            <div class="tag-pill purple">星载电源</div>
+            <div class="tag-pill purple">激光通信</div>
+            <div class="tag-pill purple">热控系统</div>
+            <div class="small" style="margin-top:8px;">A股：<b>臻镭科技</b>（抗辐射芯片）/ <b>乾照光电</b>（太阳能电池）</div>
+          </div>
+          <div class="card" style="background:var(--bg-2);">
+            <h3>中游：发射 + 整流</h3>
+            <div class="tag-pill cyan">可回收火箭</div>
+            <div class="tag-pill cyan">卫星平台</div>
+            <div class="tag-pill cyan">载荷集成</div>
+            <div class="tag-pill cyan">星地通信</div>
+            <div class="tag-pill cyan">地面测控</div>
+            <div class="small" style="margin-top:8px;">A股：<b>航天电子</b> / <b>中国卫星</b></div>
+          </div>
+          <div class="card" style="background:var(--bg-2);">
+            <h3>下游：算力服务</h3>
+            <div class="tag-pill orange">天基训练</div>
+            <div class="tag-pill orange">天基推理</div>
+            <div class="tag-pill orange">在轨数据处理</div>
+            <div class="tag-pill orange">星间组网</div>
+            <div class="tag-pill orange">实时服务</div>
+            <div class="small" style="margin-top:8px;">受益：<b>三大运营商</b> + 卫星互联网企业</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- TAB 9: 核心标的 -->
+    <!-- ============================================================ -->
+    <section id="t9" class="tab-panel">
+      <div class="panel-title">核心标的深度下钻 · 中际旭创</div>
+      <div class="panel-subtitle">单公司多维度拆解 · 财务 + 业务 + 估值 + 风险</div>
+
+      <div class="grid grid-4 gap-bottom">
+        <div class="metric">
+          <div class="label">2024E 营收</div>
+          <div class="value">195<span class="unit">亿</span></div>
+          <div class="desc">YoY +120%</div>
+        </div>
+        <div class="metric">
+          <div class="label">2024E 净利润</div>
+          <div class="value">48<span class="unit">亿</span></div>
+          <div class="desc">YoY <span class="pos">+262%</span></div>
+        </div>
+        <div class="metric">
+          <div class="label">PE (TTM)</div>
+          <div class="value">35<span class="unit">x</span></div>
+          <div class="desc">Forward PE 24x</div>
+        </div>
+        <div class="metric">
+          <div class="label">PEG</div>
+          <div class="value">0.42</div>
+          <div class="desc">成长性匹配估值</div>
+        </div>
+      </div>
+
+      <div class="grid grid-2 gap-bottom">
+        <div class="card">
+          <h3>营收结构（2024E）</h3>
+          <div class="chart-wrap"><canvas id="chartRevenue"></canvas></div>
+        </div>
+        <div class="card">
+          <h3>季度利润趋势</h3>
+          <div class="chart-wrap"><canvas id="chartProfit"></canvas></div>
+        </div>
+      </div>
+
+      <div class="grid grid-2 gap-bottom">
+        <div class="card">
+          <h3>核心投资逻辑</h3>
+          <div class="conclusion ok"><span class="tag">份额</span>800G 全球份额 50%+，1.6T 率先量产，深度绑定 NVIDIA / Google / Meta 三大北美云</div>
+          <div class="conclusion ok"><span class="tag">技术</span>自研硅光 + EML + 自有封装线（业内唯一），技术成本领先 15-20%</div>
+          <div class="conclusion ok"><span class="tag">产能</span>泰国 + 国内双产能，2024 底 1.6T 产能扩至 500K 只/月</div>
+          <div class="conclusion info"><span class="tag">周期</span>AI 算力 Capex 周期 2024-2027 持续上行</div>
+        </div>
+
+        <div class="card">
+          <h3>风险提示</h3>
+          <div class="conclusion warn"><span class="tag">客户</span>前五大客户占比 ~80%，NVIDIA 单一客户 ~40%，集中度高</div>
+          <div class="conclusion warn"><span class="tag">价格</span>光模块价格年降 8-15%，需持续 1.6T 升级对冲</div>
+          <div class="conclusion warn"><span class="tag">技术</span>LPO / CPO 路线可能颠覆传统可插拔光模块</div>
+          <div class="conclusion warn"><span class="tag">汇率</span>海外营收占比 70%+，人民币升值压力</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>关键财务指标</h3>
+        <table class="data">
+          <thead><tr><th>指标</th><th class="num">2022A</th><th class="num">2023A</th><th class="num">2024E</th><th class="num">2025E</th></tr></thead>
+          <tbody>
+            <tr><td>营收（亿）</td><td class="num">96.4</td><td class="num">88.5</td><td class="num">195.0</td><td class="num">320.0</td></tr>
+            <tr><td>营收 YoY</td><td class="num">+25%</td><td class="num neg">-8%</td><td class="num pos">+120%</td><td class="num pos">+64%</td></tr>
+            <tr><td>毛利率</td><td class="num">27%</td><td class="num">30%</td><td class="num">33%</td><td class="num">34%</td></tr>
+            <tr><td>净利润（亿）</td><td class="num">12.2</td><td class="num">13.2</td><td class="num">48.0</td><td class="num">82.0</td></tr>
+            <tr><td>净利润 YoY</td><td class="num">+39%</td><td class="num">+8%</td><td class="num pos">+262%</td><td class="num pos">+71%</td></tr>
+            <tr><td>EPS（元）</td><td class="num">1.45</td><td class="num">1.57</td><td class="num">5.71</td><td class="num">9.76</td></tr>
+            <tr><td>PE (TTM)</td><td class="num">—</td><td class="num">~50x</td><td class="num">35x</td><td class="num">24x</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- TAB 10: 估值全景 -->
+    <!-- ============================================================ -->
+    <section id="t10" class="tab-panel">
+      <div class="panel-title">估值全景</div>
+      <div class="panel-subtitle">全部覆盖标的估值宽表 · PE / PB / PEG / 资金面</div>
+
+      <div class="card">
+        <h3>A 股核心标的估值汇总</h3>
+        <table class="data">
+          <thead>
+            <tr>
+              <th>标的</th><th>代码</th><th>环节</th>
+              <th class="num">市值 (亿)</th><th class="num">PE (TTM)</th><th class="num">PE (2025E)</th>
+              <th class="num">PB</th><th class="num">PEG</th><th>资金面 (近5日主力)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><b>中际旭创</b></td><td>300308</td><td>光模块</td><td class="num">1,250</td><td class="num">35x</td><td class="num pos">24x</td><td class="num">6.8</td><td class="num pos">0.42</td><td class="num pos">+8.2亿</td></tr>
+            <tr><td><b>沪电股份</b></td><td>002463</td><td>PCB</td><td class="num">580</td><td class="num">28x</td><td class="num pos">22x</td><td class="num">4.5</td><td class="num pos">0.68</td><td class="num pos">+5.1亿</td></tr>
+            <tr><td><b>胜宏科技</b></td><td>300476</td><td>HDI</td><td class="num">340</td><td class="num">32x</td><td class="num pos">20x</td><td class="num">5.2</td><td class="num pos">0.45</td><td class="num pos">+3.4亿</td></tr>
+            <tr><td><b>工业富联</b></td><td>601138</td><td>系统集成</td><td class="num">4,200</td><td class="num">22x</td><td class="num pos">18x</td><td class="num">3.1</td><td class="num pos">0.55</td><td class="num pos">+12.6亿</td></tr>
+            <tr><td>天孚通信</td><td>300394</td><td>光模块器件</td><td class="num">540</td><td class="num">40x</td><td class="num">28x</td><td class="num">7.4</td><td class="num">0.72</td><td class="num pos">+2.8亿</td></tr>
+            <tr><td>源杰科技</td><td>688498</td><td>光芯片</td><td class="num">220</td><td class="num warn">85x</td><td class="num">45x</td><td class="num">8.9</td><td class="num">0.95</td><td class="num neg">-1.2亿</td></tr>
+            <tr><td>深南电路</td><td>002916</td><td>PCB / 载板</td><td class="num">410</td><td class="num">35x</td><td class="num">26x</td><td class="num">4.8</td><td class="num">0.82</td><td class="num">+0.5亿</td></tr>
+            <tr><td>寒武纪</td><td>688256</td><td>国产 AI 芯片</td><td class="num">2,800</td><td class="num warn">~241x</td><td class="num warn">~120x</td><td class="num">28.5</td><td class="num warn">2.10</td><td class="num neg">-5.3亿</td></tr>
+            <tr><td>海光信息</td><td>688041</td><td>DCU</td><td class="num">1,680</td><td class="num">78x</td><td class="num">48x</td><td class="num">12.6</td><td class="num">0.88</td><td class="num pos">+4.2亿</td></tr>
+            <tr><td>通富微电</td><td>002156</td><td>封测</td><td class="num">380</td><td class="num">42x</td><td class="num">28x</td><td class="num">3.6</td><td class="num">0.75</td><td class="num pos">+1.8亿</td></tr>
+            <tr><td>长川科技</td><td>300604</td><td>测试设备</td><td class="num">260</td><td class="num">55x</td><td class="num">38x</td><td class="num">7.8</td><td class="num">0.92</td><td class="num pos">+0.8亿</td></tr>
+            <tr><td>英维克</td><td>002837</td><td>液冷</td><td class="num">220</td><td class="num">42x</td><td class="num">28x</td><td class="num">5.8</td><td class="num">0.65</td><td class="num pos">+2.1亿</td></tr>
+            <tr><td>高澜股份</td><td>300499</td><td>液冷</td><td class="num">95</td><td class="num">58x</td><td class="num">35x</td><td class="num">4.2</td><td class="num">0.80</td><td class="num">+0.3亿</td></tr>
+            <tr><td>生益电子</td><td>688183</td><td>CCL</td><td class="num">180</td><td class="num">38x</td><td class="num">26x</td><td class="num">3.9</td><td class="num">0.70</td><td class="num neg">-0.4亿</td></tr>
+            <tr><td>景旺电子</td><td>603228</td><td>PCB</td><td class="num">280</td><td class="num">26x</td><td class="num">20x</td><td class="num">3.4</td><td class="num">0.62</td><td class="num">+0.6亿</td></tr>
+          </tbody>
+        </table>
+        <div class="note-bar" style="margin-top:12px;">
+          📊 <b>估值分位总结</b>：PCB/HDI 整体估值合理（PE &lt; 30x），光模块龙头估值偏高但 PEG 仍 &lt; 1，国产 AI 芯片估值显著高估（寒武纪 PEG 2.1）。
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- TAB 11: AI 新闻 -->
+    <!-- ============================================================ -->
+    <section id="t11" class="tab-panel">
+      <div class="panel-title">📡 24h AI 新闻雷达</div>
+      <div class="panel-subtitle">实时聚合全网 AI 算力相关重大新闻 · 数据源：Financial Times / WSJ / Reuters / Bloomberg / 国内财经媒体</div>
+
+      <div class="grid grid-4 gap-bottom">
+        <div class="metric">
+          <div class="label">过去 24h 收录</div>
+          <div class="value">147<span class="unit">条</span></div>
+          <div class="desc">AI 算力关键词过滤后</div>
+        </div>
+        <div class="metric">
+          <div class="label">重要级别 HIGH</div>
+          <div class="value warn">12<span class="unit">条</span></div>
+          <div class="desc">影响产业链格局</div>
+        </div>
+        <div class="metric">
+          <div class="label">最新更新</div>
+          <div class="value">15:42</div>
+          <div class="desc">每 10 分钟刷新</div>
+        </div>
+        <div class="metric">
+          <div class="label">信源覆盖</div>
+          <div class="value">38<span class="unit">家</span></div>
+          <div class="desc">海外 22 + 国内 16</div>
+        </div>
+      </div>
+
+      <div class="grid grid-2 gap-bottom">
+        <div class="card">
+          <h3>🔥 重大新闻（HIGH）</h3>
+          <div class="news-item">
+            <span class="time">15:38</span>
+            <span class="src">Reuters</span>
+            <span class="title">NVIDIA Blackwell B200 量产爬坡顺利，Q3 出货量超预期 20%</span>
+          </div>
+          <div class="news-item">
+            <span class="time">14:55</span>
+            <span class="src">Bloomberg</span>
+            <span class="title">SK Hynix 拿下 NVIDIA HBM4 独家首发权，2025 H1 量产</span>
+          </div>
+          <div class="news-item">
+            <span class="time">13:22</span>
+            <span class="src">FT</span>
+            <span class="title">Anthropic 估值新一轮融资升至 800 亿，Lightspeed 领投</span>
+          </div>
+          <div class="news-item">
+            <span class="time">12:08</span>
+            <span class="src">WSJ</span>
+            <span class="title">Google 内部上调 2024 AI Capex 至 1,100 亿美元，超此前预期</span>
+          </div>
+          <div class="news-item">
+            <span class="time">11:45</span>
+            <span class="src">财联社</span>
+            <span class="title">中际旭创 1.6T 光模块获北美客户追加订单，全年出货预期上修</span>
+          </div>
+          <div class="news-item">
+            <span class="time">10:32</span>
+            <span class="src">The Information</span>
+            <span class="title">xAI 计划 2025 年建成 100K H100 集群，地点或选沙特</span>
+          </div>
+          <div class="news-item">
+            <span class="time">09:18</span>
+            <span class="src">证券时报</span>
+            <span class="title">沪电股份中标北美云客户 UBB 大单，金额超 20 亿</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>📰 一般新闻（MEDIUM / LOW）</h3>
+          <div class="news-item">
+            <span class="time">15:12</span>
+            <span class="src">36Kr</span>
+            <span class="title">字节跳动豆包大模型日 Token 调用量突破 5,000 亿</span>
+          </div>
+          <div class="news-item">
+            <span class="time">14:42</span>
+            <span class="src">The Verge</span>
+            <span class="title">OpenAI 推出 GPT-4o 多模态升级版，推理成本再降 50%</span>
+          </div>
+          <div class="news-item">
+            <span class="time">13:55</span>
+            <span class="src">一财</span>
+            <span class="title">寒武纪发布思元 590 性能白皮书，单卡对标 H100</span>
+          </div>
+          <div class="news-item">
+            <span class="time">12:38</span>
+            <span class="src">Reuters</span>
+            <span class="title">TSMC CoWoS 产能 2025 年扩至月产 35K wafer，仍供不应求</span>
+          </div>
+          <div class="news-item">
+            <span class="time">11:20</span>
+            <span class="src">智东西</span>
+            <span class="title">阿里通义千问 Qwen2.5 发布，参数规模覆盖 0.5B-72B</span>
+          </div>
+          <div class="news-item">
+            <span class="time">10:55</span>
+            <span class="src">CNBC</span>
+            <span class="title">Microsoft 与 G42 投资 100 亿建阿联酋 AI 数据中心</span>
+          </div>
+          <div class="news-item">
+            <span class="time">10:08</span>
+            <span class="src">上证报</span>
+            <span class="title">胜宏科技 UBB 良率突破 95%，进入 NVIDIA Tier 1</span>
+          </div>
+          <div class="news-item">
+            <span class="time">09:42</span>
+            <span class="src">FT</span>
+            <span class="title">欧洲 AI 法案对基础模型监管趋严，开源协议受影响</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>🔍 新闻关键词热度（24h）</h3>
+        <div class="row-flex">
+          <span class="tag-pill purple">#NVIDIA Blackwell <b>42</b></span>
+          <span class="tag-pill purple">#HBM4 <b>28</b></span>
+          <span class="tag-pill cyan">#1.6T 光模块 <b>24</b></span>
+          <span class="tag-pill cyan">#UBB <b>19</b></span>
+          <span class="tag-pill orange">#国产 GPU <b>17</b></span>
+          <span class="tag-pill orange">#昇腾 <b>15</b></span>
+          <span class="tag-pill green">#Capex 上修 <b>14</b></span>
+          <span class="tag-pill green">#液冷 <b>11</b></span>
+          <span class="tag-pill purple">#OpenAI <b>9</b></span>
+          <span class="tag-pill cyan">#CoWoS <b>8</b></span>
+        </div>
+      </div>
+
+      <div class="note-bar" style="margin-top:16px;">
+        📌 <b>方法论</b>：News Radar 通过关键词 + 实体识别 + 情感分析三步骤过滤噪音，仅保留与算力产业链直接相关的条目。
+        高优先级新闻（HIGH）经过人工验证，普通条目由 AI 自动分类。
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // ============ Tab 切换 ============
+    document.querySelectorAll('#tabs button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.dataset.tab;
+        document.querySelectorAll('#tabs button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        document.getElementById(target).classList.add('active');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        // 切换到含图表的 Tab 时重新渲染（懒加载）
+        setTimeout(() => {
+          if (target === 't7' && !window._chartPowerInit) { initChartPower(); window._chartPowerInit = true; }
+          if (target === 't9' && !window._chart9Init) { initChart9(); window._chart9Init = true; }
+        }, 50);
+      });
+    });
+
+    // ============ Chart.js 全局默认 ============
+    Chart.defaults.color = '#9aa3b8';
+    Chart.defaults.borderColor = '#232b44';
+    Chart.defaults.font.family = '-apple-system, "SF Pro Display", "PingFang SC", sans-serif';
+
+    // ============ Tab 7: 功耗演进 ============
+    function initChartPower() {
+      const ctx = document.getElementById('chartPower');
+      if (!ctx) return;
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ['V100(2017)', 'A100(2020)', 'H100(2022)', 'B200(2024)', 'B300(2025E)', 'B400(2026E)'],
+          datasets: [{
+            label: '单卡功耗 (W)',
+            data: [300, 400, 700, 1000, 1200, 1400],
+            borderColor: '#8b5cf6',
+            backgroundColor: 'rgba(139,92,246,0.15)',
+            fill: true,
+            tension: 0.3,
+            pointBackgroundColor: '#a855f7',
+            pointRadius: 5,
+            pointHoverRadius: 7
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, max: 1600, ticks: { color: '#9aa3b8' }, grid: { color: '#232b44' } },
+            x: { ticks: { color: '#9aa3b8' }, grid: { color: '#232b44' } }
+          }
+        }
+      });
+    }
+
+    // ============ Tab 9: 中际旭创深度图表 ============
+    function initChart9() {
+      // 营收结构（饼图）
+      const ctx1 = document.getElementById('chartRevenue');
+      if (ctx1 && !ctx1._chartInit) {
+        ctx1._chartInit = true;
+        new Chart(ctx1, {
+          type: 'doughnut',
+          data: {
+            labels: ['800G 光模块', '1.6T 光模块', '400G 及以下', '相干 / ZR', '其他'],
+            datasets: [{
+              data: [58, 18, 14, 6, 4],
+              backgroundColor: ['#8b5cf6', '#a855f7', '#06b6d4', '#10b981', '#6b7280'],
+              borderWidth: 0
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'right', labels: { color: '#e6e8eb', padding: 10, font: { size: 12 } } }
+            },
+            cutout: '60%'
+          }
+        });
+      }
+
+      // 季度利润趋势
+      const ctx2 = document.getElementById('chartProfit');
+      if (ctx2 && !ctx2._chartInit) {
+        ctx2._chartInit = true;
+        new Chart(ctx2, {
+          type: 'bar',
+          data: {
+            labels: ['23Q1', '23Q2', '23Q3', '23Q4', '24Q1', '24Q2', '24Q3E', '24Q4E'],
+            datasets: [{
+              label: '净利润（亿）',
+              data: [2.8, 3.2, 3.6, 3.6, 8.5, 11.2, 13.5, 14.8],
+              backgroundColor: ctx2 => {
+                const idx = ctx2.dataIndex;
+                return idx >= 4 ? 'rgba(139,92,246,0.8)' : 'rgba(139,92,246,0.4)';
+              },
+              borderColor: '#8b5cf6',
+              borderWidth: 1,
+              borderRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              y: { beginAtZero: true, ticks: { color: '#9aa3b8' }, grid: { color: '#232b44' } },
+              x: { ticks: { color: '#9aa3b8' }, grid: { color: '#232b44' } }
+            }
+          }
+        });
+      }
+    }
+  </script>
+</body>
+</html>
