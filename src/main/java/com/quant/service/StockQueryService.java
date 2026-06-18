@@ -117,7 +117,31 @@ public class StockQueryService {
             TradeStockFinancial first = finByName.get(0);
             return Optional.of(syntheticBasic(first.getStockCode(), first.getStockName()));
         }
+
+        // 兜底：用户复制了带 XD/XR/DR 前缀的截断简称（如 "XD兆易创"），剥离前缀再匹配一次
+        String stripped = stripXdPrefix(trimmed);
+        if (!stripped.equals(trimmed) && stripped.length() >= 2) {
+            List<TradeStockBasic> byStripped = stockBasicRepository.findByStockNameLike(stripped);
+            if (!byStripped.isEmpty()) return Optional.of(byStripped.get(0));
+            List<TradeStockFinancial> finByStripped = financialRepository.findByStockNameLike(stripped);
+            if (!finByStripped.isEmpty()) {
+                TradeStockFinancial first = finByStripped.get(0);
+                return Optional.of(syntheticBasic(first.getStockCode(), first.getStockName()));
+            }
+        }
+
         return Optional.empty();
+    }
+
+    /** 剥离 A 股简称前常见的除权除息/ST/上市标识前缀。 */
+    static String stripXdPrefix(String s) {
+        if (s == null || s.isEmpty()) return s;
+        // 按长度倒序匹配，避免 "ST" 被 "S" 先吃掉
+        String[] prefixes = {"XD", "XR", "DR", "N", "*ST", "ST"};
+        for (String p : prefixes) {
+            if (s.startsWith(p)) return s.substring(p.length());
+        }
+        return s;
     }
 
     private TradeStockBasic syntheticBasic(String code, String name) {

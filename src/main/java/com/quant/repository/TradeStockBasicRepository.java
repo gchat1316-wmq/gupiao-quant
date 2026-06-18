@@ -19,7 +19,16 @@ public interface TradeStockBasicRepository extends JpaRepository<TradeStockBasic
 
     List<TradeStockBasic> findByStockCodeIn(Collection<String> codes);
 
-    @Query("SELECT s FROM TradeStockBasic s WHERE s.stockName = :name OR s.stockName LIKE CONCAT('%', :name, '%')")
+    /**
+     * 按名称模糊匹配。
+     * 兼容 BaoStock 在除权除息期间返回的简称（如 "XD兆易创"），允许用户输入全名 "兆易创新" 命中。
+     */
+    @Query("SELECT s FROM TradeStockBasic s WHERE " +
+           "s.stockName = :name OR " +
+           "s.stockName LIKE CONCAT('%', :name, '%') OR " +
+           "(LENGTH(:name) >= 2 AND s.stockName LIKE CONCAT('XD', SUBSTRING(:name, 1, LENGTH(:name) - 1), '%')) OR " +
+           "(LENGTH(:name) >= 2 AND s.stockName LIKE CONCAT('XR', SUBSTRING(:name, 1, LENGTH(:name) - 1), '%')) OR " +
+           "(LENGTH(:name) >= 2 AND s.stockName LIKE CONCAT('DR', SUBSTRING(:name, 1, LENGTH(:name) - 1), '%'))")
     List<TradeStockBasic> findByStockNameLike(@Param("name") String name);
 
     /** 按 sector_names 字段模糊匹配板块名称(成分股查询) */
