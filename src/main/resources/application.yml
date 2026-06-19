@@ -58,6 +58,26 @@ stock-analysis:
   python-command: ${BAOSTOCK_CLIENT_PYTHON:python3}
   timeout-seconds: 90
 
+# 产业投研模块 (A-Stock-Data + Kimi CLI + News Radar 流水线)
+industry-research:
+  enabled: true
+  python-command: python3
+  kimi-cli:
+    # 启用 Kimi CLI 后会真实调用本地 kimi 命令批量读研报；不启用则回退到 mock 摘要
+    enabled: false
+    command: ${KIMI_CLI_COMMAND:kimi}
+    max-reports: 1500
+    timeout-seconds: 900
+    max-report-chars: 50000
+    prompt-template: prompts/industry-research-v1.txt
+  news-radar:
+    enabled: true
+    hours: 24
+    max-results: 20
+  data-fetch:
+    timeout-seconds: 30
+    fallback-local: true
+
 prosperity-strong:
   enabled: true
   cron: "0 30 15 * * MON-FRI"

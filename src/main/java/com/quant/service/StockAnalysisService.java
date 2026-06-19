@@ -9,6 +9,7 @@ import com.quant.entity.StockAnalysisRecord;
 import com.quant.entity.TradeStockBasic;
 import com.quant.entity.TradeStockFinancial;
 import com.quant.repository.StockAnalysisRecordRepository;
+import com.quant.repository.TradeStockBasicRepository;
 import com.quant.repository.TradeStockFinancialRepository;
 import com.quant.service.ai.MiniMaxClient;
 import com.quant.service.ai.SenseNovaClient;
@@ -42,6 +43,7 @@ public class StockAnalysisService {
     private final StockAnalysisProperties properties;
     private final StockAnalysisRecordRepository repository;
     private final StockQueryService stockQueryService;
+    private final TradeStockBasicRepository stockBasicRepository;
     private final TradeStockFinancialRepository financialRepository;
     private final MiniMaxClient miniMaxClient;
     private final SenseNovaClient senseNovaClient;
@@ -203,14 +205,60 @@ public class StockAnalysisService {
 
     public Page<StockAnalysisRecordListDTO> list(String kw, String status, int page, int size) {
         Pageable pageable = PageRequest.of(Math.max(0, page), Math.min(50, Math.max(1, size)));
-        return repository.search(kw, status, pageable).map(this::toListDTO);
+        Page<StockAnalysisRecord> p = repository.search(kw, status, pageable);
+        Map<String, String> realNames = lookupRealNames(p.getContent());
+        return p.map(r -> toListDTO(r, realNames));
     }
 
     public List<StockAnalysisRecordListDTO> toListDTOList(List<StockAnalysisRecord> records) {
-        return records.stream().map(this::toListDTO).toList();
+        Map<String, String> realNames = lookupRealNames(records);
+        return records.stream().map(r -> toListDTO(r, realNames)).toList();
     }
 
-    private StockAnalysisRecordListDTO toListDTO(StockAnalysisRecord r) {
+    /**
+     * 用 stockCodeRaw 从 trade_stock_basic 批量补全真名。
+     * 历史 stock_analysis_record.stock_name 字段很多写的是代码（"sh.688401"）而不是真名，
+     * 这里做兜底——只在 stockName 看起来不像真名时用 trade_stock_basic 里的真名替换。
+     */
+    private Map<String, String> lookupRealNames(List<StockAnalysisRecord> records) {
+        if (records == null || records.isEmpty()) return Collections.emptyMap();
+        Map<String, String> result = new HashMap<>();
+        for (StockAnalysisRecord r : records) {
+            String raw = r.getStockCodeRaw();
+            String stored = r.getStockName();
+            if (raw == null || raw.isBlank()) continue;
+            if (!looksLikeCode(stored)) continue;
+            if (result.containsKey(raw)) continue;
+            try {
+                // 裸代码 "688401" → "688401.SH" / "688401.SZ"
+                List<TradeStockBasic> matches = stockBasicRepository.findByStockCodePrefix(raw);
+                if (!matches.isEmpty() && matches.get(0).getStockName() != null
+                        && !matches.get(0).getStockName().isBlank()) {
+                    result.put(raw, matches.get(0).getStockName());
+                }
+            } catch (Exception e) {
+                log.debug("补全真名失败: codeRaw={}", raw, e);
+            }
+        }
+        return result;
+    }
+
+    private boolean looksLikeCode(String s) {
+        if (s == null) return false;
+        String t = s.trim();
+        if (t.isEmpty()) return false;
+        // BaoStock 风格 "sh.688401" / "sz.002920"
+        if (t.contains(".")) return true;
+        // 罕见风格 "sh688401"
+        String lower = t.toLowerCase();
+        if ((lower.startsWith("sh") || lower.startsWith("sz")) && t.length() > 2
+                && Character.isDigit(t.charAt(t.length() - 1))) {
+            return true;
+        }
+        return false;
+    }
+
+    private StockAnalysisRecordListDTO toListDTO(StockAnalysisRecord r, Map<String, String> realNames) {
         String summaryOneLiner = null;
         Integer sourceCoverage = null;
         boolean hasReport = r.getReportHtml() != null && !r.getReportHtml().isBlank();
@@ -225,11 +273,18 @@ public class StockAnalysisService {
                 log.debug("列表解析富报告失败: id={}", r.getId(), e);
             }
         }
+        String resolvedName = r.getStockName();
+        if (looksLikeCode(resolvedName) && r.getStockCodeRaw() != null) {
+            String realName = realNames.get(r.getStockCodeRaw());
+            if (realName != null && !realName.isBlank()) {
+                resolvedName = realName;
+            }
+        }
         return StockAnalysisRecordListDTO.builder()
                 .id(r.getId())
                 .stockCode(r.getStockCode())
                 .stockCodeRaw(r.getStockCodeRaw())
-                .stockName(r.getStockName())
+                .stockName(resolvedName)
                 .method(r.getMethod())
                 .status(r.getStatus())
                 .verdict(r.getVerdict())

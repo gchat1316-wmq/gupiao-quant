@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#e1062c" />
+  <base href="/gp/" />
+  <title>产业投研 · 投资助手</title>
+  <link rel="stylesheet" href="css/skin.css?v=20260618-skin-system" />
+  <link rel="stylesheet" href="css/style.css?v=20260618-skin-system" />
+  <link rel="stylesheet" href="css/study.css?v=20260618-skin-system" />
+  <link rel="stylesheet" href="css/industry-research.css?v=20260618-ir-1" />
+  <script src="js/layout.js?v=20260617-recap-nav" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+</head>
+<body>
+  <div id="siteHeader"></div>
+
+  <main class="container ir-page">
+    <!-- 顶部标题区 -->
+    <section class="ir-hero">
+      <div>
+        <div class="ir-kicker">方法论 + 工具链</div>
+        <h2 class="ir-title">产业投研</h2>
+        <p class="ir-sub">A-Stock-Data 取数据 + Kimi CLI 读研报 + News Radar 追热点，AI 自动化生成 11 模块深度看板</p>
+      </div>
+      <div class="ir-hero-actions">
+        <button id="irNewTaskBtn" class="ir-btn ir-btn-primary">
+          <span>🪄</span> 启动新投研任务
+        </button>
+      </div>
+    </section>
+
+    <!-- 任务状态条 -->
+    <section class="ir-taskbar" id="irTaskbar" hidden>
+      <div class="ir-taskbar-left">
+        <span class="ir-taskbar-stage" id="irTaskbarStage">阶段：—</span>
+        <div class="ir-taskbar-progress">
+          <div class="ir-progress"><div class="ir-progress-bar" id="irTaskbarBar" style="width:0%"></div></div>
+          <span class="ir-taskbar-pct" id="irTaskbarPct">0%</span>
+        </div>
+      </div>
+      <button id="irTaskbarClose" class="ir-btn ir-btn-ghost-sm" aria-label="关闭">×</button>
+    </section>
+
+    <!-- 主体：左侧菜单 + 右侧内容 -->
+    <div class="ir-layout">
+      <!-- 左侧菜单 -->
+      <aside class="ir-sidebar" id="irSidebar">
+        <div class="ir-sidebar-title">产业目录</div>
+        <div class="ir-sidebar-search">
+          <input id="irSearchInput" type="text" placeholder="搜索产业 / 文章" />
+        </div>
+        <ul class="ir-category-list" id="irCategoryList">
+          <li class="ir-loading">加载中…</li>
+        </ul>
+
+        <div class="ir-sidebar-divider"></div>
+        <div class="ir-sidebar-title-sm">最近任务</div>
+        <ul class="ir-task-list" id="irTaskList">
+          <li class="ir-loading">暂无</li>
+        </ul>
+      </aside>
+
+      <!-- 右侧内容 -->
+      <section class="ir-content" id="irContent">
+        <!-- 默认空状态：显示"请选择左侧产业" -->
+        <div class="ir-empty" id="irEmpty">
+          <div class="ir-empty-icon">🧠</div>
+          <h3>产业投研看板</h3>
+          <p>左侧选择一个产业，查看该产业已发布的深度报告；<br>
+            或点击右上角「启动新投研任务」，由 AI 流水线自动生成。</p>
+          <div class="ir-empty-stages">
+            <div class="ir-empty-stage"><span class="ir-empty-num">1</span>A-Stock-Data<br>取数据</div>
+            <div class="ir-empty-arrow">→</div>
+            <div class="ir-empty-stage"><span class="ir-empty-num">2</span>Kimi CLI<br>读研报</div>
+            <div class="ir-empty-arrow">→</div>
+            <div class="ir-empty-stage"><span class="ir-empty-num">3</span>News Radar<br>追热点</div>
+            <div class="ir-empty-arrow">→</div>
+            <div class="ir-empty-stage ir-empty-stage-accent"><span class="ir-empty-num">4</span>11 Tab<br>深度看板</div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <p class="ir-disclaimer">免责声明：本页面所有数据与建议仅供学习研究使用，不构成任何投资建议。</p>
+  </main>
+
+  <!-- 启动新任务弹窗 -->
+  <div class="ir-modal" id="irModal" hidden>
+    <div class="ir-modal-backdrop" data-modal-close></div>
+    <div class="ir-modal-card">
+      <div class="ir-modal-head">
+        <h3>🪄 启动新投研任务</h3>
+        <button class="ir-modal-close" data-modal-close>×</button>
+      </div>
+      <div class="ir-modal-body">
+        <div class="ir-field">
+          <label>选择产业</label>
+          <select id="irModalCategory"></select>
+        </div>
+        <div class="ir-field">
+          <label>研报关键词（可选）</label>
+          <input id="irModalKeyword" type="text" placeholder="如：AI 算力 / 光模块 / 液冷 / 国产 GPU" />
+          <small>留空则使用产业名称</small>
+        </div>
+        <div class="ir-field">
+          <label>任务名（可选）</label>
+          <input id="irModalTaskName" type="text" placeholder="如：AI 算力 6 月深度" />
+        </div>
+        <div class="ir-modal-stage">
+          <p class="ir-modal-hint">
+            流水线执行：<b>A-Stock-Data 取数据</b> → <b>Kimi CLI 读研报</b> → <b>News Radar 抓 24h 新闻</b> → <b>组装 11 Tab 报告</b> → <b>写入数据库</b>
+          </p>
+        </div>
+      </div>
+      <div class="ir-modal-foot">
+        <button class="ir-btn ir-btn-ghost" data-modal-close>取消</button>
+        <button class="ir-btn ir-btn-primary" id="irModalConfirm">启动</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/industry-research.js?v=20260618-ir-1" defer></script>
+</body>
+</html>

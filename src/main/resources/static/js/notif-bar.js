@@ -120,12 +120,19 @@
           .filter(function (r) { return r.status === 'SUCCESS' && r.stockName; })
           .slice(0, 3)
           .map(function (r) {
-            const one = r.summaryOneLiner ? ' · ' + r.summaryOneLiner : '';
+            // summaryOneLiner 通常以真名开头（"路维光电受益于..."），去掉与 stockName 重复的前缀避免赘述
+            let summary = r.summaryOneLiner || '';
+            const name = (r.stockName || '').trim();
+            if (name && summary.startsWith(name)) {
+              summary = summary.slice(name.length).replace(/^[，,。\s]+/, '');
+            }
+            const one = summary ? ' · ' + summary : '';
+            const verdictPart = r.verdict ? ' · ' + r.verdict : '';
             return {
               kind: 'analysis',
-              text: r.stockName + ' 已生成' + (r.verdict ? ' · ' + r.verdict : '') + one,
+              text: r.stockName + ' 已生成' + verdictPart + one,
               time: fmtTime(r.submittedAt),
-              href: 'stock-analysis.html?id=' + r.id,
+              href: 'prosperity-pick.html?id=' + r.id,
               ts: r.submittedAt || '',
             };
           });

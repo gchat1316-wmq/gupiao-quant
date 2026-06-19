@@ -17,10 +17,7 @@ body {
   min-height: 100%;
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei",
     "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  background:
-    radial-gradient(circle at 14% -10%, var(--base-glow), transparent 30%),
-    radial-gradient(circle at 86% 0%, var(--accent-glow), transparent 26%),
-    linear-gradient(180deg, var(--bg) 0%, var(--bg) 46%, #f2f4f8 100%);
+  background: #ffffff;
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   -webkit-text-size-adjust: 100%;

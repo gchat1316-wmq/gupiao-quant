@@ -30,6 +30,103 @@ public class SchemaInitializer implements CommandLineRunner {
         ensureInvestStockPoolSnapshotColumns();
         ensureProsperityHotSectorAStockColumns();
         ensureProsperityLeaderMainlineReason();
+        ensureIndustryResearchTables();
+    }
+
+    /**
+     * 产业投研模块 4 张表
+     */
+    private void ensureIndustryResearchTables() {
+        try {
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS industry_research_category (
+                    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                    code VARCHAR(50) NOT NULL UNIQUE,
+                    name VARCHAR(100) NOT NULL,
+                    icon VARCHAR(50) DEFAULT NULL,
+                    parent_id BIGINT DEFAULT NULL,
+                    sort_order INT NOT NULL DEFAULT 0,
+                    enabled TINYINT NOT NULL DEFAULT 1,
+                    description VARCHAR(500) DEFAULT NULL,
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_ir_cat_parent (parent_id),
+                    INDEX idx_ir_cat_sort (sort_order, enabled)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """);
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS industry_research_article (
+                    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                    category_id BIGINT NOT NULL,
+                    slug VARCHAR(80) NOT NULL UNIQUE,
+                    title VARCHAR(200) NOT NULL,
+                    subtitle VARCHAR(500) DEFAULT NULL,
+                    status VARCHAR(20) NOT NULL DEFAULT 'draft',
+                    version INT NOT NULL DEFAULT 1,
+                    update_date DATE DEFAULT NULL,
+                    source_summary VARCHAR(500) DEFAULT NULL,
+                    cover_image VARCHAR(500) DEFAULT NULL,
+                    tags VARCHAR(500) DEFAULT NULL,
+                    view_count INT NOT NULL DEFAULT 0,
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_ir_article_cat (category_id, status),
+                    INDEX idx_ir_article_slug (slug)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """);
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS industry_research_section (
+                    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                    article_id BIGINT NOT NULL,
+                    section_key VARCHAR(50) NOT NULL,
+                    section_title VARCHAR(100) NOT NULL,
+                    section_order INT NOT NULL DEFAULT 0,
+                    content_type VARCHAR(20) NOT NULL DEFAULT 'mixed',
+                    content_json LONGTEXT NOT NULL,
+                    source VARCHAR(500) DEFAULT NULL,
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    UNIQUE KEY uk_ir_section (article_id, section_key),
+                    INDEX idx_ir_section_article (article_id, section_order)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """);
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS industry_research_task (
+                    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                    category_id BIGINT NOT NULL,
+                    article_id BIGINT DEFAULT NULL,
+                    task_name VARCHAR(200) NOT NULL,
+                    keyword VARCHAR(500) DEFAULT NULL,
+                    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                    stage VARCHAR(30) NOT NULL DEFAULT 'init',
+                    progress INT NOT NULL DEFAULT 0,
+                    total_reports INT DEFAULT NULL,
+                    news_count INT DEFAULT NULL,
+                    error_message TEXT DEFAULT NULL,
+                    log TEXT DEFAULT NULL,
+                    started_at DATETIME DEFAULT NULL,
+                    finished_at DATETIME DEFAULT NULL,
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_ir_task_cat (category_id, status),
+                    INDEX idx_ir_task_status (status, created_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """);
+            // 初始菜单 6 个产业
+            jdbc.update("""
+                INSERT INTO industry_research_category (code, name, icon, sort_order, enabled, description)
+                VALUES ('ai-compute','AI 算力产业链','🧠',10,1,'NVIDIA / 光模块 / PCB / HBM / 服务器全链条深度'),
+                       ('semiconductor','半导体设备','🔬',20,1,'光刻机 / 刻蚀 / 薄膜沉积 / 封测设备'),
+                       ('new-energy','新能源车','⚡',30,1,'电池 / 电机 / 电控 / 整车'),
+                       ('biotech','创新药','💊',40,1,'ADC / GLP-1 / 双抗 / 出海'),
+                       ('consumer','新消费','🍵',50,1,'茶饮 / 咖啡 / 化妆品 / 零食'),
+                       ('robotics','人形机器人','🤖',60,1,'丝杠 / 谐波 / 传感器 / 整机')
+                ON DUPLICATE KEY UPDATE name = VALUES(name), icon = VALUES(icon), sort_order = VALUES(sort_order)
+                """);
+            log.info("industry_research 模块 4 张表已就绪 + 6 个产业菜单已初始化");
+        } catch (Exception e) {
+            log.warn("检查 industry_research 表失败 (可忽略): {}", e.getMessage());
+        }
     }
 
     private void ensureInvestAlertTable() {

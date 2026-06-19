@@ -11,7 +11,7 @@
 
 .hidden { display: none !important; }
 
-body { background: linear-gradient(180deg, var(--bg) 0%, var(--bg) 100%); }
+body { background: #ffffff; }
 
 .pp-hero {
   display: flex;
