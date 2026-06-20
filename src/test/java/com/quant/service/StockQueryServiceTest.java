@@ -29,12 +29,13 @@ class StockQueryServiceTest {
     @Mock TradeStockBasicRepository stockBasicRepository;
     @Mock TradeStockFinancialRepository financialRepository;
     @Mock TradeStockDailyRepository dailyRepository;
+    @Mock org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     private StockQueryService service;
 
     @BeforeEach
     void setUp() {
-        service = new StockQueryService(stockBasicRepository, financialRepository, dailyRepository);
+        service = new StockQueryService(stockBasicRepository, financialRepository, dailyRepository, jdbcTemplate);
     }
 
     private TradeStockBasic basic(String code, String name) {
