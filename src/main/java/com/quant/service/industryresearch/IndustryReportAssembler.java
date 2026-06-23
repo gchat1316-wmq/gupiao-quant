@@ -79,12 +79,12 @@ public class IndustryReportAssembler {
     private Map<String, Object> buildOverviewTab(String keyword, Map<String, Object> digest, Map<String, Object> news) {
         Map<String, Object> content = new LinkedHashMap<>();
         content.put("subtitle", keyword + " 投研看板 · 11 模块深度分析");
-        content.put("sourceSummary", "Kimi CLI 读 " + digest.get("totalRead") + " 篇研报 + News Radar " + news.get("newsCount") + " 条新闻");
+        content.put("sourceSummary", "AI 读 " + digest.get("totalRead") + " 篇研报 + News Radar " + news.get("newsCount") + " 条新闻");
 
         content.put("metrics", List.of(
                 Map.of("label", "模块评分", "value", 70, "unit", "", "desc", "综合行业景气 + 业绩 + 估值", "badge", "L1"),
                 Map.of("label", "覆盖标的", "value", 12, "unit", "家", "desc", "A 股 + 海外", "badge", "深度"),
-                Map.of("label", "研报数量", "value", digest.get("totalRead"), "unit", "篇", "desc", "Kimi CLI 批量阅读"),
+                Map.of("label", "研报数量", "value", digest.get("totalRead"), "unit", "篇", "desc", "AI 批量阅读"),
                 Map.of("label", "24h 新闻", "value", news.get("newsCount"), "unit", "条", "desc", "News Radar 聚合")
         ));
 
@@ -104,7 +104,7 @@ public class IndustryReportAssembler {
         out.put("sectionOrder", 1);
         out.put("contentType", "mixed");
         out.put("content", content);
-        out.put("source", "A-Stock-Data + Kimi CLI + News Radar");
+        out.put("source", "A-Stock-Data + AI + News Radar");
         return out;
     }
 
@@ -174,7 +174,7 @@ public class IndustryReportAssembler {
         out.put("sectionOrder", 4);
         out.put("contentType", "stock_card");
         out.put("content", content);
-        out.put("source", "Kimi CLI 提炼 + 公开资料");
+        out.put("source", "AI 提炼 + 公开资料");
         return out;
     }
 
@@ -241,7 +241,7 @@ public class IndustryReportAssembler {
         out.put("sectionOrder", 7);
         out.put("contentType", "text");
         out.put("content", content);
-        out.put("source", "Kimi CLI 提炼 + 政府公开文件");
+        out.put("source", "AI 提炼 + 政府公开文件");
         return out;
     }
 
@@ -309,7 +309,7 @@ public class IndustryReportAssembler {
         out.put("sectionOrder", 10);
         out.put("contentType", "text");
         out.put("content", content);
-        out.put("source", "Kimi CLI 提炼 + News Radar 风险事件");
+        out.put("source", "AI 提炼 + News Radar 风险事件");
         return out;
     }
 

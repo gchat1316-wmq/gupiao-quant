@@ -6,10 +6,10 @@
   <meta name="theme-color" content="#1e88ff" />
   <base href="/gp/" />
   <title>龙江投资 · 投资助手</title>
-  <link rel="stylesheet" href="css/skin.css?v=20260618-skin-system" />
-  <link rel="stylesheet" href="css/style.css?v=20260618-skin-system" />
-  <link rel="stylesheet" href="css/study.css?v=20260618-skin-system" />
-  <link rel="stylesheet" href="css/invest.css?v=20260618-skin-system" />
+  <link rel="stylesheet" href="css/skin.css?v=20260622-ps-v2" />
+  <link rel="stylesheet" href="css/style.css?v=20260622-ps-v2" />
+  <link rel="stylesheet" href="css/study.css?v=20260622-ps-v2" />
+  <link rel="stylesheet" href="css/invest.css?v=20260622-ps-v2" />
   <script src="js/layout.js?v=20260617-recap-nav" defer></script>
 </head>
 <body>
@@ -35,8 +35,74 @@
       <button class="invest-tab active" data-panel="panel-pool">股票池</button>
       <button class="invest-tab" data-panel="panel-big-yang">大阳线战法<span id="bigYangTabBadge" class="invest-tab-badge hidden">0</span></button>
       <button class="invest-tab" data-panel="panel-valuation">估值计算器</button>
+      <button class="invest-tab" data-panel="panel-practical">🎯 实战选股</button>
       <button class="invest-tab" data-panel="panel-sop">实战选股SOP</button>
       <a href="study.html" class="invest-tab-study-link">学习搭子 →</a>
+    </div>
+
+    <!-- Panel 0.5：实战选股 · 一键综合分析（走势 + 财务 + 星级 + 估值） -->
+    <div id="panel-practical" class="invest-panel">
+      <div class="ps-intro">
+        <div class="ps-intro-title">🎯 实战选股 · 一键综合分析</div>
+        <div class="ps-intro-sub">
+          输入股票代码或名称，自动产出四大维度：<b>完美走势</b> + <b>漂亮数字</b> + <b>稀缺性 / 成长动力星级</b> + <b>10 倍 PS 估值</b>。
+          整个分析 5-30 秒，AI 部分走 MiniMax，失败时自动回退到本地启发式评分。
+        </div>
+      </div>
+
+      <div class="ps-search-bar">
+        <input id="psKeywordInput" type="text" placeholder="如：赛腾股份 或 603283" autocomplete="off" />
+        <button id="psAnalyzeBtn" class="invest-btn">立即分析</button>
+        <div class="ps-search-examples">
+          试试：<a class="ps-example-link" data-kw="赛腾股份">赛腾股份</a> ·
+          <a class="ps-example-link" data-kw="000001">000001</a> ·
+          <a class="ps-example-link" data-kw="300750">300750</a> ·
+          <a class="ps-example-link" data-kw="600519">600519</a>
+        </div>
+      </div>
+
+      <!-- 历史记录侧边栏 -->
+      <div class="ps-history-wrap">
+        <div class="ps-history-side">
+          <div class="ps-history-head">
+            <span class="ps-history-title">📚 历史分析记录</span>
+            <input id="psHistorySearch" class="ps-history-search" type="text" placeholder="搜索股票名 / 代码" />
+          </div>
+          <div id="psHistoryList" class="ps-history-list">
+            <div class="ps-empty">加载中…</div>
+          </div>
+          <div id="psHistoryPager" class="ps-history-pager"></div>
+        </div>
+        <div class="ps-history-main">
+          <div id="psLoading" class="ps-loading hidden">
+            <div class="ps-loading-spinner"></div>
+            <div class="ps-loading-text">正在分析...</div>
+            <div class="ps-loading-steps">
+              <div id="ps-step-trend" class="ps-loading-step">① 解析月线走势</div>
+              <div id="ps-step-fin" class="ps-loading-step">② 调取 16 季度财务</div>
+              <div id="ps-step-val" class="ps-loading-step">③ 估算 PS 估值</div>
+              <div id="ps-step-ai" class="ps-loading-step">④ AI 评级稀缺性 + 成长动力</div>
+            </div>
+          </div>
+
+          <div id="psErrorBox" class="ps-error hidden"></div>
+          <div id="psResultWrap"></div>
+        </div>
+      </div>
+
+      <div id="psLoading" class="ps-loading hidden">
+        <div class="ps-loading-spinner"></div>
+        <div class="ps-loading-text">正在分析...</div>
+        <div class="ps-loading-steps">
+          <div id="ps-step-trend" class="ps-loading-step">① 解析月线走势</div>
+          <div id="ps-step-fin" class="ps-loading-step">② 调取 16 季度财务</div>
+          <div id="ps-step-val" class="ps-loading-step">③ 估算 PS 估值</div>
+          <div id="ps-step-ai" class="ps-loading-step">④ AI 评级稀缺性 + 成长动力</div>
+        </div>
+      </div>
+
+      <div id="psErrorBox" class="ps-error hidden"></div>
+      <div id="psResultWrap"></div>
     </div>
 
     <!-- Panel 0：实战选股 SOP 三步法 -->
@@ -385,6 +451,7 @@
     </div>
   </div>
 
+  <script src="js/practical-select.js?v=20260622-ps-v1"></script>
   <script src="js/invest.js?v=20260529-pool"></script>
 </body>
 </html>

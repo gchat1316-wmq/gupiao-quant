@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color"="#1e88ff" />
+  <base href="/gp/" />
+  <title>实战选股 · 分享报告</title>
+  <link rel="stylesheet" href="css/skin.css?v=20260622-ps-v2" />
+  <link rel="stylesheet" href="css/style.css?v=20260622-ps-v2" />
+  <link rel="stylesheet" href="css/study.css?v=20260622-ps-v2" />
+  <link rel="stylesheet" href="css/invest.css?v=20260622-ps-v2" />
+  <script src="js/layout.js?v=20260617-recap-nav" defer></script>
+</head>
+<body>
+  <div id="siteHeader"></div>
+
+  <main class="container">
+    <div class="invest-hero">
+      <div class="invest-hero-icon">🔗</div>
+      <div>
+        <h2 class="invest-hero-title">实战选股 · 分享报告</h2>
+        <p class="invest-hero-sub">只读模式 · 历史快照</p>
+      </div>
+    </div>
+
+    <div id="shareLoading" class="ps-loading">
+      <div class="ps-loading-spinner"></div>
+      <div class="ps-loading-text">加载分享报告...</div>
+    </div>
+
+    <div id="shareError" class="ps-error hidden"></div>
+    <div id="shareResultWrap"></div>
+
+    <div class="ps-foot-note">
+      ⚠️ 分享内容由 AI + 自动计算生成，仅供学习研究，不构成投资建议。
+    </div>
+  </main>
+
+  <div id="siteFooter"></div>
+
+  <script src="js/practical-select.js?v=20260622-share-v1"></script>
+  <script>
+    // 公开访问模式：根据 URL 上的 token 调共享接口，渲染到 shareResultWrap
+    (function () {
+      const params = new URLSearchParams(location.search);
+      const token = params.get('t');
+      if (!token) {
+        document.getElementById('shareLoading').classList.add('hidden');
+        document.getElementById('shareError').classList.remove('hidden');
+        document.getElementById('shareError').innerHTML =
+          '<div class="ps-error-title">链接无效</div><div class="ps-error-msg">URL 上缺少分享 token（?t=...）。</div>';
+        return;
+      }
+      fetch('api/practical-select/shared?token=' + encodeURIComponent(token))
+        .then(r => r.json().then(d => ({ status: r.status, data: d })))
+        .then(({ status, data }) => {
+          document.getElementById('shareLoading').classList.add('hidden');
+          if (!data || !data.ok || !data.data) {
+            document.getElementById('shareError').classList.remove('hidden');
+            document.getElementById('shareError').innerHTML =
+              '<div class="ps-error-title">无法访问分享</div><div class="ps-error-msg">'
+              + (data && data.message ? data.message : '分享链接无效或已过期 (HTTP ' + status + ')') + '</div>';
+            return;
+          }
+          // 复用 PracticalSelect.renderResult 渲染
+          window.PracticalSelect && window.PracticalSelect.renderShared && window.PracticalSelect.renderShared(data.data);
+        })
+        .catch(err => {
+          document.getElementById('shareLoading').classList.add('hidden');
+          document.getElementById('shareError').classList.remove('hidden');
+          document.getElementById('shareError').innerHTML =
+            '<div class="ps-error-title">网络错误</div><div class="ps-error-msg">' + err.message + '</div>';
+        });
+    })();
+  </script>
+</body>
+</html>

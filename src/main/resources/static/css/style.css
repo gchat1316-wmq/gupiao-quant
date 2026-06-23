@@ -376,15 +376,132 @@ body {
 .site-footer {
   width: 100%;
   max-width: 1280px;
-  margin: 48px auto 0;
+  margin: 32px auto 0;
   padding: 0 20px 32px;
 }
 
+/* ===== Footer 折叠开关：默认收起，hover 预览 / 点击锁定 ===== */
+.site-footer-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: fit-content;
+  margin: 0 auto;
+  padding: 8px 18px 8px 16px;
+  background: var(--card-bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--text-mid);
+  font-family: inherit;
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  user-select: none;
+  transition: background 0.2s ease,
+              color 0.2s ease,
+              border-color 0.2s ease,
+              box-shadow 0.2s ease,
+              transform 0.2s ease;
+}
+
+.site-footer-toggle:hover {
+  background: var(--card-bg);
+  color: var(--text);
+  border-color: var(--base-border);
+  box-shadow: 0 6px 16px var(--base-glow);
+  transform: translateY(-1px);
+}
+
+.site-footer-toggle:focus-visible {
+  outline: 2px solid var(--base);
+  outline-offset: 2px;
+}
+
+.site-footer-toggle .toggle-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.site-footer-toggle .toggle-icon {
+  display: inline-block;
+  transition: transform 0.3s ease;
+}
+
+.site-footer-toggle:hover .toggle-icon {
+  transform: scale(1.12);
+}
+
+.site-footer-toggle .toggle-text {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.site-footer-toggle .toggle-hint {
+  font-size: 11.5px;
+  color: var(--text-soft);
+  opacity: 0.85;
+}
+
+.site-footer-toggle .toggle-chevron {
+  display: inline-block;
+  font-size: 11px;
+  color: var(--text-soft);
+  transition: transform 0.28s ease, color 0.2s ease;
+}
+
+.site-footer.is-locked .site-footer-toggle .toggle-chevron {
+  transform: rotate(180deg);
+  color: var(--base-text);
+}
+
+.site-footer.is-locked .site-footer-toggle .toggle-hint {
+  display: none;
+}
+
+.site-footer.is-locked .site-footer-toggle .toggle-text::after {
+  content: '（点击收起）';
+  margin-left: 6px;
+  font-size: 11.5px;
+  color: var(--text-soft);
+  font-weight: 400;
+}
+
+/* ===== Panel 默认收起 ===== */
 .site-footer-row {
   display: grid;
   grid-template-columns: 260px 1fr;
   gap: 16px;
   align-items: stretch;
+  max-height: 0;
+  opacity: 0;
+  margin-top: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transition: max-height 0.36s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.26s ease,
+              margin-top 0.32s ease;
+}
+
+/* hover 预览：仅在 hover-capable 设备 */
+@media (hover: hover) {
+  .site-footer[data-collapsed="true"]:hover .site-footer-row {
+    max-height: 600px;
+    opacity: 1;
+    margin-top: 12px;
+    pointer-events: auto;
+  }
+}
+
+/* 锁定展开（点击 toggle 后） */
+.site-footer.is-locked .site-footer-row {
+  max-height: 1200px;
+  opacity: 1;
+  margin-top: 12px;
+  pointer-events: auto;
 }
 
 .donate-card {
@@ -620,6 +737,14 @@ body {
   }
   .site-footer {
     padding: 0 12px 26px;
+  }
+  .site-footer-toggle {
+    font-size: 12px;
+    padding: 7px 14px;
+    gap: 6px;
+  }
+  .site-footer-toggle .toggle-hint {
+    display: none;
   }
   .site-footer-row {
     grid-template-columns: 1fr;

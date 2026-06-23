@@ -218,8 +218,17 @@
     if (!mount) return;
 
     mount.innerHTML =
-      '<footer class="site-footer">' +
-        '<div class="site-footer-row">' +
+      '<footer class="site-footer" data-collapsed="true">' +
+        '<button class="site-footer-toggle" type="button" aria-expanded="false" aria-controls="siteFooterPanel">' +
+          '<span class="toggle-icons" aria-hidden="true">' +
+            '<span class="toggle-icon">💖</span>' +
+            '<span class="toggle-icon">✨</span>' +
+          '</span>' +
+          '<span class="toggle-text">支持作者 / 提个需求</span>' +
+          '<span class="toggle-hint">悬停或点击展开</span>' +
+          '<span class="toggle-chevron" aria-hidden="true">▾</span>' +
+        '</button>' +
+        '<div id="siteFooterPanel" class="site-footer-row">' +
           '<section class="donate-card" aria-label="打赏支持">' +
             '<div class="donate-qr">' +
               '<img src="donate-qr.png" alt="扫码支付">' +
@@ -247,6 +256,35 @@
           '</section>' +
         '</div>' +
       '</footer>';
+  }
+
+  function bindFooterToggle() {
+    const footer = document.querySelector('.site-footer');
+    if (!footer) return;
+    const toggle = footer.querySelector('.site-footer-toggle');
+    if (!toggle) return;
+
+    // 点击 toggle：锁定 / 解锁展开状态
+    toggle.addEventListener('click', function (event) {
+      event.stopPropagation();
+      const isLocked = footer.classList.toggle('is-locked');
+      footer.setAttribute('data-collapsed', isLocked ? 'false' : 'true');
+      toggle.setAttribute('aria-expanded', isLocked ? 'true' : 'false');
+      // 锁定展开时让表单拿到焦点更顺手
+      if (isLocked) {
+        const input = document.getElementById('wishPoolInput');
+        if (input) setTimeout(function () { input.focus({ preventScroll: true }); }, 360);
+      }
+    });
+
+    // 点击空白区域时如果处于锁定展开 → 收起（贴心一点）
+    document.addEventListener('click', function (event) {
+      if (!footer.classList.contains('is-locked')) return;
+      if (footer.contains(event.target)) return;
+      footer.classList.remove('is-locked');
+      footer.setAttribute('data-collapsed', 'true');
+      toggle.setAttribute('aria-expanded', 'false');
+    });
   }
 
   function bindWishPool() {
@@ -328,4 +366,5 @@
   bindSkinSwitch();
   renderFooter();
   bindWishPool();
+  bindFooterToggle();
 }());

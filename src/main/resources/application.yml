@@ -64,7 +64,7 @@ industry-research:
   python-command: python3
   kimi-cli:
     # 启用 Kimi CLI 后会真实调用本地 kimi 命令批量读研报；不启用则回退到 mock 摘要
-    enabled: false
+    enabled: true
     command: ${KIMI_CLI_COMMAND:kimi}
     max-reports: 1500
     timeout-seconds: 900

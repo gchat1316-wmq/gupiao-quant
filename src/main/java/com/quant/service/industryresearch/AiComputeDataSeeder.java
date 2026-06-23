@@ -134,7 +134,7 @@ public class AiComputeDataSeeder implements CommandLineRunner {
                         List.of("寒武纪", "688256", "国产 AI 芯片", "68", "中 · 思元 590 推理主控", "~241x")
                 )
         )));
-        return section("overview", "总览", 1, "mixed", c, "Kimi CLI 1171 篇研报 + LightCounting + SemiAnalysis + Bernstein");
+        return section("overview", "总览", 1, "mixed", c, "AI 摘要 1171 篇研报 + LightCounting + SemiAnalysis + Bernstein");
     }
 
     private Map<String, Object> buildOpticalSection() {

@@ -23,7 +23,7 @@ import java.util.*;
  *
  * 流程：
  *   1) A-Stock-Data 取数据（行情 + 板块 + 资金流）
- *   2) Kimi CLI 读研报（批量阅读 1171 篇，节省 Claude token）
+ *   2) AI 读研报（调 MiniMax 提炼结构化 JSON）
  *   3) News Radar 抓 24h 新闻
  *   4) IndustryReportAssembler 组装 11 Tab JSON
  *   5) 写入 industry_research_article + industry_research_section
@@ -94,8 +94,8 @@ public class IndustryResearchPipeline {
             stageLog.add("  ✓ 板块资金流已抓取");
             updateProgress(taskId, 25, stageLog);
 
-            /* ============ 阶段 2: Kimi CLI 读研报 ============ */
-            updateStage(taskId, "report-read", 30, stageLog, "阶段 2: Kimi CLI 读研报...");
+            /* ============ 阶段 2: AI 读研报（MiniMax 摘要） ============ */
+            updateStage(taskId, "report-read", 30, stageLog, "阶段 2: AI 读研报...");
             Map<String, Object> digest = reportReader.readAndDigest(keyword, 1500);
             Integer totalRead = (Integer) digest.getOrDefault("totalRead", 0);
             task.setTotalReports(totalRead);
@@ -126,7 +126,7 @@ public class IndustryResearchPipeline {
             article.setSubtitle("AI 自动化投研 · " + LocalDate.now() + " · 数据来源：Kimi " + totalRead + " 篇研报 + News Radar " + newsCount + " 条");
             article.setStatus("published");
             article.setUpdateDate(LocalDate.now());
-            article.setSourceSummary("Kimi CLI " + totalRead + " 篇研报 + News Radar " + newsCount + " 条 + A-Stock-Data 实时行情");
+            article.setSourceSummary("AI 摘要 " + totalRead + " 篇研报 + News Radar " + newsCount + " 条 + A-Stock-Data 实时行情");
             article.setTags(cat.getName() + ",AI 投研,自动化," + LocalDate.now());
 
             researchService.upsertArticle(article, sections);

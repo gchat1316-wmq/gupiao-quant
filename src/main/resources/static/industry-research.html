@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="css/skin.css?v=20260618-skin-system" />
   <link rel="stylesheet" href="css/style.css?v=20260618-skin-system" />
   <link rel="stylesheet" href="css/study.css?v=20260618-skin-system" />
-  <link rel="stylesheet" href="css/industry-research.css?v=20260618-ir-1" />
+  <link rel="stylesheet" href="css/industry-research.css?v=20260622-ir-3" />
   <script src="js/layout.js?v=20260617-recap-nav" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
 </head>
@@ -22,7 +22,7 @@
       <div>
         <div class="ir-kicker">方法论 + 工具链</div>
         <h2 class="ir-title">产业投研</h2>
-        <p class="ir-sub">A-Stock-Data 取数据 + Kimi CLI 读研报 + News Radar 追热点，AI 自动化生成 11 模块深度看板</p>
+        <p class="ir-sub">A-Stock-Data 取数据 + AI 读研报 + News Radar 追热点，AI 自动化生成 11 模块深度看板</p>
       </div>
       <div class="ir-hero-actions">
         <button id="irNewTaskBtn" class="ir-btn ir-btn-primary">
@@ -73,7 +73,7 @@
           <div class="ir-empty-stages">
             <div class="ir-empty-stage"><span class="ir-empty-num">1</span>A-Stock-Data<br>取数据</div>
             <div class="ir-empty-arrow">→</div>
-            <div class="ir-empty-stage"><span class="ir-empty-num">2</span>Kimi CLI<br>读研报</div>
+            <div class="ir-empty-stage"><span class="ir-empty-num">2</span>AI<br>读研报</div>
             <div class="ir-empty-arrow">→</div>
             <div class="ir-empty-stage"><span class="ir-empty-num">3</span>News Radar<br>追热点</div>
             <div class="ir-empty-arrow">→</div>
@@ -110,7 +110,7 @@
         </div>
         <div class="ir-modal-stage">
           <p class="ir-modal-hint">
-            流水线执行：<b>A-Stock-Data 取数据</b> → <b>Kimi CLI 读研报</b> → <b>News Radar 抓 24h 新闻</b> → <b>组装 11 Tab 报告</b> → <b>写入数据库</b>
+            流水线执行：<b>A-Stock-Data 取数据</b> → <b>AI 读研报</b> → <b>News Radar 抓 24h 新闻</b> → <b>组装 11 Tab 报告</b> → <b>写入数据库</b>
           </p>
         </div>
       </div>
@@ -121,6 +121,38 @@
     </div>
   </div>
 
-  <script src="js/industry-research.js?v=20260618-ir-1" defer></script>
+  <!-- 分享弹窗 -->
+  <div class="ir-modal" id="irShareModal" hidden>
+    <div class="ir-modal-backdrop" data-share-close></div>
+    <div class="ir-modal-card ir-share-card">
+      <div class="ir-modal-head">
+        <h3>📤 分享报告</h3>
+        <button class="ir-modal-close" data-share-close>×</button>
+      </div>
+      <div class="ir-modal-body">
+        <div class="ir-share-section">
+          <label>分享链接</label>
+          <small>任何人点开都能直接看到这篇报告</small>
+          <div class="ir-share-row">
+            <input id="irShareUrl" readonly />
+            <button class="ir-btn ir-btn-primary" id="irShareCopyUrlBtn">复制链接</button>
+          </div>
+        </div>
+        <div class="ir-share-section">
+          <label>快速摘要（粘到微信 / 群）</label>
+          <div class="ir-share-row ir-share-row-col">
+            <textarea id="irShareSummary" readonly rows="6"></textarea>
+            <button class="ir-btn ir-btn-ghost" id="irShareCopySummaryBtn">复制摘要</button>
+          </div>
+        </div>
+      </div>
+      <div class="ir-modal-foot">
+        <span class="ir-share-tip" id="irShareTip"></span>
+        <button class="ir-btn ir-btn-ghost" data-share-close>关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/industry-research.js?v=20260622-ir-3" defer></script>
 </body>
 </html>

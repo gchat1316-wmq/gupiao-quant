@@ -22,6 +22,10 @@ public interface TradeStockDailyRepository extends JpaRepository<TradeStockDaily
 
     List<TradeStockDaily> findByStockCodeAndTradeDateGreaterThanOrderByTradeDateAsc(String stockCode, LocalDate tradeDate);
 
+    /** 取指定股票在日期区间内的全部 daily（实战选股：月线分析用） */
+    List<TradeStockDaily> findByStockCodeAndTradeDateBetweenOrderByTradeDateAsc(
+            String stockCode, LocalDate fromDate, LocalDate toDate);
+
     /** 取指定股票在指定日期及之后的首条 daily 记录（用于年初涨幅基准价） */
     Optional<TradeStockDaily> findFirstByStockCodeAndTradeDateGreaterThanEqualOrderByTradeDateAsc(
             String stockCode, LocalDate fromDate);
