@@ -29,7 +29,18 @@
     if (children) {
       (Array.isArray(children) ? children : [children]).forEach(c => {
         if (c == null) return;
-        e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+        if (c instanceof Node) { e.appendChild(c); return; }
+        if (typeof c === 'string' || typeof c === 'number' || typeof c === 'boolean') {
+          e.appendChild(document.createTextNode(String(c)));
+          return;
+        }
+        // 数组：扁平化递归
+        if (Array.isArray(c)) {
+          c.forEach(cc => { if (cc instanceof Node) e.appendChild(cc); else if (typeof cc === 'string' || typeof cc === 'number') e.appendChild(document.createTextNode(String(cc))); });
+          return;
+        }
+        // 未知类型：转 JSON 字符串避免 appendChild 炸
+        try { e.appendChild(document.createTextNode(JSON.stringify(c))); } catch (_) { /* 彻底兑底 */ }
       });
     }
     return e;
@@ -115,7 +126,19 @@
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.set('articleId', articleId);
       window.history.replaceState({}, '', newUrl.toString());
-      renderArticle(detail);
+      try {
+        renderArticle(detail);
+      } catch (inner) {
+        console.error('renderArticle 炸了:', inner);
+        $('#irContent').innerHTML = '';
+        $('#irContent').appendChild(el('div', { class: 'ir-empty' }, [
+          el('div', { class: 'ir-empty-icon' }, '💥'),
+          el('h3', null, 'renderArticle 崩溃'),
+          el('p', null, '类型：' + inner.name + ' · ' + inner.message),
+          el('pre', { style: 'white-space:pre-wrap;font-size:11px;background:#1a1a1f;color:#f87171;padding:10px;border-radius:6px;overflow:auto;max-height:300px;text-align:left;' }, (inner.stack || '').slice(0, 2000))
+        ]));
+        return;
+      }
       renderSidebar();
     } catch (e) {
       renderError('加载失败：' + e.message);
