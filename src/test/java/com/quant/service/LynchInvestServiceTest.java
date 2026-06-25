@@ -3,12 +3,10 @@ package com.quant.service;
 import com.quant.entity.InvestLynchWatchlist;
 import com.quant.entity.InvestLynchAnalysisRecord;
 import com.quant.entity.TradeStockBasic;
-import com.quant.entity.TradeStockDaily;
 import com.quant.entity.TradeStockFinancial;
 import com.quant.repository.InvestLynchAnalysisRecordRepository;
 import com.quant.repository.InvestLynchWatchlistRepository;
 import com.quant.repository.TradeStockBasicRepository;
-import com.quant.repository.TradeStockDailyRepository;
 import com.quant.repository.TradeStockFinancialRepository;
 import com.quant.service.lynchinvest.LynchInvestService;
 import com.quant.service.lynchinvest.LynchInvestAnalysisService;
@@ -21,12 +19,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.verify;
@@ -39,7 +39,7 @@ class LynchInvestServiceTest {
     @Mock InvestLynchWatchlistRepository watchlistRepository;
     @Mock InvestLynchAnalysisRecordRepository analysisRecordRepository;
     @Mock TradeStockBasicRepository stockBasicRepository;
-    @Mock TradeStockDailyRepository dailyRepository;
+    @Mock AStockDataQuoteService aStockDataQuoteService;
     @Mock TradeStockFinancialRepository financialRepository;
     @Mock StockQueryService stockQueryService;
     @Mock com.quant.service.ai.MiniMaxClient miniMaxClient;
@@ -50,10 +50,12 @@ class LynchInvestServiceTest {
 
     @BeforeEach
     void setUp() {
+        // 默认所有股票实时行情为空；测试用例按需 stub aStockDataQuoteService.fetchQuotes
+        org.mockito.Mockito.lenient().when(aStockDataQuoteService.fetchQuotes(any())).thenReturn(Map.of());
         service = new LynchInvestService(
                 watchlistRepository,
                 stockBasicRepository,
-                dailyRepository,
+                aStockDataQuoteService,
                 financialRepository,
                 stockQueryService
         );
@@ -67,7 +69,7 @@ class LynchInvestServiceTest {
     }
 
     @Test
-    @DisplayName("buildWatchlist returns peg metrics and rating from trade data")
+    @DisplayName("buildWatchlist returns peg metrics and rating from realtime quote (a-stock-data)")
     void buildWatchlistReturnsPegMetrics() {
         InvestLynchWatchlist row = new InvestLynchWatchlist();
         row.setStockCode("600519.SH");
@@ -81,14 +83,14 @@ class LynchInvestServiceTest {
         basic.setPb(new BigDecimal("8.50"));
         basic.setTotalShares(1256197800L);
 
-        TradeStockDaily daily = new TradeStockDaily();
-        daily.setStockCode("600519.SH");
-        daily.setTradeDate(LocalDate.of(2026, 6, 16));
-        daily.setClosePrice(new BigDecimal("1490.00"));
-
+        // 实时价由 a-stock-data 给出
         when(watchlistRepository.findAllByOrderByDisplayOrderAscCreatedAtAsc()).thenReturn(List.of(row));
         when(stockBasicRepository.findByStockCodeIn(anyCollection())).thenReturn(List.of(basic));
-        when(dailyRepository.findLatestByStockCodes(anyCollection())).thenReturn(List.of(daily));
+        when(aStockDataQuoteService.fetchQuotes(any())).thenReturn(Map.of(
+                "600519.SH", new AStockDataQuoteService.QuoteSnapshot(
+                        "600519.SH", new BigDecimal("1490.00"), new BigDecimal("1485.00"),
+                        new BigDecimal("18716"), LocalDateTime.now(), "a-stock-data/tencent")
+        ));
         when(financialRepository.findByStockCodeOrderByReportDateDesc("600519.SH")).thenReturn(sampleProfits());
 
         var items = service.getWatchlist();
@@ -115,7 +117,6 @@ class LynchInvestServiceTest {
         ))).thenAnswer(invocation -> invocation.getArgument(0));
         when(watchlistRepository.findAllByOrderByDisplayOrderAscCreatedAtAsc()).thenReturn(List.of(watchlist("002371.SZ", "北方华创")));
         when(stockBasicRepository.findByStockCodeIn(anyCollection())).thenReturn(List.of(basic));
-        when(dailyRepository.findLatestByStockCodes(anyCollection())).thenReturn(List.of());
         when(financialRepository.findByStockCodeOrderByReportDateDesc("002371.SZ")).thenReturn(List.of());
 
         var items = service.addWatchlist("北方华创");
@@ -146,9 +147,16 @@ class LynchInvestServiceTest {
 
         when(stockQueryService.resolveStock("北方华创")).thenReturn(Optional.of(base));
         when(stockBasicRepository.findBySectorNameLike("半导体设备")).thenReturn(List.of(base, peer));
-        when(dailyRepository.findLatestByStockCodes(argThat((Collection<String> codes) ->
+        when(aStockDataQuoteService.fetchQuotes(argThat((Collection<String> codes) ->
                 codes.contains("002371.SZ") && codes.contains("688012.SH")
-        ))).thenReturn(List.of(daily("002371.SZ", "410.00"), daily("688012.SH", "180.00")));
+        ))).thenReturn(Map.of(
+                "002371.SZ", new AStockDataQuoteService.QuoteSnapshot(
+                        "002371.SZ", new BigDecimal("410.00"), new BigDecimal("405.00"),
+                        null, LocalDateTime.now(), "a-stock-data/tencent"),
+                "688012.SH", new AStockDataQuoteService.QuoteSnapshot(
+                        "688012.SH", new BigDecimal("180.00"), new BigDecimal("178.00"),
+                        null, LocalDateTime.now(), "a-stock-data/tencent")
+        ));
 
         Map<String, Object> sector = service.getSectorPe("北方华创");
 
@@ -169,8 +177,11 @@ class LynchInvestServiceTest {
         basic.setPb(new BigDecimal("7.10"));
         basic.setTotalShares(100_000_000L);
         when(stockQueryService.resolveStock("北方华创")).thenReturn(Optional.of(basic));
-        when(dailyRepository.findFirstByStockCodeOrderByTradeDateDesc("002371.SZ"))
-                .thenReturn(Optional.of(daily("002371.SZ", "410.00")));
+        when(aStockDataQuoteService.fetchQuotes(any())).thenReturn(Map.of(
+                "002371.SZ", new AStockDataQuoteService.QuoteSnapshot(
+                        "002371.SZ", new BigDecimal("410.00"), new BigDecimal("405.00"),
+                        null, LocalDateTime.now(), "a-stock-data/tencent")
+        ));
         when(financialRepository.findByStockCodeOrderByReportDateDesc("002371.SZ")).thenReturn(List.of(
                 annualFinancial("002371.SZ", "2025-12-31", "5200000000"),
                 annualFinancial("002371.SZ", "2024-12-31", "4200000000"),
@@ -225,13 +236,5 @@ class LynchInvestServiceTest {
         row.setStockCode(code);
         row.setStockName(name);
         return row;
-    }
-
-    private TradeStockDaily daily(String code, String closePrice) {
-        TradeStockDaily d = new TradeStockDaily();
-        d.setStockCode(code);
-        d.setTradeDate(LocalDate.of(2026, 6, 16));
-        d.setClosePrice(new BigDecimal(closePrice));
-        return d;
     }
 }

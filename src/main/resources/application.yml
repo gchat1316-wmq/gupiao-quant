@@ -58,12 +58,13 @@ stock-analysis:
   python-command: ${BAOSTOCK_CLIENT_PYTHON:python3}
   timeout-seconds: 90
 
-# 产业投研模块 (A-Stock-Data + Kimi CLI + News Radar 流水线)
+# 产业投研模块 (A-Stock-Data + LLM 读研报 + News Radar 流水线)
 industry-research:
   enabled: true
   python-command: python3
   kimi-cli:
-    # 启用 Kimi CLI 后会真实调用本地 kimi 命令批量读研报；不启用则回退到 mock 摘要
+    # 兼容旧字段：流水线已不再依赖 kimi CLI；此 enabled 仍作为 "是否启用 LLM" 总开关
+    # （控制是否调 MiniMaxClient / minimax CLI 调 LLM 读研报）
     enabled: true
     command: ${KIMI_CLI_COMMAND:kimi}
     max-reports: 1500
@@ -77,6 +78,22 @@ industry-research:
   data-fetch:
     timeout-seconds: 30
     fallback-local: true
+  pdf-fetch:
+    # 自动爬取 + 解析研报 PDF，把真实文本喂给 LLM
+    enabled: true
+    max-reports: 4
+    max-results: 8
+    per-report-max-chars: 8000
+    max-report-chars: 24000
+    download-timeout-seconds: 20
+  cli-mode:
+    # true=走子进程调 minimax CLI (llm_call.py)；false=走 MiniMaxClient 直连 API
+    enabled: false
+    script-path: ${user.home}/.mavis/.builtin-skills/llm-call/scripts/llm_call.py
+    python-command: python3
+    model: minimax-test/MiniMax-M2.7-highspeed
+    max-tokens: 8192
+    timeout-seconds: 600
 
 prosperity-strong:
   enabled: true
@@ -112,6 +129,13 @@ invest-big-yang:
   max-signals: 200
   candidate-cron: "0 35 18 * * MON-FRI"
   trigger-cron: "0 */5 9-15 * * MON-FRI"
+
+# 龙江投资股票池后台补全：周末全量 + 每日增量巡检
+# refresh-cron  : 全量刷新（拉 BaoStock 日线 + 回填所有池条目）
+# backfill-cron : 每日巡检，仅补 NULL 字段，不覆盖手工/OCR/seed 数据
+invest-pool:
+  refresh-cron: "0 30 20 ? * SAT"
+  backfill-cron: "0 30 16 * * ?"
 
 notification:
   serverchan:

@@ -5,10 +5,8 @@ import com.quant.dto.QueryResultDTO;
 import com.quant.dto.StockBasicInfoDTO;
 import com.quant.dto.StockFinancialDTO;
 import com.quant.entity.TradeStockBasic;
-import com.quant.entity.TradeStockDaily;
 import com.quant.entity.TradeStockFinancial;
 import com.quant.repository.TradeStockBasicRepository;
-import com.quant.repository.TradeStockDailyRepository;
 import com.quant.repository.TradeStockFinancialRepository;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -25,11 +23,12 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -42,16 +41,16 @@ public class StockQueryService {
 
     private final TradeStockBasicRepository stockBasicRepository;
     private final TradeStockFinancialRepository financialRepository;
-    private final TradeStockDailyRepository dailyRepository;
+    private final AStockDataQuoteService aStockDataQuoteService;
     private final JdbcTemplate jdbcTemplate;
 
     public StockQueryService(TradeStockBasicRepository stockBasicRepository,
                              TradeStockFinancialRepository financialRepository,
-                             TradeStockDailyRepository dailyRepository,
+                             AStockDataQuoteService aStockDataQuoteService,
                              JdbcTemplate jdbcTemplate) {
         this.stockBasicRepository = stockBasicRepository;
         this.financialRepository = financialRepository;
-        this.dailyRepository = dailyRepository;
+        this.aStockDataQuoteService = aStockDataQuoteService;
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -261,13 +260,29 @@ public class StockQueryService {
         );
     }
 
+    /**
+     * 当前市值（亿元）。实时价/市值走 a-stock-data 实时接口，trade_stock_daily 收盘价同步延迟且不准确。
+     * 优先用 quote 里的 totalMarketCapYi；拿不到再退回到 price × 总股本 自己算。
+     */
     private BigDecimal latestMarketCapYi(TradeStockBasic basic) {
-        if (basic.getTotalShares() == null || basic.getTotalShares() <= 0) return null;
-        Optional<TradeStockDaily> dailyOpt = dailyRepository.findFirstByStockCodeOrderByTradeDateDesc(basic.getStockCode());
-        return dailyOpt.map(TradeStockDaily::getClosePrice)
-                .filter(price -> price.compareTo(BigDecimal.ZERO) > 0)
-                .map(price -> scaleYi(price.multiply(BigDecimal.valueOf(basic.getTotalShares())).divide(YI, 6, RoundingMode.HALF_UP)))
-                .orElse(null);
+        if (basic == null) return null;
+        Map<String, AStockDataQuoteService.QuoteSnapshot> quoteMap = aStockDataQuoteService.fetchQuotes(List.of(basic.getStockCode()));
+        AStockDataQuoteService.QuoteSnapshot snapshot = quoteMap == null ? null : quoteMap.get(normalizeCodeKey(basic.getStockCode()));
+        if (snapshot != null && snapshot.totalMarketCapYi() != null && snapshot.totalMarketCapYi().compareTo(BigDecimal.ZERO) > 0) {
+            return scaleYi(snapshot.totalMarketCapYi());
+        }
+        if (snapshot == null || snapshot.latestPrice() == null || snapshot.latestPrice().compareTo(BigDecimal.ZERO) <= 0) {
+            return null;
+        }
+        if (basic.getTotalShares() == null || basic.getTotalShares() <= 0) {
+            return null;
+        }
+        BigDecimal price = snapshot.latestPrice();
+        return scaleYi(price.multiply(BigDecimal.valueOf(basic.getTotalShares())).divide(YI, 6, RoundingMode.HALF_UP));
+    }
+
+    private String normalizeCodeKey(String code) {
+        return code == null ? "" : code.trim().toUpperCase(Locale.ROOT);
     }
 
     private BigDecimal annualizedRevenueYi(TradeStockFinancial latest) {

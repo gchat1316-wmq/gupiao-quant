@@ -116,10 +116,10 @@ public class InvestController {
         return Map.of("message", "tech_vc pool rebuilt", "inserted", inserted);
     }
 
-    /** 手动触发股票池周末刷新逻辑。 */
+    /** 手动触发股票池周末刷新逻辑。补齐所有池类型（quality + tech_vc）的缺失字段。 */
     @PostMapping("/pool/refresh")
     public Map<String, Object> refreshPool() {
-        int refreshed = poolRefreshService.refreshTechVcSnapshots();
+        int refreshed = poolRefreshService.refreshAllPoolSnapshots();
         return Map.of("message", "pool refreshed", "refreshed", refreshed);
     }
 }

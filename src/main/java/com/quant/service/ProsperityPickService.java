@@ -9,10 +9,8 @@ import com.quant.dto.invest.ProsperityPickRecentDTO;
 import com.quant.dto.invest.ProsperityPickResultDTO;
 import com.quant.entity.InvestProsperityPick;
 import com.quant.entity.TradeStockBasic;
-import com.quant.entity.TradeStockDaily;
 import com.quant.entity.TradeStockFinancial;
 import com.quant.repository.InvestProsperityPickRepository;
-import com.quant.repository.TradeStockDailyRepository;
 import com.quant.repository.TradeStockFinancialRepository;
 import com.quant.service.ai.MiniMaxClient;
 import com.quant.service.ai.SenseNovaClient;
@@ -30,6 +28,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -45,7 +44,7 @@ public class ProsperityPickService {
 
     private final StockQueryService stockQueryService;
     private final TradeStockFinancialRepository financialRepo;
-    private final TradeStockDailyRepository dailyRepo;
+    private final AStockDataQuoteService aStockDataQuoteService;
     private final InvestProsperityPickRepository repo;
     private final MiniMaxClient miniMaxClient;
     private final SenseNovaClient senseNovaClient;
@@ -601,16 +600,21 @@ public class ProsperityPickService {
                 .pb(basic.getPb())
                 .psTtm(basic.getPsTtm());
 
-        Optional<TradeStockDaily> dailyOpt = dailyRepo.findFirstByStockCodeOrderByTradeDateDesc(basic.getStockCode());
-        dailyOpt.ifPresent(d -> {
-            pb.currentPrice(d.getClosePrice());
-            if (d.getClosePrice() != null && basic.getTotalShares() != null) {
-                BigDecimal cap = d.getClosePrice()
+        // 当前价/市值统一走 a-stock-data 实时接口；trade_stock_daily 收盘价同步延迟、不准确
+        Map<String, AStockDataQuoteService.QuoteSnapshot> quoteMap = aStockDataQuoteService.fetchQuotes(List.of(basic.getStockCode()));
+        AStockDataQuoteService.QuoteSnapshot snapshot = quoteMap == null ? null
+                : quoteMap.get(basic.getStockCode() == null ? "" : basic.getStockCode().trim().toUpperCase(Locale.ROOT));
+        if (snapshot != null && snapshot.latestPrice() != null) {
+            pb.currentPrice(snapshot.latestPrice());
+            if (snapshot.totalMarketCapYi() != null && snapshot.totalMarketCapYi().compareTo(BigDecimal.ZERO) > 0) {
+                pb.totalMarketCap(snapshot.totalMarketCapYi());
+            } else if (basic.getTotalShares() != null) {
+                BigDecimal cap = snapshot.latestPrice()
                         .multiply(BigDecimal.valueOf(basic.getTotalShares()))
                         .divide(BigDecimal.valueOf(100_000_000L), 2, RoundingMode.HALF_UP);
                 pb.totalMarketCap(cap);
             }
-        });
+        }
 
         List<TradeStockFinancial> fin = financialRepo
                 .findByStockCodeOrderByReportDateDesc(basic.getStockCode());

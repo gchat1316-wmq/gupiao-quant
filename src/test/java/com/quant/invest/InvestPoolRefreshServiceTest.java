@@ -2,6 +2,7 @@ package com.quant.invest;
 
 import com.quant.entity.InvestStockPool;
 import com.quant.repository.InvestStockPoolRepository;
+import com.quant.service.AStockDataForecastProvider;
 import com.quant.service.BaostockSyncService;
 import com.quant.service.InvestForecastProvider;
 import com.quant.service.InvestPoolRefreshService;
@@ -24,6 +25,7 @@ class InvestPoolRefreshServiceTest {
         InvestStockPoolRepository poolRepo = mock(InvestStockPoolRepository.class);
         BaostockSyncService syncService = mock(BaostockSyncService.class);
         InvestForecastProvider forecastProvider = mock(InvestForecastProvider.class);
+        AStockDataForecastProvider aStockForecastProvider = mock(AStockDataForecastProvider.class);
 
         InvestStockPool pool = new InvestStockPool();
         pool.setId(1);
@@ -40,7 +42,7 @@ class InvestPoolRefreshServiceTest {
         when(forecastProvider.fetchRevenueForecast(pool)).thenThrow(new IllegalStateException("source unavailable"));
 
         InvestPoolRefreshService service = new InvestPoolRefreshService(
-                poolRepo, syncService, forecastProvider);
+                poolRepo, syncService, forecastProvider, aStockForecastProvider);
 
         int refreshed = service.refreshTechVcSnapshots();
 

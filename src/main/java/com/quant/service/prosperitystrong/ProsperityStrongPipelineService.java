@@ -13,14 +13,13 @@ import com.quant.entity.ProsperityHotSector;
 import com.quant.entity.ProsperityLeaderCandidate;
 import com.quant.entity.ProsperityPickDaily;
 import com.quant.entity.TradeStockBasic;
-import com.quant.entity.TradeStockDaily;
 import com.quant.entity.TradeStockFinancial;
 import com.quant.repository.ProsperityHotSectorRepository;
 import com.quant.repository.ProsperityLeaderCandidateRepository;
 import com.quant.repository.ProsperityPickDailyRepository;
 import com.quant.repository.TradeStockBasicRepository;
-import com.quant.repository.TradeStockDailyRepository;
 import com.quant.repository.TradeStockFinancialRepository;
+import com.quant.service.AStockDataQuoteService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -65,8 +65,8 @@ public class ProsperityStrongPipelineService {
     private final ProsperityLeaderCandidateRepository leaderRepo;
     private final ProsperityPickDailyRepository pickRepo;
     private final TradeStockBasicRepository basicRepo;
-    private final TradeStockDailyRepository dailyRepo;
     private final TradeStockFinancialRepository financialRepo;
+    private final AStockDataQuoteService aStockDataQuoteService;
 
     /** 全量执行四步流水线。 */
     public PipelineRunResultDTO run(LocalDate snapDate) {
@@ -155,11 +155,9 @@ public class ProsperityStrongPipelineService {
                 allLeaders.stream().map(ProsperityLeaderCandidate::getStockCode).distinct().toList())) {
             basicMap.put(b.getStockCode(), b);
         }
-        Map<String, TradeStockDaily> dailyMap = new HashMap<>();
-        for (TradeStockDaily d : dailyRepo.findLatestByStockCodes(
-                allLeaders.stream().map(ProsperityLeaderCandidate::getStockCode).distinct().toList())) {
-            dailyMap.put(d.getStockCode(), d);
-        }
+        // 当前股价统一走 a-stock-data 实时接口；trade_stock_daily 收盘价同步延迟、不准确
+        Map<String, AStockDataQuoteService.QuoteSnapshot> quoteMap = aStockDataQuoteService.fetchQuotes(
+                allLeaders.stream().map(ProsperityLeaderCandidate::getStockCode).distinct().toList());
 
         for (ProsperityLeaderCandidate c : allLeaders) {
             // Step2 快速过滤
@@ -214,8 +212,9 @@ public class ProsperityStrongPipelineService {
                     fin.financeScore(), mainline.mainlineScore(), c.getLeaderScore());
             pick.setCombinedScore(combined);
 
-            TradeStockDaily d = dailyMap.get(c.getStockCode());
-            BigDecimal latestPrice = d == null ? null : d.getClosePrice();
+            AStockDataQuoteService.QuoteSnapshot snapshot = quoteMap.get(c.getStockCode() == null
+                    ? "" : c.getStockCode().trim().toUpperCase(Locale.ROOT));
+            BigDecimal latestPrice = snapshot == null ? null : snapshot.latestPrice();
             pick.setLatestPrice(latestPrice);
             TradeStockBasic basic = basicMap.get(c.getStockCode());
             positionAdvisor.advise(pick, latestPrice,

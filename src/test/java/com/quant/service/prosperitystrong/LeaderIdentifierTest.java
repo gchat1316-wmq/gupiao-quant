@@ -7,6 +7,7 @@ import com.quant.entity.TradeStockBasic;
 import com.quant.entity.TradeStockDaily;
 import com.quant.repository.TradeStockBasicRepository;
 import com.quant.repository.TradeStockDailyRepository;
+import com.quant.service.AStockDataQuoteService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,7 +17,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -37,13 +40,18 @@ class LeaderIdentifierTest {
     @Mock
     private TradeStockDailyRepository dailyRepo;
 
+    @Mock
+    private AStockDataQuoteService aStockDataQuoteService;
+
     private LeaderIdentifier identifier;
 
     @BeforeEach
     void setUp() {
         ProsperityStrongProperties props = new ProsperityStrongProperties();
         props.setLeadersPerSector(5);
-        identifier = org.mockito.Mockito.spy(new LeaderIdentifier(basicRepo, dailyRepo, props));
+        // 默认所有股票实时行情返回空，迫使 identify 跳过（与 memberStats 用法隔离）
+        org.mockito.Mockito.lenient().when(aStockDataQuoteService.fetchQuotes(anyList())).thenReturn(Map.of());
+        identifier = org.mockito.Mockito.spy(new LeaderIdentifier(basicRepo, dailyRepo, aStockDataQuoteService, props));
     }
 
     @Test
@@ -103,6 +111,12 @@ class LeaderIdentifierTest {
         when(basicRepo.findBySectorNameLike("中芯国际")).thenReturn(List.of());
         when(basicRepo.findBySectorNameLike("华为海思")).thenReturn(List.of());
 
+        // 当前价统一走 a-stock-data 实时接口（mock 给一个明显偏离的实时价用于对比）
+        when(aStockDataQuoteService.fetchQuotes(anyList())).thenReturn(Map.of(
+                "688001.SH", new AStockDataQuoteService.QuoteSnapshot(
+                        "688001.SH", new BigDecimal("21.50"), new BigDecimal("20.00"),
+                        null, LocalDateTime.now(), "a-stock-data/tencent")
+        ));
         when(dailyRepo.findLatestByStockCodes(anyList())).thenReturn(List.of(
                 quote("688001.SH", snapDate.minusDays(10), "20.00", "3.20")
         ));
@@ -122,6 +136,8 @@ class LeaderIdentifierTest {
         assertThat(candidates).hasSize(1);
         assertThat(candidates.get(0).getFilterPassed()).isEqualTo(1);
         assertThat(candidates.get(0).getFilterReason()).isNull();
+        // 年初至今涨幅应基于 a-stock-data 实时价 21.50： (21.5 - 10) / 10 = 1.15 = 115.00%
+        assertThat(candidates.get(0).getYtdChange()).isEqualByComparingTo("115.00");
     }
 
     private TradeStockBasic basic(String stockCode, String stockName) {

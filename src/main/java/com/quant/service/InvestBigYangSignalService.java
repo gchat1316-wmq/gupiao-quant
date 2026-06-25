@@ -53,6 +53,7 @@ public class InvestBigYangSignalService {
     private final TradeStockDailyRepository dailyRepository;
     private final EastMoneyRealtimeQuoteService eastMoneyRealtimeQuoteService;
     private final SinaRealtimeQuoteService sinaRealtimeQuoteService;
+    private final AStockDataQuoteService aStockDataQuoteService;
     private final InvestBigYangProperties properties;
 
     private final AtomicBoolean running = new AtomicBoolean(false);
@@ -229,6 +230,8 @@ public class InvestBigYangSignalService {
                 .collect(Collectors.toMap(InvestStockPool::getId, pool -> pool));
         Map<String, BigDecimal> realtimePriceMap = realtimePriceMap(watchingSignals.stream().map(InvestBigYangSignal::getStockCode).toList());
         Map<String, TradeStockDaily> latestDailyMap = latestDailyMap(watchingSignals.stream().map(InvestBigYangSignal::getStockCode).toList());
+        Map<String, AStockDataQuoteService.QuoteSnapshot> aStockDataMap = aStockDataQuoteService.fetchQuotes(
+                watchingSignals.stream().map(InvestBigYangSignal::getStockCode).toList());
 
         int triggeredCount = 0;
         int expiredCount = 0;
@@ -242,7 +245,7 @@ public class InvestBigYangSignalService {
                 continue;
             }
 
-            BigDecimal currentPrice = currentPrice(signal.getStockCode(), realtimePriceMap, latestDailyMap, now);
+            BigDecimal currentPrice = currentPrice(signal.getStockCode(), realtimePriceMap, latestDailyMap, aStockDataMap, now);
             if (currentPrice == null || signal.getBaseStartPrice() == null || signal.getBaseStartPrice().compareTo(BigDecimal.ZERO) <= 0) {
                 continue;
             }
@@ -503,15 +506,31 @@ public class InvestBigYangSignalService {
     private BigDecimal currentPrice(String stockCode,
                                     Map<String, BigDecimal> realtimePriceMap,
                                     Map<String, TradeStockDaily> latestDailyMap,
+                                    Map<String, AStockDataQuoteService.QuoteSnapshot> aStockDataMap,
                                     LocalDateTime now) {
-        TradeStockDaily latestDaily = latestDailyMap.get(stockCode);
         if (isTradingSession(now)) {
             BigDecimal realtime = realtimePriceMap.get(normalizeCode(stockCode));
             if (positive(realtime)) {
                 return realtime;
             }
+            // EastMoney/Sina 实时拿不到时，回退到 a-stock-data 实时接口；trade_stock_daily 收盘价同步延迟、不准
+            AStockDataQuoteService.QuoteSnapshot snapshot = aStockDataMap == null ? null
+                    : aStockDataMap.get(normalizeCode(stockCode));
+            if (snapshot != null && positive(snapshot.latestPrice())) {
+                return scalePrice(snapshot.latestPrice());
+            }
+            // 实在拿不到实时，再用 trade_stock_daily 兜底
+            TradeStockDaily latestDaily = latestDailyMap == null ? null : latestDailyMap.get(stockCode);
             return latestDaily == null ? null : scalePrice(latestDaily.getClosePrice());
         }
+        // 非交易时段：用 a-stock-data 实时接口的现价（盘后/节假日也是该接口的最近一次成交价）
+        AStockDataQuoteService.QuoteSnapshot snapshot = aStockDataMap == null ? null
+                : aStockDataMap.get(normalizeCode(stockCode));
+        if (snapshot != null && positive(snapshot.latestPrice())) {
+            return scalePrice(snapshot.latestPrice());
+        }
+        // 兜底 trade_stock_daily（仅最新 trade_date == 今天 时返回）
+        TradeStockDaily latestDaily = latestDailyMap == null ? null : latestDailyMap.get(stockCode);
         if (latestDaily == null || !now.toLocalDate().equals(latestDaily.getTradeDate())) {
             return null;
         }

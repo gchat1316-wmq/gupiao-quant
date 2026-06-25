@@ -55,6 +55,9 @@ class InvestBigYangSignalServiceTest {
     @Mock
     private SinaRealtimeQuoteService sinaRealtimeQuoteService;
 
+    @Mock
+    private AStockDataQuoteService aStockDataQuoteService;
+
     private InvestBigYangSignalService service;
 
     @BeforeEach
@@ -67,6 +70,8 @@ class InvestBigYangSignalServiceTest {
         props.setPullbackTolerancePct(BigDecimal.valueOf(2));
         props.setInvalidBreakPct(BigDecimal.valueOf(5));
         props.setExpireTradingDays(20);
+        // 默认所有股票 a-stock-data 实时行情为空，迫使 trigger 扫描跳过（与现有 EastMoney/Sina mock 隔离）
+        org.mockito.Mockito.lenient().when(aStockDataQuoteService.fetchQuotes(any())).thenReturn(Map.of());
         service = new InvestBigYangSignalService(
                 signalRepository,
                 poolRepository,
@@ -74,6 +79,7 @@ class InvestBigYangSignalServiceTest {
                 dailyRepository,
                 eastMoneyRealtimeQuoteService,
                 sinaRealtimeQuoteService,
+                aStockDataQuoteService,
                 props
         );
     }
@@ -88,6 +94,7 @@ class InvestBigYangSignalServiceTest {
                 dailyRepository,
                 eastMoneyRealtimeQuoteService,
                 sinaRealtimeQuoteService,
+                aStockDataQuoteService,
                 freshProps()
         ) {
             @Override
@@ -209,6 +216,7 @@ class InvestBigYangSignalServiceTest {
                 dailyRepository,
                 eastMoneyRealtimeQuoteService,
                 sinaRealtimeQuoteService,
+                aStockDataQuoteService,
                 freshProps()
         ) {
             @Override
@@ -250,6 +258,7 @@ class InvestBigYangSignalServiceTest {
                 dailyRepository,
                 eastMoneyRealtimeQuoteService,
                 sinaRealtimeQuoteService,
+                aStockDataQuoteService,
                 freshProps()
         ) {
             @Override

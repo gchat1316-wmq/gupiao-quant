@@ -3,7 +3,6 @@ package com.quant.service;
 import com.quant.entity.TradeStockBasic;
 import com.quant.entity.TradeStockFinancial;
 import com.quant.repository.TradeStockBasicRepository;
-import com.quant.repository.TradeStockDailyRepository;
 import com.quant.repository.TradeStockFinancialRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,6 +17,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -28,14 +28,16 @@ class StockQueryServiceTest {
 
     @Mock TradeStockBasicRepository stockBasicRepository;
     @Mock TradeStockFinancialRepository financialRepository;
-    @Mock TradeStockDailyRepository dailyRepository;
+    @Mock AStockDataQuoteService aStockDataQuoteService;
     @Mock org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     private StockQueryService service;
 
     @BeforeEach
     void setUp() {
-        service = new StockQueryService(stockBasicRepository, financialRepository, dailyRepository, jdbcTemplate);
+        // 默认所有股票实时行情为空，迫使最新市值走 null 兜底
+        org.mockito.Mockito.lenient().when(aStockDataQuoteService.fetchQuotes(any())).thenReturn(java.util.Map.of());
+        service = new StockQueryService(stockBasicRepository, financialRepository, aStockDataQuoteService, jdbcTemplate);
     }
 
     private TradeStockBasic basic(String code, String name) {

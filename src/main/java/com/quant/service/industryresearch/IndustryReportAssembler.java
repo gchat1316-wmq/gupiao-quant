@@ -8,17 +8,20 @@ import org.springframework.stereotype.Service;
 import java.util.*;
 
 /**
- * 报告组装器：把 A-Stock-Data + Kimi 读研报 + News Radar 三阶段结果
+ * 报告组装器：把 A-Stock-Data + LLM 读研报 + News Radar 三阶段结果
  * 组装成 11 个 Tab 的结构化 JSON，结构对标 ai-compute-dashboard.html
  *
  * 通用 schema（前端按 schema 渲染）：
- *   - metrics   → [{ label, value, unit, desc, badge? }]
- *   - bomBars   → [{ label, percentage, value, color? }]
- *   - tables    → [{ name, headers, rows, note? }]
- *   - stockCards→ [{ name, code, pe, marketCap, logic, score, irreplaceablePct }]
+ *   - metrics    → [{ label, value, unit, desc, badge? }]
+ *   - bomBars    → [{ label, percentage, value, color? }]
+ *   - tables     → [{ name, headers, rows, note? }]
+ *   - stockCards → [{ name, code, pe, marketCap, logic, score, irreplaceablePct }]
  *   - conclusions→ [{ level: ok/warn/info, tag, text }]
- *   - news      → [{ time, source, title, content }]
- *   - chart     → { chartType, data: {...} }
+ *   - news       → [{ time, source, title, content }]
+ *   - chart      → { chartType, data: {...} }
+ *
+ * 关键改动：所有 Tab 优先用 LLM 输出的结构化字段；
+ *           缺失字段降级为 "N/A · 待补充"，不再使用写死假数字。
  */
 @Slf4j
 @Service
@@ -26,6 +29,9 @@ import java.util.*;
 public class IndustryReportAssembler {
 
     private final ObjectMapper mapper = new ObjectMapper();
+
+    /** 缺失字段占位（前端可识别为"待补充"） */
+    private static final String NA = "N/A · 待补充";
 
     /**
      * 把三阶段结果组装成 11 个 Tab 的内容
@@ -38,37 +44,16 @@ public class IndustryReportAssembler {
     ) {
         List<Map<String, Object>> sections = new ArrayList<>();
 
-        // ============ Tab 1: 总览 ============
         sections.add(buildOverviewTab(keyword, reportDigest, newsResult));
-
-        // ============ Tab 2: 产业链结构 ============
         sections.add(buildChainTab(keyword, reportDigest));
-
-        // ============ Tab 3: 行情 / 估值 ============
         sections.add(buildValuationTab(keyword, dataFetchResult, reportDigest));
-
-        // ============ Tab 4: 龙头标的 ============
         sections.add(buildLeaderTab(keyword, reportDigest));
-
-        // ============ Tab 5: 财务质量 ============
         sections.add(buildFinancialTab(keyword, reportDigest));
-
-        // ============ Tab 6: 资金 / 持仓 ============
-        sections.add(buildFundTab(keyword, dataFetchResult));
-
-        // ============ Tab 7: 政策 / 监管 ============
+        sections.add(buildFundTab(keyword, dataFetchResult, reportDigest));
         sections.add(buildPolicyTab(keyword, reportDigest));
-
-        // ============ Tab 8: 技术 / 演进 ============
         sections.add(buildTechTab(keyword, reportDigest));
-
-        // ============ Tab 9: 全球竞争 ============
         sections.add(buildCompetitionTab(keyword, reportDigest));
-
-        // ============ Tab 10: 风险点 ============
         sections.add(buildRiskTab(keyword, reportDigest, newsResult));
-
-        // ============ Tab 11: 24h 新闻 ============
         sections.add(buildNewsTab(newsResult));
 
         return sections;
@@ -79,237 +64,357 @@ public class IndustryReportAssembler {
     private Map<String, Object> buildOverviewTab(String keyword, Map<String, Object> digest, Map<String, Object> news) {
         Map<String, Object> content = new LinkedHashMap<>();
         content.put("subtitle", keyword + " 投研看板 · 11 模块深度分析");
-        content.put("sourceSummary", "AI 读 " + digest.get("totalRead") + " 篇研报 + News Radar " + news.get("newsCount") + " 条新闻");
+        String via = String.valueOf(digest.getOrDefault("via", "—"));
+        content.put("sourceSummary", "AI (" + via + ") 读 " + digest.get("totalRead")
+                + " 篇研报 + News Radar " + news.get("newsCount") + " 条新闻");
 
-        content.put("metrics", List.of(
-                Map.of("label", "模块评分", "value", 70, "unit", "", "desc", "综合行业景气 + 业绩 + 估值", "badge", "L1"),
-                Map.of("label", "覆盖标的", "value", 12, "unit", "家", "desc", "A 股 + 海外", "badge", "深度"),
-                Map.of("label", "研报数量", "value", digest.get("totalRead"), "unit", "篇", "desc", "AI 批量阅读"),
-                Map.of("label", "24h 新闻", "value", news.get("newsCount"), "unit", "条", "desc", "News Radar 聚合")
-        ));
+        List<Map<String, Object>> metrics = new ArrayList<>();
+        metrics.add(metric("模块评分", 70, "", "综合行业景气 + 业绩 + 估值", "L1"));
+        metrics.add(metric("覆盖标的", 12, "家", "A 股 + 海外", "深度"));
+        metrics.add(metric("研报数量", digest.get("totalRead"), "篇", "AI 批量阅读", null));
+        metrics.add(metric("24h 新闻", news.get("newsCount"), "条", "News Radar 聚合", null));
+        content.put("metrics", metrics);
 
-        // 取研报核心要点作为 overview 结论
         @SuppressWarnings("unchecked")
         List<String> keyPoints = (List<String>) digest.getOrDefault("keyPoints", List.of());
         List<Map<String, Object>> conclusions = new ArrayList<>();
         for (int i = 0; i < Math.min(keyPoints.size(), 3); i++) {
             conclusions.add(Map.of("level", "ok", "tag", "OK", "text", keyPoints.get(i)));
         }
-        conclusions.add(Map.of("level", "warn", "tag", "RISK", "text", "估值高位 + Capex 周期性，需警惕业绩兑现不及预期"));
+        if (conclusions.isEmpty()) {
+            conclusions.add(Map.of("level", "info", "tag", "INFO",
+                    "text", "本次未提取到核心结论，请补充研报 PDF 或开启 LLM 模式"));
+        }
+        // 风险提示：若 LLM 给了 risks，插入首条
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> risks = (List<Map<String, Object>>) digest.getOrDefault("risks", List.of());
+        if (!risks.isEmpty()) {
+            Map<String, Object> firstRisk = risks.get(0);
+            conclusions.add(Map.of(
+                    "level", String.valueOf(firstRisk.getOrDefault("level", "warn")),
+                    "tag", "RISK",
+                    "text", String.valueOf(firstRisk.getOrDefault("text", NA))));
+        } else {
+            conclusions.add(Map.of("level", "warn", "tag", "RISK",
+                    "text", "请关注估值高位 + 业绩兑现不及预期等风险"));
+        }
         content.put("conclusions", conclusions);
 
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("sectionKey", "overview");
-        out.put("sectionTitle", "总览");
-        out.put("sectionOrder", 1);
-        out.put("contentType", "mixed");
-        out.put("content", content);
-        out.put("source", "A-Stock-Data + AI + News Radar");
+        Map<String, Object> out = baseSection("overview", "总览", 1, "mixed", content);
+        out.put("source", "A-Stock-Data + AI (" + via + ") + News Radar");
         return out;
     }
 
     private Map<String, Object> buildChainTab(String keyword, Map<String, Object> digest) {
         Map<String, Object> content = new LinkedHashMap<>();
         content.put("subtitle", keyword + " 产业链上中下游环节");
-        content.put("chain", List.of(
-                Map.of("stage", "上游", "items", List.of("原材料 / 设备 / 核心元器件")),
-                Map.of("stage", "中游", "items", List.of("模组 / 集成 / 制造")),
-                Map.of("stage", "下游", "items", List.of("云厂商 / 大模型 / 应用")))
-        );
-        content.put("bomBars", List.of(
-                Map.of("label", "上游材料", "percentage", 35, "value", "35%"),
-                Map.of("label", "中游模组", "percentage", 40, "value", "40%"),
-                Map.of("label", "下游集成", "percentage", 25, "value", "25%")));
 
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("sectionKey", "chain");
-        out.put("sectionTitle", "产业链");
-        out.put("sectionOrder", 2);
-        out.put("contentType", "mixed");
-        out.put("content", content);
-        out.put("source", "1171 篇研报提炼");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> chain = (Map<String, Object>) digest.get("chain");
+        if (chain != null && chain.get("upstream") instanceof List) {
+            content.put("chain", List.of(
+                    Map.of("stage", "上游", "items", chain.get("upstream")),
+                    Map.of("stage", "中游", "items", chain.get("midstream")),
+                    Map.of("stage", "下游", "items", chain.get("downstream"))
+            ));
+            int up = toInt(chain.get("upstreamPct"), 0);
+            int mid = toInt(chain.get("midstreamPct"), 0);
+            int down = toInt(chain.get("downstreamPct"), 0);
+            int total = Math.max(up + mid + down, 1);
+            content.put("bomBars", List.of(
+                    Map.of("label", "上游", "percentage", up, "value", up + "%"),
+                    Map.of("label", "中游", "percentage", mid, "value", mid + "%"),
+                    Map.of("label", "下游", "percentage", down, "value", down + "%")));
+            content.put("valueShare", Map.of("upstream", up, "midstream", mid, "downstream", down, "total", total));
+        } else {
+            content.put("chain", List.of(
+                    Map.of("stage", "上游", "items", List.of(NA)),
+                    Map.of("stage", "中游", "items", List.of(NA)),
+                    Map.of("stage", "下游", "items", List.of(NA))));
+            content.put("bomBars", List.of(
+                    Map.of("label", "上游", "percentage", 0, "value", NA),
+                    Map.of("label", "中游", "percentage", 0, "value", NA),
+                    Map.of("label", "下游", "percentage", 0, "value", NA)));
+            content.put("valueShare", Map.of("upstream", 0, "midstream", 0, "downstream", 0, "total", 0));
+        }
+
+        Map<String, Object> out = baseSection("chain", "产业链", 2, "mixed", content);
+        out.put("source", "LLM 提炼 + 研报 PDF");
         return out;
     }
 
     private Map<String, Object> buildValuationTab(String keyword, Map<String, Object> data, Map<String, Object> digest) {
         Map<String, Object> content = new LinkedHashMap<>();
         content.put("subtitle", keyword + " PE / PB / Forward PE 估值分位");
-        content.put("tables", List.of(Map.of(
-                "name", "估值宽表",
-                "headers", List.of("标的", "代码", "PE (TTM)", "PE (2025E)", "PB", "PEG", "市值(亿)"),
-                "rows", List.of(
-                        List.of("龙头 A", "002XXX", "32x", "24x", "5.2", "0.65", "580"),
-                        List.of("龙头 B", "300XXX", "28x", "20x", "4.8", "0.58", "320"),
-                        List.of("龙头 C", "688XXX", "78x", "48x", "12.6", "0.88", "1,680"))
-        )));
-        content.put("chart", Map.of("chartType", "bar", "data", Map.of(
-                "labels", List.of("龙头 A", "龙头 B", "龙头 C"),
-                "values", List.of(32, 28, 78),
-                "label", "PE (TTM)")));
 
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("sectionKey", "valuation");
-        out.put("sectionTitle", "行情 / 估值");
-        out.put("sectionOrder", 3);
-        out.put("contentType", "mixed");
-        out.put("content", content);
-        out.put("source", "A-Stock-Data 实时报价");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> valuation = (List<Map<String, Object>>) digest.get("valuation");
+        if (valuation != null && !valuation.isEmpty()) {
+            List<List<Object>> rows = new ArrayList<>();
+            List<String> chartLabels = new ArrayList<>();
+            List<Integer> chartValues = new ArrayList<>();
+            for (Map<String, Object> v : valuation) {
+                String name = String.valueOf(v.getOrDefault("name", NA));
+                String code = String.valueOf(v.getOrDefault("code", ""));
+                String peTTM = formatNumber(v.get("peTTM")) + "x";
+                String peFwd = formatNumber(v.get("pe2025E")) + "x";
+                String pb = formatNumber(v.get("pb"));
+                String peg = formatNumber(v.get("peg"));
+                String mc = formatNumber(v.get("marketCapYi"));
+                rows.add(List.of(name, code, peTTM, peFwd, pb, peg, mc));
+                chartLabels.add(name);
+                chartValues.add(toInt(v.get("peTTM"), 0));
+            }
+            content.put("tables", List.of(Map.of(
+                    "name", "估值宽表",
+                    "headers", List.of("标的", "代码", "PE (TTM)", "PE (2025E)", "PB", "PEG", "市值(亿)"),
+                    "rows", rows
+            )));
+            content.put("chart", Map.of("chartType", "bar", "data", Map.of(
+                    "labels", chartLabels, "values", chartValues, "label", "PE (TTM)")));
+        } else {
+            content.put("tables", List.of(Map.of(
+                    "name", "估值宽表",
+                    "headers", List.of("标的", "代码", "PE (TTM)", "PE (2025E)", "PB", "PEG", "市值(亿)"),
+                    "rows", List.of(List.of(NA, "—", "—", "—", "—", "—", "—"))
+            )));
+            content.put("chart", Map.of("chartType", "bar", "data", Map.of(
+                    "labels", List.of("—"), "values", List.of(0), "label", "PE (TTM)")));
+        }
+
+        Map<String, Object> out = baseSection("valuation", "行情 / 估值", 3, "mixed", content);
+        out.put("source", "A-Stock-Data 实时报价 + LLM 提炼");
         return out;
     }
 
     private Map<String, Object> buildLeaderTab(String keyword, Map<String, Object> digest) {
         Map<String, Object> content = new LinkedHashMap<>();
         content.put("subtitle", keyword + " 龙头标的深度");
-        content.put("stockCards", List.of(
-                Map.of("name", "龙头 A", "code", "002XXX.SZ", "pe", "32x", "marketCap", "580",
-                        "logic", "全产业链布局，业绩兑现确定性强；不可替代性：高", "score", 82, "irreplaceablePct", 90),
-                Map.of("name", "龙头 B", "code", "300XXX.SZ", "pe", "28x", "marketCap", "320",
-                        "logic", "细分赛道绝对龙头，技术壁垒高；不可替代性：高", "score", 78, "irreplaceablePct", 85),
-                Map.of("name", "龙头 C", "code", "688XXX.SH", "pe", "78x", "marketCap", "1,680",
-                        "logic", "国产替代核心标的，业绩弹性大；估值偏高需注意风险", "score", 70, "irreplaceablePct", 75)));
 
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("sectionKey", "leaders");
-        out.put("sectionTitle", "龙头标的");
-        out.put("sectionOrder", 4);
-        out.put("contentType", "stock_card");
-        out.put("content", content);
-        out.put("source", "AI 提炼 + 公开资料");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> leaders = (List<Map<String, Object>>) digest.get("leaders");
+        if (leaders != null && !leaders.isEmpty()) {
+            List<Map<String, Object>> cards = new ArrayList<>();
+            for (Map<String, Object> l : leaders) {
+                Map<String, Object> card = new LinkedHashMap<>();
+                card.put("name", l.getOrDefault("name", NA));
+                card.put("code", l.getOrDefault("code", ""));
+                card.put("pe", l.getOrDefault("pe", NA));
+                card.put("marketCap", l.getOrDefault("marketCap", NA));
+                card.put("logic", l.getOrDefault("logic", NA));
+                card.put("score", l.getOrDefault("score", 0));
+                card.put("irreplaceablePct", l.getOrDefault("irreplaceablePct", 0));
+                cards.add(card);
+            }
+            content.put("stockCards", cards);
+        } else {
+            content.put("stockCards", List.of(
+                    Map.of("name", NA, "code", "—", "pe", "—", "marketCap", "—",
+                            "logic", "本次未提取到龙头标的，请补充研报 PDF 或开启 LLM 模式",
+                            "score", 0, "irreplaceablePct", 0)));
+        }
+
+        Map<String, Object> out = baseSection("leaders", "龙头标的", 4, "stock_card", content);
+        out.put("source", "LLM 提炼 + 研报 PDF + 公开资料");
         return out;
     }
 
     private Map<String, Object> buildFinancialTab(String keyword, Map<String, Object> digest) {
         Map<String, Object> content = new LinkedHashMap<>();
         content.put("subtitle", keyword + " 财务硬筛：营收 / 净利 / 毛利率 / ROE");
-        content.put("metrics", List.of(
-                Map.of("label", "板块平均 PE", "value", "38x", "desc", "近 3 年分位 60%"),
-                Map.of("label", "板块平均 ROE", "value", "16.2%", "desc", "近 3 年分位 75%"),
-                Map.of("label", "板块平均毛利率", "value", "32%", "desc", "近 3 年分位 70%"),
-                Map.of("label", "营收 YoY", "value", "+45%", "desc", "板块整体增长")
-        ));
-        content.put("tables", List.of(Map.of(
-                "name", "核心标的财务",
-                "headers", List.of("标的", "营收(亿)", "营收 YoY", "净利率", "ROE"),
-                "rows", List.of(
-                        List.of("龙头 A", "195", "+120%", "23%", "28%"),
-                        List.of("龙头 B", "88", "+85%", "18%", "22%"),
-                        List.of("龙头 C", "62", "+62%", "12%", "15%"))
-        )));
 
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("sectionKey", "financial");
-        out.put("sectionTitle", "财务质量");
-        out.put("sectionOrder", 5);
-        out.put("contentType", "mixed");
-        out.put("content", content);
-        out.put("source", "Wind / 财报 + Kimi 提炼");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> fin = (Map<String, Object>) digest.get("financials");
+        if (fin != null) {
+            List<Map<String, Object>> metrics = new ArrayList<>();
+            metrics.add(metric("板块平均 PE", naIfBlank(fin.get("avgPE")), "",
+                    "近 3 年分位", null));
+            metrics.add(metric("板块平均 ROE", naIfBlank(fin.get("avgROE")), "",
+                    "近 3 年分位", null));
+            metrics.add(metric("板块平均毛利率", naIfBlank(fin.get("avgGrossMargin")), "",
+                    "近 3 年分位", null));
+            metrics.add(metric("营收 YoY", naIfBlank(fin.get("revenueYoY")), "",
+                    "板块整体增长", null));
+            content.put("metrics", metrics);
+
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> rows = (List<Map<String, Object>>) fin.get("rows");
+            if (rows != null && !rows.isEmpty()) {
+                List<List<Object>> tableRows = new ArrayList<>();
+                for (Map<String, Object> r : rows) {
+                    tableRows.add(List.of(
+                            r.getOrDefault("name", NA),
+                            r.getOrDefault("revenueYi", NA),
+                            r.getOrDefault("revenueYoY", NA),
+                            r.getOrDefault("netMargin", NA),
+                            r.getOrDefault("roe", NA)));
+                }
+                content.put("tables", List.of(Map.of(
+                        "name", "核心标的财务",
+                        "headers", List.of("标的", "营收(亿)", "营收 YoY", "净利率", "ROE"),
+                        "rows", tableRows
+                )));
+            } else {
+                content.put("tables", List.of(Map.of(
+                        "name", "核心标的财务",
+                        "headers", List.of("标的", "营收(亿)", "营收 YoY", "净利率", "ROE"),
+                        "rows", List.of(List.of(NA, NA, NA, NA, NA))
+                )));
+            }
+        } else {
+            content.put("metrics", List.of(
+                    metric("板块平均 PE", NA, "", "本次未提取到", null),
+                    metric("板块平均 ROE", NA, "", "本次未提取到", null),
+                    metric("板块平均毛利率", NA, "", "本次未提取到", null),
+                    metric("营收 YoY", NA, "", "本次未提取到", null)));
+            content.put("tables", List.of(Map.of(
+                    "name", "核心标的财务",
+                    "headers", List.of("标的", "营收(亿)", "营收 YoY", "净利率", "ROE"),
+                    "rows", List.of(List.of(NA, NA, NA, NA, NA))
+            )));
+        }
+
+        Map<String, Object> out = baseSection("financial", "财务质量", 5, "mixed", content);
+        out.put("source", "Wind / 财报 + LLM 提炼");
         return out;
     }
 
-    private Map<String, Object> buildFundTab(String keyword, Map<String, Object> data) {
+    private Map<String, Object> buildFundTab(String keyword, Map<String, Object> data, Map<String, Object> digest) {
         Map<String, Object> content = new LinkedHashMap<>();
         content.put("subtitle", keyword + " 主力资金 + 北向 + 融资融券");
-        content.put("metrics", List.of(
-                Map.of("label", "近 5 日主力净流入", "value", "+38亿", "desc", "板块整体净流入"),
-                Map.of("label", "北向近 5 日", "value", "+12亿", "desc", "外资持续买入"),
-                Map.of("label", "融资余额", "value", "280亿", "desc", "杠杆资金活跃"),
-                Map.of("label", "板块换手率", "value", "3.2%", "desc", "较 5 日均值 +0.4%")
-        ));
 
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("sectionKey", "fund");
-        out.put("sectionTitle", "资金 / 持仓");
-        out.put("sectionOrder", 6);
-        out.put("contentType", "mixed");
-        out.put("content", content);
-        out.put("source", "A-Stock-Data 实时资金流");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> ff = (Map<String, Object>) digest.get("fundFlow");
+        if (ff != null) {
+            content.put("metrics", List.of(
+                    metric("近 5 日主力净流入", formatYI(ff.get("mainInflow5dYi")) + "亿",
+                            "", "板块整体净流入", null),
+                    metric("北向近 5 日", formatYI(ff.get("northInflow5dYi")) + "亿",
+                            "", "外资持续买入", null),
+                    metric("融资余额", formatYI(ff.get("marginBalanceYi")) + "亿",
+                            "", "杠杆资金活跃", null),
+                    metric("板块换手率", formatPct(ff.get("turnoverPct")) + "%",
+                            "", "板块交投活跃度", null)));
+        } else {
+            content.put("metrics", List.of(
+                    metric("近 5 日主力净流入", NA, "", "本次未提取到", null),
+                    metric("北向近 5 日", NA, "", "本次未提取到", null),
+                    metric("融资余额", NA, "", "本次未提取到", null),
+                    metric("板块换手率", NA, "", "本次未提取到", null)));
+        }
+
+        Map<String, Object> out = baseSection("fund", "资金 / 持仓", 6, "mixed", content);
+        out.put("source", "A-Stock-Data 实时资金流 + LLM 提炼");
         return out;
     }
 
     private Map<String, Object> buildPolicyTab(String keyword, Map<String, Object> digest) {
         Map<String, Object> content = new LinkedHashMap<>();
         content.put("subtitle", keyword + " 政策与监管环境");
-        content.put("conclusions", List.of(
-                Map.of("level", "info", "tag", "政策", "text", "国家层面 " + keyword + " 被列入战略性新兴产业，重点扶持"),
-                Map.of("level", "ok", "tag", "支持", "text", "专项基金 + 税收优惠 + 国产化采购倾斜"),
-                Map.of("level", "warn", "tag", "风险", "text", "海外出口管制升级，关注关键设备 / 材料断供风险")
-        ));
 
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("sectionKey", "policy");
-        out.put("sectionTitle", "政策 / 监管");
-        out.put("sectionOrder", 7);
-        out.put("contentType", "text");
-        out.put("content", content);
-        out.put("source", "AI 提炼 + 政府公开文件");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> policy = (List<Map<String, Object>>) digest.get("policy");
+        if (policy != null && !policy.isEmpty()) {
+            content.put("conclusions", policy);
+        } else {
+            content.put("conclusions", List.of(
+                    Map.of("level", "info", "tag", "政策", "text", "本次未提取到政策信息，请补充研报 PDF")));
+        }
+
+        Map<String, Object> out = baseSection("policy", "政策 / 监管", 7, "text", content);
+        out.put("source", "LLM 提炼 + 研报 PDF + 政府公开文件");
         return out;
     }
 
     private Map<String, Object> buildTechTab(String keyword, Map<String, Object> digest) {
         Map<String, Object> content = new LinkedHashMap<>();
         content.put("subtitle", keyword + " 技术演进路径");
-        content.put("tables", List.of(Map.of(
-                "name", "技术代际",
-                "headers", List.of("代际", "性能", "功耗", "价值量"),
-                "rows", List.of(
-                        List.of("当前", "1x", "1x", "1x"),
-                        List.of("下一代", "2x", "1.3x", "1.6x"),
-                        List.of("下两代", "4x", "1.6x", "2.4x"))
-        )));
 
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("sectionKey", "tech");
-        out.put("sectionTitle", "技术 / 演进");
-        out.put("sectionOrder", 8);
-        out.put("contentType", "mixed");
-        out.put("content", content);
-        out.put("source", "LightCounting + SemiAnalysis + Bernstein");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> tech = (Map<String, Object>) digest.get("tech");
+        if (tech != null && tech.get("current") instanceof Map) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> cur = (Map<String, Object>) tech.get("current");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> next = (Map<String, Object>) tech.get("next");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> next2 = (Map<String, Object>) tech.get("nextTwo");
+            content.put("tables", List.of(Map.of(
+                    "name", "技术代际",
+                    "headers", List.of("代际", "性能", "功耗", "价值量"),
+                    "rows", List.of(
+                            List.of(cur.getOrDefault("name", NA), cur.getOrDefault("perf", NA),
+                                    cur.getOrDefault("power", NA), cur.getOrDefault("value", NA)),
+                            List.of(next.getOrDefault("name", NA), next.getOrDefault("perf", NA),
+                                    next.getOrDefault("power", NA), next.getOrDefault("value", NA)),
+                            List.of(next2.getOrDefault("name", NA), next2.getOrDefault("perf", NA),
+                                    next2.getOrDefault("power", NA), next2.getOrDefault("value", NA)))
+            )));
+        } else {
+            content.put("tables", List.of(Map.of(
+                    "name", "技术代际",
+                    "headers", List.of("代际", "性能", "功耗", "价值量"),
+                    "rows", List.of(
+                            List.of(NA, NA, NA, NA),
+                            List.of(NA, NA, NA, NA),
+                            List.of(NA, NA, NA, NA))
+            )));
+        }
+
+        Map<String, Object> out = baseSection("tech", "技术 / 演进", 8, "mixed", content);
+        out.put("source", "LLM 提炼 + 卖方研报 + LightCounting / SemiAnalysis");
         return out;
     }
 
     private Map<String, Object> buildCompetitionTab(String keyword, Map<String, Object> digest) {
         Map<String, Object> content = new LinkedHashMap<>();
         content.put("subtitle", keyword + " 全球竞争格局");
-        content.put("tables", List.of(Map.of(
-                "name", "全球 Top 厂商份额",
-                "headers", List.of("厂商", "国别", "份额", "核心优势"),
-                "rows", List.of(
-                        List.of("海外龙头 1", "🇺🇸", "~40%", "技术先发"),
-                        List.of("海外龙头 2", "🇰🇷", "~25%", "规模效应"),
-                        List.of("海外龙头 3", "🇯🇵", "~15%", "工艺壁垒"),
-                        List.of("中国龙头 A", "🇨🇳", "~10%", "国产替代 + 服务响应"),
-                        List.of("中国龙头 B", "🇨🇳", "~7%", "成本优势"),
-                        List.of("其他", "—", "~3%", "—"))
-        )));
 
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("sectionKey", "competition");
-        out.put("sectionTitle", "全球竞争");
-        out.put("sectionOrder", 9);
-        out.put("contentType", "mixed");
-        out.put("content", content);
-        out.put("source", "Omdia + Counterpoint + Kimi 提炼");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> players = (List<Map<String, Object>>) digest.get("globalPlayers");
+        if (players != null && !players.isEmpty()) {
+            List<List<Object>> rows = new ArrayList<>();
+            for (Map<String, Object> p : players) {
+                rows.add(List.of(
+                        p.getOrDefault("name", NA),
+                        p.getOrDefault("country", "—"),
+                        "~" + p.getOrDefault("share", 0) + "%",
+                        p.getOrDefault("advantage", NA)));
+            }
+            content.put("tables", List.of(Map.of(
+                    "name", "全球 Top 厂商份额",
+                    "headers", List.of("厂商", "国别", "份额", "核心优势"),
+                    "rows", rows
+            )));
+        } else {
+            content.put("tables", List.of(Map.of(
+                    "name", "全球 Top 厂商份额",
+                    "headers", List.of("厂商", "国别", "份额", "核心优势"),
+                    "rows", List.of(List.of(NA, "—", "—", NA))
+            )));
+        }
+
+        Map<String, Object> out = baseSection("competition", "全球竞争", 9, "mixed", content);
+        out.put("source", "Omdia / Counterpoint + LLM 提炼");
         return out;
     }
 
     private Map<String, Object> buildRiskTab(String keyword, Map<String, Object> digest, Map<String, Object> news) {
         Map<String, Object> content = new LinkedHashMap<>();
         content.put("subtitle", keyword + " 风险提示");
-        content.put("conclusions", List.of(
-                Map.of("level", "warn", "tag", "周期", "text", keyword + " Capex 周期已上行 18 个月，存在见顶风险"),
-                Map.of("level", "warn", "tag", "估值", "text", "龙头估值已较 2023 年低点翻倍，PE 分位 > 70%"),
-                Map.of("level", "warn", "tag", "客户集中", "text", "前五大客户占比 80%+，单一客户波动影响显著"),
-                Map.of("level", "info", "tag", "技术", "text", "下一代技术路线存在不确定性，可能颠覆现有格局"),
-                Map.of("level", "ok", "tag", "对冲", "text", "国产替代 + 出海双逻辑可对冲北美周期波动")
-        ));
 
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("sectionKey", "risk");
-        out.put("sectionTitle", "风险点");
-        out.put("sectionOrder", 10);
-        out.put("contentType", "text");
-        out.put("content", content);
-        out.put("source", "AI 提炼 + News Radar 风险事件");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> risks = (List<Map<String, Object>>) digest.get("risks");
+        if (risks != null && !risks.isEmpty()) {
+            content.put("conclusions", risks);
+        } else {
+            content.put("conclusions", List.of(
+                    Map.of("level", "info", "tag", "INFO",
+                            "text", "本次未提取到结构化风险，请关注周期 / 估值 / 客户集中度等常规风险")));
+        }
+
+        Map<String, Object> out = baseSection("risk", "风险点", 10, "text", content);
+        out.put("source", "LLM 提炼 + News Radar 风险事件");
         return out;
     }
 
@@ -317,20 +422,89 @@ public class IndustryReportAssembler {
         Map<String, Object> content = new LinkedHashMap<>();
         content.put("subtitle", "24h 行业新闻聚合");
         content.put("metrics", List.of(
-                Map.of("label", "过去 24h", "value", news.get("newsCount"), "unit", "条", "desc", "News Radar 抓取"),
-                Map.of("label", "重要级别 HIGH", "value", "5", "unit", "条", "desc", "影响产业链格局"),
-                Map.of("label", "信源覆盖", "value", "12", "unit", "家", "desc", "海外 6 + 国内 6")
+                metric("过去 24h", news.get("newsCount"), "条", "News Radar 抓取", null),
+                metric("重要级别 HIGH", "—", "条", "本次未分级", null),
+                metric("信源覆盖", "—", "家", "本次未统计", null)
         ));
         content.put("news", news.get("items"));
         content.put("topKeywords", news.get("topKeywords"));
 
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("sectionKey", "news");
-        out.put("sectionTitle", "24h 新闻");
-        out.put("sectionOrder", 11);
-        out.put("contentType", "news");
-        out.put("content", content);
+        Map<String, Object> out = baseSection("news", "24h 新闻", 11, "news", content);
         out.put("source", "Tavily Search API + News Radar");
         return out;
+    }
+
+    /* ====================== 辅助方法 ====================== */
+
+    private Map<String, Object> baseSection(String key, String title, int order,
+                                            String contentType, Map<String, Object> content) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("sectionKey", key);
+        out.put("sectionTitle", title);
+        out.put("sectionOrder", order);
+        out.put("contentType", contentType);
+        out.put("content", content);
+        return out;
+    }
+
+    private Map<String, Object> metric(String label, Object value, String unit, String desc, String badge) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("label", label);
+        m.put("value", value == null ? NA : value);
+        m.put("unit", unit == null ? "" : unit);
+        m.put("desc", desc == null ? "" : desc);
+        if (badge != null) m.put("badge", badge);
+        return m;
+    }
+
+    private int toInt(Object o, int def) {
+        if (o == null) return def;
+        if (o instanceof Number) return ((Number) o).intValue();
+        try {
+            return Integer.parseInt(String.valueOf(o).replaceAll("[^0-9.\\-]", ""));
+        } catch (Exception e) {
+            return def;
+        }
+    }
+
+    private String formatNumber(Object o) {
+        if (o == null) return NA;
+        if (o instanceof Number) {
+            double d = ((Number) o).doubleValue();
+            if (d == (long) d) return String.valueOf((long) d);
+            return String.format("%.2f", d);
+        }
+        String s = String.valueOf(o);
+        return s.isBlank() ? NA : s;
+    }
+
+    private String formatYI(Object o) {
+        if (o == null) return NA;
+        double d = toDouble(o, Double.NaN);
+        if (Double.isNaN(d)) return NA;
+        return d >= 0 ? "+" + (long) d : String.valueOf((long) d);
+    }
+
+    private String formatPct(Object o) {
+        if (o == null) return NA;
+        double d = toDouble(o, Double.NaN);
+        if (Double.isNaN(d)) return NA;
+        return String.format("%.1f", d);
+    }
+
+    private double toDouble(Object o, double def) {
+        if (o == null) return def;
+        if (o instanceof Number) return ((Number) o).doubleValue();
+        try {
+            return Double.parseDouble(String.valueOf(o).replaceAll("[^0-9.\\-]", ""));
+        } catch (Exception e) {
+            return def;
+        }
+    }
+
+    private String naIfBlank(Object o) {
+        if (o == null) return NA;
+        String s = String.valueOf(o).trim();
+        return s.isEmpty() ? NA : s;
     }
 }

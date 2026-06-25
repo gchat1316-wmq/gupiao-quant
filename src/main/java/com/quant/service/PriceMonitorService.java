@@ -3,10 +3,8 @@ package com.quant.service;
 import com.quant.config.NotificationProperties;
 import com.quant.entity.InvestStockPool;
 import com.quant.entity.TradeStockBasic;
-import com.quant.entity.TradeStockDaily;
 import com.quant.repository.InvestStockPoolRepository;
 import com.quant.repository.TradeStockBasicRepository;
-import com.quant.repository.TradeStockDailyRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -15,7 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -29,19 +26,19 @@ public class PriceMonitorService {
     private static final String STATE_SELL = "sell_alerted";
 
     private final InvestStockPoolRepository poolRepository;
-    private final TradeStockDailyRepository dailyRepository;
     private final TradeStockBasicRepository basicRepository;
+    private final AStockDataQuoteService aStockDataQuoteService;
     private final NotificationService notificationService;
     private final NotificationProperties notifProps;
 
     public PriceMonitorService(InvestStockPoolRepository poolRepository,
-                               TradeStockDailyRepository dailyRepository,
                                TradeStockBasicRepository basicRepository,
+                               AStockDataQuoteService aStockDataQuoteService,
                                NotificationService notificationService,
                                NotificationProperties notifProps) {
         this.poolRepository = poolRepository;
-        this.dailyRepository = dailyRepository;
         this.basicRepository = basicRepository;
+        this.aStockDataQuoteService = aStockDataQuoteService;
         this.notificationService = notificationService;
         this.notifProps = notifProps;
     }
@@ -68,8 +65,14 @@ public class PriceMonitorService {
         }
 
         List<String> codes = activePool.stream().map(InvestStockPool::getStockCode).distinct().toList();
-        Map<String, BigDecimal> latestPriceMap = dailyRepository.findLatestByStockCodes(codes).stream()
-                .collect(Collectors.toMap(TradeStockDaily::getStockCode, TradeStockDaily::getClosePrice, (a, b) -> a));
+        // 实时价格统一走 a-stock-data 实时接口；trade_stock_daily 收盘价有同步延迟、不准确
+        Map<String, BigDecimal> latestPriceMap = aStockDataQuoteService.fetchQuotes(codes).values().stream()
+                .filter(snapshot -> snapshot.latestPrice() != null)
+                .collect(Collectors.toMap(
+                        snapshot -> snapshot.stockCode() == null ? "" : snapshot.stockCode().toUpperCase(java.util.Locale.ROOT),
+                        snapshot -> snapshot.latestPrice(),
+                        (a, b) -> a
+                ));
         Map<String, String> nameMap = basicRepository.findByStockCodeIn(codes).stream()
                 .collect(Collectors.toMap(TradeStockBasic::getStockCode, TradeStockBasic::getStockName, (a, b) -> a));
 

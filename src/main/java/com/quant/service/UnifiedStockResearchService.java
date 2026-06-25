@@ -2,9 +2,7 @@ package com.quant.service;
 
 import com.quant.dto.stockanalysis.StockAnalysisResponse;
 import com.quant.entity.TradeStockBasic;
-import com.quant.entity.TradeStockDaily;
 import com.quant.entity.TradeStockFinancial;
-import com.quant.repository.TradeStockDailyRepository;
 import com.quant.repository.TradeStockFinancialRepository;
 import com.quant.service.ai.MiniMaxClient;
 import com.quant.service.ai.SenseNovaClient;
@@ -21,8 +19,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 
 @Slf4j
 @Service
@@ -30,7 +28,7 @@ import java.util.Optional;
 public class UnifiedStockResearchService {
 
     private final TradeStockFinancialRepository financialRepository;
-    private final TradeStockDailyRepository dailyRepository;
+    private final AStockDataQuoteService aStockDataQuoteService;
     private final WebSearchClient webSearchClient;
     private final MiniMaxClient miniMaxClient;
     private final SenseNovaClient senseNovaClient;
@@ -379,9 +377,20 @@ public class UnifiedStockResearchService {
         return out;
     }
 
+    /**
+     * 当前股价：统一走 a-stock-data 实时接口，trade_stock_daily 收盘价同步延迟且不准确。
+     */
     private Double latestPrice(String stockCode) {
-        Optional<TradeStockDaily> daily = dailyRepository.findFirstByStockCodeOrderByTradeDateDesc(stockCode);
-        return daily.map(TradeStockDaily::getClosePrice).map(BigDecimal::doubleValue).orElse(null);
+        if (stockCode == null || stockCode.isBlank()) {
+            return null;
+        }
+        Map<String, AStockDataQuoteService.QuoteSnapshot> quotes = aStockDataQuoteService.fetchQuotes(List.of(stockCode));
+        AStockDataQuoteService.QuoteSnapshot snapshot = quotes == null ? null
+                : quotes.get(stockCode.trim().toUpperCase(Locale.ROOT));
+        if (snapshot == null || snapshot.latestPrice() == null) {
+            return null;
+        }
+        return snapshot.latestPrice().doubleValue();
     }
 
     private Map<String, Object> runPurplePerilla(Map<String, Object> raw, String name) {

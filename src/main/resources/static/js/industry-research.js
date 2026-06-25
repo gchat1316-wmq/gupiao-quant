@@ -171,7 +171,7 @@
     const hero = el('section', { class: 'ir-article-hero' });
     const heroLeft = el('div', { class: 'ir-article-hero-main' });
     heroLeft.appendChild(el('div', { class: 'ir-kicker' },
-      s.categoryIcon ? (s.categoryIcon + ' ') : '🧠 ' ) + (s.categoryName || '产业投研'));
+      (s.categoryIcon ? (s.categoryIcon + ' ') : '🧠 ') + (s.categoryName || '产业投研')));
     heroLeft.appendChild(el('h2', { class: 'ir-article-title' }, s.title));
     if (s.subtitle) heroLeft.appendChild(el('p', { class: 'ir-article-subtitle' }, s.subtitle));
     const meta = el('div', { class: 'ir-article-meta' });

@@ -4,12 +4,11 @@ import com.quant.dto.lynchinvest.LynchQuoteDTO;
 import com.quant.dto.lynchinvest.LynchWatchlistItemDTO;
 import com.quant.entity.InvestLynchWatchlist;
 import com.quant.entity.TradeStockBasic;
-import com.quant.entity.TradeStockDaily;
 import com.quant.entity.TradeStockFinancial;
 import com.quant.repository.InvestLynchWatchlistRepository;
 import com.quant.repository.TradeStockBasicRepository;
-import com.quant.repository.TradeStockDailyRepository;
 import com.quant.repository.TradeStockFinancialRepository;
+import com.quant.service.AStockDataQuoteService;
 import com.quant.service.StockQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,6 +23,7 @@ import java.util.Comparator;
 import java.util.Collection;
 import java.util.List;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -38,7 +38,7 @@ public class LynchInvestService {
 
     private final InvestLynchWatchlistRepository watchlistRepository;
     private final TradeStockBasicRepository stockBasicRepository;
-    private final TradeStockDailyRepository dailyRepository;
+    private final AStockDataQuoteService aStockDataQuoteService;
     private final TradeStockFinancialRepository financialRepository;
     private final StockQueryService stockQueryService;
 
@@ -50,19 +50,20 @@ public class LynchInvestService {
         List<String> codes = rows.stream().map(InvestLynchWatchlist::getStockCode).toList();
         Map<String, TradeStockBasic> basicMap = stockBasicRepository.findByStockCodeIn(codes).stream()
                 .collect(Collectors.toMap(TradeStockBasic::getStockCode, Function.identity()));
-        Map<String, TradeStockDaily> latestDailyMap = dailyRepository.findLatestByStockCodes(codes).stream()
-                .collect(Collectors.toMap(TradeStockDaily::getStockCode, Function.identity()));
+        // 当前价统一走 a-stock-data 实时接口；trade_stock_daily 收盘价同步延迟、不准确
+        Map<String, AStockDataQuoteService.QuoteSnapshot> quoteMap = aStockDataQuoteService.fetchQuotes(codes);
 
         return rows.stream()
-                .map(row -> toWatchlistItem(row, basicMap.get(row.getStockCode()), latestDailyMap.get(row.getStockCode())))
+                .map(row -> toWatchlistItem(row, basicMap.get(row.getStockCode()), quoteMap.get(normalizeKey(row.getStockCode()))))
                 .toList();
     }
 
     public LynchQuoteDTO getQuote(String keyword) {
         TradeStockBasic basic = stockQueryService.resolveStock(keyword)
                 .orElseThrow(() -> new IllegalArgumentException("未找到股票: " + keyword));
-        TradeStockDaily latestDaily = dailyRepository.findFirstByStockCodeOrderByTradeDateDesc(basic.getStockCode()).orElse(null);
-        return toQuote(basic, latestDaily);
+        // 当前价统一走 a-stock-data 实时接口
+        Map<String, AStockDataQuoteService.QuoteSnapshot> quoteMap = aStockDataQuoteService.fetchQuotes(List.of(basic.getStockCode()));
+        return toQuote(basic, quoteMap.get(normalizeKey(basic.getStockCode())));
     }
 
     @Transactional
@@ -92,13 +93,13 @@ public class LynchInvestService {
                 .filter(item -> item.getPeTtm() != null && item.getPeTtm().compareTo(BigDecimal.ZERO) > 0)
                 .toList();
         List<String> codes = peers.stream().map(TradeStockBasic::getStockCode).toList();
-        Map<String, TradeStockDaily> latestDailyMap = dailyRepository.findLatestByStockCodes(codes).stream()
-                .collect(Collectors.toMap(TradeStockDaily::getStockCode, Function.identity()));
+        // 当前价统一走 a-stock-data 实时接口
+        Map<String, AStockDataQuoteService.QuoteSnapshot> quoteMap = aStockDataQuoteService.fetchQuotes(codes);
 
         List<Map<String, Object>> stocks = new ArrayList<>();
         for (TradeStockBasic peer : peers) {
-            TradeStockDaily latestDaily = latestDailyMap.get(peer.getStockCode());
-            BigDecimal price = latestDaily == null ? null : latestDaily.getClosePrice();
+            AStockDataQuoteService.QuoteSnapshot snapshot = quoteMap.get(normalizeKey(peer.getStockCode()));
+            BigDecimal price = snapshot == null ? null : snapshot.latestPrice();
             BigDecimal marketCap = computeMarketCap(peer, price);
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("stockCode", peer.getStockCode());
@@ -133,9 +134,10 @@ public class LynchInvestService {
         return result;
     }
 
-    private LynchWatchlistItemDTO toWatchlistItem(InvestLynchWatchlist row, TradeStockBasic basic, TradeStockDaily latestDaily) {
+    private LynchWatchlistItemDTO toWatchlistItem(InvestLynchWatchlist row, TradeStockBasic basic,
+                                                  AStockDataQuoteService.QuoteSnapshot snapshot) {
         TradeStockBasic actualBasic = basic != null ? basic : fallbackBasic(row);
-        QuoteMetrics metrics = buildMetrics(actualBasic, latestDaily);
+        QuoteMetrics metrics = buildMetrics(actualBasic, snapshot);
         return LynchWatchlistItemDTO.builder()
                 .stockCode(row.getStockCode())
                 .stockName(row.getStockName())
@@ -151,8 +153,8 @@ public class LynchInvestService {
                 .build();
     }
 
-    private LynchQuoteDTO toQuote(TradeStockBasic basic, TradeStockDaily latestDaily) {
-        QuoteMetrics metrics = buildMetrics(basic, latestDaily);
+    private LynchQuoteDTO toQuote(TradeStockBasic basic, AStockDataQuoteService.QuoteSnapshot snapshot) {
+        QuoteMetrics metrics = buildMetrics(basic, snapshot);
         return LynchQuoteDTO.builder()
                 .stockCode(basic.getStockCode())
                 .stockName(basic.getStockName())
@@ -168,14 +170,18 @@ public class LynchInvestService {
                 .build();
     }
 
-    private QuoteMetrics buildMetrics(TradeStockBasic basic, TradeStockDaily latestDaily) {
-        BigDecimal price = latestDaily != null ? latestDaily.getClosePrice() : null;
+    private QuoteMetrics buildMetrics(TradeStockBasic basic, AStockDataQuoteService.QuoteSnapshot snapshot) {
+        BigDecimal price = snapshot == null ? null : snapshot.latestPrice();
         BigDecimal marketCap = computeMarketCap(basic, price);
         BigDecimal cagrPct = computeCagrPct(financialRepository.findByStockCodeOrderByReportDateDesc(basic.getStockCode()));
         BigDecimal peg = computePeg(basic.getPeTtm(), cagrPct);
         String pegRating = ratePeg(peg);
         BigDecimal digestYears = computeDigestYears(basic.getPeTtm(), cagrPct);
         return new QuoteMetrics(price, marketCap, cagrPct, peg, pegRating, digestYears);
+    }
+
+    private String normalizeKey(String code) {
+        return code == null ? "" : code.trim().toUpperCase(Locale.ROOT);
     }
 
     private TradeStockBasic fallbackBasic(InvestLynchWatchlist row) {

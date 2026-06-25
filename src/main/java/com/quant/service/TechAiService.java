@@ -61,6 +61,7 @@ public class TechAiService {
     private final TechAiAlertRuleEngine ruleEngine;
     private final TechAiPositionEngine positionEngine;
     private final TechAiAtrCalculator atrCalculator;
+    private final AStockDataQuoteService aStockDataQuoteService;
     private final NotificationService notificationService;
     private final NotificationProperties notificationProperties;
 
@@ -73,6 +74,7 @@ public class TechAiService {
                          TechAiAlertRuleEngine ruleEngine,
                          TechAiPositionEngine positionEngine,
                          TechAiAtrCalculator atrCalculator,
+                         AStockDataQuoteService aStockDataQuoteService,
                          NotificationService notificationService,
                          NotificationProperties notificationProperties) {
         this.poolRepository = poolRepository;
@@ -84,6 +86,7 @@ public class TechAiService {
         this.ruleEngine = ruleEngine;
         this.positionEngine = positionEngine;
         this.atrCalculator = atrCalculator;
+        this.aStockDataQuoteService = aStockDataQuoteService;
         this.notificationService = notificationService;
         this.notificationProperties = notificationProperties;
     }
@@ -306,7 +309,8 @@ public class TechAiService {
         return triggered;
     }
 
-    /** 收盘确认：用日线收盘价判定持仓信号并推送（两段式中的确认段） */
+    /** 收盘确认：用 a-stock-data 实时收盘价判定持仓信号并推送（两段式中的确认段）。
+     *  注意：实时价/收盘价统一走 a-stock-data 实时接口，trade_stock_daily 同步延迟且不准确。*/
     @Scheduled(cron = "${notification.position-confirm.cron:0 5 15 * * MON-FRI}")
     @Transactional
     public int confirmPositionSignals() {
@@ -315,21 +319,31 @@ public class TechAiService {
             return 0;
         }
         List<TechAiPool> pool = poolRepository.findByStatusNotOrderByCreatedAtDesc("exited");
+        if (pool.isEmpty()) {
+            return 0;
+        }
+        // 一次性批量拉实时行情，避免 N 次串行 HTTP
+        Map<String, AStockDataQuoteService.QuoteSnapshot> quoteMap = aStockDataQuoteService.fetchQuotes(
+                pool.stream().map(TechAiPool::getStockCode).toList());
         int triggered = 0;
         for (TechAiPool item : pool) {
             BigDecimal lots = item.getPositionLots();
             if (lots == null || lots.compareTo(BigDecimal.ZERO) <= 0) {
                 continue;
             }
-            TradeStockDaily daily = dailyRepository.findFirstByStockCodeOrderByTradeDateDesc(item.getStockCode()).orElse(null);
-            if (daily == null || daily.getClosePrice() == null) {
+            AStockDataQuoteService.QuoteSnapshot snapshot = quoteMap.get(item.getStockCode() == null
+                    ? "" : item.getStockCode().trim().toUpperCase(java.util.Locale.ROOT));
+            if (snapshot == null || snapshot.latestPrice() == null || snapshot.latestPrice().compareTo(BigDecimal.ZERO) <= 0) {
                 continue;
             }
-            BigDecimal close = daily.getClosePrice();
+            BigDecimal close = snapshot.latestPrice();
+            // 历史 K 线仍来自 trade_stock_daily（用于峰值参考与 ATR）
+            List<TradeStockDaily> recentKline = dailyRepository.findTop6ByStockCodeOrderByTradeDateDesc(item.getStockCode());
+            BigDecimal historicalHigh = recentKline.isEmpty() ? null : recentKline.get(0).getHighPrice();
             BigDecimal atr = isAtrMode(item) ? atrFor(item) : null;
             BigDecimal peak = item.getPeakPrice() == null ? close : item.getPeakPrice();
-            if (daily.getHighPrice() != null) {
-                peak = peak.max(daily.getHighPrice());
+            if (historicalHigh != null) {
+                peak = peak.max(historicalHigh);
             }
             peak = peak.max(close);
             item.setPeakPrice(peak);

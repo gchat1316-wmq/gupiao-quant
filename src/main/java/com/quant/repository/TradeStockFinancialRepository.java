@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 
@@ -13,6 +14,12 @@ public interface TradeStockFinancialRepository extends JpaRepository<TradeStockF
     // 同时匹配裸代码（600519）和带交易所后缀（600519.SH / 600519.SZ）
     @Query("SELECT f FROM TradeStockFinancial f WHERE f.stockCode = :code OR f.stockCode LIKE CONCAT(:code, '.%') ORDER BY f.reportDate DESC")
     List<TradeStockFinancial> findByStockCodeOrderByReportDateDesc(@Param("code") String stockCode);
+
+    // 按 report_date 区间取，用于回填历史营收/年报等
+    @Query("SELECT f FROM TradeStockFinancial f WHERE f.stockCode = :code AND f.reportDate BETWEEN :from AND :to ORDER BY f.reportDate DESC")
+    List<TradeStockFinancial> findByStockCodeAndReportDateBetween(@Param("code") String stockCode,
+                                                                 @Param("from") LocalDate from,
+                                                                 @Param("to") LocalDate to);
 
     // 按股票名称模糊匹配，用于在 trade_stock_basic 中找不到时的兜底
     // 兼容 BaoStock 在除权除息期间返回的简称（如 "XD兆易创"），允许用户输入全名 "兆易创新" 命中。

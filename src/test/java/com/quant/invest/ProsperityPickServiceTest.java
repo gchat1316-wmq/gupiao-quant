@@ -6,8 +6,8 @@ import com.quant.dto.invest.ProsperityPickResultDTO;
 import com.quant.entity.InvestProsperityPick;
 import com.quant.entity.TradeStockBasic;
 import com.quant.repository.InvestProsperityPickRepository;
-import com.quant.repository.TradeStockDailyRepository;
 import com.quant.repository.TradeStockFinancialRepository;
+import com.quant.service.AStockDataQuoteService;
 import com.quant.service.ProsperityPickService;
 import com.quant.service.StockQueryService;
 import com.quant.service.ai.MiniMaxClient;
@@ -22,11 +22,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -47,7 +49,7 @@ class ProsperityPickServiceTest {
 
     @Mock StockQueryService stockQueryService;
     @Mock TradeStockFinancialRepository financialRepo;
-    @Mock TradeStockDailyRepository dailyRepo;
+    @Mock AStockDataQuoteService aStockDataQuoteService;
     @Mock InvestProsperityPickRepository repo;
     @Mock MiniMaxClient miniMaxClient;
     @Mock SenseNovaClient senseNovaClient;
@@ -63,10 +65,12 @@ class ProsperityPickServiceTest {
         aiProperties.getSensenova().setApiKey("test-key");
         StockAnalysisProperties stockAnalysisProperties = new StockAnalysisProperties();
         stockAnalysisProperties.setEnabled(false);
+        // 默认实时行情为空，迫使快照里 currentPrice/marketCap 走 null 兜底
+        org.mockito.Mockito.lenient().when(aStockDataQuoteService.fetchQuotes(anyList())).thenReturn(Map.of());
         service = new ProsperityPickService(
                 stockQueryService,
                 financialRepo,
-                dailyRepo,
+                aStockDataQuoteService,
                 repo,
                 miniMaxClient,
                 senseNovaClient,

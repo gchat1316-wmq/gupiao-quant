@@ -2,9 +2,7 @@ package com.quant.service;
 
 import com.quant.dto.stockanalysis.StockAnalysisResponse;
 import com.quant.entity.TradeStockBasic;
-import com.quant.entity.TradeStockDaily;
 import com.quant.entity.TradeStockFinancial;
-import com.quant.repository.TradeStockDailyRepository;
 import com.quant.repository.TradeStockFinancialRepository;
 import com.quant.service.ai.MiniMaxClient;
 import com.quant.service.ai.SenseNovaClient;
@@ -18,11 +16,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,7 +31,7 @@ class UnifiedStockResearchServiceTest {
     @Mock
     TradeStockFinancialRepository financialRepository;
     @Mock
-    TradeStockDailyRepository dailyRepository;
+    AStockDataQuoteService aStockDataQuoteService;
     @Mock
     WebSearchClient webSearchClient;
     @Mock
@@ -44,8 +43,14 @@ class UnifiedStockResearchServiceTest {
 
     @BeforeEach
     void setUp() {
+        // 默认实时行情返回麦格米特 25.30，覆盖最新股价逻辑
+        org.mockito.Mockito.lenient().when(aStockDataQuoteService.fetchQuotes(any())).thenReturn(Map.of(
+                "002851.SZ", new AStockDataQuoteService.QuoteSnapshot(
+                        "002851.SZ", new BigDecimal("25.30"), new BigDecimal("24.80"),
+                        new BigDecimal("253"), LocalDateTime.now(), "a-stock-data/tencent")
+        ));
         service = new UnifiedStockResearchService(
-                financialRepository, dailyRepository, webSearchClient, miniMaxClient, senseNovaClient);
+                financialRepository, aStockDataQuoteService, webSearchClient, miniMaxClient, senseNovaClient);
     }
 
     @Test
@@ -54,8 +59,6 @@ class UnifiedStockResearchServiceTest {
         TradeStockBasic basic = basic();
         when(financialRepository.findByStockCodeOrderByReportDateDesc("002851.SZ"))
                 .thenReturn(List.of(financial()));
-        when(dailyRepository.findFirstByStockCodeOrderByTradeDateDesc("002851.SZ"))
-                .thenReturn(Optional.of(daily()));
         when(webSearchClient.isEnabled()).thenReturn(false);
 
         StockAnalysisResponse response = service.buildUnifiedResponse(
@@ -86,6 +89,8 @@ class UnifiedStockResearchServiceTest {
         assertThat(response.getDbFinancials()).hasSize(1);
         assertThat(response.getReportHtml()).contains("数据来源状态");
         assertThat(response.getReportHtml()).contains("暂无可用结构化数据");
+        // 当前价应来自 a-stock-data 实时接口
+        assertThat(response.getCurrentPrice()).isEqualTo(25.30);
     }
 
     @Test
@@ -94,8 +99,6 @@ class UnifiedStockResearchServiceTest {
         TradeStockBasic basic = basic();
         when(financialRepository.findByStockCodeOrderByReportDateDesc("002851.SZ"))
                 .thenReturn(List.of(financial()));
-        when(dailyRepository.findFirstByStockCodeOrderByTradeDateDesc("002851.SZ"))
-                .thenReturn(Optional.of(daily()));
         when(webSearchClient.isEnabled()).thenReturn(true);
         when(webSearchClient.search("麦格米特 机构预测 盈利预测 目标价"))
                 .thenReturn(List.of(new WebSearchClient.SearchResult("研报摘要", "https://example.com", "机构预期 2026 年利润继续增长")));
@@ -156,13 +159,5 @@ class UnifiedStockResearchServiceTest {
         financial.setRevenueYoy(new BigDecimal("20"));
         financial.setDeductedNetProfitYoy(new BigDecimal("25"));
         return financial;
-    }
-
-    private TradeStockDaily daily() {
-        TradeStockDaily daily = new TradeStockDaily();
-        daily.setStockCode("002851.SZ");
-        daily.setClosePrice(new BigDecimal("25.30"));
-        daily.setTradeDate(LocalDate.of(2026, 6, 17));
-        return daily;
     }
 }

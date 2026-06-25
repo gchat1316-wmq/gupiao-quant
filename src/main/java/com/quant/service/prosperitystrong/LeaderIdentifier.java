@@ -9,6 +9,7 @@ import com.quant.entity.TradeStockBasic;
 import com.quant.entity.TradeStockDaily;
 import com.quant.repository.TradeStockBasicRepository;
 import com.quant.repository.TradeStockDailyRepository;
+import com.quant.service.AStockDataQuoteService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
@@ -29,6 +30,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -52,6 +54,7 @@ public class LeaderIdentifier {
 
     private final TradeStockBasicRepository basicRepo;
     private final TradeStockDailyRepository dailyRepo;
+    private final AStockDataQuoteService aStockDataQuoteService;
     private final ProsperityStrongProperties props;
 
     public List<ProsperityLeaderCandidate> identify(LocalDate snapDate, ProsperityHotSector sector) {
@@ -67,10 +70,20 @@ public class LeaderIdentifier {
             return Collections.emptyList();
         }
 
-        Map<String, TradeStockDaily> latestQuotes = new HashMap<>();
+        // 当前股价统一走 a-stock-data 实时接口；trade_stock_daily 收盘价同步延迟、不准确
+        Map<String, AStockDataQuoteService.QuoteSnapshot> latestQuoteMap = aStockDataQuoteService.fetchQuotes(
+                realMembers.stream().map(TradeStockBasic::getStockCode).toList());
+        Map<String, BigDecimal> latestPriceMap = new HashMap<>();
+        for (Map.Entry<String, AStockDataQuoteService.QuoteSnapshot> e : latestQuoteMap.entrySet()) {
+            if (e.getValue() != null && e.getValue().latestPrice() != null) {
+                latestPriceMap.put(e.getKey().toUpperCase(Locale.ROOT), e.getValue().latestPrice());
+            }
+        }
+        // 换手率（属日内累计指标）暂保留 trade_stock_daily 字段；当前价已切到 a-stock-data
+        Map<String, TradeStockDaily> latestKlineMap = new HashMap<>();
         for (TradeStockDaily d : dailyRepo.findLatestByStockCodes(
                 realMembers.stream().map(TradeStockBasic::getStockCode).toList())) {
-            latestQuotes.put(d.getStockCode(), d);
+            latestKlineMap.put(d.getStockCode(), d);
         }
         LocalDate yearStart = LocalDate.of(snapDate.getYear(), 1, 1);
         Map<String, TradeStockDaily> yearStartQuotes = new HashMap<>();
@@ -81,12 +94,14 @@ public class LeaderIdentifier {
 
         List<ProsperityLeaderCandidate> scored = new ArrayList<>();
         for (TradeStockBasic basic : realMembers) {
-            TradeStockDaily latest = latestQuotes.get(basic.getStockCode());
-            if (latest == null) continue;
+            String codeKey = basic.getStockCode() == null ? "" : basic.getStockCode().trim().toUpperCase(Locale.ROOT);
+            BigDecimal latestPrice = latestPriceMap.get(codeKey);
+            TradeStockDaily latestKline = latestKlineMap.get(basic.getStockCode());
+            if (latestPrice == null || latestKline == null) continue;
 
-            String filterReason = passFastFilter(basic, latest, snapDate);
-            BigDecimal ytdChange = ytdChange(latest, yearStartQuotes.get(basic.getStockCode()));
-            BigDecimal turnover = latest.getTurnoverRate();
+            String filterReason = passFastFilter(basic, latestKline, snapDate);
+            BigDecimal ytdChange = ytdChangeByLatestPrice(latestPrice, yearStartQuotes.get(basic.getStockCode()));
+            BigDecimal turnover = latestKline.getTurnoverRate();
             // 简化的 5 日涨幅:用最近6条记录里的第一/最后一条
             List<TradeStockDaily> last6 = dailyRepo.findTop6ByStockCodeOrderByTradeDateDesc(basic.getStockCode());
             BigDecimal change5d = null;
@@ -305,6 +320,15 @@ public class LeaderIdentifier {
         BigDecimal old = base.getClosePrice();
         if (cur == null || old == null || old.compareTo(BigDecimal.ZERO) == 0) return null;
         return cur.subtract(old).divide(old, 6, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100));
+    }
+
+    /** 年初至今涨幅：当前价用 a-stock-data 实时价（不再用 trade_stock_daily.closePrice）。 */
+    private BigDecimal ytdChangeByLatestPrice(BigDecimal latestPrice, TradeStockDaily base) {
+        if (latestPrice == null || base == null) return null;
+        BigDecimal old = base.getClosePrice();
+        if (old == null || old.compareTo(BigDecimal.ZERO) == 0) return null;
+        return latestPrice.subtract(old).divide(old, 6, RoundingMode.HALF_UP)
                 .multiply(BigDecimal.valueOf(100));
     }
 

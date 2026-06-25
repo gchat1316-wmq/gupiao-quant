@@ -84,7 +84,8 @@ public class IndustryResearchController {
     /* ============ 触发流水线 ============ */
     @PostMapping("/pipeline/run")
     public ResponseEntity<TaskDTO> triggerPipeline(@RequestBody PipelineTriggerRequest req) {
-        IndustryResearchTask task = pipeline.createAndRun(req.categoryCode(), req.keyword(), req.taskName());
+        IndustryResearchTask task = pipeline.createAndRun(
+                req.categoryCode(), req.keyword(), req.taskName(), req.articleId());
         return getTask(task.getId());
     }
 
