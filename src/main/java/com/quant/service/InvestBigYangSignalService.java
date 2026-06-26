@@ -55,6 +55,7 @@ public class InvestBigYangSignalService {
     private final SinaRealtimeQuoteService sinaRealtimeQuoteService;
     private final AStockDataQuoteService aStockDataQuoteService;
     private final InvestBigYangProperties properties;
+    private final NotificationService notificationService;
 
     private final AtomicBoolean running = new AtomicBoolean(false);
 
@@ -408,6 +409,13 @@ public class InvestBigYangSignalService {
         alert.setPushed(0);
         alert.setReadFlag(0);
         alertRepository.save(alert);
+
+        // 推微信（Server 酱）
+        boolean pushed = notificationService.sendServerChan(alert.getTitle(), alert.getContent());
+        if (pushed) {
+            alert.setPushed(1);
+            alertRepository.save(alert);
+        }
     }
 
     private BigYangSignalDTO toSignalDTO(InvestBigYangSignal signal, TechAiQuoteSnapshot realtimeQuote) {
