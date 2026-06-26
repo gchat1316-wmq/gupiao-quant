@@ -9,14 +9,17 @@ import com.quant.dto.prosperitystrong.HotSectorDTO;
 import com.quant.dto.prosperitystrong.LeaderCandidateDTO;
 import com.quant.dto.prosperitystrong.PickDailyDTO;
 import com.quant.dto.prosperitystrong.PipelineRunResultDTO;
+import com.quant.dto.prosperitystrong.PipelineRunDTO;
 import com.quant.entity.ProsperityHotSector;
 import com.quant.entity.ProsperityLeaderCandidate;
 import com.quant.entity.ProsperityPickDaily;
+import com.quant.entity.ProsperityPipelineRun;
 import com.quant.entity.TradeStockBasic;
 import com.quant.entity.TradeStockFinancial;
 import com.quant.repository.ProsperityHotSectorRepository;
 import com.quant.repository.ProsperityLeaderCandidateRepository;
 import com.quant.repository.ProsperityPickDailyRepository;
+import com.quant.repository.ProsperityPipelineRunRepository;
 import com.quant.repository.TradeStockBasicRepository;
 import com.quant.repository.TradeStockFinancialRepository;
 import com.quant.service.AStockDataQuoteService;
@@ -32,12 +35,14 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -64,6 +69,7 @@ public class ProsperityStrongPipelineService {
     private final ProsperityHotSectorRepository sectorRepo;
     private final ProsperityLeaderCandidateRepository leaderRepo;
     private final ProsperityPickDailyRepository pickRepo;
+    private final ProsperityPipelineRunRepository runRepo;
     private final TradeStockBasicRepository basicRepo;
     private final TradeStockFinancialRepository financialRepo;
     private final AStockDataQuoteService aStockDataQuoteService;
@@ -92,19 +98,23 @@ public class ProsperityStrongPipelineService {
             acquired = runLock.tryLock(0, TimeUnit.MILLISECONDS);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
-            return PipelineRunResultDTO.builder()
+            PipelineRunResultDTO result = PipelineRunResultDTO.builder()
                     .snapDate(snapDate).startedAt(t0).finishedAt(LocalDateTime.now())
                     .durationMs(0L).provider(provider == null ? "" : provider)
                     .status("INTERRUPTED").message("流水线被中断")
                     .build();
+            savePipelineRun(snapDate, result);
+            return result;
         }
         if (!acquired) {
             log.warn("热点选股流水线正在执行中,本次请求被拒绝: snapDate={}, provider={}", snapDate, provider);
-            return PipelineRunResultDTO.builder()
+            PipelineRunResultDTO result = PipelineRunResultDTO.builder()
                     .snapDate(snapDate).startedAt(t0).finishedAt(LocalDateTime.now())
                     .durationMs(0L).provider(provider == null ? "" : provider)
                     .status("BUSY").message("流水线正在执行中,请稍后再试")
                     .build();
+            savePipelineRun(snapDate, result);
+            return result;
         }
         try {
             String selectedProvider = providerService.normalize(provider);
@@ -115,10 +125,33 @@ public class ProsperityStrongPipelineService {
             // 幂等: 清空当日数据 (独立短事务, 立刻释放行锁)
             cleanupService.clearSnapDate(snapDate);
 
-            return runPipeline(snapDate, selectedProvider, providerMessage, t0);
+            PipelineRunResultDTO result = runPipeline(snapDate, selectedProvider, providerMessage, t0);
+
+            // 记录本次执行（幂等: 同一 snapDate 只保留最新一条）
+            savePipelineRun(snapDate, result);
+
+            return result;
         } finally {
             runLock.unlock();
         }
+    }
+
+    /** 保存流水线执行记录，幂等（同一日期只保留最新一条）。 */
+    private void savePipelineRun(LocalDate snapDate, PipelineRunResultDTO result) {
+        ProsperityPipelineRun run = runRepo.findTopBySnapDateOrderByStartedAtDesc(snapDate)
+                .orElse(new ProsperityPipelineRun());
+        run.setSnapDate(snapDate);
+        run.setStartedAt(result.getStartedAt());
+        run.setFinishedAt(result.getFinishedAt());
+        run.setDurationMs(result.getDurationMs());
+        run.setStatus(result.getStatus());
+        run.setMessage(result.getMessage());
+        run.setProvider(result.getProvider());
+        run.setSectorCount(result.getSectorCount());
+        run.setLeaderCount(result.getLeaderCount());
+        run.setHardFilteredCount(result.getHardFilteredCount());
+        run.setCandidateCount(result.getCandidateCount());
+        runRepo.save(run);
     }
 
     /** 流水线主体 Step1~5, 与 {@link #run} 同事务。 */
@@ -171,13 +204,14 @@ public class ProsperityStrongPipelineService {
             c.setFinanceScore(fin.financeScore());
             c.setFinancePassed(fin.hardPassed() ? 1 : 0);
             c.setFinanceReason(fin.reason());
+            c.setRevenueYoyMin4q(fin.revenueYoyMin3q());
+            c.setDeductedNetProfitYoyMin4q(fin.deductedNetProfitYoyMin3q());
             if (!fin.hardPassed()) {
                 c.setFinalStage("finance_filter");
                 // 财务筛不通过时仍跑一遍主线评估,把 mainlinePassed/mainlineReason
                 // 落库,供"成分股过滤明细"里给用户看全每只股票三个阶段的原因。
-                // 注意: 此处不影响 finalStage,业务过滤链仍是 step2 → step3 → step4 顺序。
                 MainlineEvaluator.Score mlForRecord = mainlineEvaluator.evaluate(
-                        null, fin.netMarginAvg4q(), fin.financeScore());
+                        null, null, fin.financeScore());
                 c.setMainlineScore(mlForRecord.mainlineScore());
                 c.setMainlinePassed(mlForRecord.mainlinePassed() ? 1 : 0);
                 c.setMainlineReason(mlForRecord.mainlineReason());
@@ -186,11 +220,11 @@ public class ProsperityStrongPipelineService {
 
             // Step4 主线判定
             MainlineEvaluator.Score mainline = mainlineEvaluator.evaluate(
-                    null, fin.netMarginAvg4q(), fin.financeScore());
+                    null, null, fin.financeScore());
             c.setMainlineScore(mainline.mainlineScore());
             c.setMainlinePassed(mainline.mainlinePassed() ? 1 : 0);
             c.setMainlineReason(mainline.mainlineReason());
-            if (!mainline.mainlinePassed() && mainline.netMarginAvg().doubleValue() < 10) {
+            if (!mainline.mainlinePassed()) {
                 c.setFinalStage("mainline_filter");
                 continue;
             }
@@ -205,7 +239,7 @@ public class ProsperityStrongPipelineService {
             pick.setSectorName(c.getSectorName());
             pick.setFinanceScore(fin.financeScore());
             pick.setMainlineScore(mainline.mainlineScore());
-            pick.setNetMarginAvg4q(fin.netMarginAvg4q());
+            pick.setRevenueYoyMin3q(fin.revenueYoyMin3q());
             pick.setMainBizRatio(mainline.mainBizRatio());
 
             BigDecimal combined = combinedScore(
@@ -232,6 +266,12 @@ public class ProsperityStrongPipelineService {
         // 按综合评分截断
         picks.sort(Comparator.comparing(ProsperityPickDaily::getCombinedScore,
                 Comparator.nullsLast(Comparator.reverseOrder())));
+
+        // 去重: 同一只股票在多个板块(eg AI算力+工业母机)出现时,
+        // prosperity_pick_daily.uk_date_code(snap_date, stock_code) 唯一键冲突。
+        // 保留综合分最高的那条,并把"次优板块"信息塞进 memo 备注,避免信息丢失。
+        picks = dedupPicks(picks);
+
         if (picks.size() > props.getMaxCandidates()) {
             picks = new ArrayList<>(picks.subList(0, props.getMaxCandidates()));
         }
@@ -255,6 +295,46 @@ public class ProsperityStrongPipelineService {
                 .message(String.format("[%s] 板块 %d / 龙头 %d / 硬筛通过 %d / 最终候选 %d",
                         selectedProvider, sectors.size(), allLeaders.size(), hardPassedCount, picks.size()))
                 .build();
+    }
+
+    /**
+     * 去重 picks: 同 snapDate + stockCode 只保留综合分最高的一条。
+     * 其它板块的来源塞进 memo, 保证前端仍能看到这只股票关联了哪几个板块。
+     */
+    List<ProsperityPickDaily> dedupPicks(List<ProsperityPickDaily> picks) {
+        Map<String, ProsperityPickDaily> bestByCode = new LinkedHashMap<>();
+        Map<String, List<String>> sectorsByCode = new HashMap<>();
+        for (ProsperityPickDaily p : picks) {
+            String code = p.getStockCode();
+            if (code == null) continue;
+            sectorsByCode.computeIfAbsent(code, k -> new ArrayList<>())
+                    .add(p.getSectorName());
+            ProsperityPickDaily prev = bestByCode.get(code);
+            if (prev == null) {
+                bestByCode.put(code, p);
+                continue;
+            }
+            BigDecimal prevScore = prev.getCombinedScore() == null ? BigDecimal.ZERO : prev.getCombinedScore();
+            BigDecimal currScore = p.getCombinedScore() == null ? BigDecimal.ZERO : p.getCombinedScore();
+            if (currScore.compareTo(prevScore) > 0) {
+                bestByCode.put(code, p);
+            }
+        }
+        for (ProsperityPickDaily p : bestByCode.values()) {
+            List<String> sects = sectorsByCode.getOrDefault(p.getStockCode(), List.of());
+            if (sects.size() > 1) {
+                String other = sects.stream().filter(s -> !s.equals(p.getSectorName()))
+                        .collect(Collectors.joining(", "));
+                p.setMemo((p.getMemo() == null ? "" : p.getMemo() + "\n")
+                        + "[板块归属] " + p.getSectorName()
+                        + " (另入选: " + other + ")");
+            }
+        }
+        // 仍按综合分降序
+        List<ProsperityPickDaily> result = new ArrayList<>(bestByCode.values());
+        result.sort(Comparator.comparing(ProsperityPickDaily::getCombinedScore,
+                Comparator.nullsLast(Comparator.reverseOrder())));
+        return result;
     }
 
     private BigDecimal combinedScore(BigDecimal financeScore, BigDecimal mainlineScore, BigDecimal leaderScore) {
@@ -313,6 +393,38 @@ public class ProsperityStrongPipelineService {
                 .toList();
     }
 
+    /** 查询流水线执行历史 */
+    @Transactional(readOnly = true)
+    public List<PipelineRunDTO> runs(LocalDate from, LocalDate to) {
+        return runRepo.findBySnapDateBetweenOrderByStartedAtDesc(from, to).stream()
+                .map(this::toRunDTO)
+                .toList();
+    }
+
+    /** 删除指定日期的所有数据（prosperity_hot_sector + leader_candidate + pick_daily + pipeline_run） */
+    @Transactional
+    public void deleteRun(LocalDate snapDate) {
+        cleanupService.clearSnapDate(snapDate);
+        runRepo.deleteBySnapDate(snapDate);
+    }
+
+    private PipelineRunDTO toRunDTO(ProsperityPipelineRun r) {
+        return PipelineRunDTO.builder()
+                .id(r.getId())
+                .snapDate(r.getSnapDate())
+                .startedAt(r.getStartedAt())
+                .finishedAt(r.getFinishedAt())
+                .durationMs(r.getDurationMs())
+                .status(r.getStatus())
+                .message(r.getMessage())
+                .provider(r.getProvider())
+                .sectorCount(r.getSectorCount())
+                .leaderCount(r.getLeaderCount())
+                .hardFilteredCount(r.getHardFilteredCount())
+                .candidateCount(r.getCandidateCount())
+                .build();
+    }
+
     @Transactional(readOnly = true)
     public LocalDate latestSnapDate() {
         return pickRepo.findFirstByOrderBySnapDateDesc()
@@ -367,6 +479,12 @@ public class ProsperityStrongPipelineService {
                 .mainlinePassed(e.getMainlinePassed() != null && e.getMainlinePassed() == 1)
                 .mainlineReason(e.getMainlineReason())
                 .finalStage(e.getFinalStage())
+                .revenueYoyMin4q(e.getRevenueYoyMin4q())
+                .deductedNetProfitYoyMin4q(e.getDeductedNetProfitYoyMin4q())
+                .grossMarginAvg4q(e.getGrossMarginAvg4q())
+                .debtRatioLatest(e.getDebtRatioLatest())
+                .operatingCashflowSum4q(e.getOperatingCashflowSum4q())
+                .roeLatest(e.getRoeLatest())
                 .build();
     }
 
@@ -389,7 +507,9 @@ public class ProsperityStrongPipelineService {
                 .sectorName(e.getSectorName())
                 .financeScore(e.getFinanceScore()).mainlineScore(e.getMainlineScore())
                 .combinedScore(e.getCombinedScore())
-                .netMarginAvg4q(e.getNetMarginAvg4q()).mainBizRatio(e.getMainBizRatio())
+                .netMarginAvg4q(null)
+                .revenueYoyMin3q(e.getRevenueYoyMin3q())
+                .mainBizRatio(e.getMainBizRatio())
                 .latestPrice(e.getLatestPrice())
                 .profitQuarters(profitQuarters)
                 .priceLow(e.getPriceLow()).priceMid(e.getPriceMid()).priceHigh(e.getPriceHigh())

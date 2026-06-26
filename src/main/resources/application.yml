@@ -17,6 +17,14 @@ spring:
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2
+      # 连接存活检测：MySQL 默认 wait_timeout=8h，设为 10min 提前回收避免服务端断连
+      max-lifetime: 600000
+      # 空闲连接保活，超时归还到池
+      idle-timeout: 300000
+      # 借出前用 SELECT 1 验证连接是否存活
+      connection-test-query: SELECT 1
+      # 等待连接超时 20s
+      connection-timeout: 20000
   jpa:
     hibernate:
       ddl-auto: none

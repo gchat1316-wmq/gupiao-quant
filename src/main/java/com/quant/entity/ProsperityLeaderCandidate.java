@@ -80,6 +80,24 @@ public class ProsperityLeaderCandidate {
     @Column(name = "final_stage", length = 20)
     private String finalStage;
 
+    @Column(name = "revenue_yoy_min_4q", precision = 10, scale = 4)
+    private BigDecimal revenueYoyMin4q;
+
+    @Column(name = "deducted_netprofit_yoy_min_4q", precision = 10, scale = 4)
+    private BigDecimal deductedNetProfitYoyMin4q;
+
+    @Column(name = "gross_margin_avg_4q", precision = 10, scale = 4)
+    private BigDecimal grossMarginAvg4q;
+
+    @Column(name = "debt_ratio_latest", precision = 10, scale = 4)
+    private BigDecimal debtRatioLatest;
+
+    @Column(name = "operating_cashflow_sum_4q", precision = 20, scale = 2)
+    private BigDecimal operatingCashflowSum4q;
+
+    @Column(name = "roe_latest", precision = 10, scale = 4)
+    private BigDecimal roeLatest;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 }

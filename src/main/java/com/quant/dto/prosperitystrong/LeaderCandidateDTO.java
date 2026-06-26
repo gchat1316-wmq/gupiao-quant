@@ -29,4 +29,10 @@ public class LeaderCandidateDTO {
     private Boolean mainlinePassed;
     private String mainlineReason;
     private String finalStage;
+    private BigDecimal revenueYoyMin4q;
+    private BigDecimal deductedNetProfitYoyMin4q;
+    private BigDecimal grossMarginAvg4q;
+    private BigDecimal debtRatioLatest;
+    private BigDecimal operatingCashflowSum4q;
+    private BigDecimal roeLatest;
 }

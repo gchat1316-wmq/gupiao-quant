@@ -20,6 +20,9 @@ public class PickDailyDTO {
     private BigDecimal financeScore;
     private BigDecimal mainlineScore;
     private BigDecimal combinedScore;
+    /** 近3季度营收同比最小值(%) — 替代旧的近4季净利率 */
+    private BigDecimal revenueYoyMin3q;
+    /** 历史字段保留(老接口兼容), 不再展示 */
     private BigDecimal netMarginAvg4q;
     private BigDecimal mainBizRatio;
     private BigDecimal latestPrice;

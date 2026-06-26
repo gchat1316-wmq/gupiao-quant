@@ -34,7 +34,10 @@
     filterStatus: $('ppFilterStatus'),
     finCanvas: $('ppFinCanvas'),
     finChartWrap: $('ppFinChartWrap'),
-    anchorNav: $('ppAnchorNav')
+    anchorNav: $('ppAnchorNav'),
+    researchSection: $('pp-section-research'),
+    consensus: $('ppConsensus'),
+    researchList: $('ppResearchList')
   };
 
   let currentPage = 0;
@@ -47,7 +50,14 @@
 
   // ============================================================
   // 4 套分析方法的页面结构 (anchor + section 标题 + 渲染权重)
+  // 是否启用独立 "Wind 研报" 段: purple/gaojingqi 是, full/五维 折进现有段
   // ============================================================
+  const METHOD_HAS_RESEARCH_SECTION = {
+    full: false,
+    purple_perilla: true,
+    gaojingqi: true,
+    five_dimension: false
+  };
   const METHOD_TEMPLATES = {
     full: {
       label: '全量分析',
@@ -76,14 +86,16 @@
         { id: 'pp-section-company',   no: '③', label: '竞争格局' },
         { id: 'pp-section-finance',   no: '④', label: '护城河' },
         { id: 'pp-section-market',    no: '⑤', label: '下单三问' },
-        { id: 'pp-section-summary',   no: '⑥', label: '结论' }
+        { id: 'pp-section-summary',   no: '⑥', label: '结论' },
+        { id: 'pp-section-research',  no: '⑦', label: 'Wind 研报' }
       ],
       sections: {
         'pp-section-industry': '产业链定位 · 全球玩家',
         'pp-section-company':  '竞争格局 · 地缘优势',
         'pp-section-finance':  '护城河 · 业务结构',
         'pp-section-market':   '下单三问 · 不可替代/玩家数/需求',
-        'pp-section-summary':  '结论 · 一句话'
+        'pp-section-summary':  '结论 · 一句话',
+        'pp-section-research': 'Wind 研报 · 一致预期 + 卖方研报'
       },
       weights: { industry: 2, company: 2, finance: 2, market: 2, valuation: 0 }
     },
@@ -95,14 +107,16 @@
         { id: 'pp-section-company',   no: '③', label: '拐点信号' },
         { id: 'pp-section-finance',   no: '④', label: '政策共振' },
         { id: 'pp-section-market',    no: '⑤', label: '技术资金' },
-        { id: 'pp-section-summary',   no: '⑥', label: '结论' }
+        { id: 'pp-section-summary',   no: '⑥', label: '结论' },
+        { id: 'pp-section-research',  no: '⑦', label: 'Wind 研报' }
       ],
       sections: {
         'pp-section-industry': '行业景气 · 周期位置 · 上轮复盘',
         'pp-section-company':  '未来12月拐点 · 12季度业绩',
         'pp-section-finance':  '全球共振 · 政策契合 · 业务结构',
         'pp-section-market':   '技术 · 资金 · 行情区间',
-        'pp-section-summary':  '结论 · 一句话'
+        'pp-section-summary':  '结论 · 一句话',
+        'pp-section-research': 'Wind 研报 · 一致预期 + 卖方研报'
       },
       weights: { industry: 3, company: 2, finance: 1, market: 2, valuation: 1 }
     },
@@ -623,6 +637,7 @@
 
     // ============ ⑥ valuation 段 ============
     // full/gaojingqi 强调估值；purple_perilla/five_dimension 弱化
+    // 但所有方法的 valuation 段都加 "Wind 一致预期" 卡片 (强制 AI 引用, 必须展示)
     if (w.valuation >= 1) {
       renderCards(els.valuation, [
         ['公司类型', analysis.valuation?.type],
@@ -631,13 +646,18 @@
         ['2027目标价', analysis.valuation?.target2027],
         ['估值依据', analysis.valuation?.reasoning],
         ['forecast 摘要', formatForecast(report.forecastSummary)],
-        ['外部预期摘要', report.externalExpectation?.summary]
+        ['外部预期摘要', report.externalExpectation?.summary],
+        ...formatConsensusCards(report.windResearch)
       ]);
     } else {
-      renderCards(els.valuation, []);
+      // purple_perilla: valuation 段为空, 但仍塞进一致预期作为方法补充
+      renderCards(els.valuation, formatConsensusCards(report.windResearch));
     }
 
     renderSummary(report, analysis.summary || {});
+
+    // ============ ⑦ Wind 研报段 (仅 purple/gaojingqi 显式展示) ============
+    renderWindResearch(report, currentMethod);
   }
 
   function renderFiveDimReport(payload) {
@@ -753,6 +773,8 @@
     if (risks.length) {
       summaryCards.push(['配套风险提示', risks.map((r, i) => `${i+1}. ${r}`).join('\n')]);
     }
+    // 五维把一致预期折进结论段 (作为估值锚点)
+    summaryCards.push(...formatConsensusCards(report.windResearch));
     renderCards(els.valuation, []);
     renderFiveDimSummary(summaryObj, report);
   }
@@ -1189,5 +1211,81 @@
       clearTimeout(timer);
       timer = setTimeout(() => fn.apply(this, args), ms);
     };
+  }
+
+  // ============================================================
+  // Wind 研报渲染
+  //   - formatConsensusCards: 把 windResearch.consensus 折成 valuation 段的卡片
+  //   - renderWindResearch: 渲染独立 ⑦ 段 (purple/gaojingqi)
+  // ============================================================
+  function formatConsensusCards(windResearch) {
+    if (!windResearch || !windResearch.available || !windResearch.consensus) return [];
+    const c = windResearch.consensus;
+    if (!c.sourceRowCount) return [];
+    const cards = [];
+    if (c.rating) cards.push(['Wind 一致预期 · 评级', c.rating]);
+    if (c.targetPrice != null) cards.push(['Wind 一致预期 · 目标价', `${c.targetPrice} ${c.currency || '元'}`]);
+    if (c.eps2026 != null) cards.push(['Wind 一致预期 · 2026E EPS', `${c.eps2026} 元`]);
+    if (c.eps2027 != null) cards.push(['Wind 一致预期 · 2027E EPS', `${c.eps2027} 元`]);
+    if (c.netProfitGrowth2026 != null) cards.push(['Wind 一致预期 · 2026 净利同比', `${c.netProfitGrowth2026}%`]);
+    if (c.netProfitGrowth2027 != null) cards.push(['Wind 一致预期 · 2027 净利同比', `${c.netProfitGrowth2027}%`]);
+    return cards.map(([label, value]) => [label, value]);
+  }
+
+  function renderWindResearch(report, method) {
+    if (!els.researchSection) return;
+    const hasSection = METHOD_HAS_RESEARCH_SECTION[method];
+    if (!hasSection) {
+      els.researchSection.classList.add('hidden');
+      return;
+    }
+    const wind = report.windResearch;
+    if (!wind || !wind.available) {
+      // 即使方法支持, 也要展示 "未启用" 占位, 不藏起来
+      els.researchSection.classList.remove('hidden');
+      if (els.consensus) {
+        renderCards(els.consensus, []);
+      }
+      if (els.researchList) {
+        const reason = !wind
+            ? '本次未拉取'
+            : !wind.windInstalled
+              ? 'Wind skill 未安装'
+              : !wind.windHasKey
+                ? 'Wind 未配置 API Key'
+                : '本次拉取无可用数据';
+        els.researchList.innerHTML = `<div class="pp-research-empty">Wind 研报：${escapeHtml(reason)}</div>`;
+      }
+      return;
+    }
+    els.researchSection.classList.remove('hidden');
+
+    // 一致预期卡片
+    const consensusCards = formatConsensusCards(wind);
+    if (els.consensus) renderCards(els.consensus, consensusCards);
+
+    // 研报片段列表
+    if (els.researchList) {
+      const reports = Array.isArray(wind.reports) ? wind.reports : [];
+      if (reports.length === 0) {
+        els.researchList.innerHTML = '<div class="pp-research-empty">本次未检索到研报片段</div>';
+      } else {
+        els.researchList.innerHTML = reports.map((r, i) => `
+          <div class="pp-research-item">
+            <div class="pp-research-head">
+              <span class="pp-research-no">#${i + 1}</span>
+              <span class="pp-research-title">${escapeHtml(r.title || '')}</span>
+            </div>
+            <div class="pp-research-meta">
+              ${r.source ? `<span class="pp-research-tag">${escapeHtml(r.source)}</span>` : ''}
+              ${r.date ? `<span class="pp-research-tag">${escapeHtml(r.date)}</span>` : ''}
+              ${r.docType ? `<span class="pp-research-tag">${escapeHtml(r.docType)}</span>` : ''}
+              ${r.relevance != null ? `<span class="pp-research-tag">相关度 ${(r.relevance * 100).toFixed(0)}%</span>` : ''}
+            </div>
+            <div class="pp-research-body">${escapeHtml(r.content || '')}</div>
+          </div>
+        `).join('');
+      }
+    }
   }
 }());

@@ -14,6 +14,8 @@ const state = {
   providers: [],
   sectors: [],
   candidates: [],
+  pool: [],
+  poolCodes: new Set(),
 };
 
 function fmtNum(v, scale) {
@@ -491,6 +493,14 @@ function renderLeaderModalTable(leaders) {
         ? `<span class="ps-cross">✗</span> <b class="ps-score">${s4Score}</b><br><span class="ps-reason">${escapeHtml(l.mainlineReason || '未通过主线判定')}</span>`
         : '--');
 
+    // "过滤原因(完整)"列: 财务筛时展示6项指标明细,其他阶段显示原始 reason
+    const reasonCell = (() => {
+      if (failedStage === 'finance') {
+        return renderFinanceDetailTable(l);
+      }
+      return `<span class="ps-reason ${failedStage ? '' : 'pass'}">${failedStage ? escapeHtml(failedReason) : '通过所有阶段,纳入候选'}</span>`;
+    })();
+
     return `
       <tr class="${rowCls}">
         <td>${l.stockCode}</td>
@@ -499,7 +509,7 @@ function renderLeaderModalTable(leaders) {
         <td>${s3}</td>
         <td>${s4}</td>
         <td><span class="ps-pill-mini ${stagePillCls}">${stagePillLabel}</span></td>
-        <td class="ps-reason ${failedStage ? '' : 'pass'}">${failedStage ? escapeHtml(failedReason) : '通过所有阶段,纳入候选'}</td>
+        <td class="ps-reason-cell">${reasonCell}</td>
       </tr>
     `;
   }).join('');
@@ -521,6 +531,35 @@ function renderLeaderModalTable(leaders) {
   `;
 }
 
+/**
+ * 渲染财务硬筛6项指标明细表(营收同比/扣非同比/毛利率/资产负债率/经营现金流/ROE)
+ */
+function renderFinanceDetailTable(l) {
+  const fmt = v => (v == null || v === '') ? '<span style="color:#999">--</span>' : parseFloat(v).toFixed(2) + '%';
+  const fmtY = v => {
+    if (v == null || v === '') return '<span style="color:#999">--</span>';
+    const y = parseFloat(v) / 1e8;
+    return y.toFixed(2) + '亿';
+  };
+  const thresholds = {
+    revenueYoyMin4q: { label: '营收同比近4季', thresh: '≥20%', fail: v => v != null && parseFloat(v) < 20 },
+    deductedNetProfitYoyMin4q: { label: '扣非同比近4季', thresh: '≥0%', fail: v => v != null && parseFloat(v) < 0 },
+    grossMarginAvg4q: { label: '毛利率均值', thresh: '≥25%', fail: v => v != null && parseFloat(v) < 25 },
+    debtRatioLatest: { label: '资产负债率', thresh: '≤70%', fail: v => v != null && parseFloat(v) > 70 },
+    operatingCashflowSum4q: { label: '近4季经营现金流', thresh: '>0', fail: v => v != null && parseFloat(v) <= 0, isYuan: true },
+    roeLatest: { label: '最新ROE', thresh: '≥10%', fail: v => v != null && parseFloat(v) < 10 }
+  };
+  const rows = Object.entries(thresholds).map(([key, cfg]) => {
+    const rawVal = l[key];
+    const failed = cfg.fail(rawVal);
+    const valStr = cfg.isYuan ? fmtY(rawVal) : fmt(rawVal);
+    const cls = failed ? 'fin-row fail' : 'fin-row ok';
+    const icon = failed ? '<span style="color:#e74c3c">✗</span>' : '<span style="color:#2ecc71">✓</span>';
+    return `<tr class="${cls}"><td>${icon}</td><td>${cfg.label}</td><td>${valStr}</td><td>${cfg.thresh}</td></tr>`;
+  }).join('');
+  return `<table class="fin-detail-table" cellpadding="0" cellspacing="0">${rows}</table>`;
+}
+
 function pctOf(total, count) {
   if (!total) return '0%';
   return (count / total * 100).toFixed(1) + '%';
@@ -540,8 +579,15 @@ function renderCandidates(list) {
     renderDetailCandidateTags([]);
     return;
   }
-  const rows = list.map(p => `
-    <tr>
+  const rows = list.map(p => {
+    const inPool = state.poolCodes.has(p.stockCode);
+    const action = inPool
+      ? `<span class="ps-pool-badge" title="已加入热点股票池">已入池</span>
+         <button class="ps-btn-mini" onclick="psShowDetail('${p.stockCode}')">详情</button>`
+      : `<button class="ps-btn-mini" onclick="psShowDetail('${p.stockCode}')">详情</button>
+         <button class="ps-btn-mini" onclick="psPromote('${p.stockCode}')">入池</button>`;
+    return `
+    <tr class="${inPool ? 'ps-pool-in-row' : ''}">
       <td><a href="javascript:psShowDetail('${p.stockCode}')">${p.stockCode}</a></td>
       <td>${p.stockName || '--'}</td>
       <td>${p.sectorName || '--'}</td>
@@ -549,24 +595,21 @@ function renderCandidates(list) {
       <td>${fmtNum(p.financeScore)}</td>
       <td>${fmtNum(p.mainlineScore)}</td>
       <td class="score-cell">${fmtNum(p.combinedScore)}</td>
-      <td>${fmtPct(p.netMarginAvg4q)}</td>
+      <td>${fmtPct(p.revenueYoyMin3q)}</td>
       <td>${fmtMoney(p.buyLeftPrice)}</td>
       <td>${fmtMoney(p.sellTarget1)}</td>
       <td>${fmtMoney(p.stopLossPrice)}</td>
       <td>${fmtPct(p.corePositionPct)}</td>
       <td><span class="ps-signal ${p.actionSignal || ''}">${signalLabel(p.actionSignal)}</span></td>
-      <td>
-        <button class="ps-btn-mini" onclick="psShowDetail('${p.stockCode}')">详情</button>
-        <button class="ps-btn-mini" onclick="psPromote('${p.stockCode}')">入池</button>
-      </td>
-    </tr>
-  `).join('');
+      <td>${action}</td>
+    </tr>`;
+  }).join('');
   wrap.innerHTML = `
     <table class="ps-table">
       <thead><tr>
         <th>代码</th><th>名称</th><th>板块</th><th>现价</th>
         <th>财务分</th><th>主线分</th><th>综合分</th>
-        <th>近4季净利率</th>
+        <th>近3季度营收增速</th>
         <th>建仓价</th><th>目标价</th><th>止损价</th>
         <th>核心仓位</th><th>信号</th><th>操作</th>
       </tr></thead>
@@ -635,7 +678,7 @@ function renderDetail(p) {
           <div class="ps-position-meta">
             板块: ${p.sectorName || '--'} · 综合评分 <b>${fmtNum(p.combinedScore)}</b> ·
             现价 <b>${fmtMoney(p.latestPrice)}</b> ·
-            近4季净利率 <b>${fmtPct(p.netMarginAvg4q)}</b>
+            近3季度营收增速 <b>${fmtPct(p.revenueYoyMin3q)}</b>
           </div>
           ${renderProfitTrend(p.profitQuarters)}
         </div>
@@ -910,15 +953,81 @@ function posCell(label, value, suffix) {
 }
 
 async function psPromote(code) {
-  if (!confirm(`确认将 ${code} 加入龙江投资股票池?`)) return;
+  if (!confirm(`确认将 ${code} 加入热点股票池?\n(独立于龙江投资股票池, 同一只票重复入池会自动累加计数)`)) return;
   try {
     const r = await apiPost(`${BASE}/promote/${encodeURIComponent(code)}?date=${state.date}`);
     alert(r.message || '已入池');
+    // 刷新池子 set + 候选表格的"已入池"标记
+    await loadPool();
+    renderCandidates(state.candidates);
   } catch (e) {
     alert('入池失败: ' + e.message);
   }
 }
 window.psPromote = psPromote;
+
+// ===== 热点股票池 =====
+async function loadPool() {
+  try {
+    const list = await apiGet(`${BASE}/pool`);
+    state.pool = list || [];
+    state.poolCodes = new Set(state.pool.map(p => p.stockCode));
+    renderPool();
+  } catch (e) {
+    state.pool = [];
+    state.poolCodes = new Set();
+    const wrap = $('#psPoolTable');
+    if (wrap) wrap.innerHTML = '<div class="ps-empty">加载失败: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function renderPool() {
+  const wrap = $('#psPoolTable');
+  if (!wrap) return;
+  if (!state.pool.length) {
+    wrap.innerHTML = '<div class="ps-empty">热点股票池为空, 去"龙头候选"标签页点"入池"吧。</div>';
+    return;
+  }
+  const rows = state.pool.map(p => {
+    const lastAdd = p.lastAddedAt ? new Date(p.lastAddedAt).toLocaleString('zh-CN') : '--';
+    const memo = p.memo ? p.memo.replace(/\n/g, '<br/>') : '--';
+    return `<tr>
+      <td><a href="javascript:psShowDetail('${p.stockCode}')">${p.stockCode}</a></td>
+      <td>${escapeHtml(p.stockName || '--')}</td>
+      <td><span class="ps-signal ${(p.status || 'watching')}">${p.status || 'watching'}</span></td>
+      <td class="score-cell">${p.poolCount ?? 1}</td>
+      <td>${escapeHtml(p.sectorName || '--')}</td>
+      <td>${fmtNum(p.combinedScore)}</td>
+      <td>${fmtMoney(p.latestPrice)}</td>
+      <td>${fmtMoney(p.buyLeftPrice)}</td>
+      <td>${fmtMoney(p.sellTarget1)}</td>
+      <td>${fmtMoney(p.stopLossPrice)}</td>
+      <td>${p.lastSnapDate || '--'}</td>
+      <td>${lastAdd}</td>
+      <td><button class="ps-btn-mini" onclick="psTogglePoolMemo('${p.stockCode}')">查看 memo</button></td>
+    </tr>
+    <tr class="ps-pool-memo-row hidden" id="psPoolMemo_${p.stockCode}">
+      <td colspan="13" class="ps-pool-memo">${memo}</td>
+    </tr>`;
+  }).join('');
+  wrap.innerHTML = `
+    <table class="ps-table">
+      <thead><tr>
+        <th>代码</th><th>名称</th><th>状态</th><th>入池次数</th><th>板块</th>
+        <th>综合分</th><th>现价</th><th>建仓价</th><th>目标价</th><th>止损价</th>
+        <th>最近入池</th><th>更新时间</th><th>memo</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="ps-pool-hint">共 ${state.pool.length} 只票,按最近入池时间倒序。点击代码跳转个股深度。</div>
+  `;
+}
+
+function psTogglePoolMemo(code) {
+  const row = document.getElementById('psPoolMemo_' + code);
+  if (row) row.classList.toggle('hidden');
+}
+window.psTogglePoolMemo = psTogglePoolMemo;
 
 async function runPipeline() {
   setStatus(`正在执行流水线(${providerLabel(state.provider)})...`, 'busy');
@@ -948,6 +1057,12 @@ function switchTab(name) {
       loadDetail(first.stockCode);
     }
   }
+  if (name === 'runhistory') {
+    loadRunHistory();
+  }
+  if (name === 'pool') {
+    loadPool();
+  }
 }
 function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
@@ -959,6 +1074,58 @@ function escapeHtml(s) {
 
 function escapeAttr(s) {
   return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// 历史执行
+async function loadRunHistory() {
+  const from = $('#psRunHistFrom').value;
+  const to = $('#psRunHistTo').value;
+  if (!from || !to) return;
+  const wrap = $('#psRunHistoryTable');
+  wrap.innerHTML = '<div class="ps-empty">加载中…</div>';
+  try {
+    const list = await apiGet(`${BASE}/runs?from=${from}&to=${to}`);
+    if (!list.length) { wrap.innerHTML = '<div class="ps-empty">暂无执行记录</div>'; return; }
+    const rows = list.map(r => {
+      const dur = r.durationMs != null ? (r.durationMs / 1000).toFixed(0) + 's' : '--';
+      const statusCls = { SUCCESS: 'success', PARTIAL: 'partial', FAILED: 'failed', BUSY: 'busy' }[r.status] || '';
+      const statusLabel = { SUCCESS: '✓ 成功', PARTIAL: '⚠ 部分', FAILED: '✗ 失败', BUSY: '⚡ 进行中' }[r.status] || r.status || '--';
+      const dateStr = r.startedAt ? new Date(r.startedAt).toLocaleString('zh-CN') : '--';
+      return `<tr>
+        <td>${r.snapDate || '--'}</td>
+        <td>${dateStr}</td>
+        <td><span class="ps-signal ${statusCls}">${statusLabel}</span></td>
+        <td>${dur}</td>
+        <td>${r.sectorCount ?? '--'}</td>
+        <td>${r.leaderCount ?? '--'}</td>
+        <td>${r.candidateCount ?? '--'}</td>
+        <td>${escapeHtml(r.message || '--')}</td>
+        <td><button class="invest-btn-outline ps-del-btn" data-snap="${r.snapDate || ''}">删除</button></td>
+      </tr>`;
+    }).join('');
+    wrap.innerHTML = `<table class="ps-table">
+      <thead><tr>
+        <th>日期</th><th>时间</th><th>状态</th><th>耗时</th>
+        <th>板块</th><th>龙头</th><th>候选</th><th>详情</th><th>操作</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+    wrap.querySelectorAll('.ps-del-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('确认删除该日期的执行数据？\n（板块+龙头候选+候选记录将被清除）')) return;
+        try {
+          await apiDelete(`${BASE}/runs/${btn.dataset.snap}`);
+          loadRunHistory();
+        } catch (e) { alert('删除失败: ' + e.message); }
+      });
+    });
+  } catch (e) { wrap.innerHTML = '<div class="ps-empty">加载失败: ' + escapeHtml(e.message) + '</div>'; }
+}
+
+async function apiDelete(url) {
+  const r = await fetch(url, { method: 'DELETE' });
+  if (!r.ok) throw new Error(await formatApiError(r));
+  return r.json();
 }
 
 async function loadHistory() {
@@ -990,12 +1157,26 @@ async function loadHistory() {
 document.addEventListener('DOMContentLoaded', async () => {
   setCurrentDate(todayLocalDate());
 
+  // 历史候选: 默认最近7天
+  const histTo = todayLocalDate();
+  const histFrom = (() => {
+    const d = new Date(); d.setDate(d.getDate() - 6);
+    return d.toISOString().slice(0, 10);
+  })();
+  if ($('#psHistFrom')) $('#psHistFrom').value = histFrom;
+  if ($('#psHistTo'))   $('#psHistTo').value   = histTo;
+
+  // 历史执行: 默认最近7天
+  if ($('#psRunHistFrom')) $('#psRunHistFrom').value = histFrom;
+  if ($('#psRunHistTo'))   $('#psRunHistTo').value   = histTo;
+
   $('#psRunBtn').addEventListener('click', runPipeline);
   $('#psProvider').addEventListener('change', (e) => setProvider(e.target.value));
   $('#psRefreshBtn').addEventListener('click', async () => {
     state.date = $('#psDate').value || state.date;
     state.provider = $('#psProvider').value || state.provider;
-    await Promise.all([loadSectors(), loadCandidates()]);
+    await Promise.all([loadSectors(), loadCandidates(), loadPool()]);
+    renderCandidates(state.candidates);
   });
   $('#psDate').addEventListener('change', (e) => {
     state.date = e.target.value;
@@ -1022,6 +1203,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadProviders();
   await loadSectors().catch(()=>{});
   await loadCandidates().catch(()=>{});
+  // 加载热点股票池, 让"已入池"徽标在候选表格立即可见
+  await loadPool().catch(()=>{});
+  renderCandidates(state.candidates);
 
   $('#psDetailLoadBtn').addEventListener('click', () => {
     const code = $('#psDetailCode').value.trim();
@@ -1030,4 +1214,5 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   $('#psHistLoadBtn').addEventListener('click', loadHistory);
+  $('#psRunHistLoadBtn').addEventListener('click', loadRunHistory);
 });

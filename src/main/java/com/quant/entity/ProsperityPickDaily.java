@@ -94,4 +94,12 @@ public class ProsperityPickDaily {
 
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    /** 板块归属备注: 一只股票同时入选多个板块时记录其它板块名 */
+    @Column(name = "memo", columnDefinition = "TEXT")
+    private String memo;
+
+    /** 近3季度营收同比最小值(%) - 替代旧的近4季净利率 */
+    @Column(name = "revenue_yoy_min_3q", precision = 10, scale = 4)
+    private BigDecimal revenueYoyMin3q;
 }

@@ -132,6 +132,59 @@ class UnifiedStockResearchServiceTest {
         assertThat(response.getReportHtml()).contains("机构预期 2026 年利润继续增长");
     }
 
+    @Test
+    @DisplayName("sourceMetadata 包含 wind 字段, 反映 Wind 研报上下文状态")
+    void sourceMetadataIncludesWindField() {
+        TradeStockBasic basic = basic();
+        when(financialRepository.findByStockCodeOrderByReportDateDesc("002851.SZ"))
+                .thenReturn(List.of(financial()));
+        when(webSearchClient.isEnabled()).thenReturn(false);
+
+        // Case 1: windResearch=null → wind 字段存在但 available=false
+        StockAnalysisResponse noWind = service.buildUnifiedResponse(
+                basic,
+                Map.of("basic", Map.of("code_name", "麦格米特"), "quote", Map.of("close", 25.30)),
+                Map.of("summary", Map.of("oneLiner", "ok")),
+                "full", 0L
+        );
+        Map<?, ?> windMeta = (Map<?, ?>) noWind.getSourceMetadata().get("wind");
+        assertThat(windMeta).isNotNull();
+        assertThat(windMeta.get("available")).isEqualTo(false);
+        assertThat(windMeta.get("detail")).isEqualTo("本次未拉取");
+
+        // Case 2: windResearch available → wind 字段 available=true, detail 包含具体数量
+        com.quant.dto.stockanalysis.WindResearchContext ctx = com.quant.dto.stockanalysis.WindResearchContext.builder()
+                .available(true)
+                .windInstalled(true)
+                .windHasKey(true)
+                .method("gaojingqi")
+                .consensus(com.quant.dto.stockanalysis.WindResearchContext.Consensus.builder()
+                        .rating("增持")
+                        .targetPrice(80.0)
+                        .sourceRowCount(1)
+                        .build())
+                .reports(List.of(
+                        com.quant.dto.stockanalysis.WindResearchContext.ResearchExcerpt.builder()
+                                .title("景气拐点研报")
+                                .content("...")
+                                .date("2026-06-20")
+                                .docType("news")
+                                .build()
+                ))
+                .build();
+
+        StockAnalysisResponse withWind = service.buildUnifiedResponse(
+                basic,
+                Map.of("basic", Map.of("code_name", "麦格米特"), "quote", Map.of("close", 25.30)),
+                Map.of("summary", Map.of("oneLiner", "ok")),
+                "gaojingqi", 0L, ctx
+        );
+        Map<?, ?> windMeta2 = (Map<?, ?>) withWind.getSourceMetadata().get("wind");
+        assertThat(windMeta2.get("available")).isEqualTo(true);
+        assertThat(windMeta2.get("detail").toString()).contains("一致预期").contains("研报片段");
+        assertThat(withWind.getWindResearch()).isSameAs(ctx);
+    }
+
     private TradeStockBasic basic() {
         TradeStockBasic basic = new TradeStockBasic();
         basic.setStockCode("002851.SZ");

@@ -30,12 +30,109 @@ public class SchemaInitializer implements CommandLineRunner {
         ensureInvestStockPoolSnapshotColumns();
         ensureProsperityHotSectorAStockColumns();
         ensureProsperityLeaderMainlineReason();
+        ensureProsperityLeaderFinanceColumns();
+        ensurePipelineRunTable();
+        ensurePickDailyMemoColumn();
+        ensurePickDailyRevenueYoyMin3q();
         ensureIndustryResearchTables();
+        ensureProsperityStockPoolTable();
+    }
+
+    /**
+     * 热点股票池 — 龙头候选"入池"动作的落地表(v5 起独立于龙江投资股票池)。
+     */
+    private void ensureProsperityStockPoolTable() {
+        try {
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS prosperity_stock_pool (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    stock_code VARCHAR(20) NOT NULL,
+                    stock_name VARCHAR(50) DEFAULT NULL,
+                    status VARCHAR(20) DEFAULT 'watching' COMMENT 'watching/hit_target/stopped/expired',
+                    pool_count INT NOT NULL DEFAULT 1 COMMENT '累计入池次数',
+                    first_added_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '首次入池时间',
+                    last_added_at DATETIME DEFAULT NULL COMMENT '最近入池时间',
+                    last_snap_date DATE DEFAULT NULL COMMENT '最近入池的快照日期',
+                    sector_name VARCHAR(64) DEFAULT NULL,
+                    combined_score DECIMAL(8,2) DEFAULT NULL,
+                    latest_price DECIMAL(10,2) DEFAULT NULL,
+                    buy_left_price DECIMAL(10,2) DEFAULT NULL,
+                    sell_target_1 DECIMAL(10,2) DEFAULT NULL,
+                    stop_loss_price DECIMAL(10,2) DEFAULT NULL,
+                    core_position_pct DECIMAL(6,2) DEFAULT NULL,
+                    tactical_position_pct DECIMAL(6,2) DEFAULT NULL,
+                    action_signal VARCHAR(20) DEFAULT NULL,
+                    memo TEXT COMMENT '入池理由(每次入池追加一条)',
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    UNIQUE KEY uk_pool_stock_code (stock_code),
+                    KEY idx_pool_last_added (last_added_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                  COMMENT='热点选股股票池'
+                """);
+            log.info("prosperity_stock_pool 表已就绪");
+        } catch (Exception e) {
+            log.warn("检查 prosperity_stock_pool 表失败 (可忽略): {}", e.getMessage());
+        }
     }
 
     /**
      * 产业投研模块 4 张表
      */
+    private void ensurePickDailyMemoColumn() {
+        try {
+            Integer count = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'prosperity_pick_daily' AND column_name = 'memo'",
+                Integer.class);
+            if (count == null || count == 0) {
+                jdbc.execute("ALTER TABLE prosperity_pick_daily ADD COLUMN memo TEXT DEFAULT NULL COMMENT '板块归属备注'");
+                log.info("prosperity_pick_daily.memo 列已添加");
+            }
+        } catch (Exception e) {
+            log.warn("检查 prosperity_pick_daily.memo 列失败 (可忽略): {}", e.getMessage());
+        }
+    }
+
+    private void ensurePickDailyRevenueYoyMin3q() {
+        try {
+            Integer count = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'prosperity_pick_daily' AND column_name = 'revenue_yoy_min_3q'",
+                Integer.class);
+            if (count == null || count == 0) {
+                jdbc.execute("ALTER TABLE prosperity_pick_daily ADD COLUMN revenue_yoy_min_3q DECIMAL(10,4) DEFAULT NULL COMMENT '近3季度营收同比最小值(%)'");
+                log.info("prosperity_pick_daily.revenue_yoy_min_3q 列已添加");
+            }
+        } catch (Exception e) {
+            log.warn("检查 prosperity_pick_daily.revenue_yoy_min_3q 列失败 (可忽略): {}", e.getMessage());
+        }
+    }
+
+    private void ensurePipelineRunTable() {
+        try {
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS prosperity_pipeline_run (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    snap_date DATE NOT NULL,
+                    started_at DATETIME NOT NULL,
+                    finished_at DATETIME DEFAULT NULL,
+                    duration_ms BIGINT DEFAULT NULL,
+                    status VARCHAR(20) NOT NULL,
+                    message VARCHAR(256) DEFAULT NULL,
+                    provider VARCHAR(32) DEFAULT NULL,
+                    sector_count INT DEFAULT NULL,
+                    leader_count INT DEFAULT NULL,
+                    hard_filtered_count INT DEFAULT NULL,
+                    candidate_count INT DEFAULT NULL,
+                    INDEX idx_pipeline_snap (snap_date),
+                    INDEX idx_pipeline_started (started_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """);
+            log.info("prosperity_pipeline_run 表已就绪");
+        } catch (Exception e) {
+            log.warn("检查 prosperity_pipeline_run 表失败 (可忽略): {}", e.getMessage());
+        }
+    }
+
     private void ensureIndustryResearchTables() {
         try {
             jdbc.execute("""
@@ -286,6 +383,35 @@ public class SchemaInitializer implements CommandLineRunner {
             }
         } catch (Exception e) {
             log.warn("检查 prosperity_leader_candidate.mainline_reason 列失败 (可忽略): {}", e.getMessage());
+        }
+    }
+
+    /**
+     * prosperity_leader_candidate 财务硬筛字段(Step3 输出):营收同比/扣非同比/毛利率/资产负债率/经营现金流/ROE
+     * 实体类 ProsperityLeaderCandidate 在筛选链中写入这些字段,但 SQL 脚本里没有建,运行时 SELECT 会报
+     * Unknown column 错。这里保证线上表结构与实体一致。
+     */
+    private void ensureProsperityLeaderFinanceColumns() {
+        String[][] columns = {
+            {"revenue_yoy_min_4q",         "DECIMAL(10,4)",  "近4季营收同比最小值(%)"},
+            {"deducted_netprofit_yoy_min_4q","DECIMAL(10,4)",  "近4季扣非同比最小值(%)"},
+            {"gross_margin_avg_4q",        "DECIMAL(10,4)",  "近4季毛利率均值(%)"},
+            {"debt_ratio_latest",          "DECIMAL(10,4)",  "最新资产负债率(%)"},
+            {"operating_cashflow_sum_4q",  "DECIMAL(20,2)",  "近4季经营现金流合计(元)"},
+            {"roe_latest",                 "DECIMAL(10,4)",  "最新 ROE(%)"}
+        };
+        for (String[] col : columns) {
+            try {
+                Integer count = jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'prosperity_leader_candidate' AND column_name = '" + col[0] + "'",
+                        Integer.class);
+                if (count == null || count == 0) {
+                    jdbc.execute("ALTER TABLE prosperity_leader_candidate ADD COLUMN " + col[0] + " " + col[1] + " DEFAULT NULL COMMENT '" + col[2] + "'");
+                    log.info("prosperity_leader_candidate.{} 列已添加", col[0]);
+                }
+            } catch (Exception e) {
+                log.warn("检查 prosperity_leader_candidate.{} 列失败 (可忽略): {}", col[0], e.getMessage());
+            }
         }
     }
 

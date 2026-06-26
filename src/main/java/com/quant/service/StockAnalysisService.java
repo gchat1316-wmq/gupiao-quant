@@ -17,7 +17,9 @@ import com.quant.service.ai.MiniMaxClient;
 import com.quant.service.ai.SenseNovaClient;
 import com.quant.service.prosperitystrong.WindAifinMarketClient;
 import com.quant.service.search.WebSearchClient;
+import com.quant.service.stockanalysis.WindResearchService;
 import com.quant.service.tdx.TdxMcpClient;
+import com.quant.dto.stockanalysis.WindResearchContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -57,6 +59,7 @@ public class StockAnalysisService {
     private final WindAifinMarketClient windAifinMarketClient;
     private final TdxMcpClient tdxMcpClient;
     private final UnifiedStockResearchService unifiedStockResearchService;
+    private final WindResearchService windResearchService;
     private final ObjectMapper objectMapper = new ObjectMapper()
             .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
             .disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
@@ -181,8 +184,10 @@ public class StockAnalysisService {
             synthetic.setStockName(String.valueOf(asMap(rawData.get("basic")).getOrDefault("code_name", code)));
             return synthetic;
         });
-        Map<String, Object> aiAnalysis = analyzeWithAi(buildPrompt(basic, rawData, method), method);
-        return unifiedStockResearchService.buildUnifiedResponse(basic, rawData, aiAnalysis, method, 0L);
+        // 拉一次 Wind 研报 + 一致预期（24h 缓存, 失败降级）
+        WindResearchContext windResearch = windResearchService.fetch(code, basic.getStockName(), method);
+        Map<String, Object> aiAnalysis = analyzeWithAi(buildPrompt(basic, rawData, method, windResearch), method);
+        return unifiedStockResearchService.buildUnifiedResponse(basic, rawData, aiAnalysis, method, 0L, windResearch);
     }
 
     // ============================================================
@@ -346,7 +351,7 @@ public class StockAnalysisService {
         }
     }
 
-    private String buildPrompt(TradeStockBasic basic, Map<String, Object> rawData, String method) {
+    private String buildPrompt(TradeStockBasic basic, Map<String, Object> rawData, String method, WindResearchContext windResearch) {
         StringBuilder sb = new StringBuilder();
         boolean isFiveDim = "five_dimension".equalsIgnoreCase(method);
         sb.append("分析日期: ").append(java.time.LocalDate.now()).append("\n");
@@ -435,9 +440,77 @@ public class StockAnalysisService {
             appendTdxFinanceData(sb, basic.getStockName());
         }
 
+        // 4 种方法都接入：Wind 一致预期 (强制 AI 引用) + 研报片段 (按 method 加权)
+        // 取代五维独享的 Wind 调用, 让 full / purple_perilla / gaojingqi 也能拿到卖方研报
+        appendWindResearchContext(sb, windResearch, method);
+
         sb.append("\n请严格按照下方 JSON 格式输出，不要输出任何额外文字、不要使用 markdown：\n");
         sb.append(isFiveDim ? FIVE_DIM_JSON_SCHEMA : JSON_SCHEMA);
         return sb.toString();
+    }
+
+    /**
+     * 把 Wind 研报 + 一致预期塞进 prompt。
+     * 设计要点：
+     *   1. 一致预期 (target price / rating / EPS) 是估值段的最高优先级证据——强制 AI 引用。
+     *   2. 研报片段按 method 加权：purple/gaojingqi 给完整 3-5 条，full/五维 给 1-2 条摘要。
+     *   3. 失败/未启用时只写"未启用", 不抛错, 不影响主报告。
+     */
+    private void appendWindResearchContext(StringBuilder sb, WindResearchContext ctx, String method) {
+        if (ctx == null) {
+            sb.append("\n（Wind 研报：本次未拉取，跳过）\n");
+            return;
+        }
+        if (!ctx.isWindInstalled() || !ctx.isWindHasKey()) {
+            sb.append("\n（Wind 研报：未安装或无 API Key，跳过）\n");
+            return;
+        }
+        if (!ctx.isAvailable()) {
+            sb.append("\n（Wind 研报：本次拉取无可用数据，不影响主报告）\n");
+            return;
+        }
+
+        // ===== 一致预期 (强制 AI 引用) =====
+        WindResearchContext.Consensus c = ctx.getConsensus();
+        sb.append("\n【Wind 一致预期（卖方共识, 估值段最高优先级证据 ⚠️）】\n");
+        if (c != null && c.getSourceRowCount() > 0) {
+            if (c.getRating() != null) sb.append("  综合评级: ").append(c.getRating()).append("\n");
+            if (c.getTargetPrice() != null) sb.append("  一致预期目标价: ").append(c.getTargetPrice()).append(" 元\n");
+            if (c.getCurrency() != null) sb.append("  货币: ").append(c.getCurrency()).append("\n");
+            if (c.getEps2026() != null) sb.append("  一致预期 2026 EPS: ").append(c.getEps2026()).append(" 元\n");
+            if (c.getEps2027() != null) sb.append("  一致预期 2027 EPS: ").append(c.getEps2027()).append(" 元\n");
+            if (c.getNetProfitGrowth2026() != null) sb.append("  一致预期 2026 净利同比: ").append(c.getNetProfitGrowth2026()).append("%\n");
+            if (c.getNetProfitGrowth2027() != null) sb.append("  一致预期 2027 净利同比: ").append(c.getNetProfitGrowth2027()).append("%\n");
+        } else {
+            sb.append("  （本次未取到一致预期结构化数据，仅供参考）\n");
+        }
+        sb.append("\n⚠️ 强制要求: 你的估值段 (target2026 / target2027 / verdict / reasoning) 必须围绕上述一致预期目标价和 EPS 生成。\n");
+        sb.append("  - 如果 AI 推算目标价与一致预期偏离 ±20% 以上, 必须在 reasoning 字段说明偏离原因。\n");
+        sb.append("  - 一致预期未提供具体数字时, 可以自由推算, 但仍需引用评级 (增持/买入/中性) 作为定性锚点。\n");
+        sb.append("  - 不允许完全忽略一致预期, 不允许编造评级。\n");
+
+        // ===== 研报片段 (按 method 加权) =====
+        List<WindResearchContext.ResearchExcerpt> reports = ctx.getReports();
+        if (reports == null || reports.isEmpty()) {
+            sb.append("\n（Wind 研报片段: 本次未检索到）\n");
+            return;
+        }
+        // 展示条数: purple_perilla / gaojingqi 拉满(5), full / 五维 压缩(2)
+        int maxShow = ("purple_perilla".equalsIgnoreCase(method) || "gaojingqi".equalsIgnoreCase(method)) ? 5 : 2;
+        List<WindResearchContext.ResearchExcerpt> picked = reports.subList(0, Math.min(maxShow, reports.size()));
+
+        sb.append("\n【Wind 研报片段（来自 financial_docs 检索, doc_type=").append(picked.get(0).getDocType()).append(")】\n");
+        for (int i = 0; i < picked.size(); i++) {
+            WindResearchContext.ResearchExcerpt r = picked.get(i);
+            sb.append("\n▍研报 #").append(i + 1);
+            if (r.getSource() != null) sb.append(" | ").append(r.getSource());
+            if (r.getDate() != null) sb.append(" | ").append(r.getDate());
+            sb.append("\n  标题: ").append(safe(r.getTitle())).append("\n");
+            sb.append("  摘要: ").append(safe(r.getContent())).append("\n");
+        }
+        sb.append("\n⚠️ 上面是从 Wind 卖方研报/财经媒体抓到的片段, 优先级高于普通联网检索。\n");
+        sb.append("  - 卖方对景气度/产业链/竞争格局/估值锚点的判断 → 写入对应维度\n");
+        sb.append("  - 与现有数据冲突时, 以研报为准, 但需在 reasoning 说明\n");
     }
 
     /**

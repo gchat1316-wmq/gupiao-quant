@@ -1,0 +1,13 @@
+{
+  "name": "baoyu-post-to-zsxq",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "store": "bun run scripts/zsxq-store.ts",
+    "check": "bun run scripts/zsxq-check-cookie.ts",
+    "probe": "bun run scripts/zsxq-probe.ts",
+    "fetch": "bun run scripts/zsxq-fetch-recap.ts",
+    "publish": "bun run scripts/zsxq-publish.ts"
+  }
+}

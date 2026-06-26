@@ -47,8 +47,10 @@
     <nav class="ps-tabs">
       <button class="ps-tab active" data-tab="sectors">今日板块</button>
       <button class="ps-tab" data-tab="candidates">龙头候选</button>
+      <button class="ps-tab" data-tab="pool">热点股票池</button>
       <button class="ps-tab" data-tab="detail">个股深度</button>
-      <button class="ps-tab" data-tab="history">历史回顾</button>
+      <button class="ps-tab" data-tab="runhistory">历史执行</button>
+      <button class="ps-tab" data-tab="history">历史候选</button>
     </nav>
 
     <!-- Tab A: 板块 -->
@@ -69,7 +71,16 @@
       <div id="psCandidateTable" class="ps-table-wrap"></div>
     </section>
 
-    <!-- Tab C: 个股深度 -->
+    <!-- Tab C: 热点股票池 -->
+    <section class="ps-panel hidden" id="psPanelPool">
+      <div class="ps-section-head">
+        <h3>热点股票池</h3>
+        <p>龙头候选"入池"动作的落地表，独立于龙江投资股票池。同票多次入池自动累加计数 + 追加 memo。</p>
+      </div>
+      <div id="psPoolTable" class="ps-table-wrap"></div>
+    </section>
+
+    <!-- Tab D: 个股深度 -->
     <section class="ps-panel hidden" id="psPanelDetail">
       <div class="ps-section-head">
         <h3>个股深度报告 + 仓位决策卡</h3>
@@ -83,10 +94,24 @@
       <div id="psDetailCard"></div>
     </section>
 
-    <!-- Tab D: 历史 -->
+    <!-- Tab E: 历史执行 -->
+    <section class="ps-panel hidden" id="psPanelRunhistory">
+      <div class="ps-section-head">
+        <h3>历史执行</h3>
+      </div>
+      <div class="ps-history-bar">
+        <input type="date" id="psRunHistFrom" />
+        <span>~</span>
+        <input type="date" id="psRunHistTo" />
+        <button id="psRunHistLoadBtn" class="invest-btn-outline">查询</button>
+      </div>
+      <div id="psRunHistoryTable" class="ps-table-wrap"></div>
+    </section>
+
+    <!-- Tab F: 历史候选 -->
     <section class="ps-panel hidden" id="psPanelHistory">
       <div class="ps-section-head">
-        <h3>历史候选回顾</h3>
+        <h3>历史候选</h3>
       </div>
       <div class="ps-history-bar">
         <input type="date" id="psHistFrom" />

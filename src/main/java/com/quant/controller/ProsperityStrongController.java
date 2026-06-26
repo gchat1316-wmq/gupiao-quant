@@ -3,19 +3,20 @@ package com.quant.controller;
 import com.quant.dto.prosperitystrong.HotSectorDTO;
 import com.quant.dto.prosperitystrong.LeaderCandidateDTO;
 import com.quant.dto.prosperitystrong.PickDailyDTO;
+import com.quant.dto.prosperitystrong.PipelineRunDTO;
 import com.quant.dto.prosperitystrong.PipelineRunResultDTO;
+import com.quant.dto.prosperitystrong.ProsperityPoolItemDTO;
 import com.quant.dto.prosperitystrong.ProviderCapabilityDTO;
-import com.quant.entity.InvestStockPool;
-import com.quant.entity.ProsperityPickDaily;
-import com.quant.repository.InvestStockPoolRepository;
-import com.quant.repository.ProsperityPickDailyRepository;
+import com.quant.entity.ProsperityStockPool;
 import com.quant.service.prosperitystrong.ProsperityDataProviderService;
+import com.quant.service.prosperitystrong.ProsperityPoolService;
 import com.quant.service.prosperitystrong.ProsperityStrongPipelineService;
 import com.quant.service.prosperitystrong.WindAifinMarketClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -36,8 +37,7 @@ public class ProsperityStrongController {
     private final ProsperityStrongPipelineService pipeline;
     private final ProsperityDataProviderService providers;
     private final WindAifinMarketClient windClient;
-    private final ProsperityPickDailyRepository pickRepo;
-    private final InvestStockPoolRepository poolRepo;
+    private final ProsperityPoolService poolService;
 
     /** 手动触发流水线(同步,可能耗时几十秒) */
     @PostMapping("/run")
@@ -119,55 +119,57 @@ public class ProsperityStrongController {
         );
     }
 
-    /** 一键加入龙江投资股票池(写入估值价 + 目标买卖价 + 备注) */
+    /** 一键加入热点股票池(独立于龙江投资股票池, 写入估值价/目标买卖价/memo) */
     @PostMapping("/promote/{stockCode}")
     public Map<String, Object> promote(
             @PathVariable String stockCode,
             @RequestParam(value = "date", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        LocalDate d = date == null ? pipeline.latestSnapDate() : date;
-        if (d == null) throw new IllegalArgumentException("无可用快照日期");
-        ProsperityPickDaily pick = pickRepo.findBySnapDateAndStockCode(d, stockCode)
-                .orElseThrow(() -> new IllegalArgumentException("未找到候选: " + stockCode));
+        return poolService.promote(stockCode, date);
+    }
 
-        InvestStockPool pool = poolRepo.findByStockCode(stockCode).orElseGet(InvestStockPool::new);
-        boolean isNew = pool.getId() == null;
-        pool.setStockCode(stockCode);
-        pool.setStockName(pick.getStockName());
-        if (pool.getPoolType() == null || pool.getPoolType().isBlank()) {
-            pool.setPoolType("tech_vc");
-        }
-        if (pool.getStatus() == null || pool.getStatus().isBlank()) {
-            pool.setStatus("watching");
-        }
-        pool.setUndervaluedPrice(pick.getPriceLow());
-        pool.setFairPrice(pick.getPriceMid());
-        pool.setOvervaluedPrice(pick.getPriceHigh());
-        pool.setTargetBuyPrice(pick.getBuyLeftPrice());
-        pool.setTargetSellPrice(pick.getSellTarget1());
+    /** 热点股票池列表(按最近入池时间倒序) */
+    @GetMapping("/pool")
+    public List<ProsperityPoolItemDTO> pool() {
+        return poolService.list().stream().map(ProsperityStrongController::toPoolDTO).toList();
+    }
 
-        String memo = String.format(
-                "[热点选股推荐 %s] 板块=%s 综合分=%s 净利率=%s%% 建仓<=¥%s 目标=¥%s 止损=¥%s 仓位=%s/%s%%",
-                pick.getSnapDate(),
-                pick.getSectorName(),
-                pick.getCombinedScore(),
-                pick.getNetMarginAvg4q(),
-                pick.getBuyLeftPrice(),
-                pick.getSellTarget1(),
-                pick.getStopLossPrice(),
-                pick.getCorePositionPct(),
-                pick.getTacticalPositionPct()
-        );
-        if (pool.getMemo() == null || pool.getMemo().isBlank()) {
-            pool.setMemo(memo);
-        } else {
-            pool.setMemo(pool.getMemo() + "\n" + memo);
-        }
-        poolRepo.save(pool);
-        return Map.of(
-                "message", isNew ? "已加入股票池" : "已更新股票池条目",
-                "stockCode", stockCode,
-                "snapDate", d.toString()
-        );
+    private static ProsperityPoolItemDTO toPoolDTO(ProsperityStockPool e) {
+        return ProsperityPoolItemDTO.builder()
+                .id(e.getId())
+                .stockCode(e.getStockCode())
+                .stockName(e.getStockName())
+                .status(e.getStatus())
+                .poolCount(e.getPoolCount())
+                .firstAddedAt(e.getFirstAddedAt())
+                .lastAddedAt(e.getLastAddedAt())
+                .lastSnapDate(e.getLastSnapDate())
+                .sectorName(e.getSectorName())
+                .combinedScore(e.getCombinedScore())
+                .latestPrice(e.getLatestPrice())
+                .buyLeftPrice(e.getBuyLeftPrice())
+                .sellTarget1(e.getSellTarget1())
+                .stopLossPrice(e.getStopLossPrice())
+                .corePositionPct(e.getCorePositionPct())
+                .tacticalPositionPct(e.getTacticalPositionPct())
+                .actionSignal(e.getActionSignal())
+                .memo(e.getMemo())
+                .build();
+    }
+
+    /** 流水线执行历史 */
+    @GetMapping("/runs")
+    public List<PipelineRunDTO> runs(
+            @RequestParam(value = "from") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(value = "to") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return pipeline.runs(from, to);
+    }
+
+    /** 删除指定日期的流水线执行数据（板块+龙头候选+候选+执行记录） */
+    @DeleteMapping("/runs/{snapDate}")
+    public Map<String, Object> deleteRun(
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate snapDate) {
+        pipeline.deleteRun(snapDate);
+        return Map.of("message", "已删除 " + snapDate + " 的执行数据", "snapDate", snapDate.toString());
     }
 }

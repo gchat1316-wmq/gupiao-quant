@@ -37,7 +37,8 @@ public class UnifiedStockResearchService {
                                                      Map<String, Object> rawData,
                                                      Map<String, Object> aiAnalysis,
                                                      String method,
-                                                     long elapsedMs) {
+                                                     long elapsedMs,
+                                                     com.quant.dto.stockanalysis.WindResearchContext windResearch) {
         Map<String, Object> basicPack = asMap(rawData.get("basic"));
         String code = basic.getStockCode();
         String name = safeText(basicPack.get("code_name"), basic.getStockName(), code);
@@ -52,7 +53,7 @@ public class UnifiedStockResearchService {
         Map<String, Object> externalExpectation = buildExternalExpectation(name);
         List<String> catalysts = buildCatalysts(rawData, name);
         List<String> risks = buildRisks(rawData, name);
-        Map<String, Object> sourceMetadata = buildSourceMetadata(rawData, dbFinancials, forecastSummary, externalExpectation);
+        Map<String, Object> sourceMetadata = buildSourceMetadata(rawData, dbFinancials, forecastSummary, externalExpectation, windResearch);
 
         StockAnalysisResponse response = StockAnalysisResponse.builder()
                 .ok(true)
@@ -74,12 +75,22 @@ public class UnifiedStockResearchService {
                 .externalExpectation(externalExpectation)
                 .catalysts(catalysts)
                 .risks(risks)
+                .windResearch(windResearch)
                 .rawData(rawData)
                 .timestamp(LocalDateTime.now())
                 .elapsedMs(elapsedMs)
                 .build();
         response.setReportHtml(buildReportHtml(response, basic));
         return response;
+    }
+
+    /** 兼容旧调用: 默认 windResearch=null */
+    public StockAnalysisResponse buildUnifiedResponse(TradeStockBasic basic,
+                                                     Map<String, Object> rawData,
+                                                     Map<String, Object> aiAnalysis,
+                                                     String method,
+                                                     long elapsedMs) {
+        return buildUnifiedResponse(basic, rawData, aiAnalysis, method, elapsedMs, null);
     }
 
     public String buildReportHtml(StockAnalysisResponse r, TradeStockBasic basic) {
@@ -549,7 +560,8 @@ public class UnifiedStockResearchService {
     private Map<String, Object> buildSourceMetadata(Map<String, Object> rawData,
                                                     List<Map<String, Object>> dbFinancials,
                                                     Map<String, Object> forecastSummary,
-                                                    Map<String, Object> externalExpectation) {
+                                                    Map<String, Object> externalExpectation,
+                                                    com.quant.dto.stockanalysis.WindResearchContext windResearch) {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("db", sourceMeta(!dbFinancials.isEmpty(), !dbFinancials.isEmpty() ? "trade_stock_*" : "暂无可用结构化数据"));
         out.put("baostock", sourceMeta(rawData != null && !rawData.isEmpty(), rawData != null && !rawData.isEmpty() ? "pack/financial_history/quote" : "暂无可用结构化数据"));
@@ -558,6 +570,25 @@ public class UnifiedStockResearchService {
         boolean searchAvailable = externalExpectation != null && !"暂无可用结构化数据".equals(externalExpectation.get("summary"));
         out.put("webSearch", sourceMeta(searchAvailable, searchAvailable ? "检索归纳" : "暂无可用结构化数据"));
         out.put("aStockData", sourceMeta(false, "当前仓库仅纳入来源占位，无稳定个股端点"));
+        // Wind 研报来源（一致预期 + 研报片段）
+        boolean windInstalled = windResearch != null && windResearch.isWindInstalled();
+        boolean windHasKey = windResearch != null && windResearch.isWindHasKey();
+        boolean windAvailable = windResearch != null && windResearch.isAvailable();
+        String windDetail;
+        if (windResearch == null) {
+            windDetail = "本次未拉取";
+        } else if (!windInstalled) {
+            windDetail = "Wind skill 未安装";
+        } else if (!windHasKey) {
+            windDetail = "Wind 无 API Key";
+        } else if (!windAvailable) {
+            windDetail = "本次拉取无可用数据";
+        } else {
+            int consensusRows = windResearch.getConsensus() == null ? 0 : windResearch.getConsensus().getSourceRowCount();
+            int reportCount = windResearch.getReports() == null ? 0 : windResearch.getReports().size();
+            windDetail = "一致预期 " + consensusRows + " 行 · 研报片段 " + reportCount + " 条";
+        }
+        out.put("wind", sourceMeta(windAvailable, windDetail));
         return out;
     }
 

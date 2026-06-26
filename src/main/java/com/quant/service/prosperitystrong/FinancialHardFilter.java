@@ -11,15 +11,12 @@ import java.math.RoundingMode;
 import java.util.List;
 
 /**
- * Step 3: 16 季度财务硬筛
+ * Step 3: 3 规则财务硬筛
  *
  * 规则(任一不符直接淘汰):
- *   R1. 营收同比近 4 季 >= 20%
- *   R2. 扣非净利润同比近 4 季 >= 0%
- *   R3. 近 4 季毛利率均值 >= 25%
- *   R4. 资产负债率 <= 70%
- *   R5. 近 4 季经营现金流累计 > 0
- *   R6. 最新 ROE >= 10%
+ *   R1. 营收同比近 3 季全部 > 0
+ *   R2. 扣非净利润同比近 3 季全部 > 0
+ *   R3. 最近一季营收同比 > 20%
  *
  * 输出 0-100 的财务评分(达标率)。
  */
@@ -29,7 +26,7 @@ import java.util.List;
 public class FinancialHardFilter {
 
     private static final int FIN_QUARTERS = 16;
-    private static final int RECENT_4Q = 4;
+    private static final int RECENT_3Q = 3;
 
     private final TradeStockFinancialRepository repo;
 
@@ -38,50 +35,36 @@ public class FinancialHardFilter {
         if (records.isEmpty()) {
             return Result.fail(stockCode, "无财务数据");
         }
-        List<TradeStockFinancial> recent = records.size() > FIN_QUARTERS
-                ? records.subList(0, FIN_QUARTERS) : records;
-        List<TradeStockFinancial> last4 = records.size() > RECENT_4Q
-                ? records.subList(0, RECENT_4Q) : records;
+        List<TradeStockFinancial> last3 = records.size() > RECENT_3Q
+                ? records.subList(0, RECENT_3Q) : records;
 
         int pass = 0;
-        int total = 6;
+        int total = 3;
         StringBuilder reason = new StringBuilder();
 
-        // R1
-        boolean r1 = allMeet(last4, TradeStockFinancial::getRevenueYoy, BigDecimal.valueOf(20));
-        if (r1) pass++; else reason.append("营收同比近4季<20%; ");
+        // R1: 营收同比近3季全部 > 0
+        BigDecimal revenueYoyMin3q = min(last3, TradeStockFinancial::getRevenueYoy);
+        boolean r1 = revenueYoyMin3q != null && revenueYoyMin3q.compareTo(BigDecimal.ZERO) > 0;
+        if (r1) pass++; else reason.append("营收同比近3季:").append(pct(revenueYoyMin3q)).append("≤0%; ");
 
-        // R2
-        boolean r2 = allMeet(last4, TradeStockFinancial::getDeductedNetProfitYoy, BigDecimal.ZERO);
-        if (r2) pass++; else reason.append("扣非同比近4季有<0; ");
+        // R2: 扣非同比近3季全部 > 0
+        BigDecimal deductedYoyMin3q = min(last3, TradeStockFinancial::getDeductedNetProfitYoy);
+        boolean r2 = deductedYoyMin3q != null && deductedYoyMin3q.compareTo(BigDecimal.ZERO) > 0;
+        if (r2) pass++; else reason.append("扣非同比近3季:").append(pct(deductedYoyMin3q)).append("≤0%; ");
 
-        // R3
-        BigDecimal avgGross = average(last4, TradeStockFinancial::getGrossMargin);
-        boolean r3 = avgGross != null && avgGross.compareTo(BigDecimal.valueOf(25)) >= 0;
-        if (r3) pass++; else reason.append("毛利率均值<25%; ");
-
-        // R4
-        TradeStockFinancial latest = recent.get(0);
-        boolean r4 = latest.getDebtRatio() == null
-                || latest.getDebtRatio().compareTo(BigDecimal.valueOf(70)) <= 0;
-        if (r4) pass++; else reason.append("负债率>70%; ");
-
-        // R5
-        BigDecimal sumOcf = sum(last4, TradeStockFinancial::getOperatingCashflow);
-        boolean r5 = sumOcf != null && sumOcf.compareTo(BigDecimal.ZERO) > 0;
-        if (r5) pass++; else reason.append("近4季经营现金流累计<=0; ");
-
-        // R6
-        boolean r6 = latest.getRoe() != null
-                && latest.getRoe().compareTo(BigDecimal.valueOf(10)) >= 0;
-        if (r6) pass++; else reason.append("最新ROE<10%; ");
+        // R3: 最近一季营收同比 > 20%
+        TradeStockFinancial latest = records.get(0);
+        BigDecimal latestRevenueYoy = latest.getRevenueYoy();
+        boolean r3 = latestRevenueYoy != null && latestRevenueYoy.compareTo(BigDecimal.valueOf(20)) > 0;
+        if (r3) pass++; else reason.append("最近季度营收增速:").append(pct(latestRevenueYoy)).append("≤20%; ");
 
         BigDecimal score = BigDecimal.valueOf(pass * 100.0 / total)
                 .setScale(2, RoundingMode.HALF_UP);
-        boolean hardPassed = pass == total; // PRD: 任一不符直接淘汰
+        boolean hardPassed = pass == total;
         return new Result(stockCode, score, hardPassed,
                 reason.length() == 0 ? "全部达标" : reason.toString().trim(),
-                avgNetMargin(last4));
+                revenueYoyMin3q,
+                deductedYoyMin3q);
     }
 
     private boolean allMeet(List<TradeStockFinancial> list,
@@ -125,18 +108,47 @@ public class FinancialHardFilter {
         return any ? sum : null;
     }
 
+    private BigDecimal min(List<TradeStockFinancial> list,
+                           java.util.function.Function<TradeStockFinancial, BigDecimal> getter) {
+        if (list.isEmpty()) return null;
+        BigDecimal min = null;
+        for (TradeStockFinancial f : list) {
+            BigDecimal v = getter.apply(f);
+            if (v == null) return null;
+            if (min == null || v.compareTo(min) < 0) {
+                min = v;
+            }
+        }
+        return min;
+    }
+
+    private String pct(BigDecimal v) {
+        if (v == null) return "--";
+        return v.setScale(2, RoundingMode.HALF_UP).toString() + "%";
+    }
+
+    private String yi(BigDecimal v) {
+        if (v == null) return "--";
+        return v.divide(BigDecimal.valueOf(1e8), 2, RoundingMode.HALF_UP).toString() + "亿";
+    }
+
     private BigDecimal avgNetMargin(List<TradeStockFinancial> list) {
         return average(list, TradeStockFinancial::getNetMargin);
     }
 
+    /**
+     * @param revenueYoyMin3q   营收同比近3季最小值（用于前端展示）
+     * @param latestRevenueYoy  最近一季营收同比（用于前端展示）
+     */
     public record Result(
             String stockCode,
             BigDecimal financeScore,
             boolean hardPassed,
             String reason,
-            BigDecimal netMarginAvg4q) {
+            BigDecimal revenueYoyMin3q,
+            BigDecimal deductedNetProfitYoyMin3q) {
         public static Result fail(String code, String why) {
-            return new Result(code, BigDecimal.ZERO, false, why, null);
+            return new Result(code, BigDecimal.ZERO, false, why, null, null);
         }
     }
 }

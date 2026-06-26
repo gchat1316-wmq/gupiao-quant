@@ -37,4 +37,6 @@ public class StockAnalysisResponse {
     private Map<String, Object> rawData;
     private LocalDateTime timestamp;
     private Long elapsedMs;
+    /** Wind 研报上下文（一致预期 + 研报片段, 24h 缓存）。失败时 available=false, 不影响主报告 */
+    private com.quant.dto.stockanalysis.WindResearchContext windResearch;
 }
