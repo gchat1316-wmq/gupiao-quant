@@ -29,6 +29,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -58,6 +59,9 @@ class InvestBigYangSignalServiceTest {
     @Mock
     private AStockDataQuoteService aStockDataQuoteService;
 
+    @Mock
+    private NotificationService notificationService;
+
     private InvestBigYangSignalService service;
 
     @BeforeEach
@@ -80,7 +84,8 @@ class InvestBigYangSignalServiceTest {
                 eastMoneyRealtimeQuoteService,
                 sinaRealtimeQuoteService,
                 aStockDataQuoteService,
-                props
+                props,
+                notificationService
         );
     }
 
@@ -95,7 +100,8 @@ class InvestBigYangSignalServiceTest {
                 eastMoneyRealtimeQuoteService,
                 sinaRealtimeQuoteService,
                 aStockDataQuoteService,
-                freshProps()
+                freshProps(),
+                notificationService
         ) {
             @Override
             LocalDateTime now() {
@@ -217,7 +223,8 @@ class InvestBigYangSignalServiceTest {
                 eastMoneyRealtimeQuoteService,
                 sinaRealtimeQuoteService,
                 aStockDataQuoteService,
-                freshProps()
+                freshProps(),
+                notificationService
         ) {
             @Override
             LocalDateTime now() {
@@ -259,7 +266,8 @@ class InvestBigYangSignalServiceTest {
                 eastMoneyRealtimeQuoteService,
                 sinaRealtimeQuoteService,
                 aStockDataQuoteService,
-                freshProps()
+                freshProps(),
+                notificationService
         ) {
             @Override
             LocalDateTime now() {
