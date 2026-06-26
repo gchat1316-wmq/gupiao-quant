@@ -326,6 +326,16 @@ public class LeaderIdentifier {
         return new MemberStats(members.size(), quotes.size(), message);
     }
 
+    /**
+     * 轻量入口：直接传 sectorName，避免上游传 Entity 走 sectors 列表接口。
+     * sectors() 现已不拉 Entity，本接口仅取 sectorName 用。
+     */
+    public MemberStats memberStatsByName(String sectorName) {
+        com.quant.entity.ProsperityHotSector s = new com.quant.entity.ProsperityHotSector();
+        s.setSectorName(sectorName);
+        return memberStats(s);
+    }
+
     private String passFastFilter(TradeStockBasic basic, TradeStockDaily latest, LocalDate snapDate) {
         if (basic.getStockName() != null && basic.getStockName().contains("ST")) return "ST标的";
         if (basic.getListDate() != null && basic.getListDate().isAfter(LocalDate.now().minusYears(1))) {

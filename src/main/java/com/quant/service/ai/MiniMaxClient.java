@@ -22,6 +22,9 @@ import java.util.Map;
 public class MiniMaxClient {
 
     private final AiProperties props;
+    private final AiCircuitBreaker circuitBreaker;
+
+    private static final String PROVIDER_NAME = "minimax";
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     /**
@@ -62,6 +65,11 @@ public class MiniMaxClient {
 
     private String chatCompleteInternal(String systemPrompt, String userPrompt,
                                          String imageBase64, String imageMediaType) {
+        // 熔断检查：避免 401 key 失效时调 90s 超时白等
+        if (circuitBreaker.isOpen(PROVIDER_NAME)) {
+            throw new IllegalStateException("MiniMax 熔断中 (api-key 可能失效)，跳过调用");
+        }
+
         AiProperties.MiniMax cfg = props.getMinimax();
         if (!cfg.isEnabled() || cfg.getApiKey() == null || cfg.getApiKey().isBlank()) {
             throw new IllegalStateException("MiniMax 未启用或未配置 API Key");
@@ -115,10 +123,24 @@ public class MiniMaxClient {
                 new org.springframework.http.HttpEntity<>(body, headers);
 
         log.info("MiniMax 调用: model={}, vision={}, prompt长度={}", model, imageBase64 != null, userPrompt.length());
-        String respStr = rest.postForObject(url, entity, String.class);
+        String respStr;
+        try {
+            respStr = rest.postForObject(url, entity, String.class);
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            int code = e.getStatusCode().value();
+            String errBody = e.getResponseBodyAsString();
+            if (code == 401 || code == 403) {
+                // 鉴权失败：上熔断器
+                circuitBreaker.recordAuthFailure(PROVIDER_NAME);
+                log.error("MiniMax 鉴权失败 [{}] body={}", code, errBody);
+            }
+            throw new IllegalStateException("MiniMax HTTP " + code + ": " + errBody, e);
+        }
         if (respStr == null) {
             throw new IllegalStateException("MiniMax 返回为空");
         }
+        // 成功调用（这里有可能 response body 里仍含 error，但 base_resp 路径会处理）
+        circuitBreaker.recordSuccess(PROVIDER_NAME);
         try {
             JsonNode root = MAPPER.readTree(respStr);
 

@@ -162,9 +162,27 @@ public class InvestBigYangSignalService {
         if (sourcePools.isEmpty()) {
             return 0;
         }
+
+        // 批量拉所有源池股票最近 30 日 K 线，代替 N 次单独查询。
+        // 仅查 60 天内的数据（容错周末/节假日），减少扫描行数。
+        java.util.Set<String> poolCodes = sourcePools.stream()
+                .map(InvestStockPool::getStockCode)
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet());
+        if (poolCodes.isEmpty()) {
+            return 0;
+        }
+        java.util.Map<String, List<TradeStockDaily>> klineByCode = new java.util.HashMap<>();
+        for (TradeStockDaily d : dailyRepository.findRecentKlineBatch(poolCodes, LocalDate.now().minusDays(60), 30)) {
+            klineByCode.computeIfAbsent(d.getStockCode(), k -> new java.util.ArrayList<>()).add(d);
+        }
+
         int created = 0;
         for (InvestStockPool pool : sourcePools) {
-            List<TradeStockDaily> recentDesc = dailyRepository.findTop30ByStockCodeOrderByTradeDateDesc(pool.getStockCode());
+            List<TradeStockDaily> recentDesc = klineByCode.getOrDefault(pool.getStockCode(), List.of());
+            if (recentDesc.isEmpty()) {
+                continue;
+            }
             LimitUpStreak streak = detectLatestStreak(pool.getStockCode(), pool.getStockName(), recentDesc);
             if (streak == null) {
                 continue;

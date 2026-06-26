@@ -350,15 +350,21 @@ public class ProsperityStrongPipelineService {
     @Transactional(readOnly = true)
     public List<HotSectorDTO> sectors(LocalDate date) {
         LocalDate d = resolveDate(date);
-        List<ProsperityHotSector> sectorList = sectorRepo.findBySnapDateOrderByRankNoAsc(d);
+        // sectors 列表拉轻量投影（不含 aiNarrative TEXT），避免 InnoDB off-page 读
+        List<SectorSummaryDTO> sectorList = sectorRepo.findSummaryBySnapDate(d);
+        // aiNarrative 单独 batch 拉（只查 TEXT 字段）
+        java.util.Map<Integer, String> narrativeMap = sectorList.isEmpty()
+                ? java.util.Collections.emptyMap()
+                : sectorRepo.findAiNarrativeBatch(
+                        sectorList.stream().map(SectorSummaryDTO::getId).collect(java.util.stream.Collectors.toList()));
         List<ProsperityLeaderCandidate> allLeaders = leaderRepo.findBySnapDateOrderByLeaderScoreDesc(d);
         Map<Integer, List<ProsperityLeaderCandidate>> bySectorId = allLeaders.stream()
                 .collect(java.util.stream.Collectors.groupingBy(ProsperityLeaderCandidate::getSectorId));
         return sectorList.stream().map(s -> {
             List<LeaderCandidateDTO> leaders = bySectorId.getOrDefault(s.getId(), List.of()).stream()
                     .map(this::toLeaderDTO).toList();
-            LeaderIdentifier.MemberStats stats = leaderIdentifier.memberStats(s);
-            return toSectorDTO(s, leaders, stats);
+            LeaderIdentifier.MemberStats stats = leaderIdentifier.memberStatsByName(s.getSectorName());
+            return toSectorDTO(s, narrativeMap.get(s.getId()), leaders, stats);
         }).toList();
     }
 
@@ -440,26 +446,39 @@ public class ProsperityStrongPipelineService {
         return latest != null ? latest : LocalDate.now();
     }
 
-    private HotSectorDTO toSectorDTO(ProsperityHotSector e, List<LeaderCandidateDTO> leaders,
-                                     LeaderIdentifier.MemberStats stats) {
+    private HotSectorDTO toSectorDTO(SectorSummaryDTO s, String aiNarrative,
+                                     List<LeaderCandidateDTO> leaders, LeaderIdentifier.MemberStats stats) {
         return HotSectorDTO.builder()
-                .id(e.getId()).snapDate(e.getSnapDate())
-                .sectorCode(e.getSectorCode()).sectorName(e.getSectorName())
-                .rankNo(e.getRankNo()).change1d(e.getChange1d())
-                .change5d(e.getChange5d()).change20d(e.getChange20d())
-                .capitalInflow5d(e.getCapitalInflow5d())
-                .upCount(e.getUpCount())
-                .downCount(e.getDownCount())
-                .leadStock(e.getLeadStock())
-                .leadStockChange(e.getLeadStockChange())
-                .persistenceDays(e.getPersistenceDays())
-                .score(e.getScore()).aiNarrative(e.getAiNarrative())
-                .dataSource(e.getDataSource())
+                .id(s.getId()).snapDate(s.getSnapDate())
+                .sectorCode(s.getSectorCode()).sectorName(s.getSectorName())
+                .rankNo(s.getRankNo()).change1d(s.getChange1d())
+                .change5d(s.getChange5d()).change20d(s.getChange20d())
+                .capitalInflow5d(s.getCapitalInflow5d())
+                .upCount(s.getUpCount())
+                .downCount(s.getDownCount())
+                .leadStock(s.getLeadStock())
+                .leadStockChange(s.getLeadStockChange())
+                .persistenceDays(s.getPersistenceDays())
+                .score(s.getScore()).aiNarrative(aiNarrative)
+                .dataSource(s.getDataSource())
                 .leaders(leaders)
                 .matchedMemberCount(stats.matchedMemberCount())
                 .quotedMemberCount(stats.quotedMemberCount())
                 .diagnosticMessage(stats.diagnosticMessage())
                 .build();
+    }
+
+    /**
+     * 保留原 Entity 重载供其他路径（如 sectorsByRank 等）使用。
+     */
+    private HotSectorDTO toSectorDTO(ProsperityHotSector e, List<LeaderCandidateDTO> leaders,
+                                     LeaderIdentifier.MemberStats stats) {
+        return toSectorDTO(
+                new SectorSummaryDTO(e.getId(), e.getSnapDate(), e.getSectorCode(), e.getSectorName(),
+                        e.getRankNo(), e.getChange1d(), e.getChange5d(), e.getChange20d(), e.getCapitalInflow5d(),
+                        e.getUpCount(), e.getDownCount(), e.getLeadStock(), e.getLeadStockChange(),
+                        e.getPersistenceDays(), e.getScore(), e.getDataSource()),
+                e.getAiNarrative(), leaders, stats);
     }
 
     private LeaderCandidateDTO toLeaderDTO(ProsperityLeaderCandidate e) {
