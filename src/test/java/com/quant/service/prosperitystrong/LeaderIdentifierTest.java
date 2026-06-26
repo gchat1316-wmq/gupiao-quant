@@ -43,6 +43,9 @@ class LeaderIdentifierTest {
     @Mock
     private AStockDataQuoteService aStockDataQuoteService;
 
+    @Mock
+    private SectorIndexCache sectorIndexCache;
+
     private LeaderIdentifier identifier;
 
     @BeforeEach
@@ -51,7 +54,14 @@ class LeaderIdentifierTest {
         props.setLeadersPerSector(5);
         // 默认所有股票实时行情返回空，迫使 identify 跳过（与 memberStats 用法隔离）
         org.mockito.Mockito.lenient().when(aStockDataQuoteService.fetchQuotes(anyList())).thenReturn(Map.of());
-        identifier = org.mockito.Mockito.spy(new LeaderIdentifier(basicRepo, dailyRepo, aStockDataQuoteService, props));
+        // 默认倒排索引为冷启动状态 (stockCount=0)，迫使 findMembersByAliases 回退到 DB LIKE
+        org.mockito.Mockito.lenient().when(sectorIndexCache.getStatus()).thenReturn(new SectorIndexCache.Status(0, null));
+        org.mockito.Mockito.lenient().when(sectorIndexCache.findStockCodesByKeywords(anyList())).thenReturn(java.util.Set.of());
+        org.mockito.Mockito.lenient().when(sectorIndexCache.getOrLoadByKeywords(anyList(), any())).thenAnswer(inv -> {
+            java.util.function.Supplier<List<TradeStockBasic>> loader = inv.getArgument(1);
+            return loader.get();
+        });
+        identifier = org.mockito.Mockito.spy(new LeaderIdentifier(basicRepo, dailyRepo, aStockDataQuoteService, props, sectorIndexCache));
     }
 
     @Test

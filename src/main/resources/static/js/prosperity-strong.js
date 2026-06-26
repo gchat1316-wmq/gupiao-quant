@@ -1032,13 +1032,85 @@ window.psTogglePoolMemo = psTogglePoolMemo;
 async function runPipeline() {
   setStatus(`正在执行流水线(${providerLabel(state.provider)})...`, 'busy');
   try {
-    const r = await apiPost(`${BASE}/run?date=${state.date}&provider=${encodeURIComponent(state.provider)}`);
+    const r = await postWithBusyRetry(`${BASE}/run?date=${state.date}&provider=${encodeURIComponent(state.provider)}`);
     const extra = r.providerMessage ? `；${r.providerMessage}` : '';
     setStatus((r.message || '完成') + extra);
     await Promise.all([loadSectors(), loadCandidates()]);
   } catch (e) {
     setStatus('流水线失败: ' + e.message, 'err');
   }
+}
+
+/**
+ * 提交请求，遇到 409 + BUSY 状态时不要直接报错。
+ * 后端会返回最近一次运行信息（含状态/已耗时），前端轮询 /runs?from&to 直到
+ * 看到最近一次同日期的运行从 BUSY 转为 SUCCESS/PARTIAL/FAILED，再自动重提一次。
+ * 最多等 3 分钟，避免无限挂起。
+ */
+async function postWithBusyRetry(url, attempt = 1) {
+  const MAX_WAIT_MS = 180000;        // 3 分钟
+  const POLL_INTERVAL_MS = 4000;     // 4 秒
+  const MAX_AUTO_RETRY = 1;          // 等待结束后自动重试 1 次
+
+  const r = await fetch(url, { method: 'POST' });
+  if (r.status === 409) {
+    const body = await safeJson(r);
+    if (isBusyResult(body)) {
+      const waited = await waitForPipelineFree(state.date, MAX_WAIT_MS, POLL_INTERVAL_MS);
+      if (!waited) {
+        throw new Error('HTTP 409: 流水线执行超时仍在运行，请稍后手动重试');
+      }
+      if (attempt < MAX_AUTO_RETRY + 1) {
+        setStatus(`上一次流水线已完成，自动重试(${attempt}/${MAX_AUTO_RETRY})...`, 'busy');
+        return postWithBusyRetry(url, attempt + 1);
+      }
+      throw new Error('HTTP 409: 自动重试仍被锁，请稍后再试');
+    }
+    throw new Error(await formatApiError(r));
+  }
+  if (!r.ok) throw new Error(await formatApiError(r));
+  return r.json();
+}
+
+function isBusyResult(body) {
+  if (!body) return false;
+  if (body.status && String(body.status).toUpperCase() === 'BUSY') return true;
+  if (body.message && /正在执行|请稍后再试/.test(body.message)) return true;
+  return false;
+}
+
+async function safeJson(r) {
+  try { return await r.json(); } catch (e) { return null; }
+}
+
+/** 轮询 /runs 直到最近一次同 snapDate 不再是 BUSY，返回是否等到结束 */
+async function waitForPipelineFree(snapDate, maxWaitMs, intervalMs) {
+  const deadline = Date.now() + maxWaitMs;
+  const from = `${snapDate.slice(0, 7)}-01`;
+  const to = snapDate;
+  let waited = 0;
+  while (Date.now() < deadline) {
+    await sleep(intervalMs);
+    waited += intervalMs;
+    setStatus(`流水线忙，等待上一次完成... (${Math.round(waited / 1000)}s)`, 'busy');
+    try {
+      const list = await apiGet(`${BASE}/runs?from=${from}&to=${to}`);
+      // 找最近一次同 snapDate 的运行
+      const mine = (list || [])
+        .filter(x => x.snapDate === snapDate)
+        .sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt))[0];
+      if (mine && mine.status && mine.status.toUpperCase() !== 'BUSY') {
+        return true;
+      }
+    } catch (e) {
+      // /runs 偶尔失败不致命，继续轮询
+    }
+  }
+  return false;
+}
+
+function sleep(ms) {
+  return new Promise(res => setTimeout(res, ms));
 }
 
 function providerLabel(provider) {

@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.Map;
 
 /**
@@ -56,6 +57,7 @@ public class LeaderIdentifier {
     private final TradeStockDailyRepository dailyRepo;
     private final AStockDataQuoteService aStockDataQuoteService;
     private final ProsperityStrongProperties props;
+    private final SectorIndexCache sectorIndexCache;
 
     public List<ProsperityLeaderCandidate> identify(LocalDate snapDate, ProsperityHotSector sector) {
         if (sector == null || sector.getSectorName() == null) return Collections.emptyList();
@@ -223,8 +225,26 @@ public class LeaderIdentifier {
     }
 
     private List<TradeStockBasic> findMembersByAliases(String sectorName) {
+        List<String> keywords = sectorKeywords(sectorName);
+        if (keywords.isEmpty()) return List.of();
+
+        // 优先走内存倒排索引 + 关键词缓存（启动时预加载，DB 全表扫 0 次）
+        if (sectorIndexCache.getStatus() != null && sectorIndexCache.getStatus().stockCount() > 0) {
+            return sectorIndexCache.getOrLoadByKeywords(keywords, () -> {
+                Set<String> codes = sectorIndexCache.findStockCodesByKeywords(keywords);
+                if (codes.isEmpty()) return List.of();
+                // 保留插入顺序去重
+                Map<String, TradeStockBasic> members = new LinkedHashMap<>();
+                for (TradeStockBasic basic : basicRepo.findByStockCodeIn(codes)) {
+                    members.putIfAbsent(basic.getStockCode(), basic);
+                }
+                return new ArrayList<>(members.values());
+            });
+        }
+
+        // 冷启动 fallback: 直接走 DB LIKE（与原逻辑一致）
         Map<String, TradeStockBasic> members = new LinkedHashMap<>();
-        for (String keyword : sectorKeywords(sectorName)) {
+        for (String keyword : keywords) {
             for (TradeStockBasic basic : basicRepo.findBySectorNameLike(keyword)) {
                 members.putIfAbsent(basic.getStockCode(), basic);
             }

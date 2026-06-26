@@ -34,4 +34,11 @@ public interface TradeStockBasicRepository extends JpaRepository<TradeStockBasic
     /** 按 sector_names 字段模糊匹配板块名称(成分股查询) */
     @Query("SELECT s FROM TradeStockBasic s WHERE s.sectorNames LIKE CONCAT('%', :sectorName, '%')")
     List<TradeStockBasic> findBySectorNameLike(@Param("sectorName") String sectorName);
+
+    /**
+     * 预加载全表 sector_names / stock_code 到内存做倒排索引。
+     * 仅查询必要字段，避免全量 ORM 映射开销。
+     */
+    @Query(value = "SELECT stock_code, sector_names FROM trade_stock_basic WHERE sector_names IS NOT NULL AND sector_names != ''", nativeQuery = true)
+    List<Object[]> findAllSectorNamesRaw();
 }
