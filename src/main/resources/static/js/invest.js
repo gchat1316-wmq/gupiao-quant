@@ -250,6 +250,54 @@
   // ===== 股票池（列表化） =====
   let poolData = [];
   let poolFilter = 'all';
+  let poolKeyword = '';
+  let poolSearchCache = new Map();   // id -> { name, nameLow, initials, codeLow, searchKey }
+
+  // 把股票名转成「拼音首字母缩写」。pinyinPro 未加载时降级为空字符串。
+  function pinyinInitials(name) {
+    if (!name) return '';
+    if (typeof window.pinyinPro === 'undefined' || !window.pinyinPro.pinyin) return '';
+    try {
+      const out = window.pinyinPro.pinyin(name, { pattern: 'first', toneType: 'none' });
+      return String(out || '').replace(/\s+/g, '').toLowerCase();
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function buildPoolSearchItem(item) {
+    const name = item.stockName || '';
+    const code = item.stockCode || '';
+    const nameLow = name.toLowerCase();
+    const codeLow = code.toLowerCase();
+    const initials = pinyinInitials(name);
+    return {
+      name,
+      code,
+      nameLow,
+      codeLow,
+      initials,
+      searchKey: `${nameLow} ${initials} ${codeLow}`,
+    };
+  }
+
+  function ensurePoolSearchCache() {
+    poolSearchCache.clear();
+    poolData.forEach(item => {
+      if (item && item.id != null) poolSearchCache.set(item.id, buildPoolSearchItem(item));
+    });
+  }
+
+  function matchesPoolKeyword(item) {
+    const kw = poolKeyword.trim().toLowerCase().replace(/\s+/g, '');
+    if (!kw) return true;
+    const cached = poolSearchCache.get(item.id);
+    if (cached) return cached.searchKey.includes(kw);
+    // 缓存丢失（极少见）时回退到简易匹配
+    const name = (item.stockName || '').toLowerCase();
+    const code = (item.stockCode || '').toLowerCase();
+    return name.includes(kw) || code.includes(kw);
+  }
 
   // ===== 大阳线战法 =====
   const BIG_YANG_API = 'api/invest/big-yang';
@@ -510,6 +558,28 @@
         renderPool();
       });
     });
+    initPoolSearch();
+  }
+
+  function initPoolSearch() {
+    const input = document.getElementById('poolSearchInput');
+    const clearBtn = document.getElementById('poolSearchClear');
+    if (!input) return;
+    input.addEventListener('input', () => {
+      poolKeyword = input.value || '';
+      if (clearBtn) clearBtn.classList.toggle('hidden', !poolKeyword);
+      renderPool();
+    });
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { input.value = ''; poolKeyword = ''; clearBtn?.classList.add('hidden'); renderPool(); }
+    });
+    clearBtn?.addEventListener('click', () => {
+      input.value = '';
+      poolKeyword = '';
+      clearBtn.classList.add('hidden');
+      renderPool();
+      input.focus();
+    });
   }
 
   async function loadPool() {
@@ -518,6 +588,7 @@
     try {
       const res = await fetch('api/invest/pool');
       poolData = await res.json();
+      ensurePoolSearchCache();
       renderPool();
     } catch (e) {
       wrap.innerHTML = `<div class="pool-empty">加载失败：${e.message}</div>`;
@@ -532,8 +603,16 @@
     else if (poolFilter === 'low') items = poolData.filter(isLowZone);
     else if (poolFilter === 'high') items = poolData.filter(isBubbleZone);
 
+    // 搜索过滤
+    if (poolKeyword.trim()) {
+      items = items.filter(matchesPoolKeyword);
+    }
+
     if (items.length === 0) {
-      wrap.innerHTML = '<div class="pool-empty">暂无股票，点击「+ 加入股票池」或「📷 截图批量导入」添加</div>';
+      const emptyMsg = poolKeyword.trim()
+        ? `没有匹配「<b>${escHtml(poolKeyword)}</b>」的股票。试试别的关键字，或清空搜索查看全部。`
+        : '暂无股票，点击「+ 加入股票池」或「📷 截图批量导入」添加';
+      wrap.innerHTML = `<div class="pool-empty">${emptyMsg}</div>`;
       return;
     }
 
@@ -808,7 +887,10 @@
       }
       const updated = await res.json();
       const idx = poolData.findIndex(i => i.id === id);
-      if (idx >= 0) poolData[idx] = updated;
+      if (idx >= 0) {
+        poolData[idx] = updated;
+        poolSearchCache.set(updated.id, buildPoolSearchItem(updated));
+      }
       el.classList.remove('saving');
       el.classList.add('saved');
       setTimeout(() => el.classList.remove('saved'), 800);

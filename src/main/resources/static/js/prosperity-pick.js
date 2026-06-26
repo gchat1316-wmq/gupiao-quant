@@ -20,6 +20,7 @@
     reportTime: $('ppReportTime'),
     industry: $('ppIndustry'),
     company: $('ppCompany'),
+    finance: $('ppFinanceCards'),
     dbFinancial: $('ppDbFinancial'),
     valuation: $('ppValuation'),
     market: $('ppMarket'),
@@ -42,6 +43,154 @@
   let pollingTimers = new Map();
   let stepTimer = null;
   let finChart = null;
+  let currentMethod = 'full';
+
+  // ============================================================
+  // 4 套分析方法的页面结构 (anchor + section 标题 + 渲染权重)
+  // ============================================================
+  const METHOD_TEMPLATES = {
+    full: {
+      label: '全量分析',
+      anchors: [
+        { id: 'pp-section-overview', no: '①', label: '总览' },
+        { id: 'pp-section-industry',  no: '②', label: '行业' },
+        { id: 'pp-section-company',   no: '③', label: '公司' },
+        { id: 'pp-section-finance',   no: '④', label: '财务' },
+        { id: 'pp-section-market',    no: '⑤', label: '技术资金' },
+        { id: 'pp-section-summary',   no: '⑥', label: '结论' }
+      ],
+      sections: {
+        'pp-section-industry': '行业景气',
+        'pp-section-company':  '公司质地',
+        'pp-section-finance':  '财务趋势',
+        'pp-section-market':   '技术与资金',
+        'pp-section-summary':  '结论 · 一句话'
+      },
+      weights: { industry: 1, company: 1, finance: 1, market: 1, valuation: 1 }
+    },
+    purple_perilla: {
+      label: '产业分析',
+      anchors: [
+        { id: 'pp-section-overview', no: '①', label: '总览' },
+        { id: 'pp-section-industry',  no: '②', label: '产业链定位' },
+        { id: 'pp-section-company',   no: '③', label: '竞争格局' },
+        { id: 'pp-section-finance',   no: '④', label: '护城河' },
+        { id: 'pp-section-market',    no: '⑤', label: '下单三问' },
+        { id: 'pp-section-summary',   no: '⑥', label: '结论' }
+      ],
+      sections: {
+        'pp-section-industry': '产业链定位 · 全球玩家',
+        'pp-section-company':  '竞争格局 · 地缘优势',
+        'pp-section-finance':  '护城河 · 业务结构',
+        'pp-section-market':   '下单三问 · 不可替代/玩家数/需求',
+        'pp-section-summary':  '结论 · 一句话'
+      },
+      weights: { industry: 2, company: 2, finance: 2, market: 2, valuation: 0 }
+    },
+    gaojingqi: {
+      label: '景气度分析',
+      anchors: [
+        { id: 'pp-section-overview', no: '①', label: '总览' },
+        { id: 'pp-section-industry',  no: '②', label: '行业景气' },
+        { id: 'pp-section-company',   no: '③', label: '拐点信号' },
+        { id: 'pp-section-finance',   no: '④', label: '政策共振' },
+        { id: 'pp-section-market',    no: '⑤', label: '技术资金' },
+        { id: 'pp-section-summary',   no: '⑥', label: '结论' }
+      ],
+      sections: {
+        'pp-section-industry': '行业景气 · 周期位置 · 上轮复盘',
+        'pp-section-company':  '未来12月拐点 · 12季度业绩',
+        'pp-section-finance':  '全球共振 · 政策契合 · 业务结构',
+        'pp-section-market':   '技术 · 资金 · 行情区间',
+        'pp-section-summary':  '结论 · 一句话'
+      },
+      weights: { industry: 3, company: 2, finance: 1, market: 2, valuation: 1 }
+    },
+    five_dimension: {
+      label: '增长五维分析',
+      anchors: [
+        { id: 'pp-section-overview', no: '①', label: '总览' },
+        { id: 'pp-section-industry',  no: '②', label: '稀缺卡位' },
+        { id: 'pp-section-company',   no: '③', label: '成长动力' },
+        { id: 'pp-section-finance',   no: '④', label: '业绩兑现' },
+        { id: 'pp-section-market',    no: '⑤', label: '瓶颈壁垒' },
+        { id: 'pp-section-summary',   no: '⑥', label: '估值·结论' }
+      ],
+      sections: {
+        'pp-section-industry': '① 稀缺卡位',
+        'pp-section-company':  '② 成长动力 · 第一/第二曲线',
+        'pp-section-finance':  '③ 业绩兑现 · 历史/当期/远期',
+        'pp-section-market':   '④ 瓶颈与壁垒 · 护城河/约束',
+        'pp-section-summary':  '⑤ 估值阶梯 · 风险 · 结论'
+      },
+      weights: { industry: 2, company: 2, finance: 2, market: 2, valuation: 3 }
+    }
+  };
+
+  function getTemplate(method) {
+    return METHOD_TEMPLATES[method] || METHOD_TEMPLATES.full;
+  }
+
+  function setAnchorNav(template) {
+    if (!els.anchorNav) return;
+    els.anchorNav.innerHTML = template.anchors.map((a, i) => `
+      <button type="button" class="pp-anchor ${i === 0 ? 'active' : ''}" data-target="${a.id}">
+        <span>${a.no}</span> ${a.label}
+      </button>
+    `).join('');
+  }
+
+  function setAllSectionTitles(template) {
+    Object.entries(template.sections).forEach(([sectionId, label]) => {
+      const sec = document.getElementById(sectionId);
+      if (!sec) return;
+      const title = sec.querySelector('.pp-section-title');
+      if (!title) return;
+      const noEl = title.querySelector('.pp-section-no');
+      // 保留 pp-overview-head 里的复制分享链接按钮
+      const extraBtns = Array.from(title.querySelectorAll('button')).filter((b) => !b.classList.contains('pp-section-no'));
+      // 清空标题再重建
+      title.innerHTML = '';
+      if (noEl) {
+        const clone = noEl.cloneNode(true);
+        title.appendChild(clone);
+      } else {
+        const num = template.anchors.find((a) => a.id === sectionId)?.no || '';
+        if (num) {
+          const span = document.createElement('span');
+          span.className = 'pp-section-no';
+          span.textContent = num;
+          title.appendChild(span);
+        }
+      }
+      title.appendChild(document.createTextNode(' ' + label));
+      extraBtns.forEach((b) => title.appendChild(b));
+    });
+  }
+
+  function setMethod(value) {
+    if (!els.method) return;
+    currentMethod = value || 'full';
+    const buttons = els.method.querySelectorAll('.pp-method-btn');
+    buttons.forEach((btn) => {
+      const isActive = btn.dataset.value === currentMethod;
+      btn.classList.toggle('is-active', isActive);
+      btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+  }
+
+  function getSelectedMethod() {
+    return currentMethod || 'full';
+  }
+
+  if (els.method) {
+    els.method.addEventListener('click', (e) => {
+      const btn = e.target.closest('.pp-method-btn');
+      if (!btn || !els.method.contains(btn)) return;
+      const value = btn.dataset.value;
+      if (value) setMethod(value);
+    });
+  }
 
   els.analyzeBtn.addEventListener('click', submitAnalyze);
   els.refreshBtn.addEventListener('click', () => loadHistory(currentPage));
@@ -61,6 +210,8 @@
     const params = new URLSearchParams(window.location.search);
     const keyword = params.get('keyword');
     const recordId = params.get('record');
+    const method = params.get('method');
+    if (method) setMethod(method);
     if (recordId) {
       const id = Number(recordId);
       if (Number.isFinite(id) && id > 0) {
@@ -87,7 +238,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           code,
-          method: els.method.value || 'full',
+          method: getSelectedMethod(),
           years: 2,
           lite: true,
           quoteDays: 60
@@ -249,7 +400,24 @@
         return;
       }
       hideLoading();
-      renderUnifiedReport(json);
+      // 同步 currentMethod 到打开记录的实际方法, 让模板切换正确
+      currentMethod = json.method || 'full';
+      const template = getTemplate(currentMethod);
+      setAnchorNav(template);
+      setAllSectionTitles(template);
+      // 同步顶部 4 个方法按钮高亮
+      if (els.method) {
+        els.method.querySelectorAll('.pp-method-btn').forEach((btn) => {
+          const isActive = btn.dataset.value === currentMethod;
+          btn.classList.toggle('is-active', isActive);
+          btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+      }
+      if (json.method === 'five_dimension') {
+        renderFiveDimReport(json);
+      } else {
+        renderUnifiedReport(json, template);
+      }
     } catch (error) {
       showError(error.message || '读取报告失败');
     }
@@ -315,10 +483,12 @@
     document.querySelectorAll('.pp-step').forEach((step) => step.classList.remove('active', 'done'));
   }
 
-  function renderUnifiedReport(payload) {
+  function renderUnifiedReport(payload, template) {
     const report = payload.report || {};
     const analysis = report.analysis || {};
     const financialSummary = report.financialSummary || {};
+    const t = template || getTemplate(currentMethod);
+    const w = t.weights || {};
     currentRecordId = payload.id;
     currentReport = report;
 
@@ -328,64 +498,296 @@
     renderProfile(payload, report);
     renderOverview(payload, report);
     renderReportTime(payload);
-    renderCards(els.industry, [
-      ['周期位置', analysis.industry?.cyclePosition],
-      ['上轮周期复盘', analysis.industry?.lastCycleReview],
-      ['未来12个月拐点', analysis.industry?.next12mForecast],
-      ['进入壁垒', analysis.industry?.entryBarrier],
-      ['竞争格局', analysis.industry?.competition],
-      ['全球共振', analysis.industry?.globalResonance]
-    ]);
-    renderCards(els.company, [
-      ['业务结构', analysis.company?.businessMix],
-      ['12季度业绩', analysis.company?.quarterly12],
-      ['未来2年驱动', analysis.company?.next2yDriver],
-      ['护城河', analysis.company?.moat],
-      ['政策契合度', analysis.company?.policyFit],
-      ['董事长画像', analysis.company?.chairman],
-      ['产业链位置', report.chainPosition?.layer],
-      ['产业链路径', report.chainPosition?.chainPath],
-      ['全球玩家', report.competition?.globalPlayers],
-      ['中国位置', report.competition?.chinesePosition],
-      ['地缘优势', report.competition?.geographicAdvantage],
-      ['下单前三问', joinLines([
-        report.threeQuestions?.Q1_irreplaceable,
-        report.threeQuestions?.Q2_competitorCount,
-        report.threeQuestions?.Q3_demandTrend
-      ])]
-    ]);
-    renderFinancialChart(financialSummary);
-    renderDbFinancialTable(report.dbFinancials || []);
-    renderCards(els.valuation, [
-      ['公司类型', analysis.valuation?.type],
-      ['综合估值结论', analysis.valuation?.verdict],
-      ['2026目标价', analysis.valuation?.target2026],
-      ['2027目标价', analysis.valuation?.target2027],
-      ['估值依据', analysis.valuation?.reasoning],
-      ['forecast 摘要', formatForecast(report.forecastSummary)],
-      ['外部预期摘要', report.externalExpectation?.summary]
-    ]);
-    renderCards(els.market, [
-      ['技术面', joinLines([
-        analysis.technical?.trendLine,
-        analysis.technical?.ma,
-        analysis.technical?.volume,
-        analysis.technical?.macd,
-        analysis.technical?.verdict
-      ])],
-      ['资金面', joinLines([
-        analysis.capital?.mainNetIn,
-        analysis.capital?.northbound,
-        analysis.capital?.dragonTiger,
-        analysis.capital?.verdict
-      ])],
-      ['行情区间', joinLines([
-        `区间最高: ${safeText(report.nineDimension?.market?.periodHigh)}`,
-        `区间最低: ${safeText(report.nineDimension?.market?.periodLow)}`,
-        `区间涨跌幅: ${safeText(report.nineDimension?.market?.periodChangePct)}`
-      ])]
-    ]);
+
+    // ============ ② industry 段 ============
+    // full/gaojingqi 偏周期景气；purple_perilla 偏产业链定位
+    const industryItems = [];
+    if (w.industry >= 3) {
+      // gaojingqi: 周期 / 拐点 / 景气 重点
+      industryItems.push(
+        ['周期位置', analysis.industry?.cyclePosition],
+        ['上轮周期复盘', analysis.industry?.lastCycleReview],
+        ['未来12个月拐点', analysis.industry?.next12mForecast],
+        ['行业生命周期', analysis.industry?.lifeStage]
+      );
+    } else if (w.industry >= 2) {
+      // purple_perilla: 产业链定位
+      industryItems.push(
+        ['产业链位置', report.chainPosition?.layer],
+        ['产业链路径', report.chainPosition?.chainPath],
+        ['行业生命周期', analysis.industry?.lifeStage],
+        ['行业竞争格局', analysis.industry?.competition]
+      );
+    } else {
+      // full: 综合
+      industryItems.push(
+        ['周期位置', analysis.industry?.cyclePosition],
+        ['上轮周期复盘', analysis.industry?.lastCycleReview],
+        ['未来12个月拐点', analysis.industry?.next12mForecast],
+        ['进入壁垒', analysis.industry?.entryBarrier],
+        ['竞争格局', analysis.industry?.competition],
+        ['全球共振', analysis.industry?.globalResonance]
+      );
+    }
+    renderCards(els.industry, industryItems);
+
+    // ============ ③ company 段 ============
+    const companyItems = [];
+    if (w.company >= 3) {
+      // gaojingqi: 拐点信号 = 12季度业绩 + 未来驱动 + 政策
+      companyItems.push(
+        ['12季度业绩', analysis.company?.quarterly12],
+        ['未来2年驱动', analysis.company?.next2yDriver],
+        ['政策契合度', analysis.company?.policyFit]
+      );
+    } else if (w.company >= 2) {
+      // purple_perilla: 竞争格局 + 玩家位置
+      companyItems.push(
+        ['全球玩家', report.competition?.globalPlayers],
+        ['中国位置', report.competition?.chinesePosition],
+        ['地缘优势', report.competition?.geographicAdvantage],
+        ['业务结构', analysis.company?.businessMix]
+      );
+    } else {
+      // full: 全展开
+      companyItems.push(
+        ['业务结构', analysis.company?.businessMix],
+        ['12季度业绩', analysis.company?.quarterly12],
+        ['未来2年驱动', analysis.company?.next2yDriver],
+        ['护城河', analysis.company?.moat],
+        ['政策契合度', analysis.company?.policyFit],
+        ['董事长画像', analysis.company?.chairman],
+        ['产业链位置', report.chainPosition?.layer],
+        ['产业链路径', report.chainPosition?.chainPath],
+        ['全球玩家', report.competition?.globalPlayers],
+        ['中国位置', report.competition?.chinesePosition],
+        ['地缘优势', report.competition?.geographicAdvantage],
+        ['下单前三问', joinLines([
+          report.threeQuestions?.Q1_irreplaceable,
+          report.threeQuestions?.Q2_competitorCount,
+          report.threeQuestions?.Q3_demandTrend
+        ])]
+      );
+    }
+    renderCards(els.company, companyItems);
+
+    // ============ ④ finance 段 ============
+    if (w.finance >= 1) {
+      renderFinancialChart(financialSummary);
+      renderDbFinancialTable(report.dbFinancials || []);
+    } else {
+      // purple_perilla: finance 段不强调财务表, 改成护城河+三问
+      if (els.finChartWrap) els.finChartWrap.style.display = 'none';
+      renderDbFinancialTable([]);
+      // 财务段塞入"下单三问"
+      renderCards(els.finance, [
+        ['下单三问', joinLines([
+          report.threeQuestions?.Q1_irreplaceable,
+          report.threeQuestions?.Q2_competitorCount,
+          report.threeQuestions?.Q3_demandTrend
+        ])],
+        ['核心护城河', analysis.company?.moat],
+        ['业务结构', analysis.company?.businessMix]
+      ]);
+    }
+
+    // ============ ⑤ market 段 ============
+    const marketItems = [];
+    marketItems.push(['技术面', joinLines([
+      analysis.technical?.trendLine,
+      analysis.technical?.ma,
+      analysis.technical?.volume,
+      analysis.technical?.macd,
+      analysis.technical?.verdict
+    ])]);
+    marketItems.push(['资金面', joinLines([
+      analysis.capital?.mainNetIn,
+      analysis.capital?.northbound,
+      analysis.capital?.dragonTiger,
+      analysis.capital?.verdict
+    ])]);
+    marketItems.push(['行情区间', joinLines([
+      `区间最高: ${safeText(report.nineDimension?.market?.periodHigh)}`,
+      `区间最低: ${safeText(report.nineDimension?.market?.periodLow)}`,
+      `区间涨跌幅: ${safeText(report.nineDimension?.market?.periodChangePct)}`
+    ])]);
+    // purple_perilla / gaojingqi 在 market 段加产业链/景气补充
+    if (currentMethod === 'purple_perilla') {
+      marketItems.push(['护城河类型', report.chainPosition?.moatType]);
+      marketItems.push(['产业链拆解', report.chainPosition?.chainPath]);
+    } else if (currentMethod === 'gaojingqi') {
+      marketItems.push(['全球共振', analysis.industry?.globalResonance]);
+      marketItems.push(['政策支持', analysis.company?.policyFit]);
+    }
+    renderCards(els.market, marketItems);
+
+    // ============ ⑥ valuation 段 ============
+    // full/gaojingqi 强调估值；purple_perilla/five_dimension 弱化
+    if (w.valuation >= 1) {
+      renderCards(els.valuation, [
+        ['公司类型', analysis.valuation?.type],
+        ['综合估值结论', analysis.valuation?.verdict],
+        ['2026目标价', analysis.valuation?.target2026],
+        ['2027目标价', analysis.valuation?.target2027],
+        ['估值依据', analysis.valuation?.reasoning],
+        ['forecast 摘要', formatForecast(report.forecastSummary)],
+        ['外部预期摘要', report.externalExpectation?.summary]
+      ]);
+    } else {
+      renderCards(els.valuation, []);
+    }
+
     renderSummary(report, analysis.summary || {});
+  }
+
+  function renderFiveDimReport(payload) {
+    const report = payload.report || {};
+    const analysis = report.analysis || {};
+    currentRecordId = payload.id;
+    currentReport = report;
+
+    els.empty.classList.add('hidden');
+    els.result.classList.remove('hidden');
+
+    // anchor + section 标题已在 openRecord 里按 template 设过, 此处不重复
+
+    renderProfile(payload, report);
+    renderOverview(payload, report);
+    renderReportTime(payload);
+
+    // ① 稀缺卡位
+    const scarce = analysis['稀缺卡位'] || {};
+    const scarceGlobal = scarce['全球技术稀缺性'] || {};
+    const scarceDual = scarce['双赛道卡位'] || {};
+    renderCards(els.industry, [
+      ['综合评级', scarce.rating],
+      ['评级逻辑', scarce.ratingLogic],
+      ['【全球技术稀缺性】全球可量产玩家数', scarceGlobal['全球可量产玩家数']],
+      ['【全球技术稀缺性】公司在A股的稀缺性', scarceGlobal['公司在A股的稀缺性']],
+      ['【全球技术稀缺性】关键技术指标', scarceGlobal['关键技术指标']],
+      ['【全球技术稀缺性】国内同业技术代差', scarceGlobal['国内同业技术代差']],
+      ['【全球技术稀缺性】研发投入', scarceGlobal['研发投入']],
+      ['【全球技术稀缺性】卡位赛道', scarceGlobal['卡位赛道']],
+      ['【双赛道卡位】主业', scarceDual['主业']],
+      ['【双赛道卡位】第二曲线', scarceDual['第二曲线']],
+      ['【双赛道卡位】跨行业意义', scarceDual['跨行业意义']],
+      ['【双赛道卡位】业务结构演变', scarceDual['业务结构演变']]
+    ]);
+
+    // ② 成长动力
+    const growth = analysis['成长动力'] || {};
+    const firstCurve = growth['第一曲线'] || {};
+    const firstFc = firstCurve['未来3年量化预测'] || {};
+    const secondCurve = growth['第二曲线'] || {};
+    const secondFc = secondCurve['未来3年量化预测'] || {};
+    renderCards(els.company, [
+      ['综合评级', growth.rating],
+      ['评级逻辑', growth.ratingLogic],
+      ['【第一曲线】业务名', firstCurve['业务名']],
+      ['【第一曲线】行业逻辑', firstCurve['行业逻辑']],
+      ['【第一曲线】年化复合增速', firstCurve['年化复合增速']],
+      ['【第一曲线】稳态年度营收区间', firstCurve['稳态年度营收区间']],
+      ['【第一曲线】2026E 营收', firstFc['2026']],
+      ['【第一曲线】2027E 营收', firstFc['2027']],
+      ['【第一曲线】2028E 营收', firstFc['2028']],
+      ['【第一曲线】角色定位', firstCurve['角色定位']],
+      ['【第二曲线】业务名', secondCurve['业务名']],
+      ['【第二曲线】行业需求端', secondCurve['行业需求端']],
+      ['【第二曲线】产能端', secondCurve['产能端']],
+      ['【第二曲线】客户端', secondCurve['客户端']],
+      ['【第二曲线】2026E 预测', secondFc['2026']],
+      ['【第二曲线】2027E 预测', secondFc['2027']],
+      ['【第二曲线】2028E 预测', secondFc['2028']],
+      ['【第二曲线】关键里程碑', secondCurve['关键里程碑']]
+    ]);
+
+    // ③ 业绩兑现度
+    const deliver = analysis['业绩兑现度'] || {};
+    const histFin = deliver['历史财报验证'] || {};
+    const curFin = deliver['当期财报验证'] || {};
+    const forwardFin = Array.isArray(deliver['远期利润与毛利率预判']) ? deliver['远期利润与毛利率预判'] : [];
+    renderFinancialChart(report.financialSummary || {});
+    renderDbFinancialTable(report.dbFinancials || []);
+    const finCards = [
+      ['综合评级', deliver.rating],
+      ['评级逻辑', deliver.ratingLogic],
+      [`【${histFin['年份'] || '历史'}】总营收`, histFin['总营收']],
+      [`【${histFin['年份'] || '历史'}】归母净利润`, histFin['归母净利润']],
+      [`【${histFin['年份'] || '历史'}】经营性现金流净额`, histFin['经营活动现金流净额']],
+      [`【${histFin['年份'] || '历史'}】业务毛利率结构`, histFin['业务毛利率结构']],
+      [`【${curFin['季度'] || '当期'}】营收`, curFin['营收']],
+      [`【${curFin['季度'] || '当期'}】归母净利润`, curFin['归母净利润']],
+      [`【${curFin['季度'] || '当期'}】扣非净利润`, curFin['扣非净利润']],
+      [`【${curFin['季度'] || '当期'}】核心信号`, curFin['核心信号']],
+      ['业绩兑现确定性', deliver['业绩兑现确定性']],
+      ['唯一变量', deliver['唯一变量']]
+    ];
+    finCards.push(...forwardFin.map((r, i) => [`【远期 ${r['年份'] || ('项' + (i+1))}】归母 ${r['归母净利润'] || '-'} / 毛利 ${r['综合毛利率'] || '-'}`, r['核心兑现逻辑']]));
+    renderCards(els.finance, finCards);
+
+    // ④ 瓶颈与壁垒 + ⑤ 估值阶梯 + 风险 + 结论
+    const barrier = analysis['瓶颈与壁垒'] || {};
+    const valuation = analysis['估值阶梯'] || {};
+    const summaryObj = analysis.summary || {};
+    const moats = Array.isArray(barrier['核心护城河壁垒']) ? barrier['核心护城河壁垒'] : [];
+    const bottlenecks = Array.isArray(barrier['当前成长约束瓶颈']) ? barrier['当前成长约束瓶颈'] : [];
+    const risks = Array.isArray(valuation['风险提示']) ? valuation['风险提示'] : [];
+    const marketCards = [
+      ['综合评级', barrier.rating],
+      ['评级逻辑', barrier.ratingLogic],
+      ['【估值】底层逻辑', valuation['估值底层逻辑']],
+      ['【估值】估值体系', valuation['估值体系']],
+      ...staircaseCards('第一阶梯（短期）', valuation['第一阶梯']),
+      ...staircaseCards('第二阶梯（中期）', valuation['第二阶梯']),
+      ...staircaseCards('第三阶梯（远期）', valuation['第三阶梯'])
+    ];
+    moats.forEach((m, i) => marketCards.push([`【护城河 ${i+1}】${m['类型'] || ''}`, m['数据']]));
+    bottlenecks.forEach((m, i) => marketCards.push([`【瓶颈 ${i+1}】${m['类型'] || ''}`, m['数据']]));
+    renderCards(els.market, marketCards);
+
+    // ⑤+结论：估值阶梯 + 风险 + 一句话
+    const summaryCards = [
+      ['综合结论', summaryObj.oneLiner || report.verdict],
+      ['核心驱动', Array.isArray(summaryObj.coreDrivers) ? summaryObj.coreDrivers.join('；') : null]
+    ];
+    if (risks.length) {
+      summaryCards.push(['配套风险提示', risks.map((r, i) => `${i+1}. ${r}`).join('\n')]);
+    }
+    renderCards(els.valuation, []);
+    renderFiveDimSummary(summaryObj, report);
+  }
+
+  function renderFiveDimSummary(summaryObj, report) {
+    const drivers = Array.isArray(summaryObj.coreDrivers) ? summaryObj.coreDrivers : [];
+    els.summary.innerHTML = `
+      ${drivers.length ? `<div class="pp-summary-box"><strong>核心驱动：</strong><ul class="pp-summary-bullets">${drivers.map((d) => `<li>${escapeHtml(d)}</li>`).join('')}</ul></div>` : ''}
+      <div class="pp-summary-box">${escapeHtml(summaryObj.oneLiner || report.verdict || '暂无可用结构化数据')}</div>
+    `;
+  }
+
+  function setSectionTitle(sectionId, no, label) {
+    const sec = document.getElementById(sectionId);
+    if (!sec) return;
+    const title = sec.querySelector('.pp-section-title');
+    if (!title) return;
+    const noEl = title.querySelector('.pp-section-no');
+    if (noEl) noEl.textContent = no;
+    // 删除原有文字节点（保留 no 元素）
+    Array.from(title.childNodes).forEach((n) => {
+      if (n.nodeType === Node.TEXT_NODE) n.remove();
+    });
+    title.appendChild(document.createTextNode(' ' + label));
+  }
+
+  function staircaseCards(prefix, stair) {
+    if (!stair || typeof stair !== 'object') return [];
+    const cards = [[`【${prefix}】时间窗口`, stair['时间窗口']]];
+    ['预期归母净利润', '预期总营收', '第二曲线营收占比', '第二曲线地位',
+     '估值中枢', '稳态PE/PS', 'PE测算稳态市值', 'PS测算稳态市值',
+     '目标市值区间', '每股目标价', '核心上涨催化', '核心逻辑'].forEach((k) => {
+      if (stair[k]) cards.push([`【${prefix}】${k}`, stair[k]]);
+    });
+    return cards;
   }
 
   function renderProfile(payload, report) {
@@ -452,7 +854,17 @@
   }
 
   function renderCard(label, value) {
-    const text = String(value).replace(/\r\n/g, '\n').trim();
+    // 处理嵌套对象：AI 在某些字段（如"主业"）输出了 {"客户/份额/认证周期": "..."} 这种结构
+    let text;
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      text = Object.entries(value)
+        .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
+        .join('\n');
+    } else if (Array.isArray(value)) {
+      text = value.map((v) => typeof v === 'object' ? JSON.stringify(v) : v).join('\n');
+    } else {
+      text = String(value).replace(/\r\n/g, '\n').trim();
+    }
     const { conclusion, detail } = splitConclusionAndDetail(text);
     return `
       <div class="pp-card">

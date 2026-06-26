@@ -382,9 +382,10 @@ body {
   flex-direction: column;
 }
 
-/* ===== Footer 折叠开关：默认收起，hover 预览 / 点击锁定 ===== */
+/* ===== Footer 折叠开关：默认收起，hover 预览 / 点击锁定 =====
+   关键：DOM 顺序就是 row 在前、toggle 在后（layout.js）。
+   flex-direction: column 自然让 row 在上、toggle 在下，无需 order。*/
 .site-footer-toggle {
-  order: 2; /* 视觉上固定在 footer 最底部，row 向上展开 */
   align-self: center;
   display: flex;
   align-items: center;
@@ -476,7 +477,6 @@ body {
 
 /* ===== Panel 默认收起（向上展开，所以用 margin-bottom 撑开间距） ===== */
 .site-footer-row {
-  order: 1; /* 视觉上出现在 toggle 上方 */
   display: grid;
   grid-template-columns: 260px 1fr;
   gap: 16px;

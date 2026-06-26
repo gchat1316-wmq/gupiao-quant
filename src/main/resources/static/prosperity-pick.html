@@ -28,12 +28,13 @@
 
     <section class="pp-search-card">
       <div class="pp-search-row">
-        <input id="ppKeyword" type="text" placeholder="输入股票代码或名称，如：002050 / 三花智控 / 688627" autocomplete="off" />
-        <select id="ppMethod" class="pp-select">
-          <option value="full">统一全量报告</option>
-          <option value="purple_perilla">偏产业链</option>
-          <option value="gaojingqi">偏财务景气</option>
-        </select>
+        <input id="ppKeyword" class="pp-keyword" type="text" placeholder="代码 / 名称" autocomplete="off" />
+        <div id="ppMethod" class="pp-method-group" role="tablist" aria-label="分析类型">
+          <button type="button" class="pp-method-btn is-active" data-value="full" role="tab" aria-selected="true">全量分析</button>
+          <button type="button" class="pp-method-btn" data-value="purple_perilla" role="tab" aria-selected="false">产业分析</button>
+          <button type="button" class="pp-method-btn" data-value="gaojingqi" role="tab" aria-selected="false">景气度分析</button>
+          <button type="button" class="pp-method-btn" data-value="five_dimension" role="tab" aria-selected="false">增长五维分析</button>
+        </div>
         <button id="ppAnalyzeBtn" class="invest-btn">开始分析</button>
         <button id="ppRefreshBtn" class="invest-btn-outline" type="button">刷新列表</button>
       </div>
@@ -89,6 +90,7 @@
 
           <section id="pp-section-finance" class="pp-section">
             <h3 class="pp-section-title"><span class="pp-section-no">④</span> 财务趋势</h3>
+            <div id="ppFinanceCards" class="pp-cards"></div>
             <div id="ppFinChartWrap" class="pp-chart-wrap" style="display:none;">
               <canvas id="ppFinCanvas" height="240"></canvas>
             </div>

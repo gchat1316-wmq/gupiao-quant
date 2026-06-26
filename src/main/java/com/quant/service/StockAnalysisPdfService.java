@@ -30,6 +30,9 @@ public class StockAnalysisPdfService {
     @Value("${app.upload-dir:uploads}")
     private String uploadDir;
 
+    @Value("${app.render-pdf-script:scripts/render_pdf.py}")
+    private String renderPdfScript;
+
     /**
      * 生成 PDF (从 record 加载, 调 stockAnalysisService 解析 result_json)
      * @return 相对 uploadDir 的路径, 如 "stock-analysis/688627/5-20260612-145212.pdf"
@@ -72,8 +75,18 @@ public class StockAnalysisPdfService {
     }
 
     private void htmlToPdf(String html, Path outPath) {
+        // 脚本路径：先按绝对路径试，再按相对路径（相对当前进程 cwd）试
+        java.io.File scriptFile = new java.io.File(renderPdfScript);
+        if (!scriptFile.isAbsolute()) {
+            // 相对路径 → 相对 user.dir（restart.sh 启动时 cwd 是项目根目录）
+            scriptFile = new java.io.File(System.getProperty("user.dir"), renderPdfScript);
+        }
+        if (!scriptFile.exists()) {
+            throw new RuntimeException("PDF 渲染脚本不存在: " + scriptFile.getAbsolutePath()
+                    + "（可在 application.yml 用 app.render-pdf-script 或环境变量 RENDER_PDF_SCRIPT 覆盖）");
+        }
         ProcessBuilder pb = new ProcessBuilder(
-                "python3", "/home/ubuntu/gupiao-quant/scripts/render_pdf.py",
+                "python3", scriptFile.getAbsolutePath(),
                 outPath.toAbsolutePath().toString()
         );
         pb.redirectErrorStream(true);
@@ -89,7 +102,9 @@ public class StockAnalysisPdfService {
                 throw new RuntimeException("PDF 渲染超时 (60s)");
             }
             if (process.exitValue() != 0) {
-                throw new RuntimeException("PDF 渲染失败, 退出码 " + process.exitValue());
+                // 读取 stdout/stderr (合并流)
+                throw new RuntimeException("PDF 渲染失败, 退出码 " + process.exitValue()
+                        + "（脚本: " + scriptFile.getAbsolutePath() + "）");
             }
             if (!Files.exists(outPath)) {
                 throw new RuntimeException("PDF 文件未生成");

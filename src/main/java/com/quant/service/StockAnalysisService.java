@@ -11,9 +11,13 @@ import com.quant.entity.TradeStockFinancial;
 import com.quant.repository.StockAnalysisRecordRepository;
 import com.quant.repository.TradeStockBasicRepository;
 import com.quant.repository.TradeStockFinancialRepository;
+import com.quant.repository.IndustryResearchArticleRepository;
+import com.quant.repository.IndustryResearchSectionRepository;
 import com.quant.service.ai.MiniMaxClient;
 import com.quant.service.ai.SenseNovaClient;
+import com.quant.service.prosperitystrong.WindAifinMarketClient;
 import com.quant.service.search.WebSearchClient;
+import com.quant.service.tdx.TdxMcpClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -45,9 +49,13 @@ public class StockAnalysisService {
     private final StockQueryService stockQueryService;
     private final TradeStockBasicRepository stockBasicRepository;
     private final TradeStockFinancialRepository financialRepository;
+    private final IndustryResearchArticleRepository industryResearchArticleRepository;
+    private final IndustryResearchSectionRepository industryResearchSectionRepository;
     private final MiniMaxClient miniMaxClient;
     private final SenseNovaClient senseNovaClient;
     private final WebSearchClient webSearchClient;
+    private final WindAifinMarketClient windAifinMarketClient;
+    private final TdxMcpClient tdxMcpClient;
     private final UnifiedStockResearchService unifiedStockResearchService;
     private final ObjectMapper objectMapper = new ObjectMapper()
             .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
@@ -173,7 +181,7 @@ public class StockAnalysisService {
             synthetic.setStockName(String.valueOf(asMap(rawData.get("basic")).getOrDefault("code_name", code)));
             return synthetic;
         });
-        Map<String, Object> aiAnalysis = analyzeWithAi(buildPrompt(basic, rawData));
+        Map<String, Object> aiAnalysis = analyzeWithAi(buildPrompt(basic, rawData, method), method);
         return unifiedStockResearchService.buildUnifiedResponse(basic, rawData, aiAnalysis, method, 0L);
     }
 
@@ -312,16 +320,17 @@ public class StockAnalysisService {
         return count;
     }
 
-    private Map<String, Object> analyzeWithAi(String prompt) {
+    private Map<String, Object> analyzeWithAi(String prompt, String method) {
+        String sysPrompt = "five_dimension".equalsIgnoreCase(method) ? FIVE_DIM_SYSTEM_PROMPT : SYSTEM_PROMPT;
         Exception miniMaxError;
         try {
-            return parseAiJson(miniMaxClient.chatComplete(SYSTEM_PROMPT, prompt));
+            return parseAiJson(miniMaxClient.chatComplete(sysPrompt, prompt));
         } catch (Exception e) {
             miniMaxError = e;
             log.warn("MiniMax 分析失败，尝试 SenseNova: {}", e.getMessage());
         }
         try {
-            return parseAiJson(senseNovaClient.chatComplete(SYSTEM_PROMPT, prompt));
+            return parseAiJson(senseNovaClient.chatComplete(sysPrompt, prompt));
         } catch (Exception senseNovaError) {
             String message = "MiniMax: " + miniMaxError.getMessage() + "; SenseNova: " + senseNovaError.getMessage();
             throw new IllegalStateException("AI 调用失败: " + message, senseNovaError);
@@ -337,14 +346,16 @@ public class StockAnalysisService {
         }
     }
 
-    private String buildPrompt(TradeStockBasic basic, Map<String, Object> rawData) {
+    private String buildPrompt(TradeStockBasic basic, Map<String, Object> rawData, String method) {
         StringBuilder sb = new StringBuilder();
+        boolean isFiveDim = "five_dimension".equalsIgnoreCase(method);
         sb.append("分析日期: ").append(java.time.LocalDate.now()).append("\n");
         sb.append("公司: ").append(basic.getStockName()).append(" ").append(basic.getStockCode()).append(" (A股)\n");
         if (basic.getSectorNames() != null) sb.append("所属行业: ").append(basic.getSectorNames()).append("\n");
         if (basic.getPeTtm() != null) sb.append("PE-TTM: ").append(basic.getPeTtm()).append("\n");
         if (basic.getPb() != null) sb.append("PB: ").append(basic.getPb()).append("\n");
         if (basic.getPsTtm() != null) sb.append("PS-TTM: ").append(basic.getPsTtm()).append("\n");
+        if (basic.getTotalShares() != null) sb.append("总股本: ").append(basic.getTotalShares()).append(" 亿股\n");
 
         List<TradeStockFinancial> records = financialRepository.findByStockCodeOrderByReportDateDesc(basic.getStockCode())
                 .stream().limit(12).toList();
@@ -398,15 +409,288 @@ public class StockAnalysisService {
         }
 
         if (webSearchClient.isEnabled()) {
-            appendSearch(sb, basic.getStockName() + " 行业景气度 机构预测 目标价");
-            appendSearch(sb, basic.getStockName() + " 主力资金 北向资金 龙虎榜");
+            String name = basic.getStockName();
+            if (isFiveDim) {
+                appendSearch(sb, name + " 产业链 行业地位 卡脖子 国产替代 全球玩家");
+                appendSearch(sb, name + " 订单 产能 客户结构 大客户认证 第二曲线 业务拆分");
+                appendSearch(sb, name + " 估值 目标价 机构预测 券商研报 PS PE");
+                appendSearch(sb, name + " 风险 瓶颈 产能爬坡 地缘 供应链");
+                sb.append("\n⚠️ 重要约束：产业链深度数据（设备数量、产能、订单排期等）如果联网检索不到，");
+                sb.append("请明确在对应字段写\"未检索到，待人工核实\"，**禁止编造具体数字**。\n");
+            } else {
+                appendSearch(sb, name + " 行业景气度 机构预测 目标价");
+                appendSearch(sb, name + " 主力资金 北向资金 龙虎榜");
+            }
         } else {
             sb.append("\n（未启用联网检索，请仅基于已知信息分析）\n");
         }
 
+        // 接入产业研报：拉取 industry_research_article 中与本股/行业相关的研报，
+        // 把关键章节摘要塞进 prompt，让 AI 能拿到产业链深度数据（HBM/封装/设备玩家份额等）。
+        if (isFiveDim) {
+            appendIndustryResearchContext(sb, basic.getStockName(), basic.getSectorNames());
+            // 数据源 1：Wind financial_docs（公告 + 财经新闻 + 投资者互动 RAG）
+            appendWindFinancialDocs(sb, basic.getStockName());
+            // 数据源 2：通达信 MCP 财务数据（NL 查询,补充 Wind 拿不到的结构化财务/行业数据）
+            appendTdxFinanceData(sb, basic.getStockName());
+        }
+
         sb.append("\n请严格按照下方 JSON 格式输出，不要输出任何额外文字、不要使用 markdown：\n");
-        sb.append(JSON_SCHEMA);
+        sb.append(isFiveDim ? FIVE_DIM_JSON_SCHEMA : JSON_SCHEMA);
         return sb.toString();
+    }
+
+    /**
+     * 拉取与本股/行业相关的产业研报，提取关键章节摘要塞进 prompt。
+     * 策略：
+     *   1. 取所有 published 文章
+     *   2. 用 stockName + sectorNames 关键词匹配 title/subtitle/tags/sections.content
+     *   3. 优先选 tags 包含 HBM/AI 算力/半导体 等高景气关键词的
+     *   4. 限制前 3 篇，每篇取关键 section 摘要
+     */
+    private void appendIndustryResearchContext(StringBuilder sb, String stockName, String sectorNames) {
+        try {
+            var articles = industryResearchArticleRepository.findAllPublished();
+            if (articles == null || articles.isEmpty()) {
+                sb.append("\n（暂无产业研报数据）\n");
+                return;
+            }
+            // 关键词集：股票名 + 行业 tag 拆分
+            List<String> keywords = new ArrayList<>();
+            if (stockName != null) keywords.add(stockName.trim());
+            if (sectorNames != null) {
+                for (String t : sectorNames.split("[,，;；\\s]+")) {
+                    if (t != null && !t.isBlank()) keywords.add(t.trim());
+                }
+            }
+            // 行业强信号关键词：HBM/AI 算力/半导体 设备
+            List<String> strongTags = List.of("HBM", "GB200", "光模块", "PCB", "AI 算力", "半导体设备", "封装", "TSV", "光刻", "存储");
+
+            // 评分匹配
+            record Scored(com.quant.entity.IndustryResearchArticle article, int score) {}
+            List<Scored> scored = new ArrayList<>();
+            for (com.quant.entity.IndustryResearchArticle a : articles) {
+                int score = 0;
+                String hay = ((a.getTitle() == null ? "" : a.getTitle()) + " " +
+                        (a.getSubtitle() == null ? "" : a.getSubtitle()) + " " +
+                        (a.getTags() == null ? "" : a.getTags())).toLowerCase();
+                for (String k : keywords) {
+                    if (k.length() >= 2 && hay.contains(k.toLowerCase())) score += 5;
+                }
+                for (String t : strongTags) {
+                    if (hay.contains(t.toLowerCase())) score += 3;
+                }
+                if (score > 0) scored.add(new Scored(a, score));
+            }
+            if (scored.isEmpty()) {
+                sb.append("\n（暂无匹配本股的产业研报）\n");
+                return;
+            }
+            scored.sort((x, y) -> Integer.compare(y.score(), x.score()));
+            int picked = Math.min(3, scored.size());
+
+            sb.append("\n【产业研报上下文（来自 industry_research 模块，最新已发布的产业链深度分析）】\n");
+            int charCount = 0;
+            int maxChars = 6000;
+            for (int i = 0; i < picked; i++) {
+                if (charCount >= maxChars) break;
+                com.quant.entity.IndustryResearchArticle a = scored.get(i).article();
+                sb.append("\n▍研报 #").append(i + 1).append(": ").append(safe(a.getTitle())).append("\n");
+                if (a.getSubtitle() != null) sb.append("  副标题: ").append(safe(a.getSubtitle())).append("\n");
+                if (a.getSourceSummary() != null) sb.append("  数据来源: ").append(safe(a.getSourceSummary())).append("\n");
+                if (a.getTags() != null) sb.append("  标签: ").append(safe(a.getTags())).append("\n");
+                List<com.quant.entity.IndustryResearchSection> sections = industryResearchSectionRepository.findByArticleIdOrderBySectionOrderAsc(a.getId());
+                // 关键章节优先：overview / chain / competition / hbm / optical / pcb / valuation / leaders / core-stock
+                List<String> priorityKeys = List.of("overview", "chain", "competition", "hbm", "optical",
+                        "pcb", "valuation", "leaders", "core-stock", "financial", "downstream");
+                List<com.quant.entity.IndustryResearchSection> ordered = new ArrayList<>();
+                for (String k : priorityKeys) {
+                    for (com.quant.entity.IndustryResearchSection s : sections) {
+                        if (k.equalsIgnoreCase(s.getSectionKey())) ordered.add(s);
+                    }
+                }
+                // 补齐其他 section
+                for (com.quant.entity.IndustryResearchSection s : sections) {
+                    if (!ordered.contains(s)) ordered.add(s);
+                }
+                for (com.quant.entity.IndustryResearchSection s : ordered) {
+                    if (charCount >= maxChars) break;
+                    String body = s.getContentJson();
+                    if (body == null || body.isBlank()) continue;
+                    // 截断过长的 JSON（每 section 限 1500 字符）
+                    String clipped = body.length() > 1500 ? body.substring(0, 1500) + "..." : body;
+                    String block = "  [" + safe(s.getSectionTitle()) + "] " + clipped + "\n";
+                    sb.append(block);
+                    charCount += block.length();
+                }
+            }
+            sb.append("\n⚠️ 上面是从本系统 industry_research 库拉的研报内容（已基于关键词匹配）。");
+            sb.append("请把这些数据当作高优先级证据：\n");
+            sb.append("  - 产业链地位/卡位/玩家份额 → 写入稀缺卡位维度\n");
+            sb.append("  - 行业增速/技术演进/代际升级 → 写入成长动力维度\n");
+            sb.append("  - 标的财务质量/订单/产能 → 写入业绩兑现度/瓶颈壁垒维度\n");
+            sb.append("  - 估值宽表/PEG/PE 分位 → 写入估值阶梯维度\n");
+            sb.append("如果本股不在研报 A 股核心标的里，研报中的间接受益环节也能用于推断。\n");
+        } catch (Exception e) {
+            log.warn("拉取产业研报失败: {}", e.getMessage());
+            sb.append("\n（产业研报拉取出错：").append(e.getMessage()).append("）\n");
+        }
+    }
+
+    /**
+     * Wind financial_docs RAG：拉取本股的公告 + 财经新闻 + 投资者互动答复。
+     * 这部分数据**优先级最高**——尤其是投资者互动答复，会包含 HBM 龙头、订单细节等
+     * 公开但不直接写在招股书里的关键信息。
+     */
+    private void appendWindFinancialDocs(StringBuilder sb, String stockName) {
+        if (!windAifinMarketClient.isInstalled() || !windAifinMarketClient.hasApiKey()) {
+            sb.append("\n（Wind financial_docs 未启用或无 API Key，跳过）\n");
+            return;
+        }
+        sb.append("\n【Wind financial_docs 检索 · 高优先级证据（公告 + 财经新闻 + 投资者互动）】\n");
+        // 用公司名去空格做 query 关键字（Wind 不接受 query 含空格）
+        String compactName = stockName == null ? "" : stockName.replaceAll("\\s+", "");
+        // 三类检索：
+        //   1. 投资者互动/HBM/合作（最能体现"业务定位"）
+        //   2. 财务公告/订单/产能（业绩兑现）
+        //   3. 一般新闻（市场情绪）
+        try {
+            // 1. 投资者互动答复：HBM/订单/合作/客户/产能/在手订单/海外
+            fetchAndAppendWindNews(sb, "financial_docs", "get_financial_news",
+                    Map.of("query", compactName + "HBM订单", "top_k", 3),
+                    "▍投资者互动/HBM/订单");
+            fetchAndAppendWindNews(sb, "financial_docs", "get_financial_news",
+                    Map.of("query", compactName + "海外客户", "top_k", 3),
+                    "▍海外大客户/三星/SK海力士");
+            fetchAndAppendWindNews(sb, "financial_docs", "get_financial_news",
+                    Map.of("query", compactName + "产能", "top_k", 3),
+                    "▍产能/募投/南浔");
+        } catch (Exception e) {
+            log.warn("Wind financial_docs 检索失败: {}", e.getMessage());
+            sb.append("（Wind 检索异常: ").append(e.getMessage()).append("）\n");
+        }
+        // 2. 公告
+        try {
+            fetchAndAppendWindNews(sb, "financial_docs", "get_company_announcements",
+                    Map.of("query", compactName + "半导体", "top_k", 2),
+                    "▍公司公告/半导体");
+            fetchAndAppendWindNews(sb, "financial_docs", "get_company_announcements",
+                    Map.of("query", compactName + "2025年报", "top_k", 2),
+                    "▍公司公告/2025 年报");
+        } catch (Exception e) {
+            log.warn("Wind announcements 检索失败: {}", e.getMessage());
+        }
+        sb.append("\n⚠️ Wind financial_docs 是 RAG 检索结果（基于上交所/深交所/财经媒体原始数据）。\n");
+        sb.append("其中\"投资者互动\"板块的答复是公司官方回应，**优先级最高**——尤其涉及客户/订单/HBM/产能/海外认证的答复，必须当作高确定性证据写入对应维度。\n");
+    }
+
+    /**
+     * 通达信 MCP 财务数据：用 NL 查询补 Wind 拿不到的结构化数据（营收/净利同比、EPS、行业地位描述）。
+     * Wind financial_docs 主要拿文本类证据（HBM 定位、订单细节、投资者互动）；
+     * TDX 拿结构化财务——两个数据源互补，不重复。
+     */
+    private void appendTdxFinanceData(StringBuilder sb, String stockName) {
+        if (!tdxMcpClient.isAuthorized()) {
+            sb.append("\n（TDX 通达信 MCP 未配置 API Key, 跳过结构化财务查询。\n");
+            sb.append("  如需启用, 请在 application.yml 设置 prosperity-strong.tdx.api-key = TDX-c62ebd01...\n");
+            sb.append("  或环境变量 TDX_API_KEY=...）\n");
+            return;
+        }
+        sb.append("\n【通达信 MCP 结构化财务数据（NL 查询,补充 Wind 拿不到的具体数字）】\n");
+        String stockCode = resolveStockCode(stockName);
+        if (stockCode == null || stockCode.isBlank()) {
+            sb.append("（未能解析股票代码, 跳过 TDX 查询）\n");
+            return;
+        }
+        // 4 个互补 query
+        try {
+            tdxAskAppend(sb, stockCode, stockCode + " 2025年报 关键财务指标", "▍2025 年报关键指标");
+            tdxAskAppend(sb, stockCode, stockCode + " 主营业务收入 同比", "▍最新营收/利润同比");
+            tdxAskAppend(sb, stockCode, stockCode + " 行业地位", "▍行业地位/投资逻辑");
+            tdxAskAppend(sb, stockCode, stockCode + " 一致预期 EPS", "▍一致预期 EPS（卖方共识）");
+        } catch (Exception e) {
+            log.warn("TDX 财务查询失败: {}", e.getMessage());
+            sb.append("（TDX 财务查询异常: ").append(e.getMessage()).append("）\n");
+        }
+        sb.append("\n⚠️ 上面是 TDX 通过自然语言问出的结构化数据（营收/净利同比/行业地位描述）。\n");
+        sb.append("这些是**结构化字段**（不是研报文本），优先级与 Wind 文本证据相当。\n");
+        sb.append("  - 营收/净利同比 → 写入业绩兑现度（\"当期财报验证\"）\n");
+        sb.append("  - 行业地位/主营关键字 → 写入稀缺卡位（\"卡位赛道\"）\n");
+        sb.append("  - 一致预期 EPS → 写入估值阶梯（作为 AI 推测的辅助锚点）\n");
+        sb.append("如果返回 total=0, 跳过即可, 不要编造数据。\n");
+    }
+
+    private void tdxAskAppend(StringBuilder sb, String stockCode, String question, String label) {
+        java.util.Optional<com.fasterxml.jackson.databind.JsonNode> respOpt = tdxMcpClient.ask(question);
+        sb.append("\n").append(label).append("：\n");
+        if (respOpt == null || respOpt.isEmpty()) {
+            sb.append("  （未返回, 跳过）\n");
+            return;
+        }
+        int total = respOpt.get().path("meta").path("total").asInt(0);
+        if (total == 0) {
+            sb.append("  （TDX 返回 0 条, 此 query 不适用此股）\n");
+            return;
+        }
+        String table = com.quant.service.tdx.TdxMcpClient.tableToText(respOpt.get(), 5);
+        sb.append("  ").append(table.replace("\n", "\n  "));
+    }
+
+    private String resolveStockCode(String stockName) {
+        if (stockName == null) return null;
+        // 输入可能是 "赛腾股份" 或 "603283" 或 "sh.603283" 或 "603283.SH"
+        String s = stockName.trim();
+        // 已经是代码
+        if (s.matches(".*\\d{6}.*")) {
+            return s.replaceAll("[^0-9]", "").substring(0, 6);
+        }
+        // 否则查 trade_stock_basic
+        try {
+            java.util.Optional<com.quant.entity.TradeStockBasic> basic = stockQueryService.resolveStock(s);
+            return basic.map(com.quant.entity.TradeStockBasic::getStockCode).orElse(null);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * 调一次 Wind financial_docs 工具，提取 items[].content/title/date，拼成文本塞进 sb。
+     */
+    private void fetchAndAppendWindNews(StringBuilder sb, String serverType, String toolName,
+                                       Map<String, Object> args, String label) {
+        try {
+            com.fasterxml.jackson.databind.JsonNode root = windAifinMarketClient.call(serverType, toolName, args);
+            if (root == null) return;
+            // 工具返回结构: content[0].text -> JSON string -> {data:{items:[{title, content, date, doc_type, relevance}]}}
+            com.fasterxml.jackson.databind.JsonNode firstContent = root.get("content");
+            if (firstContent == null || !firstContent.isArray() || firstContent.isEmpty()) return;
+            com.fasterxml.jackson.databind.JsonNode first = firstContent.get(0);
+            com.fasterxml.jackson.databind.JsonNode textNode = first == null ? null : first.get("text");
+            if (textNode == null) return;
+            String text = textNode.asText();
+            // text 是个 JSON string，再解析
+            com.fasterxml.jackson.databind.JsonNode inner = objectMapper.readTree(text);
+            com.fasterxml.jackson.databind.JsonNode data = inner == null ? null : inner.get("data");
+            com.fasterxml.jackson.databind.JsonNode items = data == null ? null : data.get("items");
+            if (items == null || !items.isArray() || items.isEmpty()) {
+                sb.append(label).append("：未检索到。\n");
+                return;
+            }
+            sb.append("\n").append(label).append("：\n");
+            int shown = 0;
+            for (com.fasterxml.jackson.databind.JsonNode item : items) {
+                if (shown >= 3) break;
+                String title = item.path("title").asText("");
+                String content = item.path("content").asText("");
+                String date = item.path("date").asText("");
+                if (content.length() > 500) content = content.substring(0, 500) + "...";
+                sb.append("  - [").append(date).append("] ").append(title).append("\n")
+                        .append("    ").append(content).append("\n");
+                shown++;
+            }
+        } catch (Exception e) {
+            sb.append(label).append("：检索失败 - ").append(e.getMessage()).append("\n");
+        }
     }
 
     private void appendSearch(StringBuilder sb, String query) {
@@ -724,6 +1008,14 @@ public class StockAnalysisService {
                     "请严格按照用户给出的 JSON Schema 输出，不要使用 markdown，" +
                     "不要输出任何解释或前后多余文字，输出必须是合法的 JSON。";
 
+    private static final String FIVE_DIM_SYSTEM_PROMPT =
+            "你是一名资深的 A 股产业研究与成长股估值分析师，专注用「五维模型 + 市值阶梯式增长路径」" +
+                    "拆解公司的中长期投资价值。五维模型分别是：稀缺卡位、成长动力、业绩兑现、瓶颈壁垒、估值阶梯。" +
+                    "你的核心方法论是：(1) 优先用联网检索获得的产业链证据作支撑，引用时要给出依据；" +
+                    "(2) 检索不到的深度数据（设备数量、产能爬坡、订单排期等），明确写\"未检索到，待人工核实\"，**绝不编造具体数字**；" +
+                    "(3) 每个维度先给定量数据，再给定性结论；(4) 估值阶梯用 PE+PS 双体系交叉验证。" +
+                    "请严格按照用户给出的 JSON Schema 输出，不要使用 markdown，不要输出任何解释或前后多余文字，输出必须是合法的 JSON。";
+
     private static final String JSON_SCHEMA = """
             {
               "industry": {
@@ -772,6 +1064,140 @@ public class StockAnalysisService {
               "summary": {
                 "bullets": ["最多6条要点"],
                 "oneLiner": "一句话结论"
+              }
+            }
+            """;
+
+    private static final String FIVE_DIM_JSON_SCHEMA = """
+            {
+              "稀缺卡位": {
+                "rating": "X星/4星半/4星 (满分5星)",
+                "ratingLogic": "为什么是这个评级 (1-2句)",
+                "全球技术稀缺性": {
+                  "全球可量产玩家数": "数字 + 玩家名 (检索不到写'未检索到，待人工核实')",
+                  "公司在A股的稀缺性": "全A股唯一/国产替代核心/...",
+                  "关键技术指标": "工艺/精度/规格 + 行业标准对照",
+                  "国内同业技术代差": "X-Y 年",
+                  "研发投入": "金额 + 占营收比 + 累计专利数",
+                  "卡位赛道": "AI算力/高端制造/卡脖子/..."
+                },
+                "双赛道卡位": {
+                  "主业": {"客户/份额/认证周期": "..."},
+                  "第二曲线": {"海内外客户矩阵": "..."},
+                  "跨行业意义": "周期对冲/估值切换/...",
+                  "业务结构演变": "旧业务占比X% → 新业务占比Y% 的爬坡轨迹"
+                }
+              },
+              "成长动力": {
+                "rating": "X星/4星半 (满分5星)",
+                "ratingLogic": "...",
+                "第一曲线": {
+                  "业务名": "...",
+                  "行业逻辑": "需求端驱动 + 客户产品周期",
+                  "年化复合增速": "X%-Y%",
+                  "稳态年度营收区间": "XX 亿 - XX 亿元",
+                  "未来3年量化预测": {
+                    "2026": "XX 亿元",
+                    "2027": "XX 亿元",
+                    "2028": "XX 亿元"
+                  },
+                  "角色定位": "托底利润与现金流，对冲第二曲线扩产期资本开支"
+                },
+                "第二曲线": {
+                  "业务名": "...",
+                  "行业需求端": "市场规模从当前X提升至Y，增幅Z%，高景气周期延续至YYYY年",
+                  "产能端": "现有产线状态 + 新建基地(规划产能 + 投产爬坡时点)",
+                  "客户端": "海外大厂订单 + 国内供应链导入 + 订单排期延伸至XXXX",
+                  "未来3年量化预测": {
+                    "2026": "第二曲线收入XX亿元，同比X%；公司总营收XX亿元，同比X%；第二曲线占比X%",
+                    "2027": "第二曲线收入XX亿元，同比X%；公司总营收XX亿元，同比X%；第二曲线占比X%",
+                    "2028": "第二曲线收入XX亿元，同比X%；公司总营收XX亿元，同比X%；第二曲线占比X%"
+                  },
+                  "关键里程碑": "第二曲线XXXX年正式超越第一曲线成为第一主业"
+                }
+              },
+              "业绩兑现度": {
+                "rating": "X星/4星半 (满分5星)",
+                "ratingLogic": "...",
+                "历史财报验证": {
+                  "年份": "YYYY",
+                  "总营收": "XX亿元, 同比±X%",
+                  "归母净利润": "XX亿元, 同比±X%",
+                  "经营活动现金流净额": "XX亿元, 同比±X% (重点关注由负转正的拐点)",
+                  "业务毛利率结构": "业务A X% / 业务B X% (重点看高毛利业务占比是否抬升)"
+                },
+                "当期财报验证": {
+                  "季度": "YYYY QX",
+                  "营收": "XX亿元, 同比X%",
+                  "归母净利润": "XX亿元, 同比X%",
+                  "扣非净利润": "XX亿元, 同比X%",
+                  "核心信号": "利润增速 > 营收增速 → 验证高毛利业务放量 + 规模效应 (或反之)"
+                },
+                "远期利润与毛利率预判": [
+                  {"年份": "2026E", "归母净利润": "X.X亿元", "综合毛利率": "XX%", "核心兑现逻辑": "产能爬坡 + 大客户订单 + ..."},
+                  {"年份": "2027E", "归母净利润": "X.X亿元", "综合毛利率": "XX%", "核心兑现逻辑": "满产 + 订单放量 + ..."},
+                  {"年份": "2028E", "归母净利润": "X.X亿元", "综合毛利率": "XX%", "核心兑现逻辑": "业务结构跃迁 + 国产替代 + ..."}
+                ],
+                "业绩兑现确定性": "高/中/低",
+                "唯一变量": "产能爬坡节奏 / 海外交付 / 客户验收 / ..."
+              },
+              "瓶颈与壁垒": {
+                "rating": "X星/4星 (满分5星)",
+                "ratingLogic": "...",
+                "核心护城河壁垒": [
+                  {"类型": "技术专利壁垒", "数据": "核心IP来源(自研/并购) + 关键工艺指标 + 复刻周期"},
+                  {"类型": "顶级客户认证壁垒", "数据": "客户名单 + 认证周期X-Y年 + 转换成本/排期粘性"},
+                  {"类型": "重资产产能壁垒", "数据": "累计资本开支 + 产线/技工培养周期 + 新入局者门槛"}
+                ],
+                "当前成长约束瓶颈": [
+                  {"类型": "客户结构瓶颈", "数据": "单一客户占比X%，受行业周期扰动"},
+                  {"类型": "产能爬坡瓶颈", "数据": "新基地释放节奏 + 海外大客户交付进度"},
+                  {"类型": "地缘外部瓶颈", "数据": "海外供应链政策不确定性"}
+                ]
+              },
+              "估值阶梯": {
+                "估值底层逻辑": "当前市值仅充分定价主业价值；高成长业务估值未完全计价 + 估值中枢切换逻辑",
+                "估值体系": "主业PE X-Y倍；高成长业务PE X-Y倍 / PS X-Y倍",
+                "第一阶梯": {
+                  "时间窗口": "YYYY年底/半年内",
+                  "预期归母净利润": "X.X亿元",
+                  "预期总营收": "XX亿元",
+                  "估值中枢": "X-Y倍PE / X-Y倍PS",
+                  "目标市值区间": "XXX - XXX 亿元",
+                  "每股目标价": "XX - XX 元",
+                  "核心上涨催化": "..."
+                },
+                "第二阶梯": {
+                  "时间窗口": "YYYY年底/1-1.5年",
+                  "预期归母净利润": "X.X亿元",
+                  "预期总营收": "XX亿元",
+                  "第二曲线营收占比": "X%",
+                  "估值中枢": "X-Y倍PE / X-Y倍PS",
+                  "目标市值区间": "XXX - XXX 亿元",
+                  "每股目标价": "XX - XX 元",
+                  "核心上涨催化": "..."
+                },
+                "第三阶梯": {
+                  "时间窗口": "YYYY年底/3年长线",
+                  "预期归母净利润": "X.X亿元",
+                  "预期总营收": "XX亿元",
+                  "第二曲线地位": "正式成为第一主业",
+                  "稳态PE/PS": "XX倍PE / X倍PS",
+                  "PE测算稳态市值": "XX亿元",
+                  "PS测算稳态市值": "XXX亿元",
+                  "每股目标价": "XXX - XXX 元",
+                  "核心逻辑": "从A行业龙头 → B行业核心龙头 身份蜕变 + 估值体系重构"
+                },
+                "风险提示": [
+                  "[主业]客户资本开支不及预期，[业务A]订单下滑拖累基本盘",
+                  "[行业]整体产能扩张速度低于预期，下游设备采购需求疲软",
+                  "海外大客户认证/交付进度滞后，[业务B]放量速度不及预期"
+                ]
+              },
+              "summary": {
+                "verdict": "盯住/就是它了/观望/回避",
+                "oneLiner": "一句话总结(包含评级和核心逻辑)",
+                "coreDrivers": ["驱动1", "驱动2", "驱动3"]
               }
             }
             """;

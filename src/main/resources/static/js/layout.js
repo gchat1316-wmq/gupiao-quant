@@ -219,15 +219,6 @@
 
     mount.innerHTML =
       '<footer class="site-footer" data-collapsed="true">' +
-        '<button class="site-footer-toggle" type="button" aria-expanded="false" aria-controls="siteFooterPanel">' +
-          '<span class="toggle-icons" aria-hidden="true">' +
-            '<span class="toggle-icon">💖</span>' +
-            '<span class="toggle-icon">✨</span>' +
-          '</span>' +
-          '<span class="toggle-text">支持作者 / 提个需求</span>' +
-          '<span class="toggle-hint">悬停或点击展开</span>' +
-          '<span class="toggle-chevron" aria-hidden="true">▾</span>' +
-        '</button>' +
         '<div id="siteFooterPanel" class="site-footer-row">' +
           '<section class="donate-card" aria-label="打赏支持">' +
             '<div class="donate-qr">' +
@@ -255,6 +246,15 @@
             '</div>' +
           '</section>' +
         '</div>' +
+        '<button class="site-footer-toggle" type="button" aria-expanded="false" aria-controls="siteFooterPanel">' +
+          '<span class="toggle-icons" aria-hidden="true">' +
+            '<span class="toggle-icon">💖</span>' +
+            '<span class="toggle-icon">✨</span>' +
+          '</span>' +
+          '<span class="toggle-text">支持作者 / 提个需求</span>' +
+          '<span class="toggle-hint">悬停或点击展开</span>' +
+          '<span class="toggle-chevron" aria-hidden="true">▾</span>' +
+        '</button>' +
       '</footer>';
   }
 

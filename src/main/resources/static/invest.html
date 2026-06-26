@@ -216,6 +216,10 @@
           <button class="pool-filter-btn" data-filter="low">低估</button>
           <button class="pool-filter-btn" data-filter="high">高估</button>
         </div>
+        <div class="pool-header-search">
+          <input id="poolSearchInput" type="text" placeholder="搜索：名称 / 拼音首字母 / 代码" autocomplete="off" />
+          <button id="poolSearchClear" class="pool-search-clear hidden" type="button" title="清空">×</button>
+        </div>
         <div class="pool-header-actions">
           <button id="importPoolBtn" class="invest-btn-outline" style="height:36px;font-size:13px;padding:0 14px">📷 截图批量导入</button>
           <button id="addPoolBtn" class="invest-btn" style="height:36px;font-size:13px;padding:0 16px">+ 加入股票池</button>
@@ -451,7 +455,8 @@
     </div>
   </div>
 
+  <script src="lib/pinyin-pro.js"></script>
   <script src="js/practical-select.js?v=20260622-ps-v1"></script>
-  <script src="js/invest.js?v=20260529-pool"></script>
+  <script src="js/invest.js?v=20260626-search"></script>
 </body>
 </html>

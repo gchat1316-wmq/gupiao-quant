@@ -72,7 +72,24 @@ public class ProsperityStrongProperties {
         /** WorkBuddy 通达信 connector 安装目录,用于能力探测 */
         private String connectorDir = System.getProperty("user.home")
                 + "/.workbuddy/connectors-marketplace/connectors/tdx-connector";
-        /** 通达信 MCP 服务地址 */
-        private String mcpUrl = "https://txmcp.tdx.com.cn:3001/txmcp";
+        /** 通达信 MCP 服务地址 (API Key 直调模式用 mcp.tdx.com.cn, OAuth 模式用 txmcp.tdx.com.cn) */
+        private String mcpUrl = "https://mcp.tdx.com.cn:3001/mcp";
+        /** 通达信 OAuth authorization endpoint (从 RFC 8414 metadata 拉取) */
+        private String authorizationEndpoint = "https://auth.tdx.com.cn/tdx-oauth/page_workbuddy_oauth.html";
+        /** 通达信 OAuth token endpoint */
+        private String tokenEndpoint = "https://auth.tdx.com.cn/token";
+        /** 通达信 OAuth 动态注册 endpoint */
+        private String registrationEndpoint = "https://auth.tdx.com.cn/register";
+        /** 本地回调地址 (需在 TDX 注册时声明,例如 http://localhost:8080/gp/api/tdx/auth/callback) */
+        private String redirectUri = "http://localhost:8080/gp/api/tdx/auth/callback";
+        /** 客户端名 (动态注册时使用) */
+        private String clientName = "gupiao-quant-local";
+        /** token 缓存路径,文件内放 access_token / refresh_token / expires_at / client_id / code_verifier 临时态 */
+        private String tokenCachePath = System.getProperty("user.home")
+                + "/.workbuddy/connectors-marketplace/connectors/tdx-connector/token.json";
+        /** 通达信 API Key (TDX-c62ebd01... 这种, 通过 tdx-api-key header 鉴权, 不走 OAuth) */
+        private String apiKey = "";
+        /** 调 MCP 工具超时秒数 */
+        private int timeoutSeconds = 20;
     }
 }

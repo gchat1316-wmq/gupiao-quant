@@ -38,6 +38,8 @@ spring:
 
 app:
   upload-dir: uploads
+  # PDF 渲染脚本（绝对路径 或 相对项目根目录的路径）；Linux/macOS 各自覆盖
+  render-pdf-script: ${RENDER_PDF_SCRIPT:scripts/render_pdf.py}
 
 baostock-sync:
   enabled: true
@@ -113,9 +115,11 @@ prosperity-strong:
     config-path: ${WIND_CONFIG_PATH:${user.home}/.wind-aifinmarket/config}
     timeout-seconds: 15
   tdx:
-    enabled: false
+    enabled: true
     connector-dir: ${TDX_CONNECTOR_DIR:${user.home}/.workbuddy/connectors-marketplace/connectors/tdx-connector}
-    mcp-url: ${TDX_MCP_URL:https://txmcp.tdx.com.cn:3001/txmcp}
+    # TDX API Key 直调模式（不走 OAuth, 通过 tdx-api-key header 鉴权）
+    mcp-url: https://mcp.tdx.com.cn:3001/mcp
+    api-key: TDX-c62ebd01bf6634d29f6fb84019f81761
 
 invest-big-yang:
   enabled: true

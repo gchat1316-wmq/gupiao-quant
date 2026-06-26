@@ -83,6 +83,184 @@ public class UnifiedStockResearchService {
     }
 
     public String buildReportHtml(StockAnalysisResponse r, TradeStockBasic basic) {
+        if ("five_dimension".equalsIgnoreCase(r.getMethod())) {
+            return buildFiveDimensionReportHtml(r, basic);
+        }
+        return buildUnifiedReportHtml(r, basic);
+    }
+
+    private String buildFiveDimensionReportHtml(StockAnalysisResponse r, TradeStockBasic basic) {
+        StringBuilder sb = new StringBuilder(32_000);
+        sb.append("<!DOCTYPE html><html lang='zh-CN'><head><meta charset='utf-8'><title>")
+                .append(esc(r.getName())).append(" 五维模型 · 市值阶梯分析</title>")
+                .append("<style>")
+                .append(fiveDimCss())
+                .append("</style></head><body>");
+
+        Map<String, Object> analysis = r.getAnalysis() == null ? Collections.emptyMap() : r.getAnalysis();
+        Map<String, Object> scarce = asMap(analysis.get("稀缺卡位"));
+        Map<String, Object> growth = asMap(analysis.get("成长动力"));
+        Map<String, Object> deliver = asMap(analysis.get("业绩兑现度"));
+        Map<String, Object> barrier = asMap(analysis.get("瓶颈与壁垒"));
+        Map<String, Object> valuation = asMap(analysis.get("估值阶梯"));
+        Map<String, Object> summary = asMap(analysis.get("summary"));
+
+        sb.append("<h1>").append(esc(r.getName())).append(" (").append(esc(r.getCode())).append(") 五维模型 · 市值阶梯分析</h1>");
+        sb.append("<div class='sub'>稀缺卡位 · 成长动力 · 业绩兑现 · 瓶颈壁垒 · 估值阶梯 · 生成时间: ")
+                .append(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
+                .append("</div>");
+
+        // 总览
+        sb.append("<h2>总览</h2><div class='meta-grid'>")
+                .append(meta("股票", safeText(r.getName(), r.getCode())))
+                .append(meta("现价", r.getCurrentPrice() == null ? "-" : String.format("%.2f 元", r.getCurrentPrice())))
+                .append(meta("行业", basic.getSectorNames() == null ? "-" : basic.getSectorNames()))
+                .append(meta("综合结论", safeText(
+                        summary.get("oneLiner") == null ? null : String.valueOf(summary.get("oneLiner")),
+                        r.getVerdict(), "-")))
+                .append(meta("五维评级",
+                        joinLines(List.of(
+                                "① 稀缺卡位: " + value(scarce, "rating"),
+                                "② 成长动力: " + value(growth, "rating"),
+                                "③ 业绩兑现: " + value(deliver, "rating"),
+                                "④ 瓶颈壁垒: " + value(barrier, "rating")
+                        ))))
+                .append(meta("PE/PB/PS", joinSlash(basic.getPeTtm(), basic.getPb(), basic.getPsTtm())))
+                .append(meta("方法", "五维模型 · 增长五维分析"))
+                .append(meta("耗时", r.getElapsedMs() == null ? "-" : r.getElapsedMs() + " ms"))
+                .append("</div>");
+
+        sb.append("<h3>数据来源状态</h3><div class='source-grid'>");
+        Map<String, Object> sources = r.getSourceMetadata() == null ? Collections.emptyMap() : r.getSourceMetadata();
+        sb.append(sourceCard("DB", asMap(sources.get("db"))));
+        sb.append(sourceCard("baostock", asMap(sources.get("baostock"))));
+        sb.append(sourceCard("forecast", asMap(sources.get("forecast"))));
+        sb.append(sourceCard("web search", asMap(sources.get("webSearch"))));
+        sb.append(sourceCard("a-stock-data", asMap(sources.get("aStockData"))));
+        sb.append("</div>");
+
+        // 第一维度：稀缺卡位
+        Map<String, Object> scarceGlobal = asMap(scarce.get("全球技术稀缺性"));
+        Map<String, Object> scarceDual = asMap(scarce.get("双赛道卡位"));
+        sb.append("<h2>① 稀缺卡位 <span class='rating-tag'>").append(esc(value(scarce, "rating"))).append("</span></h2>")
+                .append(dimRatingNote(value(scarce, "ratingLogic")));
+        sb.append("<h3>全球技术稀缺性</h3>").append(cards(List.of(
+                card("全球可量产玩家数", value(scarceGlobal, "全球可量产玩家数")),
+                card("公司在A股的稀缺性", value(scarceGlobal, "公司在A股的稀缺性")),
+                card("关键技术指标", value(scarceGlobal, "关键技术指标")),
+                card("国内同业技术代差", value(scarceGlobal, "国内同业技术代差")),
+                card("研发投入", value(scarceGlobal, "研发投入")),
+                card("卡位赛道", value(scarceGlobal, "卡位赛道"))
+        )));
+        sb.append("<h3>双赛道卡位</h3>").append(cards(List.of(
+                card("主业", joinLines(List.of(
+                        "客户/份额/认证周期: " + value(scarceDual, "主业")
+                ))),
+                card("第二曲线", joinLines(List.of(
+                        "海内外客户矩阵: " + value(scarceDual, "第二曲线")
+                ))),
+                card("跨行业意义", value(scarceDual, "跨行业意义")),
+                card("业务结构演变", value(scarceDual, "业务结构演变"))
+        )));
+
+        // 第二维度：成长动力
+        Map<String, Object> firstCurve = asMap(growth.get("第一曲线"));
+        Map<String, Object> secondCurve = asMap(growth.get("第二曲线"));
+        Map<String, Object> firstForecast = asMap(firstCurve.get("未来3年量化预测"));
+        Map<String, Object> secondForecast = asMap(secondCurve.get("未来3年量化预测"));
+        sb.append("<h2>② 成长动力 <span class='rating-tag'>").append(esc(value(growth, "rating"))).append("</span></h2>")
+                .append(dimRatingNote(value(growth, "ratingLogic")));
+        sb.append("<h3>第一曲线（稳态保底增长）: ").append(esc(value(firstCurve, "业务名"))).append("</h3>")
+                .append(cards(List.of(
+                        card("行业逻辑", value(firstCurve, "行业逻辑")),
+                        card("年化复合增速", value(firstCurve, "年化复合增速")),
+                        card("稳态年度营收区间", value(firstCurve, "稳态年度营收区间")),
+                        card("2026E 营收", value(firstForecast, "2026")),
+                        card("2027E 营收", value(firstForecast, "2027")),
+                        card("2028E 营收", value(firstForecast, "2028")),
+                        card("角色定位", value(firstCurve, "角色定位"))
+                )));
+        sb.append("<h3>第二曲线（核心高弹性增长引擎）: ").append(esc(value(secondCurve, "业务名"))).append("</h3>")
+                .append(cards(List.of(
+                        card("行业需求端", value(secondCurve, "行业需求端")),
+                        card("产能端", value(secondCurve, "产能端")),
+                        card("客户端", value(secondCurve, "客户端")),
+                        card("2026E 预测", value(secondForecast, "2026")),
+                        card("2027E 预测", value(secondForecast, "2027")),
+                        card("2028E 预测", value(secondForecast, "2028")),
+                        card("关键里程碑", value(secondCurve, "关键里程碑"))
+                )));
+
+        // 第三维度：业绩兑现度
+        Map<String, Object> histFin = asMap(deliver.get("历史财报验证"));
+        Map<String, Object> curFin = asMap(deliver.get("当期财报验证"));
+        List<Map<String, Object>> forwardFin = castMapList(deliver.get("远期利润与毛利率预判"));
+        sb.append("<h2>③ 业绩兑现度 <span class='rating-tag'>").append(esc(value(deliver, "rating"))).append("</span></h2>")
+                .append(dimRatingNote(value(deliver, "ratingLogic")));
+        sb.append("<h3>").append(esc(value(histFin, "年份"))).append(" 历史财报验证</h3>").append(cards(List.of(
+                card("总营收", value(histFin, "总营收")),
+                card("归母净利润", value(histFin, "归母净利润")),
+                card("经营活动现金流净额", value(histFin, "经营活动现金流净额")),
+                card("业务毛利率结构", value(histFin, "业务毛利率结构"))
+        )));
+        sb.append("<h3>").append(esc(value(curFin, "季度"))).append(" 当期财报验证</h3>").append(cards(List.of(
+                card("营收", value(curFin, "营收")),
+                card("归母净利润", value(curFin, "归母净利润")),
+                card("扣非净利润", value(curFin, "扣非净利润")),
+                card("核心信号", value(curFin, "核心信号"))
+        )));
+        sb.append("<h3>远期利润与毛利率预判</h3>");
+        appendForwardForecastTable(sb, forwardFin);
+        sb.append(cards(List.of(
+                card("业绩兑现确定性", value(deliver, "业绩兑现确定性")),
+                card("唯一变量", value(deliver, "唯一变量"))
+        )));
+
+        // 第四维度：瓶颈与壁垒
+        List<Map<String, Object>> moats = castMapList(barrier.get("核心护城河壁垒"));
+        List<Map<String, Object>> bottlenecks = castMapList(barrier.get("当前成长约束瓶颈"));
+        sb.append("<h2>④ 瓶颈与壁垒 <span class='rating-tag'>").append(esc(value(barrier, "rating"))).append("</span></h2>")
+                .append(dimRatingNote(value(barrier, "ratingLogic")));
+        sb.append("<h3>核心护城河壁垒</h3>").append(barrierListHtml(moats, "护城河"));
+        sb.append("<h3>当前成长约束瓶颈</h3>").append(barrierListHtml(bottlenecks, "瓶颈"));
+
+        // 第五维度：估值阶梯
+        sb.append("<h2>⑤ 估值阶梯（PE + PS 双体系）</h2>")
+                .append(cards(List.of(
+                        card("估值底层逻辑", value(valuation, "估值底层逻辑")),
+                        card("估值体系", value(valuation, "估值体系"))
+                )));
+        sb.append("<h3>第一阶梯（短期）</h3>").append(appendStaircaseHtml(asMap(valuation.get("第一阶梯"))));
+        sb.append("<h3>第二阶梯（中期）</h3>").append(appendStaircaseHtml(asMap(valuation.get("第二阶梯"))));
+        sb.append("<h3>第三阶梯（远期）</h3>").append(appendStaircaseHtml(asMap(valuation.get("第三阶梯"))));
+
+        // 风险提示
+        List<String> risks = castStringList(valuation.get("风险提示"));
+        if (!risks.isEmpty()) {
+            sb.append("<h2>配套风险提示</h2><div class='summary-box'><ol>");
+            for (String risk : risks) {
+                sb.append("<li>").append(esc(risk)).append("</li>");
+            }
+            sb.append("</ol></div>");
+        }
+
+        // 一句话结论
+        sb.append("<h2>一句话结论</h2><div class='summary-box'>");
+        if (summary.get("coreDrivers") instanceof List<?> drivers && !drivers.isEmpty()) {
+            sb.append("<strong>核心驱动：</strong><ul>");
+            for (Object d : drivers) {
+                sb.append("<li>").append(esc(d)).append("</li>");
+            }
+            sb.append("</ul>");
+        }
+        sb.append("<div>").append(esc(safeText(summary.get("oneLiner"), r.getVerdict(), "暂无可用结构化数据"))).append("</div></div>");
+
+        sb.append("<div class='footer'>五维模型 · 市值阶梯分析 · 不构成投资建议 · ")
+                .append(esc(r.getCode())).append("</div></body></html>");
+        return sb.toString();
+    }
+
+    private String buildUnifiedReportHtml(StockAnalysisResponse r, TradeStockBasic basic) {
         StringBuilder sb = new StringBuilder(24_000);
         sb.append("<!DOCTYPE html><html lang='zh-CN'><head><meta charset='utf-8'><title>")
                 .append(esc(r.getName())).append(" 统一个股研究报告</title>")
@@ -228,6 +406,132 @@ public class UnifiedStockResearchService {
         sb.append("<div class='footer'>统一富报告 · 不构成投资建议 · ")
                 .append(esc(r.getCode())).append("</div></body></html>");
         return sb.toString();
+    }
+
+    private String fiveDimCss() {
+        return """
+            @page { size: A4; margin: 16mm 14mm; }
+            * { box-sizing: border-box; }
+            body { font-family: "Microsoft YaHei","PingFang SC",sans-serif; color: #172033; font-size: 10.5pt; line-height: 1.6; margin: 0; }
+            h1 { font-size: 22pt; margin: 0 0 6pt; color: #1e3a8a; border-bottom: 3px solid #1e3a8a; padding-bottom: 6pt; }
+            h2 { font-size: 14pt; margin: 14pt 0 6pt; color: #1e3a8a; border-left: 4px solid #1e3a8a; padding-left: 8pt; }
+            h3 { font-size: 11.5pt; margin: 10pt 0 4pt; color: #1f2937; }
+            .sub { color: #6b7280; font-size: 9pt; margin-bottom: 10pt; }
+            .meta-grid, .source-grid, .cards-grid { display: grid; gap: 6pt; }
+            .meta-grid { grid-template-columns: repeat(4, 1fr); }
+            .source-grid { grid-template-columns: repeat(5, 1fr); margin-top: 8pt; }
+            .cards-grid { grid-template-columns: repeat(2, 1fr); }
+            .meta-item, .card, .source-item { border: 1px solid #dbe4ec; border-radius: 6pt; padding: 6pt 8pt; background: #f8fafc; }
+            .meta-label, .card-label, .source-label { color: #6b7280; font-size: 8pt; }
+            .meta-value, .card-value, .source-value { margin-top: 2pt; }
+            .meta-value { font-size: 11.5pt; font-weight: 600; }
+            .source-value.ok { color: #166534; font-weight: 600; }
+            .source-value.miss { color: #991b1b; font-weight: 600; }
+            .card-value { white-space: pre-wrap; font-size: 10pt; }
+            .rating-tag { display: inline-block; background: #1e3a8a; color: #fff; font-size: 10pt; padding: 2pt 8pt; border-radius: 12pt; margin-left: 8pt; vertical-align: middle; }
+            .rating-note { background: #eef2ff; border-left: 3px solid #6366f1; padding: 6pt 10pt; margin: 4pt 0 8pt; font-size: 9.5pt; color: #312e81; border-radius: 4pt; }
+            .barrier-row { background: #fff; border: 1px solid #dbe4ec; border-left: 4px solid #6366f1; border-radius: 6pt; padding: 6pt 10pt; margin-bottom: 4pt; }
+            .barrier-row.bottleneck { border-left-color: #ef4444; background: #fef2f2; }
+            .barrier-type { font-weight: 700; color: #1e3a8a; font-size: 10pt; }
+            .barrier-row.bottleneck .barrier-type { color: #991b1b; }
+            .barrier-data { white-space: pre-wrap; font-size: 9.5pt; color: #334155; margin-top: 2pt; }
+            .staircase { background: linear-gradient(135deg, #f0f9ff 0%, #ecfeff 100%); border: 1px solid #bae6fd; border-radius: 8pt; padding: 8pt 12pt; margin-bottom: 6pt; }
+            .staircase .stage { font-weight: 700; color: #0c4a6e; font-size: 11pt; margin-bottom: 4pt; }
+            table { width: 100%; border-collapse: collapse; margin: 6pt 0; font-size: 9.5pt; }
+            th, td { border: 1px solid #d0d7e2; padding: 4pt 6pt; text-align: left; vertical-align: top; }
+            th { background: #eef2ff; color: #1e3a8a; }
+            ul, ol { margin: 4pt 0; padding-left: 16pt; }
+            .footer { margin-top: 18pt; padding-top: 6pt; border-top: 1px solid #d0d7e2; color: #94a3b8; font-size: 8pt; text-align: center; }
+            .summary-box { background: #fefce8; border: 1px solid #fde68a; border-radius: 6pt; padding: 8pt; }
+        """;
+    }
+
+    private String dimRatingNote(String note) {
+        if (note == null || note.isBlank()) return "";
+        return "<div class='rating-note'>" + esc(note) + "</div>";
+    }
+
+    private String barrierListHtml(List<Map<String, Object>> items, String cssClass) {
+        if (items == null || items.isEmpty()) {
+            return "<div class='card'>暂无可用结构化数据</div>";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (Map<String, Object> item : items) {
+            String type = value(item, "类型");
+            String data = value(item, "数据");
+            if (type == null && data == null) continue;
+            sb.append("<div class='barrier-row ").append(cssClass).append("'>")
+                    .append("<div class='barrier-type'>").append(esc(type)).append("</div>")
+                    .append("<div class='barrier-data'>").append(esc(data)).append("</div>")
+                    .append("</div>");
+        }
+        return sb.toString();
+    }
+
+    private String appendStaircaseHtml(Map<String, Object> stair) {
+        if (stair == null || stair.isEmpty()) {
+            return "<div class='card'>暂无可用结构化数据</div>";
+        }
+        StringBuilder sb = new StringBuilder("<div class='staircase'>");
+        if (stair.get("时间窗口") != null) {
+            sb.append("<div class='stage'>⏱ ").append(esc(value(stair, "时间窗口"))).append("</div>");
+        }
+        sb.append("<table><tbody>");
+        appendStairRow(sb, "预期归母净利润", value(stair, "预期归母净利润"));
+        appendStairRow(sb, "预期总营收", value(stair, "预期总营收"));
+        if (stair.get("第二曲线营收占比") != null) {
+            appendStairRow(sb, "第二曲线营收占比", value(stair, "第二曲线营收占比"));
+        }
+        if (stair.get("第二曲线地位") != null) {
+            appendStairRow(sb, "第二曲线地位", value(stair, "第二曲线地位"));
+        }
+        if (stair.get("估值中枢") != null) {
+            appendStairRow(sb, "估值中枢", value(stair, "估值中枢"));
+        }
+        if (stair.get("稳态PE/PS") != null) {
+            appendStairRow(sb, "稳态PE/PS", value(stair, "稳态PE/PS"));
+        }
+        if (stair.get("PE测算稳态市值") != null) {
+            appendStairRow(sb, "PE测算稳态市值", value(stair, "PE测算稳态市值"));
+        }
+        if (stair.get("PS测算稳态市值") != null) {
+            appendStairRow(sb, "PS测算稳态市值", value(stair, "PS测算稳态市值"));
+        }
+        if (stair.get("目标市值区间") != null) {
+            appendStairRow(sb, "目标市值区间", value(stair, "目标市值区间"));
+        }
+        if (stair.get("每股目标价") != null) {
+            appendStairRow(sb, "每股目标价", value(stair, "每股目标价"));
+        }
+        if (stair.get("核心上涨催化") != null) {
+            appendStairRow(sb, "核心上涨催化", value(stair, "核心上涨催化"));
+        }
+        if (stair.get("核心逻辑") != null) {
+            appendStairRow(sb, "核心逻辑", value(stair, "核心逻辑"));
+        }
+        sb.append("</tbody></table></div>");
+        return sb.toString();
+    }
+
+    private void appendStairRow(StringBuilder sb, String label, String value) {
+        if (value == null || value.isBlank()) return;
+        sb.append("<tr><th style='width:30%'>").append(esc(label)).append("</th>")
+                .append("<td>").append(esc(value)).append("</td></tr>");
+    }
+
+    private void appendForwardForecastTable(StringBuilder sb, List<Map<String, Object>> rows) {
+        if (rows == null || rows.isEmpty()) {
+            sb.append("<div class='card'>暂无可用结构化数据</div>");
+            return;
+        }
+        sb.append("<table><thead><tr><th>年份</th><th>归母净利润</th><th>综合毛利率</th><th>核心兑现逻辑</th></tr></thead><tbody>");
+        for (Map<String, Object> row : rows) {
+            sb.append("<tr><td>").append(esc(row.get("年份"))).append("</td>")
+                    .append("<td>").append(esc(row.get("归母净利润"))).append("</td>")
+                    .append("<td>").append(esc(row.get("综合毛利率"))).append("</td>")
+                    .append("<td>").append(esc(row.get("核心兑现逻辑"))).append("</td></tr>");
+        }
+        sb.append("</tbody></table>");
     }
 
     public String normalizeCode(String code) {
