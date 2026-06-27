@@ -80,13 +80,15 @@ public class AuthController {
 
     // ── 密码登录 ────────────────────────────────────────
 
-    public record LoginRequest(String phone, String password) {}
+    public record LoginRequest(String phone, String username, String password) {}
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest req, HttpServletRequest httpReq) {
         String ip = getClientIp(httpReq);
         try {
-            AuthResult result = authService.loginWithPassword(req.phone(), req.password(), ip);
+            // 支持 phone 或 username 登录
+            String identifier = req.phone() != null ? req.phone() : req.username();
+            AuthResult result = authService.loginWithPassword(identifier, req.password(), ip);
             return ResponseEntity.ok(new AuthResponse(result.token(), "bearer", result.isNewUser(), result.toDto()));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));

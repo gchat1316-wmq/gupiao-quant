@@ -104,13 +104,16 @@ public class AuthService {
     // ── 密码登录 ────────────────────────────────────────
 
     @Transactional
-    public AuthResult loginWithPassword(String phone, String password, String ip) {
-        User user = userRepository.findByPhone(phone).orElse(null);
+    public AuthResult loginWithPassword(String identifier, String password, String ip) {
+        // identifier 可以是 phone 或 username
+        User user = userRepository.findByPhone(identifier)
+                .or(() -> userRepository.findByUsername(identifier))
+                .orElse(null);
         if (user == null) {
-            throw new RuntimeException("手机号未注册");
+            throw new RuntimeException("账号不存在");
         }
         if (user.getPasswordHash() == null) {
-            throw new RuntimeException("该账号未设置密码，请使用验证码登录");
+            throw new RuntimeException("该账号未设置密码，请使用验证码登录或微信扫码");
         }
         if (user.getDisabled()) {
             throw new RuntimeException("账号已被禁用");
@@ -121,7 +124,7 @@ public class AuthService {
 
         user.setLastLoginAt(LocalDateTime.now());
         userRepository.save(user);
-        log(user.getId(), "LOGIN_PASSWORD", "phone:" + phone, null, ip);
+        log(user.getId(), "LOGIN_PASSWORD", identifier, null, ip);
 
         String token = tokenProvider.generate(user.getId(), user.getRole().name());
         return new AuthResult(token, false, user);
@@ -220,7 +223,7 @@ public class AuthService {
 
         User user = new User();
         user.setRole(lc.getIntendedRole());
-        user.setUsername(lc.getIntendedRole() == User.Role.ADMIN ? "管理员" : "经理");
+        // username 留空，后续用户自行设置
         user = userRepository.save(user);
 
         lc.setUsed(true);

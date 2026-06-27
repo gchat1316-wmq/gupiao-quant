@@ -44,6 +44,7 @@ public class JwtTokenProvider {
     }
 
     public Claims parse(String token) {
+        if (token == null || token.isBlank()) return null;
         try {
             return Jwts.parser()
                     .verifyWith(key)

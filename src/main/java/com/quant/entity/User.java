@@ -28,6 +28,7 @@ public class User {
     @Column(unique = true)
     private String unionid;
 
+    @Column(unique = true)
     private String username;
 
     @Enumerated(EnumType.STRING)

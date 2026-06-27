@@ -244,4 +244,86 @@ class AuthServiceTest {
                     .hasMessageContaining("不存在");
         }
     }
+
+    // ── 微信扫码登录 ─────────────────────────────────────
+
+    @Nested
+    @DisplayName("loginWithWechat")
+    class LoginWithWechat {
+
+        @Test
+        @DisplayName("新用户扫码 → 创建 USER 角色账号，返回 token")
+        void newUserWechatLogin() {
+            when(userRepository.findByOpenid("wx_abc123")).thenReturn(Optional.empty());
+            when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+                User u = inv.getArgument(0);
+                u.setId(100L);
+                return u;
+            });
+            when(tokenProvider.generate(100L, "USER")).thenReturn("jwt_token_new");
+            when(auditLogRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            AuthService.AuthResult result = authService.loginWithWechat("wx_abc123", "union_001", "小明", "1.2.3.4");
+
+            assertThat(result.isNewUser()).isTrue();
+            assertThat(result.token()).isEqualTo("jwt_token_new");
+
+            ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+            verify(userRepository).save(userCaptor.capture());
+            User saved = userCaptor.getValue();
+            assertThat(saved.getOpenid()).isEqualTo("wx_abc123");
+            assertThat(saved.getUnionid()).isEqualTo("union_001");
+            assertThat(saved.getUsername()).isEqualTo("小明");
+            assertThat(saved.getRole()).isEqualTo(User.Role.USER);
+
+            // 审计日志记录注册
+            verify(auditLogRepository).save(argThat(log ->
+                log.getAction().equals("WECHAT_REGISTER")));
+        }
+
+        @Test
+        @DisplayName("老用户扫码 → 更新昵称，返回 token，不记注册日志")
+        void existingUserWechatLogin() {
+            User existing = new User();
+            existing.setId(50L);
+            existing.setOpenid("wx_abc123");
+            existing.setUsername("旧昵称");
+            existing.setRole(User.Role.MANAGER);
+
+            when(userRepository.findByOpenid("wx_abc123")).thenReturn(Optional.of(existing));
+            when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(tokenProvider.generate(50L, "MANAGER")).thenReturn("jwt_token_existing");
+            when(auditLogRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            AuthService.AuthResult result = authService.loginWithWechat("wx_abc123", "union_001", "新昵称", "5.6.7.8");
+
+            assertThat(result.isNewUser()).isFalse();
+            assertThat(result.token()).isEqualTo("jwt_token_existing");
+
+            // 审计日志记录登录，不是注册
+            verify(auditLogRepository).save(argThat(log ->
+                log.getAction().equals("WECHAT_LOGIN")));
+            verify(auditLogRepository, never()).save(argThat(log ->
+                log.getAction().equals("WECHAT_REGISTER")));
+        }
+
+        @Test
+        @DisplayName("老用户无昵称变更 → 不改 username，只记登录日志")
+        void existingUserNoNicknameChange() {
+            User existing = new User();
+            existing.setId(60L);
+            existing.setOpenid("wx_abc123");
+            existing.setUsername("不变");
+            existing.setRole(User.Role.USER);
+
+            when(userRepository.findByOpenid("wx_abc123")).thenReturn(Optional.of(existing));
+            when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(tokenProvider.generate(60L, "USER")).thenReturn("jwt_token");
+            when(auditLogRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            AuthService.AuthResult result = authService.loginWithWechat("wx_abc123", null, null, "1.1.1.1");
+
+            assertThat(result.user().getUsername()).isEqualTo("不变"); // username 未被 null 覆盖
+        }
+    }
 }

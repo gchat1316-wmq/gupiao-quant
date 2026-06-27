@@ -1,11 +1,18 @@
 package com.quant.config;
 
+import com.quant.entity.User;
+import com.quant.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.security.SecureRandom;
+import java.util.Base64;
 
 /**
  * 启动时检查 + 建表 (避免依赖 ddl-auto)
@@ -17,9 +24,15 @@ import org.springframework.stereotype.Component;
 public class SchemaInitializer implements CommandLineRunner {
 
     private final JdbcTemplate jdbc;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public void run(String... args) {
+        ensureAuthUserTable();
+        ensureLoginCodeTable();
+        ensureAuditLogTable();
+        bootstrapFirstAdmin();
         ensureLynchInvestTables();
         ensureInvestAlertTable();
         ensureInvestBigYangSignalTable();
@@ -37,6 +50,117 @@ public class SchemaInitializer implements CommandLineRunner {
         ensureIndustryResearchTables();
         ensureProsperityStockPoolTable();
         ensureProsperityStockPoolOwnerId();
+    }
+
+    // ── 认证相关表 ───────────────────────────────────────
+
+    private void ensureAuthUserTable() {
+        try {
+            jdbc.execute("""
+                CREATE TABLE auth_user (
+                    id            BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    username      VARCHAR(50),
+                    password_hash VARCHAR(255),
+                    phone         VARCHAR(20)  UNIQUE,
+                    openid        VARCHAR(128) UNIQUE,
+                    unionid       VARCHAR(128) UNIQUE,
+                    role          VARCHAR(20)  NOT NULL DEFAULT 'USER',
+                    disabled      BOOLEAN      NOT NULL DEFAULT FALSE,
+                    last_login_at DATETIME,
+                    created_at    DATETIME     DEFAULT CURRENT_TIMESTAMP,
+                    updated_at    DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """);
+            log.info("auth_user 表已创建");
+        } catch (Exception e) {
+            // 表已存在，增量补列
+            try { jdbc.execute("ALTER TABLE auth_user ADD COLUMN unionid VARCHAR(128) UNIQUE"); log.info("auth_user unionid 列已添加"); } catch (Exception ex) { log.debug("unionid 列已存在: {}", ex.getMessage()); }
+            try { jdbc.execute("ALTER TABLE auth_user ADD COLUMN disabled BOOLEAN NOT NULL DEFAULT FALSE"); log.info("auth_user disabled 列已添加"); } catch (Exception ex) { log.debug("disabled 列已存在: {}", ex.getMessage()); }
+            try { jdbc.execute("ALTER TABLE auth_user ADD COLUMN last_login_at DATETIME"); log.info("auth_user last_login_at 列已添加"); } catch (Exception ex) { log.debug("last_login_at 列已存在: {}", ex.getMessage()); }
+            try { jdbc.execute("ALTER TABLE auth_user MODIFY COLUMN password_hash VARCHAR(255)"); log.info("auth_user password_hash 已改为 nullable"); } catch (Exception ex) { log.debug("password_hash 列调整: {}", ex.getMessage()); }
+            try { jdbc.execute("ALTER TABLE auth_user MODIFY COLUMN username VARCHAR(50)"); log.info("auth_user username 已改为 nullable"); } catch (Exception ex) { log.debug("username 列调整: {}", ex.getMessage()); }
+            try { jdbc.execute("ALTER TABLE auth_user ADD UNIQUE INDEX uk_username (username)"); log.info("auth_user username UNIQUE 已添加"); } catch (Exception ex) { log.debug("username UNIQUE 已存在: {}", ex.getMessage()); }
+        }
+    }
+
+    private void ensureLoginCodeTable() {
+        try {
+            jdbc.execute("""
+                CREATE TABLE login_code (
+                    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    code        VARCHAR(20)  NOT NULL UNIQUE,
+                    role        VARCHAR(20)  NOT NULL,
+                    used        BOOLEAN      NOT NULL DEFAULT FALSE,
+                    user_id     BIGINT       DEFAULT NULL,
+                    expires_at  DATETIME     NOT NULL,
+                    created_at  DATETIME     DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """);
+            log.info("login_code 表已创建");
+        } catch (Exception e) {
+            log.debug("login_code 表已存在: {}", e.getMessage());
+        }
+    }
+
+    private void ensureAuditLogTable() {
+        try {
+            jdbc.execute("""
+                CREATE TABLE audit_log (
+                    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    user_id     BIGINT,
+                    action      VARCHAR(50)  NOT NULL,
+                    target      VARCHAR(255),
+                    detail      TEXT,
+                    ip          VARCHAR(45),
+                    created_at  DATETIME     DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """);
+            log.info("audit_log 表已创建");
+        } catch (Exception e) {
+            log.debug("audit_log 表已存在: {}", e.getMessage());
+        }
+    }
+
+    // ── ADMIN 自举 ───────────────────────────────────────
+
+    /** 无任何用户时自动创建首个 ADMIN（密码打印到日志） */
+    @Transactional
+    void bootstrapFirstAdmin() {
+        // 已有任意用户，跳过创建
+        if (userRepository.count() > 0) {
+            // 无任何可用管理员 → 重置所有 admin 为启用（恢复入口）
+            boolean hasEnabledAdmin = userRepository.findAll().stream()
+                    .anyMatch(u -> u.getRole() == User.Role.ADMIN && !Boolean.TRUE.equals(u.getDisabled()));
+            if (!hasEnabledAdmin) {
+                log.warn("【安全恢复】未发现可用管理员，将重置现有 ADMIN 账号...");
+                userRepository.findAll().stream()
+                        .filter(u -> u.getRole() == User.Role.ADMIN)
+                        .forEach(u -> { u.setDisabled(false); userRepository.save(u); });
+                log.warn("【安全恢复】ADMIN 账号已恢复可用，请立即登录并检查安全设置。");
+            }
+            return;
+        }
+
+        String rawPassword = generateSecurePassword(16);
+        User admin = new User();
+        admin.setUsername("admin");
+        admin.setRole(User.Role.ADMIN);
+        admin.setPasswordHash(passwordEncoder.encode(rawPassword));
+        userRepository.save(admin);
+
+        log.warn("═══════════════════════════════════════════════════════");
+        log.warn("【首次启动】系统已自动创建管理员账号：");
+        log.warn("  用户名：admin");
+        log.warn("  密码：{}", rawPassword);
+        log.warn("请立即登录并修改密码！");
+        log.warn("═══════════════════════════════════════════════════════");
+    }
+
+    private String generateSecurePassword(int length) {
+        byte[] bytes = new byte[length];
+        new SecureRandom().nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+                .replace("-", "").replace("_", "").substring(0, length);
     }
 
     /**
