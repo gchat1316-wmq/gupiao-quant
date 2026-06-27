@@ -36,5 +36,34 @@
         </li>
       </ul>
     </div>
+    <!-- 登录 / 用户信息 -->
+    <div id="authArea" class="auth-area">
+      <button id="authLoginBtn" class="auth-btn auth-btn-login" type="button">登录</button>
+      <div id="authUser" class="auth-user hidden">
+        <span id="authUsername" class="auth-username"></span>
+        <span id="authRole" class="auth-role"></span>
+        <button id="authLogoutBtn" class="auth-btn auth-btn-logout" type="button">退出</button>
+      </div>
+    </div>
   </div>
 </header>
+
+<!-- 登录弹窗 -->
+<div id="authModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span id="authModalTitle" class="modal-title">登录</span>
+      <button id="authModalClose" class="modal-close" type="button" aria-label="关闭">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="authError" class="auth-error hidden"></div>
+      <div class="form-group">
+        <label for="authCodeInput">登录码</label>
+        <input id="authCodeInput" class="form-input" type="text"
+               placeholder="输入管理员提供的登录码，如 GP-20260627-XXXXXX"
+               maxlength="30" autocomplete="off" spellcheck="false" />
+      </div>
+      <button id="authSubmitBtn" class="primary-btn wide" type="button">确认登录</button>
+    </div>
+  </div>
+</div>

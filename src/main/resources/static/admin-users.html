@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>用户管理 · 投资助手</title>
+  <base href="/gp/" />
+  <link rel="stylesheet" href="css/skin.css" />
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    body { background: var(--bg); }
+    .admin-shell { max-width: 900px; margin: 40px auto; padding: 0 20px; }
+    .admin-title { font-size: 24px; font-weight: 700; margin-bottom: 24px; color: var(--text); }
+    .admin-section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+    .admin-section-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+    .user-table { width: 100%; border-collapse: collapse; }
+    .user-table th { text-align: left; font-size: 12px; color: var(--text-muted); padding: 8px 10px; border-bottom: 1px solid var(--border); }
+    .user-table td { padding: 10px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: middle; }
+    .user-table tr:last-child td { border-bottom: none; }
+    .role-select { padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 13px; }
+    .role-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+    .role-badge.ADMIN { background: #e53; color: #fff; }
+    .role-badge.MANAGER { background: var(--primary); color: #fff; }
+    .role-badge.USER { background: var(--border); color: var(--text-muted); }
+    .btn-sm { padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border); background: transparent; cursor: pointer; font-size: 13px; }
+    .btn-sm:hover { background: var(--hover-bg); }
+    .gen-code-form { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+    .form-field { display: flex; flex-direction: column; gap: 4px; }
+    .form-label { font-size: 13px; font-weight: 500; color: var(--text); }
+    .form-input { padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; background: var(--surface); color: var(--text); }
+    .gen-result { margin-top: 12px; padding: 12px; background: #f0f9ff; border: 1px solid #b3d8fd; border-radius: 8px; font-size: 14px; }
+    .gen-result code { font-size: 16px; font-weight: 700; color: var(--primary); letter-spacing: 1px; }
+    .msg { font-size: 13px; margin-top: 6px; }
+    .msg.ok { color: #22c55e; }
+    .msg.err { color: #e53; }
+    .admin-unauthorized { max-width: 400px; margin: 80px auto; text-align: center; padding: 40px; }
+    .admin-unauthorized h2 { font-size: 20px; color: var(--text); }
+    .admin-unauthorized p { color: var(--text-muted); margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <div id="siteHeader"></div>
+  <div id="adminContent"></div>
+
+  <script src="js/layout.js" defer></script>
+  <script>
+  document.addEventListener('DOMContentLoaded', async function () {
+    await new Promise(r => setTimeout(r, 100)); // wait for layout.js
+
+    var content = document.getElementById('adminContent');
+    var token = localStorage.getItem('gp_auth_token');
+    if (!token) {
+      content.innerHTML = '<div class="admin-unauthorized"><h2>请先登录</h2><p>管理员功能需要先登录</p></div>';
+      return;
+    }
+
+    var me = await fetch('/gp/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; });
+
+    if (!me || me.role !== 'ADMIN') {
+      content.innerHTML = '<div class="admin-unauthorized"><h2>权限不足</h2><p>仅管理员可访问此页面</p></div>';
+      return;
+    }
+
+    content.innerHTML = `
+      <div class="admin-shell">
+        <div class="admin-title">👤 用户管理</div>
+
+        <div class="admin-section">
+          <div class="admin-section-title">生成登录码</div>
+          <div class="gen-code-form">
+            <div class="form-field">
+              <label class="form-label">分配角色</label>
+              <select id="genRole" class="form-input">
+                <option value="MANAGER">MANAGER（龙江股票池管理员）</option>
+                <option value="ADMIN">ADMIN（系统管理员）</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label class="form-label">有效期（天）</label>
+              <input id="genDays" class="form-input" type="number" value="7" min="1" max="30" style="width:80px" />
+            </div>
+            <div class="form-field">
+              <label class="form-label">&nbsp;</label>
+              <button id="genBtn" class="primary-btn">生成登录码</button>
+            </div>
+          </div>
+          <div id="genResult" class="gen-result hidden"></div>
+          <div id="genMsg" class="msg"></div>
+        </div>
+
+        <div class="admin-section">
+          <div class="admin-section-title">用户列表</div>
+          <table class="user-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>用户名</th>
+                <th>手机号</th>
+                <th>微信</th>
+                <th>角色</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="userTableBody">
+              <tr><td colspan="6" style="text-align:center;color:var(--text-muted)">加载中…</td></tr>
+            </tbody>
+          </table>
+          <div id="listMsg" class="msg"></div>
+        </div>
+      </div>`;
+
+    // 生成登录码
+    document.getElementById('genBtn').addEventListener('click', async function () {
+      var role = document.getElementById('genRole').value;
+      var days = parseInt(document.getElementById('genDays').value) || 7;
+      var btn = this; btn.disabled = true; btn.textContent = '生成中…';
+      var resultDiv = document.getElementById('genResult');
+      var msgDiv = document.getElementById('genMsg');
+      resultDiv.classList.add('hidden'); msgDiv.textContent = ''; msgDiv.className = 'msg';
+      try {
+        var r = await fetch('/gp/api/auth/admin/login-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ role: role, expireDays: days })
+        });
+        var data = await r.json();
+        if (data.error) { msgDiv.textContent = '错误: ' + data.error; msgDiv.classList.add('err'); }
+        else {
+          resultDiv.innerHTML = '登录码生成成功！<br>将此码发给对应人员：<br><code>' + data.code + '</code>';
+          resultDiv.classList.remove('hidden');
+          loadUsers();
+        }
+      } catch (e) { msgDiv.textContent = '网络错误'; msgDiv.classList.add('err'); }
+      finally { btn.disabled = false; btn.textContent = '生成登录码'; }
+    });
+
+    async function loadUsers() {
+      var tbody = document.getElementById('userTableBody');
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">加载中…</td></tr>';
+      try {
+        var r = await fetch('/gp/api/auth/admin/users', { headers: { 'Authorization': 'Bearer ' + token } });
+        if (r.status === 403 || r.status === 401) { tbody.innerHTML = '<tr><td colspan="6" style="color:#e53">权限不足</td></tr>'; return; }
+        var users = await r.json();
+        tbody.innerHTML = '';
+        users.forEach(function (u) {
+          var badge = '<span class="role-badge ' + u.role + '">' + roleName(u.role) + '</span>';
+          var sel = '<select class="role-select" data-id="' + u.id + '"><option value="ADMIN"' + (u.role==='ADMIN'?' selected':'') + '>ADMIN</option><option value="MANAGER"' + (u.role==='MANAGER'?' selected':'') + '>MANAGER</option><option value="USER"' + (u.role==='USER'?' selected':'') + '>USER</option></select>';
+          tbody.innerHTML += '<tr>' +
+            '<td>' + u.id + '</td>' +
+            '<td>' + esc(u.username || '—') + '</td>' +
+            '<td>' + esc(u.phone || '—') + '</td>' +
+            '<td>' + esc(u.openid || '—') + '</td>' +
+            '<td>' + badge + '</td>' +
+            '<td><button class="btn-sm save-role-btn" data-id="' + u.id + '">保存</button></td>' +
+            '</tr>';
+        });
+        tbody.querySelectorAll('.save-role-btn').forEach(function (btn) {
+          btn.addEventListener('click', async function () {
+            var id = this.dataset.id;
+            var sel = document.querySelector('.role-select[data-id="' + id + '"]');
+            var newRole = sel.value;
+            var msgEl = document.getElementById('listMsg');
+            var r = await fetch('/gp/api/auth/admin/users/' + id + '/role', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+              body: JSON.stringify({ role: newRole })
+            });
+            var res = await r.json();
+            if (res.error) { msgEl.textContent = res.error; msgEl.className = 'msg err'; }
+            else { msgEl.textContent = '已更新为 ' + roleName(newRole); msgEl.className = 'msg ok'; loadUsers(); }
+          });
+        });
+      } catch (e) { tbody.innerHTML = '<tr><td colspan="6" style="color:#e53">加载失败</td></tr>'; }
+    }
+
+    loadUsers();
+  });
+
+  function roleName(r) {
+    if (r === 'ADMIN') return '管理员';
+    if (r === 'MANAGER') return '经理';
+    if (r === 'USER') return '用户';
+    return r || '';
+  }
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  </script>
+</body>
+</html>

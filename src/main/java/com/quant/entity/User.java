@@ -1,0 +1,54 @@
+package com.quant.entity;
+
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.time.LocalDateTime;
+
+@Getter
+@Setter
+@Entity
+@Table(name = "auth_user")
+public class User {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(unique = true)
+    private String phone;
+
+    @Column(name = "password_hash")
+    private String passwordHash;
+
+    @Column(unique = true)
+    private String openid;
+
+    @Column(unique = true)
+    private String unionid;
+
+    private String username;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role = Role.USER;
+
+    @Column(nullable = false)
+    private Boolean disabled = false;
+
+    @Column(name = "last_login_at")
+    private LocalDateTime lastLoginAt;
+
+    @Column(name = "created_at", insertable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", insertable = false, updatable = false)
+    private LocalDateTime updatedAt;
+
+    public enum Role {
+        ADMIN,   // 系统管理员
+        MANAGER, // 龙江股票池管理员
+        USER     // 普通用户
+    }
+}

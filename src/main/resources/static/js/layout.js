@@ -167,8 +167,32 @@
                 '<li role="option" data-skin="bull" aria-selected="false"><span class="dot"></span>牛市红</li>' +
               '</ul>' +
             '</div>' +
+            '<div id="authArea" class="auth-area">' +
+              '<button id="authLoginBtn" class="auth-btn auth-btn-login" type="button">登录</button>' +
+              '<div id="authUser" class="auth-user hidden">' +
+                '<span id="authUsername" class="auth-username"></span>' +
+                '<span id="authRole" class="auth-role"></span>' +
+                '<button id="authLogoutBtn" class="auth-btn auth-btn-logout" type="button">退出</button>' +
+              '</div>' +
+            '</div>' +
           '</div>' +
-        '</header>';
+        '</header>' +
+        '<div id="authModal" class="modal-overlay hidden" role="dialog" aria-modal="true">' +
+          '<div class="modal-box">' +
+            '<div class="modal-header">' +
+              '<span class="modal-title">登录</span>' +
+              '<button id="authModalClose" class="modal-close" type="button">×</button>' +
+            '</div>' +
+            '<div class="modal-body">' +
+              '<div id="authError" class="auth-error hidden"></div>' +
+              '<div class="form-group">' +
+                '<label for="authCodeInput">登录码</label>' +
+                '<input id="authCodeInput" class="form-input" type="text" placeholder="输入管理员提供的登录码" maxlength="30" autocomplete="off" />' +
+              '</div>' +
+              '<button id="authSubmitBtn" class="primary-btn wide" type="button">确认登录</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
     }
 
     mount.querySelectorAll('.nav-link').forEach(function (link) {
@@ -367,4 +391,135 @@
   renderFooter();
   bindWishPool();
   bindFooterToggle();
+  bindAuth();
 }());
+
+// ============================================================
+//  认证：登录 / 状态 / 登出
+// ============================================================
+var AUTH_TOKEN_KEY = 'gp_auth_token';
+
+function bindAuth() {
+  var loginBtn = document.getElementById('authLoginBtn');
+  var authUser = document.getElementById('authUser');
+  var authUsername = document.getElementById('authUsername');
+  var authRole = document.getElementById('authRole');
+  var logoutBtn = document.getElementById('authLogoutBtn');
+  var modal = document.getElementById('authModal');
+  var modalClose = document.getElementById('authModalClose');
+  var codeInput = document.getElementById('authCodeInput');
+  var submitBtn = document.getElementById('authSubmitBtn');
+  var authError = document.getElementById('authError');
+
+  if (!loginBtn) return;
+
+  function showModal() {
+    authError.classList.add('hidden');
+    authError.textContent = '';
+    codeInput.value = '';
+    modal.classList.remove('hidden');
+    codeInput.focus();
+  }
+  function hideModal() {
+    modal.classList.add('hidden');
+  }
+
+  loginBtn.addEventListener('click', showModal);
+  if (modalClose) modalClose.addEventListener('click', hideModal);
+  modal.addEventListener('click', function (e) {
+    if (e.target === modal) hideModal();
+  });
+
+  submitBtn.addEventListener('click', function () {
+    var code = codeInput.value.trim();
+    if (!code) {
+      authError.textContent = '请输入登录码';
+      authError.classList.remove('hidden');
+      return;
+    }
+    authError.classList.add('hidden');
+    submitBtn.disabled = true;
+    submitBtn.textContent = '登录中…';
+    fetch('/gp/api/auth/login-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.error) {
+          authError.textContent = data.error;
+          authError.classList.remove('hidden');
+        } else {
+          localStorage.setItem(AUTH_TOKEN_KEY, data.accessToken);
+          updateAuthUI(data.user);
+          hideModal();
+        }
+      })
+      .catch(function () {
+        authError.textContent = '网络错误，请稍后重试';
+        authError.classList.remove('hidden');
+      })
+      .finally(function () {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '确认登录';
+      });
+  });
+
+  codeInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); submitBtn.click(); }
+  });
+
+  logoutBtn.addEventListener('click', function () {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    loginBtn.classList.remove('hidden');
+    authUser.classList.add('hidden');
+  });
+
+  // 初始化：检查登录状态
+  checkAuthStatus();
+}
+
+function checkAuthStatus() {
+  var token = localStorage.getItem(AUTH_TOKEN_KEY);
+  if (!token) return;
+  fetch('/gp/api/auth/me', {
+    headers: { 'Authorization': 'Bearer ' + token }
+  })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (user) {
+      if (user) updateAuthUI(user);
+      else localStorage.removeItem(AUTH_TOKEN_KEY);
+    })
+    .catch(function () { localStorage.removeItem(AUTH_TOKEN_KEY); });
+}
+
+function updateAuthUI(user) {
+  var loginBtn = document.getElementById('authLoginBtn');
+  var authUser = document.getElementById('authUser');
+  var authUsername = document.getElementById('authUsername');
+  var authRole = document.getElementById('authRole');
+  if (!loginBtn) return;
+  loginBtn.classList.add('hidden');
+  authUser.classList.remove('hidden');
+  authUsername.textContent = user.username || user.phone || '用户';
+  authRole.textContent = roleLabel(user.role);
+  authRole.dataset.role = user.role;
+}
+
+function roleLabel(role) {
+  if (role === 'ADMIN') return '管理员';
+  if (role === 'MANAGER') return '经理';
+  if (role === 'USER') return '用户';
+  return role || '';
+}
+
+// 供其他模块获取当前 token
+window.GPAuth = {
+  token: function () { return localStorage.getItem('gp_auth_token'); },
+  headers: function () {
+    var t = this.token();
+    return t ? { 'Authorization': 'Bearer ' + t } : {};
+  }
+};
+

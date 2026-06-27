@@ -56,6 +56,22 @@ app:
   upload-dir: uploads
   # PDF 渲染脚本（绝对路径 或 相对项目根目录的路径）；Linux/macOS 各自覆盖
   render-pdf-script: ${RENDER_PDF_SCRIPT:scripts/render_pdf.py}
+  # JWT 认证
+  jwt:
+    secret: ${JWT_SECRET:change-this-secret-key-in-production-please}
+    expire-hours: 24
+  sms:
+    code-expire-minutes: 5
+    cooldown-seconds: 60
+    huaxin:
+      url: https://http.yunsms.cn/sms/send.do
+      username: ${HUAXIN_SMS_USER:}
+      password: ${HUAXIN_SMS_PASSWORD:}
+      product-id: ${HUAXIN_SMS_PRODUCT_ID:}
+  wechat:
+    app-id: ${WECHAT_APP_ID:}
+    app-secret: ${WECHAT_APP_SECRET:}
+    redirect-uri: ${WECHAT_REDIRECT_URI:http://localhost:8080/gp/api/auth/wechat/callback}
 
 baostock-sync:
   enabled: true
