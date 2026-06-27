@@ -15,7 +15,7 @@ spring:
     password: ${DB_PASSWORD:wmq534@126.com}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
-      maximum-pool-size: 10
+      maximum-pool-size: 20
       minimum-idle: 2
       # 连接存活检测：MySQL 默认 wait_timeout=8h，设为 28min 提前回收避免服务端断连
       # （设太短会出现 "Connection reset" 误杀；设 28min 既能避开服务端的随机 RST，

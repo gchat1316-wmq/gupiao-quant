@@ -19,6 +19,10 @@ import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Slf4j
 @RestController
@@ -26,6 +30,16 @@ import java.util.Map;
 @CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 public class PracticalSelectController {
+
+    /** 实战选股同步接口上限 25s，避免上游行情/DB 抖动时连接池被占满导致雪崩。 */
+    private static final long ANALYZE_TIMEOUT_SECONDS = 25L;
+    /** 异步执行器（专用单线程池，不与 Tomcat 共享，避免互相抢占）。 */
+    private static final java.util.concurrent.ExecutorService ANALYZE_EXECUTOR =
+            java.util.concurrent.Executors.newFixedThreadPool(4, r -> {
+                Thread t = new Thread(r, "practical-select-analyze");
+                t.setDaemon(true);
+                return t;
+            });
 
     private final PracticalSelectService service;
     private final PracticalSelectPdfService pdfService;
@@ -35,12 +49,51 @@ public class PracticalSelectController {
 
     @PostMapping("/analyze")
     public PracticalSelectResponse analyze(@RequestParam("keyword") String keyword) {
-        return service.analyze(keyword);
+        return analyzeWithTimeout(keyword);
     }
 
     @GetMapping("/analyze")
     public PracticalSelectResponse analyzeGet(@RequestParam("keyword") String keyword) {
-        return service.analyze(keyword);
+        return analyzeWithTimeout(keyword);
+    }
+
+    /**
+     * 同步入口包一层超时：上游行情 502 或 DB 连接池被占满时，最迟 25s 内给用户友好提示，
+     * 而不是让 HTTP 连接挂死、HikariCP 雪崩升级。
+     */
+    private PracticalSelectResponse analyzeWithTimeout(String keyword) {
+        CompletableFuture<PracticalSelectResponse> future =
+                CompletableFuture.supplyAsync(() -> service.analyze(keyword), ANALYZE_EXECUTOR);
+        try {
+            return future.get(ANALYZE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        } catch (TimeoutException te) {
+            future.cancel(true);
+            log.warn("实战选股超时 [{}]s keyword={}", ANALYZE_TIMEOUT_SECONDS, keyword);
+            return PracticalSelectResponse.builder()
+                    .matched(false)
+                    .message("分析超时（" + ANALYZE_TIMEOUT_SECONDS + "s），可能是上游行情接口/数据库连接繁忙，30 秒后重试或换一个关键词试试")
+                    .build();
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            return PracticalSelectResponse.builder()
+                    .matched(false)
+                    .message("请求被中断，请重试")
+                    .build();
+        } catch (ExecutionException ee) {
+            log.warn("实战选股异常 keyword={}: {}", keyword, ee.getCause() == null ? ee.getMessage() : ee.getCause().getMessage());
+            Throwable cause = ee.getCause();
+            String msg = cause == null ? "未知错误" : cause.getMessage();
+            if (msg != null && msg.contains("Connection is not available")) {
+                return PracticalSelectResponse.builder()
+                        .matched(false)
+                        .message("数据库连接池暂满（上游行情接口正在重试中），5 秒后重试")
+                        .build();
+            }
+            return PracticalSelectResponse.builder()
+                    .matched(false)
+                    .message("分析失败：" + msg)
+                    .build();
+        }
     }
 
     @GetMapping("/health")

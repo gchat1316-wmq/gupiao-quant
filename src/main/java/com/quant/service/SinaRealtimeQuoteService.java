@@ -74,11 +74,11 @@ public class SinaRealtimeQuoteService {
         Process process = new ProcessBuilder(
                 "curl",
                 "-fsSL",
-                "--max-time", "6",
+                "--max-time", "3",
                 "-H", "Referer: https://finance.sina.com.cn",
                 url
         ).start();
-        boolean done = process.waitFor(7, TimeUnit.SECONDS);
+        boolean done = process.waitFor(4, TimeUnit.SECONDS);
         if (!done) {
             process.destroyForcibly();
             return "";

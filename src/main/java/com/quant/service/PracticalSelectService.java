@@ -68,8 +68,8 @@ public class PracticalSelectService {
     private static final double BIG_YANG_THRESHOLD = 9.5; // 大阳线阈值（涨幅 ≥ 9.5%）
     private static final double BREAKOUT_LOOKBACK_MONTHS = 6;
     private static final double BREAKOUT_THRESHOLD_PCT = 3.0;
-    /** 同一 keyword 在 N 分钟内复用上次的分析结果（避免重复 AI 调用） */
-    private static final long CACHE_REUSE_MINUTES = 30;
+    /** 同一 keyword 在 24 小时内复用上次的分析结果（避免重复 AI 调用）。 */
+    private static final long CACHE_REUSE_MINUTES = 24 * 60;
 
     private final TradeStockBasicRepository stockBasicRepository;
     private final TradeStockFinancialRepository financialRepository;
