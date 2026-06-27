@@ -8,6 +8,7 @@ import com.quant.dto.prosperitystrong.PipelineRunResultDTO;
 import com.quant.dto.prosperitystrong.ProsperityPoolItemDTO;
 import com.quant.dto.prosperitystrong.ProviderCapabilityDTO;
 import com.quant.entity.ProsperityStockPool;
+import com.quant.security.UserPrincipal;
 import com.quant.service.prosperitystrong.ProsperityDataProviderService;
 import com.quant.service.prosperitystrong.ProsperityPoolService;
 import com.quant.service.prosperitystrong.ProsperityStrongPipelineService;
@@ -15,6 +16,8 @@ import com.quant.service.prosperitystrong.WindAifinMarketClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -119,19 +122,23 @@ public class ProsperityStrongController {
         );
     }
 
-    /** 一键加入热点股票池(独立于龙江投资股票池, 写入估值价/目标买卖价/memo) */
+    /** 一键加入个人热点股票池(需登录，按当前用户隔离) */
     @PostMapping("/promote/{stockCode}")
+    @PreAuthorize("isAuthenticated()")
     public Map<String, Object> promote(
             @PathVariable String stockCode,
             @RequestParam(value = "date", required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return poolService.promote(stockCode, date);
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return poolService.promote(stockCode, date, principal.getId());
     }
 
-    /** 热点股票池列表(按最近入池时间倒序) */
+    /** 热点股票池列表(返回当前用户的个人池+系统共享池) */
     @GetMapping("/pool")
-    public List<ProsperityPoolItemDTO> pool() {
-        return poolService.list().stream().map(ProsperityStrongController::toPoolDTO).toList();
+    public List<ProsperityPoolItemDTO> pool(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        Long ownerId = principal == null ? null : principal.getId();
+        return poolService.list(ownerId).stream().map(ProsperityStrongController::toPoolDTO).toList();
     }
 
     private static ProsperityPoolItemDTO toPoolDTO(ProsperityStockPool e) {
@@ -154,6 +161,7 @@ public class ProsperityStrongController {
                 .tacticalPositionPct(e.getTacticalPositionPct())
                 .actionSignal(e.getActionSignal())
                 .memo(e.getMemo())
+                .ownerId(e.getOwnerId())
                 .build();
     }
 

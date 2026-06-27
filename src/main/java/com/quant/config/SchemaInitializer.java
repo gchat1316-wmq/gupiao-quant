@@ -36,6 +36,7 @@ public class SchemaInitializer implements CommandLineRunner {
         ensurePickDailyRevenueYoyMin3q();
         ensureIndustryResearchTables();
         ensureProsperityStockPoolTable();
+        ensureProsperityStockPoolOwnerId();
     }
 
     /**
@@ -512,6 +513,33 @@ public class SchemaInitializer implements CommandLineRunner {
             log.info("stock_analysis_record 表已就绪");
         } catch (Exception e) {
             log.error("建表失败", e);
+        }
+    }
+
+    /**
+     * 给 prosperity_stock_pool 加 owner_id 字段（个人池隔离）。
+     * 唯一约束从 (stock_code) 单列改为 (owner_id, stock_code) 组合。
+     */
+    private void ensureProsperityStockPoolOwnerId() {
+        try {
+            // 加字段（幂等）
+            jdbc.execute("ALTER TABLE prosperity_stock_pool ADD COLUMN owner_id BIGINT DEFAULT NULL");
+            log.info("prosperity_stock_pool.owner_id 字段已添加");
+        } catch (Exception e) {
+            log.info("prosperity_stock_pool.owner_id 字段已存在或跳过: " + e.getMessage());
+        }
+        try {
+            // 删旧唯一约束，加新的组合唯一（幂等）
+            jdbc.execute("ALTER TABLE prosperity_stock_pool DROP INDEX uk_stock_code");
+            log.info("prosperity_stock_pool 旧 uk_stock_code 已删除");
+        } catch (Exception e) {
+            log.info("prosperity_stock_pool 旧唯一约束不存在或跳过: " + e.getMessage());
+        }
+        try {
+            jdbc.execute("ALTER TABLE prosperity_stock_pool ADD UNIQUE INDEX uk_owner_stock (owner_id, stock_code)");
+            log.info("prosperity_stock_pool uk_owner_stock 组合唯一已添加");
+        } catch (Exception e) {
+            log.info("prosperity_stock_pool uk_owner_stock 已存在或跳过: " + e.getMessage());
         }
     }
 }

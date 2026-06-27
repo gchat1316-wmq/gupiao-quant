@@ -29,4 +29,5 @@ public class ProsperityPoolItemDTO {
     private BigDecimal tacticalPositionPct;
     private String actionSignal;
     private String memo;
+    private Long ownerId;   // NULL 表示系统共享池
 }

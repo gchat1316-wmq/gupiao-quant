@@ -5,194 +5,190 @@ import com.quant.entity.ProsperityStockPool;
 import com.quant.repository.ProsperityPickDailyRepository;
 import com.quant.repository.ProsperityStockPoolRepository;
 import com.quant.service.prosperitystrong.ProsperityPoolService;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.support.TransactionTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 /**
- * 回归测试: 龙头候选"入池"动作必须写到 prosperity_stock_pool (热点股票池),
- *          不能再写到 invest_stock_pool (龙江投资股票池)。
+ * ProsperityPoolService TDD 测试。
  *
- * <p>背景: 原 {@code ProsperityStrongController.promote} 把入池数据塞进
- * {@code invest_stock_pool} 并硬编码 pool_type='tech_vc', 业务语义不对:
- * 1) 龙江投资股票池 enum 没有 hot 选项;
- * 2) 龙江=中长期持仓 / 热点=短线波段,两个池子业务模型不同。
- *
- * <p>本测试用隔离的 stock_code (TEST.PS.POOL.*) 和远期 snap_date 避免污染生产数据,
- * 用 ProsperityPoolService 真实写入 MySQL, 任何 schema 缺失 / 字段错位会立即浮上来。
+ * RED phase: 先写期望行为 → 跑不过 → 修代码
+ * 覆盖：
+ * 1. promote(ownerId) 个人池：不同 owner 的同一股票互不影响
+ * 2. promote(NULL) 系统池：共享数据
+ * 3. list(ownerId) 返回个人池 + 系统池
+ * 4. 重复入池：累加 poolCount
  */
-@SpringBootTest
-@ActiveProfiles("test")
+@ExtendWith(MockitoExtension.class)
+@DisplayName("ProsperityPoolService")
 class ProsperityPoolServiceTest {
 
-    /** 测试用股票代码 — 用特殊前缀确保不和真实数据冲突 */
-    private static final String CODE = "TEST.PS.POOL.001";
-    private static final LocalDate SNAP_D1 = LocalDate.of(2099, 1, 1);
-    private static final LocalDate SNAP_D2 = LocalDate.of(2099, 1, 2);
+    @Mock private ProsperityStockPoolRepository poolRepo;
+    @Mock private ProsperityPickDailyRepository pickRepo;
 
-    @Autowired private ProsperityPoolService poolService;
-    @Autowired private ProsperityPickDailyRepository pickRepo;
-    @Autowired private ProsperityStockPoolRepository poolRepo;
-    @Autowired private PlatformTransactionManager txManager;
+    private ProsperityPoolService service;
 
-    private TransactionTemplate tx;
+    private static final LocalDate SNAP = LocalDate.of(2026, 6, 27);
+
+    private ProsperityPickDaily makePick(String code, String name) {
+        ProsperityPickDaily p = new ProsperityPickDaily();
+        p.setStockCode(code);
+        p.setStockName(name);
+        p.setSnapDate(SNAP);
+        p.setSectorName("半导体");
+        p.setCombinedScore(new BigDecimal("85.5"));
+        p.setLatestPrice(new BigDecimal("10.00"));
+        p.setBuyLeftPrice(new BigDecimal("9.50"));
+        p.setSellTarget1(new BigDecimal("12.00"));
+        p.setStopLossPrice(new BigDecimal("8.50"));
+        p.setCorePositionPct(new BigDecimal("30"));
+        p.setTacticalPositionPct(new BigDecimal("20"));
+        p.setActionSignal("add");
+        return p;
+    }
 
     @BeforeEach
     void setUp() {
-        tx = new TransactionTemplate(txManager);
-        cleanup();
-        seedPick(SNAP_D1, new BigDecimal("85"), new BigDecimal("20.00"));
-        seedPick(SNAP_D2, new BigDecimal("88"), new BigDecimal("22.00"));
+        service = new ProsperityPoolService(poolRepo, pickRepo);
     }
 
-    @AfterEach
-    void tearDown() {
-        cleanup();
+    // ── promote(ownerId)：个人池隔离 ───────────────────
+
+    @Nested
+    @DisplayName("promote with ownerId")
+    class PromoteWithOwnerId {
+
+        @Test
+        @DisplayName("ownerId=1 新股入池 → 创建个人池")
+        void newStockForOwner1() {
+            // snapDate 已传，findFirstByOrderBySnapDateDesc() 不会走到
+            when(pickRepo.findBySnapDateAndStockCode(SNAP, "000001.SZ")).thenReturn(Optional.of(makePick("000001.SZ", "平安银行")));
+            when(poolRepo.findByOwnerIdAndStockCode(1L, "000001.SZ")).thenReturn(Optional.empty());
+            when(poolRepo.save(any(ProsperityStockPool.class)))
+                    .thenAnswer(inv -> { ProsperityStockPool p = inv.getArgument(0); p.setId(10); return p; });
+
+            service.promote("000001.SZ", SNAP, 1L);
+
+            ArgumentCaptor<ProsperityStockPool> captor = ArgumentCaptor.forClass(ProsperityStockPool.class);
+            verify(poolRepo).save(captor.capture());
+            assertThat(captor.getValue().getOwnerId()).isEqualTo(1L);
+            assertThat(captor.getValue().getPoolCount()).isEqualTo(1);
+            assertThat(captor.getValue().getStockCode()).isEqualTo("000001.SZ");
+        }
+
+        @Test
+        @DisplayName("ownerId=1 和 ownerId=2 的同一股票互不影响")
+        void sameStockDifferentOwners() {
+            // owner1 已有池
+            ProsperityStockPool existingOwner1 = new ProsperityStockPool();
+            existingOwner1.setId(1);
+            existingOwner1.setOwnerId(1L);
+            existingOwner1.setStockCode("000001.SZ");
+            existingOwner1.setPoolCount(1);
+            existingOwner1.setMemo("首次入池\n[2026-06-26] ...");
+
+            when(pickRepo.findBySnapDateAndStockCode(SNAP, "000001.SZ")).thenReturn(Optional.of(makePick("000001.SZ", "平安银行")));
+            when(poolRepo.findByOwnerIdAndStockCode(1L, "000001.SZ")).thenReturn(Optional.of(existingOwner1));
+            when(poolRepo.findByOwnerIdAndStockCode(2L, "000001.SZ")).thenReturn(Optional.empty());
+            when(poolRepo.save(any(ProsperityStockPool.class)))
+                    .thenAnswer(inv -> inv.getArgument(0));
+
+            // owner1 再次入同一股票 → 累加 poolCount
+            service.promote("000001.SZ", SNAP, 1L);
+
+            // owner2 入同一股票 → 各自独立（new pool）
+            service.promote("000001.SZ", SNAP, 2L);
+
+            // 验证 save 共被调用 2 次
+            ArgumentCaptor<ProsperityStockPool> captor = ArgumentCaptor.forClass(ProsperityStockPool.class);
+            verify(poolRepo, times(2)).save(captor.capture());
+            List<ProsperityStockPool> allSaved = captor.getAllValues();
+            assertThat(allSaved).hasSize(2);
+
+            // 第一次 save：owner1 的 existing 累加 poolCount=2
+            assertThat(allSaved.get(0).getOwnerId()).isEqualTo(1L);
+            assertThat(allSaved.get(0).getPoolCount()).isEqualTo(2);
+
+            // 第二次 save：owner2 的新记录，poolCount=1
+            assertThat(allSaved.get(1).getOwnerId()).isEqualTo(2L);
+            assertThat(allSaved.get(1).getPoolCount()).isEqualTo(1);
+        }
     }
 
-    private void cleanup() {
-        tx.executeWithoutResult(s -> {
-            poolRepo.deleteByStockCode(CODE);
-            // 同时清掉 pick 记录
-            pickRepo.findBySnapDateAndStockCode(SNAP_D1, CODE).ifPresent(pickRepo::delete);
-            pickRepo.findBySnapDateAndStockCode(SNAP_D2, CODE).ifPresent(pickRepo::delete);
-        });
+    // ── promote(NULL)：系统共享池 ────────────────────
+
+    @Nested
+    @DisplayName("promote with NULL ownerId")
+    class PromoteWithNullOwner {
+
+        @Test
+        @DisplayName("NULL ownerId → 系统共享池，findByOwnerIdIsNullAndStockCode")
+        void nullOwnerCreatesSystemPool() {
+            when(pickRepo.findBySnapDateAndStockCode(SNAP, "000001.SZ")).thenReturn(Optional.of(makePick("000001.SZ", "平安银行")));
+            when(poolRepo.findByOwnerIdIsNullAndStockCode("000001.SZ")).thenReturn(Optional.empty());
+            when(poolRepo.save(any(ProsperityStockPool.class)))
+                    .thenAnswer(inv -> { ProsperityStockPool p = inv.getArgument(0); p.setId(20); return p; });
+
+            service.promote("000001.SZ", SNAP, null);
+
+            verify(poolRepo).findByOwnerIdIsNullAndStockCode("000001.SZ");
+            ArgumentCaptor<ProsperityStockPool> captor = ArgumentCaptor.forClass(ProsperityStockPool.class);
+            verify(poolRepo).save(captor.capture());
+            assertThat(captor.getValue().getOwnerId()).isNull();
+        }
     }
 
-    private void seedPick(LocalDate d, BigDecimal combined, BigDecimal price) {
-        ProsperityPickDaily p = new ProsperityPickDaily();
-        p.setSnapDate(d);
-        p.setStockCode(CODE);
-        p.setStockName("测试龙头候选");
-        p.setSectorName("测试板块");
-        p.setCombinedScore(combined);
-        p.setFinanceScore(new BigDecimal("90"));
-        p.setMainlineScore(new BigDecimal("80"));
-        p.setNetMarginAvg4q(new BigDecimal("15.5"));
-        p.setLatestPrice(price);
-        p.setBuyLeftPrice(new BigDecimal("19.00"));
-        p.setBuyRightPrice(new BigDecimal("21.00"));
-        p.setSellTarget1(new BigDecimal("28.00"));
-        p.setSellTarget2(new BigDecimal("32.00"));
-        p.setStopLossPrice(new BigDecimal("17.50"));
-        p.setCorePositionPct(new BigDecimal("8.00"));
-        p.setTacticalPositionPct(new BigDecimal("3.00"));
-        p.setActionSignal("add");
-        pickRepo.save(p);
-    }
+    // ── list(ownerId)：个人池 + 系统池 ───────────────
 
-    @Test
-    void promote_firstTime_createsNewRowWithPoolCount1() {
-        Map<String, Object> r = poolService.promote(CODE, SNAP_D1);
+    @Nested
+    @DisplayName("list with ownerId")
+    class ListWithOwnerId {
 
-        assertEquals("已加入热点股票池", r.get("message"));
-        assertEquals(CODE, r.get("stockCode"));
-        assertEquals(SNAP_D1.toString(), r.get("snapDate"));
-        assertEquals(true, r.get("isNew"));
-        assertEquals(1, r.get("poolCount"));
+        @Test
+        @DisplayName("list(1L) → 个人池(user_id=1) + 系统池(NULL)")
+        void listReturnsPersonalPlusSystem() {
+            ProsperityStockPool personal = new ProsperityStockPool();
+            personal.setId(1); personal.setOwnerId(1L); personal.setStockCode("000001.SZ");
+            personal.setLastAddedAt(LocalDateTime.now());
 
-        // 真库验证
-        Optional<ProsperityStockPool> saved = poolRepo.findByStockCode(CODE);
-        assertTrue(saved.isPresent(), "prosperity_stock_pool 必须有新行");
-        ProsperityStockPool p = saved.get();
-        assertEquals("测试龙头候选", p.getStockName());
-        assertEquals("测试板块", p.getSectorName());
-        assertEquals(1, p.getPoolCount());
-        assertEquals(SNAP_D1, p.getLastSnapDate());
-        assertEquals("watching", p.getStatus());
-        assertNotNull(p.getLastAddedAt(), "last_added_at 必须被填充");
-        assertNotNull(p.getMemo(), "memo 必须被填充");
-        assertTrue(p.getMemo().contains(SNAP_D1.toString()),
-                "memo 应包含入池日期, 实际: " + p.getMemo());
-        assertTrue(p.getMemo().contains("add"), "memo 应包含 action_signal");
-    }
+            ProsperityStockPool system = new ProsperityStockPool();
+            system.setId(2); system.setOwnerId(null); system.setStockCode("000002.SZ");
+            system.setLastAddedAt(LocalDateTime.now());
 
-    @Test
-    void promote_secondTime_appendsMemoAndIncrementsPoolCount() {
-        // 第一次入池
-        poolService.promote(CODE, SNAP_D1);
-        // 第二次入池(更新快照日期, 价格更高)
-        Map<String, Object> r = poolService.promote(CODE, SNAP_D2);
+            when(poolRepo.findByOwnerIdOrderByLastAddedAtDesc(1L)).thenReturn(List.of(personal));
+            when(poolRepo.findByOwnerIdIsNullOrderByLastAddedAtDesc()).thenReturn(List.of(system));
 
-        assertEquals("已更新热点股票池条目", r.get("message"));
-        assertEquals(false, r.get("isNew"));
-        assertEquals(2, r.get("poolCount"));
+            List<ProsperityStockPool> result = service.list(1L);
 
-        Optional<ProsperityStockPool> saved = poolRepo.findByStockCode(CODE);
-        assertTrue(saved.isPresent());
-        ProsperityStockPool p = saved.get();
-        assertEquals(2, p.getPoolCount());
-        assertEquals(SNAP_D2, p.getLastSnapDate(), "last_snap_date 应更新到最新入池日期");
-        assertEquals(new BigDecimal("22.00"), p.getLatestPrice(),
-                "latest_price 应更新到最新入池的快照价格");
-        // memo 应包含两次入池的日期
-        assertTrue(p.getMemo().contains(SNAP_D1.toString()),
-                "memo 应包含首次入池日期, 实际: " + p.getMemo());
-        assertTrue(p.getMemo().contains(SNAP_D2.toString()),
-                "memo 应包含最新入池日期, 实际: " + p.getMemo());
-        // 两次入池时间应不同(有先后)
-        assertNotNull(p.getFirstAddedAt(), "first_added_at 应有值");
-        assertNotNull(p.getLastAddedAt(), "last_added_at 应有值");
-        assertTrue(!p.getFirstAddedAt().equals(p.getLastAddedAt())
-                        || p.getFirstAddedAt().isBefore(p.getLastAddedAt())
-                        || p.getFirstAddedAt().isEqual(p.getLastAddedAt()),
-                "first/last_added_at 应有先后或相同(同毫秒内连续两次入池)");
-    }
+            assertThat(result).hasSize(2);
+            assertThat(result.get(0).getOwnerId()).isEqualTo(1L);  // 个人在前
+            assertThat(result.get(1).getOwnerId()).isNull();         // 系统在后
+        }
 
-    @Test
-    void promote_pickNotFound_throwsIllegalArgument() {
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> poolService.promote("TEST.PS.POOL.NOT.EXIST", SNAP_D1));
-        assertTrue(ex.getMessage().contains("未找到候选"),
-                "错误信息应提示未找到候选, 实际: " + ex.getMessage());
-    }
+        @Test
+        @DisplayName("list() 无参数 → 返回全部（兼容旧调用）")
+        void listAllReturnsEverything() {
+            when(poolRepo.findAllByOrderByLastAddedAtDesc()).thenReturn(List.of());
 
-    @Test
-    void list_returnsAllPoolItemsByLastAddedDesc() {
-        poolService.promote(CODE, SNAP_D1);
-        // 再入一个不同股票
-        String otherCode = "TEST.PS.POOL.002";
-        seedPickForCode(SNAP_D1, otherCode);
-        poolService.promote(otherCode, SNAP_D1);
+            service.list();
 
-        List<ProsperityStockPool> list = poolService.list();
-        assertTrue(list.size() >= 2, "列表应至少包含刚入池的 2 条");
-        // 池子里必须能查到我们测试用的 code (其它真实数据可能也在这张表里)
-        assertTrue(list.stream().anyMatch(p -> CODE.equals(p.getStockCode())));
-        assertTrue(list.stream().anyMatch(p -> otherCode.equals(p.getStockCode())));
-
-        // 清理
-        tx.executeWithoutResult(s -> {
-            poolRepo.deleteByStockCode(otherCode);
-            pickRepo.findBySnapDateAndStockCode(SNAP_D1, otherCode).ifPresent(pickRepo::delete);
-        });
-    }
-
-    private void seedPickForCode(LocalDate d, String code) {
-        ProsperityPickDaily p = new ProsperityPickDaily();
-        p.setSnapDate(d);
-        p.setStockCode(code);
-        p.setStockName("测试龙头候选2");
-        p.setSectorName("测试板块2");
-        p.setCombinedScore(new BigDecimal("80"));
-        p.setLatestPrice(new BigDecimal("15.00"));
-        p.setBuyLeftPrice(new BigDecimal("14.00"));
-        p.setSellTarget1(new BigDecimal("20.00"));
-        p.setStopLossPrice(new BigDecimal("12.50"));
-        p.setActionSignal("hold");
-        pickRepo.save(p);
+            verify(poolRepo).findAllByOrderByLastAddedAtDesc();
+        }
     }
 }

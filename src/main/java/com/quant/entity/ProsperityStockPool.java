@@ -32,7 +32,14 @@ public class ProsperityStockPool {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column(name = "stock_code", nullable = false, length = 20, unique = true)
+    /**
+     * 所有者 user_id。NULL 表示系统共享（兼容历史数据）。
+     * 唯一约束改为 (owner_id, stock_code) 组合。
+     */
+    @Column(name = "owner_id")
+    private Long ownerId;
+
+    @Column(name = "stock_code", nullable = false, length = 20)
     private String stockCode;
 
     @Column(name = "stock_name", length = 50)
