@@ -16,7 +16,10 @@ public class LynchQuoteDTO {
     private BigDecimal pb;
     private BigDecimal marketCap;
     private BigDecimal cagrPct;
-    private BigDecimal peg;
-    private String pegRating;
-    private BigDecimal digestYears;
+    private BigDecimal peg;              // 仅供参考（PEG法已废弃）
+    private String pegRating;          // 仅供参考
+    private BigDecimal digestYears;     // 仅供参考
+    // 10xPS 统一估值
+    private String valuationVerdict;    // 低估 / 合理 / 泡沫 / —
+    private String valuationCommentary; // 估值说明
 }

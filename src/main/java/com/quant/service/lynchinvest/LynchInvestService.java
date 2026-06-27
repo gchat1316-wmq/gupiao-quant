@@ -9,6 +9,7 @@ import com.quant.repository.InvestLynchWatchlistRepository;
 import com.quant.repository.TradeStockBasicRepository;
 import com.quant.repository.TradeStockFinancialRepository;
 import com.quant.service.AStockDataQuoteService;
+import com.quant.service.Ps10ValuationService;
 import com.quant.service.StockQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -41,6 +42,7 @@ public class LynchInvestService {
     private final AStockDataQuoteService aStockDataQuoteService;
     private final TradeStockFinancialRepository financialRepository;
     private final StockQueryService stockQueryService;
+    private final Ps10ValuationService ps10ValuationService;
 
     public List<LynchWatchlistItemDTO> getWatchlist() {
         List<InvestLynchWatchlist> rows = watchlistRepository.findAllByOrderByDisplayOrderAscCreatedAtAsc();
@@ -150,6 +152,8 @@ public class LynchInvestService {
                 .peg(metrics.peg())
                 .pegRating(metrics.pegRating())
                 .digestYears(metrics.digestYears())
+                .valuationVerdict(metrics.valuationVerdict())
+                .valuationCommentary(metrics.valuationCommentary())
                 .build();
     }
 
@@ -167,6 +171,8 @@ public class LynchInvestService {
                 .peg(metrics.peg())
                 .pegRating(metrics.pegRating())
                 .digestYears(metrics.digestYears())
+                .valuationVerdict(metrics.valuationVerdict())
+                .valuationCommentary(metrics.valuationCommentary())
                 .build();
     }
 
@@ -177,7 +183,11 @@ public class LynchInvestService {
         BigDecimal peg = computePeg(basic.getPeTtm(), cagrPct);
         String pegRating = ratePeg(peg);
         BigDecimal digestYears = computeDigestYears(basic.getPeTtm(), cagrPct);
-        return new QuoteMetrics(price, marketCap, cagrPct, peg, pegRating, digestYears);
+        // 10xPS 统一估值
+        var financials = financialRepository.findByStockCodeOrderByReportDateDesc(basic.getStockCode());
+        Ps10ValuationService.Ps10Result ps10 = ps10ValuationService.evaluateFromMarketCap(marketCap, price, basic.getStockCode(), financials);
+        return new QuoteMetrics(price, marketCap, cagrPct, peg, pegRating, digestYears,
+                ps10.verdict(), ps10.commentary());
     }
 
     private String normalizeKey(String code) {
@@ -277,6 +287,8 @@ public class LynchInvestService {
                                 BigDecimal cagrPct,
                                 BigDecimal peg,
                                 String pegRating,
-                                BigDecimal digestYears) {
+                                BigDecimal digestYears,
+                                String valuationVerdict,    // 10xPS: 低估/合理/泡沫/—
+                                String valuationCommentary) {
     }
 }

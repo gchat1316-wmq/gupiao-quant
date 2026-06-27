@@ -664,38 +664,18 @@ public class PracticalSelectService {
             marketCap = round2(currentPrice * totalSharesYi);
         }
 
-        // PS 倍数自适应：净利润率 25% → 10倍；20% → 8倍；15% → 6倍；10% → 4倍；< 5% → PE 更合适
-        double ps = 10.0;
+        // 统一 10 倍 PS 法（适用于净利润率 ≥ 25% 的高科技公司）
+        final double PS = 10.0;
         String method = "10 倍 PS 法";
         String methodReason;
         if (latestNm == null) {
             methodReason = "缺少净利率数据，按 25% 高科技公司默认值给 10 倍 PS（仅供参考）";
-        } else if (latestNm >= 24) {
-            ps = 10.0;
-            method = "10 倍 PS 法";
+        } else if (latestNm >= 25) {
             methodReason = String.format(Locale.ROOT,
-                    "净利率 %.2f%% 接近 25%% 高科技基准线，给 10 倍 PS", latestNm);
-        } else if (latestNm >= 19) {
-            ps = 8.0;
-            method = "8 倍 PS 法";
-            methodReason = String.format(Locale.ROOT,
-                    "净利率 %.2f%% 略低于 25%%，按 25/净利率×10 ≈ %.0f 倍 PS 安全边际",
-                    latestNm, ps);
-        } else if (latestNm >= 13) {
-            ps = 6.0;
-            method = "6 倍 PS 法";
-            methodReason = String.format(Locale.ROOT,
-                    "净利率 %.2f%%，按 25/净利率×10 ≈ %.0f 倍 PS 安全边际", latestNm, ps);
-        } else if (latestNm >= 8) {
-            ps = 4.0;
-            method = "4 倍 PS 法";
-            methodReason = String.format(Locale.ROOT,
-                    "净利率 %.2f%% 较低，按 25/净利率×10 ≈ %.0f 倍 PS 安全边际", latestNm, ps);
+                    "净利率 %.2f%% ≥ 25%%，适用 10 倍 PS 估值法", latestNm);
         } else {
-            ps = 0;
-            method = "PE 匹配法（PS 不适用）";
             methodReason = String.format(Locale.ROOT,
-                    "净利率仅 %.2f%%，PS 估值失真，建议改用 PE 匹配法", latestNm);
+                    "净利率 %.2f%%，低于 25%% 基准线，10 倍 PS 仅供参考，需结合其他方法综合判断", latestNm);
         }
 
         // 预测营收：Y0 = 最近 TTM（只累加正数季度），Y1 = Y0 × 增速（用最新营收同比或保守 20%），Y2 = Y1 × 增速
@@ -742,45 +722,41 @@ public class PracticalSelectService {
             }
         }
 
-        Double fairCap = (revY1 != null) ? round2(revY1 * ps) : null;
+        Double fairCapY1 = (revY1 != null) ? round2(revY1 * PS) : null;
+        Double fairCapY2 = (revY2 != null) ? round2(revY2 * PS) : null;
 
         String verdict;
         String commentary;
         if (marketCap == null) {
             verdict = "—";
             commentary = "缺少市值数据，无法判定估值水平";
-        } else if (fairCap == null) {
+        } else if (fairCapY1 == null) {
             verdict = "—";
             commentary = "缺少预测营收，无法判定";
-        } else if (ps == 0) {
-            verdict = "—";
-            commentary = methodReason;
-        } else if (marketCap < fairCap * 0.85) {
+        } else if (marketCap < fairCapY1) {
+            double discount = (fairCapY1 - marketCap) / fairCapY1 * 100;
             verdict = "低估";
             commentary = String.format(Locale.ROOT,
-                    "当前市值 %.1f 亿 vs 合理市值 %.1f 亿（明年 %s 预测营收 %.1f 亿 × %.0f 倍 PS），"
-                            + "低于合理估值约 %.0f%%，性价比突出",
-                    marketCap, fairCap, method, revY1, ps,
-                    (fairCap - marketCap) / fairCap * 100);
-        } else if (marketCap > fairCap * 1.25) {
-            verdict = "高估";
+                    "当前市值 %.1f 亿 < Y1×10=%.1f 亿，低于合理估值约 %.0f%%，性价比突出",
+                    marketCap, fairCapY1, discount);
+        } else if (fairCapY2 != null && marketCap > fairCapY2) {
+            double premium = (marketCap - fairCapY2) / fairCapY2 * 100;
+            verdict = "泡沫";
             commentary = String.format(Locale.ROOT,
-                    "当前市值 %.1f 亿 vs 合理市值 %.1f 亿（明年 %s 预测营收 %.1f 亿 × %.0f 倍 PS），"
-                            + "已透支约 %.0f%% 业绩，需警惕",
-                    marketCap, fairCap, method, revY1, ps,
-                    (marketCap - fairCap) / fairCap * 100);
+                    "当前市值 %.1f 亿 > Y2×10=%.1f 亿，需 %.0f%% 的营收增长才能支撑，已透支未来",
+                    marketCap, fairCapY2, premium);
         } else {
             verdict = "合理";
+            double premium = (marketCap - fairCapY1) / fairCapY1 * 100;
             commentary = String.format(Locale.ROOT,
-                    "当前市值 %.1f 亿 vs 合理市值 %.1f 亿（明年 %s 预测营收 %.1f 亿 × %.0f 倍 PS），"
-                            + "估值合理区间内",
-                    marketCap, fairCap, method, revY1, ps);
+                    "当前市值 %.1f 亿在 Y1×10=%.1f 亿至 Y2×10=%.1f 亿区间，透支约 %.0f%%",
+                    marketCap, fairCapY1, fairCapY2 != null ? fairCapY2 : 0, premium);
         }
 
         String buildTip = null;
         if (verdict.equals("低估") || verdict.equals("合理")) {
             buildTip = "可考虑以最近大阳线起涨点为参考，逢回踩分批建仓观察仓";
-        } else if (verdict.equals("高估")) {
+        } else if (verdict.equals("泡沫")) {
             buildTip = "估值已透支，建议等回踩至合理区间再考虑";
         }
 
@@ -791,11 +767,12 @@ public class PracticalSelectService {
                 .currentPrice(currentPrice)
                 .totalSharesYi(totalSharesYi)
                 .latestNetMargin(latestNm)
-                .psMultiple(ps == 0 ? null : ps)
+                .psMultiple(PS)
                 .forecastRevenueY0(revY0)
                 .forecastRevenueY1(revY1)
                 .forecastRevenueY2(revY2)
-                .fairMarketCapYi(fairCap)
+                .fairCapY1Yi(fairCapY1)
+                .fairCapY2Yi(fairCapY2)
                 .verdict(verdict)
                 .commentary(commentary)
                 .buildPositionTip(buildTip)
@@ -1019,7 +996,8 @@ public class PracticalSelectService {
         if (val != null) {
             sb.append("- 估值方法：").append(val.getMethod()).append("\n");
             sb.append("- 当前市值：").append(val.getCurrentMarketCapYi() == null ? "—" : val.getCurrentMarketCapYi() + " 亿").append("\n");
-            sb.append("- 合理市值：").append(val.getFairMarketCapYi() == null ? "—" : val.getFairMarketCapYi() + " 亿").append("\n");
+            sb.append("- Y1×10 合理市值：").append(val.getFairCapY1Yi() == null ? "—" : val.getFairCapY1Yi() + " 亿").append("\n");
+            sb.append("- Y2×10 合理市值：").append(val.getFairCapY2Yi() == null ? "—" : val.getFairCapY2Yi() + " 亿").append("\n");
             sb.append("- 估值结论：").append(val.getVerdict()).append("\n");
             sb.append("- PS 倍数依据：").append(val.getMethodReason()).append("\n\n");
         }

@@ -42,6 +42,7 @@ class LynchInvestServiceTest {
     @Mock AStockDataQuoteService aStockDataQuoteService;
     @Mock TradeStockFinancialRepository financialRepository;
     @Mock StockQueryService stockQueryService;
+    @Mock Ps10ValuationService ps10ValuationService;
     @Mock com.quant.service.ai.MiniMaxClient miniMaxClient;
     @Mock com.quant.service.ai.SenseNovaClient senseNovaClient;
 
@@ -52,12 +53,19 @@ class LynchInvestServiceTest {
     void setUp() {
         // 默认所有股票实时行情为空；测试用例按需 stub aStockDataQuoteService.fetchQuotes
         org.mockito.Mockito.lenient().when(aStockDataQuoteService.fetchQuotes(any())).thenReturn(Map.of());
+        // 默认财务数据返回空列表，ps10ValuationService 返回不适用的结果
+        org.mockito.Mockito.lenient().when(financialRepository.findByStockCodeOrderByReportDateDesc(any())).thenReturn(List.of());
+        org.mockito.Mockito.lenient().when(ps10ValuationService.evaluateFromMarketCap(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyList()))
+                .thenReturn(Ps10ValuationService.Ps10Result.inapplicable("—", "测试默认", "10 倍 PS 法"));
         service = new LynchInvestService(
                 watchlistRepository,
                 stockBasicRepository,
                 aStockDataQuoteService,
                 financialRepository,
-                stockQueryService
+                stockQueryService,
+                ps10ValuationService
         );
         analysisService = new LynchInvestAnalysisService(
                 analysisRecordRepository,

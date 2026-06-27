@@ -343,11 +343,12 @@ public class PracticalSelectPdfService {
             sb.append(valRow("总股本", v.getTotalSharesYi(), "亿股"));
             sb.append(valRow("当前市值", v.getCurrentMarketCapYi(), "亿元"));
             sb.append(valRow("最新净利率", v.getLatestNetMargin(), "%"));
-            sb.append(valRow("PS 倍数", v.getPsMultiple(), "倍"));
+            sb.append(valRow("PS 倍数", v.getPsMultiple(), "倍（统一）"));
             sb.append(valRow("今年预测营收 Y0", v.getForecastRevenueY0(), "亿"));
             sb.append(valRow("明年预测营收 Y1", v.getForecastRevenueY1(), "亿"));
             sb.append(valRow("后年预测营收 Y2", v.getForecastRevenueY2(), "亿"));
-            sb.append(valRow("合理市值 = Y1 × PS", v.getFairMarketCapYi(), "亿元"));
+            sb.append(valRow("Y1×10 合理市值", v.getFairCapY1Yi(), "亿元"));
+            sb.append(valRow("Y2×10 合理市值", v.getFairCapY2Yi(), "亿元"));
             sb.append("</tbody></table>");
             if (v.getBuildPositionTip() != null) {
                 sb.append("<div class='summary-box' style='background:#fef3c7;border-left-color:#f59e0b'>💡 ")
