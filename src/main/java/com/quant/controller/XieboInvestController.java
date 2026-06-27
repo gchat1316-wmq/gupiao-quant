@@ -1,13 +1,13 @@
 package com.quant.controller;
 
-import com.quant.dto.lynchinvest.LynchAnalysisDetailDTO;
-import com.quant.dto.lynchinvest.LynchAnalysisListItemDTO;
-import com.quant.dto.lynchinvest.LynchNewsDTO;
-import com.quant.dto.lynchinvest.LynchQuoteDTO;
-import com.quant.dto.lynchinvest.LynchWatchlistItemDTO;
-import com.quant.service.lynchinvest.LynchInvestAnalysisService;
-import com.quant.service.lynchinvest.LynchInvestNewsService;
-import com.quant.service.lynchinvest.LynchInvestService;
+import com.quant.dto.xieboinvest.XieboAnalysisDetailDTO;
+import com.quant.dto.xieboinvest.XieboAnalysisListItemDTO;
+import com.quant.dto.xieboinvest.XieboNewsDTO;
+import com.quant.dto.xieboinvest.XieboQuoteDTO;
+import com.quant.dto.xieboinvest.XieboWatchlistItemDTO;
+import com.quant.service.xieboinvest.XieboInvestAnalysisService;
+import com.quant.service.xieboinvest.XieboInvestNewsService;
+import com.quant.service.xieboinvest.XieboInvestService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -23,24 +23,24 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/lynch-invest")
+@RequestMapping("/api/xiebo-invest")
 @CrossOrigin(origins = "*")
 @RequiredArgsConstructor
-public class LynchInvestController {
+public class XieboInvestController {
 
-    private final LynchInvestService service;
+    private final XieboInvestService service;
     @SuppressWarnings("unused")
-    private final LynchInvestAnalysisService analysisService;
+    private final XieboInvestAnalysisService analysisService;
     @SuppressWarnings("unused")
-    private final LynchInvestNewsService newsService;
+    private final XieboInvestNewsService newsService;
 
     @GetMapping("/watchlist")
-    public List<LynchWatchlistItemDTO> watchlist() {
+    public List<XieboWatchlistItemDTO> watchlist() {
         return service.getWatchlist();
     }
 
     @PostMapping("/watchlist")
-    public List<LynchWatchlistItemDTO> addWatchlist(@RequestBody Map<String, String> body) {
+    public List<XieboWatchlistItemDTO> addWatchlist(@RequestBody Map<String, String> body) {
         return service.addWatchlist(body.get("keyword"));
     }
 
@@ -51,7 +51,7 @@ public class LynchInvestController {
     }
 
     @GetMapping("/quote")
-    public LynchQuoteDTO quote(@RequestParam("keyword") String keyword) {
+    public XieboQuoteDTO quote(@RequestParam("keyword") String keyword) {
         return service.getQuote(keyword);
     }
 
@@ -61,22 +61,22 @@ public class LynchInvestController {
     }
 
     @GetMapping("/news")
-    public LynchNewsDTO news(@RequestParam(value = "keyword", required = false) String keyword) {
+    public XieboNewsDTO news(@RequestParam(value = "keyword", required = false) String keyword) {
         return newsService.load(keyword);
     }
 
     @GetMapping("/analysis")
-    public List<LynchAnalysisListItemDTO> analysisList() {
+    public List<XieboAnalysisListItemDTO> analysisList() {
         return analysisService.list();
     }
 
     @PostMapping("/analysis")
-    public LynchAnalysisDetailDTO createAnalysis(@RequestBody Map<String, String> body) {
+    public XieboAnalysisDetailDTO createAnalysis(@RequestBody Map<String, String> body) {
         return analysisService.create(body.get("keyword"));
     }
 
     @GetMapping("/analysis/{id}")
-    public LynchAnalysisDetailDTO analysisDetail(@PathVariable Long id) {
+    public XieboAnalysisDetailDTO analysisDetail(@PathVariable Long id) {
         return analysisService.detail(id);
     }
 }

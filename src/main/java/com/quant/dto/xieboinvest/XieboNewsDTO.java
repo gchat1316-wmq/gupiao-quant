@@ -1,4 +1,4 @@
-package com.quant.dto.lynchinvest;
+package com.quant.dto.xieboinvest;
 
 import lombok.Builder;
 import lombok.Data;
@@ -7,7 +7,7 @@ import java.util.List;
 
 @Data
 @Builder
-public class LynchNewsDTO {
+public class XieboNewsDTO {
     private String collectedAt;
     private List<NewsItemDTO> stockNews;
     private List<NewsItemDTO> announcements;

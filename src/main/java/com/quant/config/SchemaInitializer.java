@@ -33,7 +33,7 @@ public class SchemaInitializer implements CommandLineRunner {
         ensureLoginCodeTable();
         ensureAuditLogTable();
         bootstrapFirstAdmin();
-        ensureLynchInvestTables();
+        ensureXieboInvestTables();
         ensureInvestAlertTable();
         ensureInvestBigYangSignalTable();
         ensureStockAnalysisTable();
@@ -411,21 +411,21 @@ public class SchemaInitializer implements CommandLineRunner {
         }
     }
 
-    private void ensureLynchInvestTables() {
+    private void ensureXieboInvestTables() {
         try {
             jdbc.execute("""
-                CREATE TABLE IF NOT EXISTS invest_lynch_watchlist (
+                CREATE TABLE IF NOT EXISTS invest_xiebo_watchlist (
                     id BIGINT PRIMARY KEY AUTO_INCREMENT,
                     stock_code VARCHAR(20) NOT NULL UNIQUE,
                     stock_name VARCHAR(64) NOT NULL,
                     display_order INT DEFAULT NULL,
                     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    INDEX idx_lynch_watchlist_order (display_order, created_at)
+                    INDEX idx_xiebo_watchlist_order (display_order, created_at)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                 """);
             jdbc.execute("""
-                CREATE TABLE IF NOT EXISTS invest_lynch_analysis_record (
+                CREATE TABLE IF NOT EXISTS invest_xiebo_analysis_record (
                     id BIGINT PRIMARY KEY AUTO_INCREMENT,
                     stock_code VARCHAR(20) NOT NULL,
                     stock_name VARCHAR(64) NOT NULL,
@@ -439,13 +439,13 @@ public class SchemaInitializer implements CommandLineRunner {
                     error_message VARCHAR(1000) DEFAULT NULL,
                     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    INDEX idx_lynch_analysis_stock_date (stock_code, analysis_date),
-                    INDEX idx_lynch_analysis_status (status)
+                    INDEX idx_xiebo_analysis_stock_date (stock_code, analysis_date),
+                    INDEX idx_xiebo_analysis_status (status)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                 """);
-            log.info("lynch invest tables are ready");
+            log.info("xiebo invest tables are ready");
         } catch (Exception e) {
-            log.warn("检查 lynch invest 表失败 (可忽略): {}", e.getMessage());
+            log.warn("检查 xiebo invest 表失败 (可忽略): {}", e.getMessage());
         }
     }
 

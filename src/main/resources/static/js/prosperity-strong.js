@@ -953,7 +953,7 @@ function posCell(label, value, suffix) {
 }
 
 async function psPromote(code) {
-  if (!confirm(`确认将 ${code} 加入热点股票池?\n(独立于龙江投资股票池, 同一只票重复入池会自动累加计数)`)) return;
+  if (!confirm(`确认将 ${code} 加入热点股票池?\n(独立于谢博投资股票池, 同一只票重复入池会自动累加计数)`)) return;
   try {
     const r = await apiPost(`${BASE}/promote/${encodeURIComponent(code)}?date=${state.date}`);
     alert(r.message || '已入池');

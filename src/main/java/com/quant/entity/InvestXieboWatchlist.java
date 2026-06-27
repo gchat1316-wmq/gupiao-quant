@@ -14,8 +14,8 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @Entity
-@Table(name = "invest_lynch_watchlist")
-public class InvestLynchWatchlist {
+@Table(name = "invest_xiebo_watchlist")
+public class InvestXieboWatchlist {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

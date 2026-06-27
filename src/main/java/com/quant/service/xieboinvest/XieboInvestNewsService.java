@@ -1,11 +1,11 @@
-package com.quant.service.lynchinvest;
+package com.quant.service.xieboinvest;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.quant.dto.lynchinvest.LynchNewsDTO;
-import com.quant.entity.InvestLynchWatchlist;
+import com.quant.dto.xieboinvest.XieboNewsDTO;
+import com.quant.entity.InvestXieboWatchlist;
 import com.quant.entity.TradeStockBasic;
-import com.quant.repository.InvestLynchWatchlistRepository;
+import com.quant.repository.InvestXieboWatchlistRepository;
 import com.quant.service.StockQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,13 +20,13 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class LynchInvestNewsService {
+public class XieboInvestNewsService {
 
-    private final InvestLynchWatchlistRepository watchlistRepository;
+    private final InvestXieboWatchlistRepository watchlistRepository;
     private final StockQueryService stockQueryService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public LynchNewsDTO load(String keyword) {
+    public XieboNewsDTO load(String keyword) {
         List<String> tickers = resolveTickers(keyword);
         try {
             ProcessBuilder pb = new ProcessBuilder(buildCommand(tickers));
@@ -42,16 +42,16 @@ public class LynchInvestNewsService {
                 throw new IllegalStateException(output.isBlank() ? "新闻抓取失败" : output);
             }
             Map<String, Object> raw = objectMapper.readValue(extractJson(output), new TypeReference<>() {});
-            return LynchNewsDTO.builder()
+            return XieboNewsDTO.builder()
                     .collectedAt((String) raw.get("collected_at"))
                     .stockNews(toItems((List<Map<String, Object>>) raw.get("stock_news")))
                     .announcements(toItems((List<Map<String, Object>>) raw.get("announcements")))
                     .marketNews(toItems((List<Map<String, Object>>) raw.get("market_news")))
                     .build();
         } catch (Exception e) {
-            return LynchNewsDTO.builder()
+            return XieboNewsDTO.builder()
                     .collectedAt(null)
-                    .stockNews(List.of(LynchNewsDTO.NewsItemDTO.builder().category("stock").title("新闻抓取失败").content(e.getMessage()).source("system").build()))
+                    .stockNews(List.of(XieboNewsDTO.NewsItemDTO.builder().category("stock").title("新闻抓取失败").content(e.getMessage()).source("system").build()))
                     .announcements(List.of())
                     .marketNews(List.of())
                     .build();
@@ -65,7 +65,7 @@ public class LynchInvestNewsService {
             return List.of(bareCode(basic.getStockCode()));
         }
         return watchlistRepository.findAllByOrderByDisplayOrderAscCreatedAtAsc().stream()
-                .map(InvestLynchWatchlist::getStockCode)
+                .map(InvestXieboWatchlist::getStockCode)
                 .map(this::bareCode)
                 .distinct()
                 .toList();
@@ -73,7 +73,7 @@ public class LynchInvestNewsService {
 
     private List<String> buildCommand(List<String> tickers) {
         String python = "python3";
-        String script = "scripts/lynch_collect_news.py";
+        String script = "scripts/xiebo_collect_news.py";
         if (tickers.isEmpty()) {
             return List.of(python, script);
         }
@@ -85,7 +85,7 @@ public class LynchInvestNewsService {
         return idx >= 0 ? stockCode.substring(0, idx) : stockCode;
     }
 
-    private List<LynchNewsDTO.NewsItemDTO> toItems(List<Map<String, Object>> rows) {
+    private List<XieboNewsDTO.NewsItemDTO> toItems(List<Map<String, Object>> rows) {
         if (rows == null) return List.of();
         return rows.stream().map(this::toItem).toList();
     }
@@ -99,8 +99,8 @@ public class LynchInvestNewsService {
         return output;
     }
 
-    private LynchNewsDTO.NewsItemDTO toItem(Map<String, Object> row) {
-        return LynchNewsDTO.NewsItemDTO.builder()
+    private XieboNewsDTO.NewsItemDTO toItem(Map<String, Object> row) {
+        return XieboNewsDTO.NewsItemDTO.builder()
                 .category(str(row.get("category")))
                 .ticker(str(row.get("ticker")))
                 .title(str(row.get("title")))

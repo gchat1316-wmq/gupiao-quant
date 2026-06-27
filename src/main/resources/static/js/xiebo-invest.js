@@ -45,7 +45,7 @@
   }
 
   async function loadWatchlist() {
-    state.watchlist = await api('api/lynch-invest/watchlist');
+    state.watchlist = await api('api/xiebo-invest/watchlist');
     renderWatchlist();
   }
 
@@ -54,7 +54,7 @@
     if (!keyword) return;
     try {
       $('watchlistError').classList.add('hidden');
-      state.watchlist = await api('api/lynch-invest/watchlist', {
+      state.watchlist = await api('api/xiebo-invest/watchlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ keyword })
@@ -68,40 +68,40 @@
   }
 
   async function removeWatchlist(stockCode) {
-    await api('api/lynch-invest/watchlist/' + encodeURIComponent(stockCode), { method: 'DELETE' });
+    await api('api/xiebo-invest/watchlist/' + encodeURIComponent(stockCode), { method: 'DELETE' });
     await loadWatchlist();
   }
 
   async function loadQuote() {
     const keyword = $('quoteKeyword').value.trim();
     if (!keyword) return;
-    state.quote = await api('api/lynch-invest/quote?keyword=' + encodeURIComponent(keyword));
+    state.quote = await api('api/xiebo-invest/quote?keyword=' + encodeURIComponent(keyword));
     renderQuote();
   }
 
   async function loadSector() {
     const keyword = $('sectorKeyword').value.trim();
     if (!keyword) return;
-    state.sector = await api('api/lynch-invest/sector-pe?keyword=' + encodeURIComponent(keyword));
+    state.sector = await api('api/xiebo-invest/sector-pe?keyword=' + encodeURIComponent(keyword));
     renderSector();
   }
 
   async function loadNews() {
     const keyword = $('newsKeyword').value.trim();
     const suffix = keyword ? ('?keyword=' + encodeURIComponent(keyword)) : '';
-    state.news = await api('api/lynch-invest/news' + suffix);
+    state.news = await api('api/xiebo-invest/news' + suffix);
     renderNews();
   }
 
   async function loadAnalysisHistory() {
-    state.analysisHistory = await api('api/lynch-invest/analysis');
+    state.analysisHistory = await api('api/xiebo-invest/analysis');
     renderAnalysis();
   }
 
   async function createAnalysis() {
     const keyword = $('analysisKeyword').value.trim();
     if (!keyword) return;
-    state.currentAnalysis = await api('api/lynch-invest/analysis', {
+    state.currentAnalysis = await api('api/xiebo-invest/analysis', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ keyword: keyword })
@@ -111,7 +111,7 @@
   }
 
   async function loadAnalysisDetail(id) {
-    state.currentAnalysis = await api('api/lynch-invest/analysis/' + encodeURIComponent(id));
+    state.currentAnalysis = await api('api/xiebo-invest/analysis/' + encodeURIComponent(id));
     renderAnalysis();
   }
 

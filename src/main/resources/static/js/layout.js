@@ -142,8 +142,8 @@
             '<a href="./" class="brand"><span class="brand-mark">↗</span><span class="brand-name">投资助手</span></a>' +
             '<nav class="nav-links">' +
               '<a href="./" class="nav-link" data-match="/,/index.html,/gp,/gp/,/gp/index.html">财务分析</a>' +
-              '<a href="lynch-invest.html" class="nav-link" data-match="lynch-invest.html">林奇投资</a>' +
-              '<a href="invest.html" class="nav-link" data-match="invest.html">龙江投资</a>' +
+              '<a href="xiebo-invest.html" class="nav-link" data-match="xiebo-invest.html">林奇投资</a>' +
+              '<a href="invest.html" class="nav-link" data-match="invest.html">谢博投资</a>' +
               '<a href="market-recap.html" class="nav-link nav-link-recap" data-match="market-recap.html">' +
                 '<span class="nav-link-recap-label">每日复盘</span>' +
                 '<span class="nav-recap-count" id="navRecapCount" hidden></span>' +

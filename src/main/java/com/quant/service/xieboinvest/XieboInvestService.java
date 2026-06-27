@@ -1,11 +1,11 @@
-package com.quant.service.lynchinvest;
+package com.quant.service.xieboinvest;
 
-import com.quant.dto.lynchinvest.LynchQuoteDTO;
-import com.quant.dto.lynchinvest.LynchWatchlistItemDTO;
-import com.quant.entity.InvestLynchWatchlist;
+import com.quant.dto.xieboinvest.XieboQuoteDTO;
+import com.quant.dto.xieboinvest.XieboWatchlistItemDTO;
+import com.quant.entity.InvestXieboWatchlist;
 import com.quant.entity.TradeStockBasic;
 import com.quant.entity.TradeStockFinancial;
-import com.quant.repository.InvestLynchWatchlistRepository;
+import com.quant.repository.InvestXieboWatchlistRepository;
 import com.quant.repository.TradeStockBasicRepository;
 import com.quant.repository.TradeStockFinancialRepository;
 import com.quant.service.AStockDataQuoteService;
@@ -33,23 +33,23 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class LynchInvestService {
+public class XieboInvestService {
 
     private static final BigDecimal YI = BigDecimal.valueOf(100_000_000L);
 
-    private final InvestLynchWatchlistRepository watchlistRepository;
+    private final InvestXieboWatchlistRepository watchlistRepository;
     private final TradeStockBasicRepository stockBasicRepository;
     private final AStockDataQuoteService aStockDataQuoteService;
     private final TradeStockFinancialRepository financialRepository;
     private final StockQueryService stockQueryService;
     private final Ps10ValuationService ps10ValuationService;
 
-    public List<LynchWatchlistItemDTO> getWatchlist() {
-        List<InvestLynchWatchlist> rows = watchlistRepository.findAllByOrderByDisplayOrderAscCreatedAtAsc();
+    public List<XieboWatchlistItemDTO> getWatchlist() {
+        List<InvestXieboWatchlist> rows = watchlistRepository.findAllByOrderByDisplayOrderAscCreatedAtAsc();
         if (rows.isEmpty()) {
             return List.of();
         }
-        List<String> codes = rows.stream().map(InvestLynchWatchlist::getStockCode).toList();
+        List<String> codes = rows.stream().map(InvestXieboWatchlist::getStockCode).toList();
         Map<String, TradeStockBasic> basicMap = stockBasicRepository.findByStockCodeIn(codes).stream()
                 .collect(Collectors.toMap(TradeStockBasic::getStockCode, Function.identity()));
         // 当前价统一走 a-stock-data 实时接口；trade_stock_daily 收盘价同步延迟、不准确
@@ -60,7 +60,7 @@ public class LynchInvestService {
                 .toList();
     }
 
-    public LynchQuoteDTO getQuote(String keyword) {
+    public XieboQuoteDTO getQuote(String keyword) {
         TradeStockBasic basic = stockQueryService.resolveStock(keyword)
                 .orElseThrow(() -> new IllegalArgumentException("未找到股票: " + keyword));
         // 当前价统一走 a-stock-data 实时接口
@@ -69,11 +69,11 @@ public class LynchInvestService {
     }
 
     @Transactional
-    public List<LynchWatchlistItemDTO> addWatchlist(String keyword) {
+    public List<XieboWatchlistItemDTO> addWatchlist(String keyword) {
         TradeStockBasic basic = stockQueryService.resolveStock(keyword)
                 .orElseThrow(() -> new IllegalArgumentException("未找到股票: " + keyword));
         if (watchlistRepository.findByStockCode(basic.getStockCode()).isEmpty()) {
-            InvestLynchWatchlist row = new InvestLynchWatchlist();
+            InvestXieboWatchlist row = new InvestXieboWatchlist();
             row.setStockCode(basic.getStockCode());
             row.setStockName(basic.getStockName());
             row.setCreatedAt(LocalDateTime.now());
@@ -136,11 +136,11 @@ public class LynchInvestService {
         return result;
     }
 
-    private LynchWatchlistItemDTO toWatchlistItem(InvestLynchWatchlist row, TradeStockBasic basic,
+    private XieboWatchlistItemDTO toWatchlistItem(InvestXieboWatchlist row, TradeStockBasic basic,
                                                   AStockDataQuoteService.QuoteSnapshot snapshot) {
         TradeStockBasic actualBasic = basic != null ? basic : fallbackBasic(row);
         QuoteMetrics metrics = buildMetrics(actualBasic, snapshot);
-        return LynchWatchlistItemDTO.builder()
+        return XieboWatchlistItemDTO.builder()
                 .stockCode(row.getStockCode())
                 .stockName(row.getStockName())
                 .sectorName(firstSector(actualBasic.getSectorNames()))
@@ -157,9 +157,9 @@ public class LynchInvestService {
                 .build();
     }
 
-    private LynchQuoteDTO toQuote(TradeStockBasic basic, AStockDataQuoteService.QuoteSnapshot snapshot) {
+    private XieboQuoteDTO toQuote(TradeStockBasic basic, AStockDataQuoteService.QuoteSnapshot snapshot) {
         QuoteMetrics metrics = buildMetrics(basic, snapshot);
-        return LynchQuoteDTO.builder()
+        return XieboQuoteDTO.builder()
                 .stockCode(basic.getStockCode())
                 .stockName(basic.getStockName())
                 .sectorName(firstSector(basic.getSectorNames()))
@@ -194,7 +194,7 @@ public class LynchInvestService {
         return code == null ? "" : code.trim().toUpperCase(Locale.ROOT);
     }
 
-    private TradeStockBasic fallbackBasic(InvestLynchWatchlist row) {
+    private TradeStockBasic fallbackBasic(InvestXieboWatchlist row) {
         TradeStockBasic basic = new TradeStockBasic();
         basic.setStockCode(row.getStockCode());
         basic.setStockName(row.getStockName());

@@ -1,15 +1,15 @@
 package com.quant.service;
 
-import com.quant.entity.InvestLynchWatchlist;
-import com.quant.entity.InvestLynchAnalysisRecord;
+import com.quant.entity.InvestXieboWatchlist;
+import com.quant.entity.InvestXieboAnalysisRecord;
 import com.quant.entity.TradeStockBasic;
 import com.quant.entity.TradeStockFinancial;
-import com.quant.repository.InvestLynchAnalysisRecordRepository;
-import com.quant.repository.InvestLynchWatchlistRepository;
+import com.quant.repository.InvestXieboAnalysisRecordRepository;
+import com.quant.repository.InvestXieboWatchlistRepository;
 import com.quant.repository.TradeStockBasicRepository;
 import com.quant.repository.TradeStockFinancialRepository;
-import com.quant.service.lynchinvest.LynchInvestService;
-import com.quant.service.lynchinvest.LynchInvestAnalysisService;
+import com.quant.service.xieboinvest.XieboInvestService;
+import com.quant.service.xieboinvest.XieboInvestAnalysisService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,11 +33,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("LynchInvestService")
-class LynchInvestServiceTest {
+@DisplayName("XieboInvestService")
+class XieboInvestServiceTest {
 
-    @Mock InvestLynchWatchlistRepository watchlistRepository;
-    @Mock InvestLynchAnalysisRecordRepository analysisRecordRepository;
+    @Mock InvestXieboWatchlistRepository watchlistRepository;
+    @Mock InvestXieboAnalysisRecordRepository analysisRecordRepository;
     @Mock TradeStockBasicRepository stockBasicRepository;
     @Mock AStockDataQuoteService aStockDataQuoteService;
     @Mock TradeStockFinancialRepository financialRepository;
@@ -46,8 +46,8 @@ class LynchInvestServiceTest {
     @Mock com.quant.service.ai.MiniMaxClient miniMaxClient;
     @Mock com.quant.service.ai.SenseNovaClient senseNovaClient;
 
-    LynchInvestService service;
-    LynchInvestAnalysisService analysisService;
+    XieboInvestService service;
+    XieboInvestAnalysisService analysisService;
 
     @BeforeEach
     void setUp() {
@@ -59,7 +59,7 @@ class LynchInvestServiceTest {
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyList()))
                 .thenReturn(Ps10ValuationService.Ps10Result.inapplicable("—", "测试默认", "10 倍 PS 法"));
-        service = new LynchInvestService(
+        service = new XieboInvestService(
                 watchlistRepository,
                 stockBasicRepository,
                 aStockDataQuoteService,
@@ -67,7 +67,7 @@ class LynchInvestServiceTest {
                 stockQueryService,
                 ps10ValuationService
         );
-        analysisService = new LynchInvestAnalysisService(
+        analysisService = new XieboInvestAnalysisService(
                 analysisRecordRepository,
                 stockQueryService,
                 service,
@@ -79,7 +79,7 @@ class LynchInvestServiceTest {
     @Test
     @DisplayName("buildWatchlist returns peg metrics and rating from realtime quote (a-stock-data)")
     void buildWatchlistReturnsPegMetrics() {
-        InvestLynchWatchlist row = new InvestLynchWatchlist();
+        InvestXieboWatchlist row = new InvestXieboWatchlist();
         row.setStockCode("600519.SH");
         row.setStockName("贵州茅台");
 
@@ -199,7 +199,7 @@ class LynchInvestServiceTest {
         when(analysisRecordRepository.save(argThat(record ->
                 "002371.SZ".equals(record.getStockCode()) && "北方华创".equals(record.getStockName())
         ))).thenAnswer(invocation -> {
-            InvestLynchAnalysisRecord record = invocation.getArgument(0);
+            InvestXieboAnalysisRecord record = invocation.getArgument(0);
             if (record.getId() == null) record.setId(1L);
             return record;
         });
@@ -239,8 +239,8 @@ class LynchInvestServiceTest {
         return f;
     }
 
-    private InvestLynchWatchlist watchlist(String code, String name) {
-        InvestLynchWatchlist row = new InvestLynchWatchlist();
+    private InvestXieboWatchlist watchlist(String code, String name) {
+        InvestXieboWatchlist row = new InvestXieboWatchlist();
         row.setStockCode(code);
         row.setStockName(name);
         return row;

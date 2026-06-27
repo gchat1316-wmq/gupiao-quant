@@ -1,4 +1,4 @@
-package com.quant.dto.lynchinvest;
+package com.quant.dto.xieboinvest;
 
 import lombok.Builder;
 import lombok.Data;
@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 
 @Data
 @Builder
-public class LynchAnalysisDetailDTO {
+public class XieboAnalysisListItemDTO {
     private Long id;
     private String stockCode;
     private String stockName;
@@ -18,9 +18,5 @@ public class LynchAnalysisDetailDTO {
     private BigDecimal pegValue;
     private String pegRating;
     private String conclusion;
-    private String reportMarkdown;
-    private String rawSnapshotJson;
-    private String errorMessage;
     private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
 }
