@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>个人中心 · 投资助手</title>
+  <base href="/gp/" />
+  <link rel="stylesheet" href="css/skin.css" />
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    body { background: var(--bg); }
+    .profile-shell { max-width: 600px; margin: 40px auto; padding: 0 20px; }
+    .profile-title { font-size: 24px; font-weight: 700; margin-bottom: 24px; color: var(--text); }
+    .profile-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+    .profile-card-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+    .avatar-section { display: flex; align-items: center; gap: 20px; margin-bottom: 20px; }
+    .avatar-preview { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; background: var(--border); display: flex; align-items: center; justify-content: center; font-size: 32px; color: var(--text-muted); overflow: hidden; border: 2px solid var(--border); }
+    .avatar-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .avatar-preview .placeholder { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; background: var(--border); }
+    .field-group { margin-bottom: 16px; }
+    .field-label { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 6px; }
+    .field-label .hint { font-weight: 400; color: var(--text-muted); margin-left: 6px; }
+    .field-input { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--surface); color: var(--text); box-sizing: border-box; }
+    .field-input:focus { outline: none; border-color: var(--primary); }
+    .field-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .role-display { display: inline-block; padding: 4px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; }
+    .role-display.ADMIN { background: #e53; color: #fff; }
+    .role-display.MANAGER { background: var(--primary); color: #fff; }
+    .role-display.USER { background: var(--border); color: var(--text-muted); }
+    .notify-group { display: flex; flex-direction: column; gap: 12px; }
+    .notify-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--bg); border-radius: 8px; border: 1px solid var(--border); cursor: pointer; transition: border-color 0.15s; }
+    .notify-item:hover { border-color: var(--primary); }
+    .notify-item input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary); }
+    .notify-icon { font-size: 20px; }
+    .notify-text { flex: 1; }
+    .notify-text .name { font-size: 14px; font-weight: 500; color: var(--text); }
+    .notify-text .desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .notify-status { font-size: 12px; padding: 2px 8px; border-radius: 4px; }
+    .notify-status.on { background: #dcfce7; color: #166534; }
+    .notify-status.off { background: var(--border); color: var(--text-muted); }
+    .btn-row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+    .btn-save { padding: 8px 24px; border-radius: 8px; border: none; background: var(--primary); color: #fff; font-size: 14px; cursor: pointer; }
+    .btn-save:hover { opacity: 0.9; }
+    .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+    .msg { font-size: 13px; margin-top: 8px; padding: 8px 12px; border-radius: 6px; }
+    .msg.ok { background: #dcfce7; color: #166534; }
+    .msg.err { background: #fee2e2; color: #991b1b; }
+    .unauthorized { max-width: 400px; margin: 80px auto; text-align: center; padding: 40px; }
+    .section-divider { height: 1px; background: var(--border); margin: 20px 0; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .info-item { padding: 10px 14px; background: var(--bg); border-radius: 8px; }
+    .info-item .label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+    .info-item .value { font-size: 14px; font-weight: 500; color: var(--text); }
+    .role-note { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .avatar-preview-note { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <div id="siteHeader"></div>
+  <div id="profileContent"></div>
+
+  <script src="js/layout.js" defer></script>
+  <script>
+  document.addEventListener('DOMContentLoaded', async function () {
+    await new Promise(r => setTimeout(r, 100));
+
+    var content = document.getElementById('profileContent');
+    var token = localStorage.getItem('gp_auth_token');
+    if (!token) {
+      content.innerHTML = '<div class="unauthorized"><h2>请先登录</h2></div>';
+      return;
+    }
+
+    var me;
+    try {
+      me = await fetch('/gp/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(function (r) { return r.ok ? r.json() : null; });
+    } catch (e) { me = null; }
+
+    if (!me) {
+      content.innerHTML = '<div class="unauthorized"><h2>加载失败</h2><p>请刷新重试</p></div>';
+      return;
+    }
+
+    var roleLabel = me.role === 'ADMIN' ? '管理员' : me.role === 'MANAGER' ? '经理' : '普通用户';
+
+    content.innerHTML = `
+      <div class="profile-shell">
+        <div class="profile-title">👤 个人中心</div>
+
+        <!-- 基本信息卡片 -->
+        <div class="profile-card">
+          <div class="profile-card-title">📋 基本信息</div>
+          <div class="info-grid">
+            <div class="info-item">
+              <div class="label">用户ID</div>
+              <div class="value">` + me.id + `</div>
+            </div>
+            <div class="info-item">
+              <div class="label">账号角色</div>
+              <div class="value"><span class="role-display ` + me.role + `">` + roleLabel + `</span></div>
+              <div class="role-note">如需更改角色权限，请联系管理员</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 个人资料卡片 -->
+        <div class="profile-card">
+          <div class="profile-card-title">🔧 个人资料</div>
+
+          <div class="field-group">
+            <div class="field-label">用户名</div>
+            <input class="field-input" id="fUsername" value="` + esc(me.username || '') + `" placeholder="设置用户名" maxlength="50" />
+          </div>
+
+          <div class="field-group">
+            <div class="field-label">手机号 <span class="hint">用于接收验证码登录和短信通知</span></div>
+            <input class="field-input" id="fPhone" value="` + esc(me.phone || '') + `" placeholder="填写手机号" maxlength="20" />
+          </div>
+
+          <div class="field-group">
+            <div class="field-label">头像 URL <span class="hint">填入图片链接地址</span></div>
+            <input class="field-input" id="fAvatar" value="` + esc(me.avatarUrl || '') + `" placeholder="https://..." maxlength="512" />
+            <div class="avatar-preview-note">支持任意图片 URL，设置后将在管理界面显示</div>
+          </div>
+        </div>
+
+        <!-- 通知偏好卡片 -->
+        <div class="profile-card">
+          <div class="profile-card-title">🔔 通知偏好</div>
+          <div class="notify-group">
+            <label class="notify-item" id="notifyWechatItem">
+              <input type="checkbox" id="fNotifyWechat" ` + (me.notifyWechat ? 'checked' : '') + ` />
+              <div class="notify-icon">💬</div>
+              <div class="notify-text">
+                <div class="name">微信通知</div>
+                <div class="desc">通过微信公众号接收系统通知和提醒</div>
+              </div>
+              <span class="notify-status ` + (me.notifyWechat ? 'on' : 'off') + `" id="wsWechat">` + (me.notifyWechat ? '已开启' : '已关闭') + `</span>
+            </label>
+
+            <label class="notify-item" id="notifySmsItem">
+              <input type="checkbox" id="fNotifySms" ` + (me.notifySms ? 'checked' : '') + ` />
+              <div class="notify-icon">📱</div>
+              <div class="notify-text">
+                <div class="name">短信通知</div>
+                <div class="desc">接收关键事件短信提醒（可能产生运营商费用）</div>
+              </div>
+              <span class="notify-status ` + (me.notifySms ? 'on' : 'off') + `" id="wsSms">` + (me.notifySms ? '已开启' : '已关闭') + `</span>
+            </label>
+
+            <label class="notify-item" id="notifyPhoneItem">
+              <input type="checkbox" id="fNotifyPhone" ` + (me.notifyPhone ? 'checked' : '') + ` />
+              <div class="notify-icon">📞</div>
+              <div class="notify-text">
+                <div class="name">电话通知</div>
+                <div class="desc">重要紧急事件接收自动语音电话（仅极端情况触发）</div>
+              </div>
+              <span class="notify-status ` + (me.notifyPhone ? 'on' : 'off') + `" id="wsPhone">` + (me.notifyPhone ? '已开启' : '已关闭') + `</span>
+            </label>
+          </div>
+        </div>
+
+        <div id="msg" class="msg" style="display:none"></div>
+        <div class="btn-row">
+          <button class="btn-save" id="saveBtn" onclick="saveProfile()">💾 保存修改</button>
+        </div>
+      </div>`;
+
+    // 实时更新开关状态显示
+    ['fNotifyWechat','fNotifySms','fNotifyPhone'].forEach(function(id) {
+      document.getElementById(id).addEventListener('change', function() {
+        var suffix = id.replace('fNotify', '').toLowerCase();
+        var statusEl = document.getElementById('ws' + suffix.charAt(0).toUpperCase() + suffix.slice(1));
+        if (statusEl) {
+          statusEl.textContent = this.checked ? '已开启' : '已关闭';
+          statusEl.className = 'notify-status ' + (this.checked ? 'on' : 'off');
+        }
+      });
+    });
+  });
+
+  async function saveProfile() {
+    var token = localStorage.getItem('gp_auth_token');
+    var msgEl = document.getElementById('msg');
+    var btn = document.getElementById('saveBtn');
+    btn.disabled = true; btn.textContent = '保存中…';
+    msgEl.style.display = 'none'; msgEl.className = 'msg';
+
+    var req = {
+      phone: document.getElementById('fPhone').value.trim() || null,
+      avatarUrl: document.getElementById('fAvatar').value.trim() || null,
+      notifyWechat: document.getElementById('fNotifyWechat').checked,
+      notifySms: document.getElementById('fNotifySms').checked,
+      notifyPhone: document.getElementById('fNotifyPhone').checked
+    };
+
+    try {
+      var r = await fetch('/gp/api/auth/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify(req)
+      });
+      var data = await r.json();
+      if (data.error) {
+        msgEl.textContent = '保存失败: ' + data.error;
+        msgEl.className = 'msg err';
+      } else {
+        msgEl.textContent = '✅ 个人资料已保存';
+        msgEl.className = 'msg ok';
+      }
+      msgEl.style.display = 'block';
+    } catch (e) {
+      msgEl.textContent = '网络错误，请稍后重试';
+      msgEl.className = 'msg err';
+      msgEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '💾 保存修改';
+    }
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+  </script>
+</body>
+</html>

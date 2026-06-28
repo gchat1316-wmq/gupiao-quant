@@ -41,6 +41,21 @@ public class User {
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
 
+    /** 头像 URL */
+    private String avatarUrl;
+
+    /** 接收微信通知 */
+    @Column(nullable = false)
+    private Boolean notifyWechat = true;
+
+    /** 接收短信通知 */
+    @Column(nullable = false)
+    private Boolean notifySms = false;
+
+    /** 接收电话通知 */
+    @Column(nullable = false)
+    private Boolean notifyPhone = false;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 

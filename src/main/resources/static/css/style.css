@@ -1200,6 +1200,10 @@ body {
 .auth-btn-login { color: var(--primary); border-color: var(--primary); }
 .auth-btn-login:hover { background: var(--primary); color: #fff; }
 .auth-btn-logout { color: var(--text-muted); }
+.auth-btn-profile { color: var(--text); }
+.auth-btn-profile:hover { background: var(--hover-bg); color: var(--primary); }
+.auth-btn-admin { color: var(--primary); font-weight: 500; }
+.auth-btn-admin:hover { background: var(--primary); color: #fff; }
 .auth-user { display: flex; align-items: center; gap: 6px; }
 .auth-username { font-size: 13px; color: var(--text); font-weight: 500; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .auth-role { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--primary); color: #fff; }

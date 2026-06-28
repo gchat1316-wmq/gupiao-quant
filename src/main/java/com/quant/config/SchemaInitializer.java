@@ -80,6 +80,11 @@ public class SchemaInitializer implements CommandLineRunner {
             try { jdbc.execute("ALTER TABLE auth_user MODIFY COLUMN password_hash VARCHAR(255)"); log.info("auth_user password_hash 已改为 nullable"); } catch (Exception ex) { log.debug("password_hash 列调整: {}", ex.getMessage()); }
             try { jdbc.execute("ALTER TABLE auth_user MODIFY COLUMN username VARCHAR(50)"); log.info("auth_user username 已改为 nullable"); } catch (Exception ex) { log.debug("username 列调整: {}", ex.getMessage()); }
             try { jdbc.execute("ALTER TABLE auth_user ADD UNIQUE INDEX uk_username (username)"); log.info("auth_user username UNIQUE 已添加"); } catch (Exception ex) { log.debug("username UNIQUE 已存在: {}", ex.getMessage()); }
+            // 用户信息中心新字段
+            try { jdbc.execute("ALTER TABLE auth_user ADD COLUMN avatar_url VARCHAR(512)"); log.info("auth_user avatar_url 列已添加"); } catch (Exception ex) { log.debug("avatar_url 列已存在: {}", ex.getMessage()); }
+            try { jdbc.execute("ALTER TABLE auth_user ADD COLUMN notify_wechat BOOLEAN NOT NULL DEFAULT TRUE"); log.info("auth_user notify_wechat 列已添加"); } catch (Exception ex) { log.debug("notify_wechat 列已存在: {}", ex.getMessage()); }
+            try { jdbc.execute("ALTER TABLE auth_user ADD COLUMN notify_sms BOOLEAN NOT NULL DEFAULT FALSE"); log.info("auth_user notify_sms 列已添加"); } catch (Exception ex) { log.debug("notify_sms 列已存在: {}", ex.getMessage()); }
+            try { jdbc.execute("ALTER TABLE auth_user ADD COLUMN notify_phone BOOLEAN NOT NULL DEFAULT FALSE"); log.info("auth_user notify_phone 列已添加"); } catch (Exception ex) { log.debug("notify_phone 列已存在: {}", ex.getMessage()); }
         }
     }
 

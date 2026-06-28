@@ -185,12 +185,28 @@ public class AuthService {
         public UserDto toDto() {
             return new UserDto(
                 user.getId(), user.getPhone(), user.getOpenid(),
-                user.getUsername(), user.getRole().name()
+                user.getUsername(), user.getRole().name(),
+                user.getDisabled(),
+                user.getAvatarUrl(),
+                user.getNotifyWechat(),
+                user.getNotifySms(),
+                user.getNotifyPhone()
             );
         }
     }
 
-    public record UserDto(Long id, String phone, String openid, String username, String role) {}
+    public record UserDto(
+            Long id,
+            String phone,
+            String openid,
+            String username,
+            String role,
+            Boolean disabled,
+            String avatarUrl,
+            Boolean notifyWechat,
+            Boolean notifySms,
+            Boolean notifyPhone
+    ) {}
 
     // ── 登录码生成（ADMIN 给 MANAGER/ADMIN 发码）────────────
 
@@ -241,7 +257,8 @@ public class AuthService {
     public java.util.List<UserDto> listUsers() {
         return userRepository.findAll().stream()
                 .map(u -> new UserDto(u.getId(), u.getPhone(), u.getOpenid(),
-                        u.getUsername(), u.getRole().name()))
+                        u.getUsername(), u.getRole().name(), u.getDisabled(),
+                        u.getAvatarUrl(), u.getNotifyWechat(), u.getNotifySms(), u.getNotifyPhone()))
                 .toList();
     }
 
@@ -257,7 +274,8 @@ public class AuthService {
         log(adminId, "ROLE_CHANGED", "userId:" + targetUserId,
                 Map.of("newRole", newRole.name()), null);
         return new UserDto(target.getId(), target.getPhone(), target.getOpenid(),
-                target.getUsername(), target.getRole().name());
+                target.getUsername(), target.getRole().name(), target.getDisabled(),
+                target.getAvatarUrl(), target.getNotifyWechat(), target.getNotifySms(), target.getNotifyPhone());
     }
 
     @Transactional
@@ -268,6 +286,30 @@ public class AuthService {
         userRepository.save(target);
         log(adminId, disabled ? "USER_DISABLED" : "USER_ENABLED",
                 "userId:" + targetUserId, null, null);
+    }
+
+    /** 更新个人资料（手机号/头像/通知偏好） */
+    @Transactional
+    public UserDto updateProfile(Long userId, String phone, String avatarUrl,
+                                Boolean notifyWechat, Boolean notifySms, Boolean notifyPhone) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+        if (phone != null && !phone.isBlank()) {
+            if (!phone.equals(user.getPhone()) && userRepository.existsByPhone(phone)) {
+                throw new RuntimeException("手机号已被占用");
+            }
+            user.setPhone(phone);
+        }
+        if (avatarUrl != null) {
+            user.setAvatarUrl(avatarUrl.isBlank() ? null : avatarUrl);
+        }
+        if (notifyWechat != null) user.setNotifyWechat(notifyWechat);
+        if (notifySms != null) user.setNotifySms(notifySms);
+        if (notifyPhone != null) user.setNotifyPhone(notifyPhone);
+        user = userRepository.save(user);
+        return new UserDto(user.getId(), user.getPhone(), user.getOpenid(),
+                user.getUsername(), user.getRole().name(), user.getDisabled(),
+                user.getAvatarUrl(), user.getNotifyWechat(), user.getNotifySms(), user.getNotifyPhone());
     }
 
     private String generateRandomCode(int length) {

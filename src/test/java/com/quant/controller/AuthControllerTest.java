@@ -379,8 +379,8 @@ class AuthControllerTest {
         @DisplayName("ADMIN 查看用户列表 → 200")
         void adminListUsers() throws Exception {
             when(authService.listUsers()).thenReturn(List.of(
-                    new UserDto(1L, "13800000001", null, "Alice", "ADMIN"),
-                    new UserDto(2L, "13800000002", null, "Bob", "MANAGER")
+                    new UserDto(1L, "13800000001", null, "Alice", "ADMIN", false, null, true, false, false),
+                    new UserDto(2L, "13800000002", null, "Bob", "MANAGER", false, null, true, false, false)
             ));
 
             mvc.perform(get("/api/auth/admin/users")
@@ -416,7 +416,7 @@ class AuthControllerTest {
         @DisplayName("ADMIN 改用户角色 → 200")
         void adminUpdatesRole() throws Exception {
             when(authService.updateUserRole(eq(1L), eq(10L), eq(User.Role.MANAGER)))
-                    .thenReturn(new UserDto(10L, "13800000010", null, "Bob", "MANAGER"));
+                    .thenReturn(new UserDto(10L, "13800000010", null, "Bob", "MANAGER", false, null, true, false, false));
 
             mvc.perform(put("/api/auth/admin/users/10/role")
                             .header("Authorization", "Bearer " + adminToken)

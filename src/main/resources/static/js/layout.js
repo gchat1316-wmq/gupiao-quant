@@ -167,9 +167,11 @@
                 '<li role="option" data-skin="bull" aria-selected="false"><span class="dot"></span>牛市红</li>' +
               '</ul>' +
             '</div>' +
-            '<div id="authArea" class="auth-area">' +
+              '<div id="authArea" class="auth-area">' +
               '<button id="authLoginBtn" class="auth-btn auth-btn-login" type="button">登录</button>' +
               '<div id="authUser" class="auth-user hidden">' +
+                '<a id="authProfileBtn" href="profile.html" class="auth-btn auth-btn-profile" type="button">👤 个人中心</a>' +
+                '<a id="authAdminBtn" href="admin-users.html" class="auth-btn auth-btn-admin hidden" type="button">⚙️ 管理后台</a>' +
                 '<span id="authUsername" class="auth-username"></span>' +
                 '<span id="authRole" class="auth-role"></span>' +
                 '<button id="authLogoutBtn" class="auth-btn auth-btn-logout" type="button">退出</button>' +
@@ -499,12 +501,21 @@ function updateAuthUI(user) {
   var authUser = document.getElementById('authUser');
   var authUsername = document.getElementById('authUsername');
   var authRole = document.getElementById('authRole');
+  var authAdminBtn = document.getElementById('authAdminBtn');
   if (!loginBtn) return;
   loginBtn.classList.add('hidden');
   authUser.classList.remove('hidden');
   authUsername.textContent = user.username || user.phone || '用户';
   authRole.textContent = roleLabel(user.role);
   authRole.dataset.role = user.role;
+  // ADMIN 用户显示管理后台入口
+  if (authAdminBtn) {
+    if (user.role === 'ADMIN') {
+      authAdminBtn.classList.remove('hidden');
+    } else {
+      authAdminBtn.classList.add('hidden');
+    }
+  }
 }
 
 function roleLabel(role) {
