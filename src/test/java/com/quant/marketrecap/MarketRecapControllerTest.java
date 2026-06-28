@@ -7,6 +7,8 @@ import com.quant.dto.marketrecap.MarketRecapPageDTO;
 import com.quant.dto.marketrecap.MarketRecapSummaryDTO;
 import com.quant.dto.marketrecap.SectorCardDTO;
 import com.quant.dto.marketrecap.StrategyItemDTO;
+import com.quant.repository.UserRepository;
+import com.quant.security.JwtTokenProvider;
 import com.quant.service.MarketRecapService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,6 +37,12 @@ class MarketRecapControllerTest {
 
     @MockBean
     MarketRecapService marketRecapService;
+
+    @MockBean
+    JwtTokenProvider jwtTokenProvider;
+
+    @MockBean
+    UserRepository userRepository;
 
     @Test
     @DisplayName("市场列表接口返回数组")

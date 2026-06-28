@@ -2,6 +2,8 @@ package com.quant.wishpool;
 
 import com.quant.controller.WishPoolController;
 import com.quant.dto.wishpool.WishSubmitRequest;
+import com.quant.repository.UserRepository;
+import com.quant.security.JwtTokenProvider;
 import com.quant.service.WishPoolService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,6 +30,12 @@ class WishPoolControllerTest {
 
     @MockBean
     WishPoolService wishPoolService;
+
+    @MockBean
+    JwtTokenProvider jwtTokenProvider;
+
+    @MockBean
+    UserRepository userRepository;
 
     @Test
     @DisplayName("有效许愿返回 200 和成功消息")

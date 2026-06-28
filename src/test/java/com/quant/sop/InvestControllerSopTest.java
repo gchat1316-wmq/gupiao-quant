@@ -2,6 +2,8 @@ package com.quant.sop;
 
 import com.quant.controller.InvestController;
 import com.quant.dto.invest.SopCheckupDTO;
+import com.quant.repository.UserRepository;
+import com.quant.security.JwtTokenProvider;
 import com.quant.service.InvestService;
 import com.quant.service.InvestPoolRefreshService;
 import com.quant.service.InvestPoolSeedService;
@@ -10,6 +12,7 @@ import com.quant.service.PriceMonitorService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -22,6 +25,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(InvestController.class)
+@AutoConfigureMockMvc(addFilters = false)
 @DisplayName("InvestController - /api/invest/sop/checkup")
 class InvestControllerSopTest {
 
@@ -31,6 +35,8 @@ class InvestControllerSopTest {
     @MockBean  PriceMonitorService priceMonitorService;
     @MockBean  InvestPoolSeedService investPoolSeedService;
     @MockBean  InvestPoolRefreshService investPoolRefreshService;
+    @MockBean  JwtTokenProvider jwtTokenProvider;
+    @MockBean  UserRepository userRepository;
 
     private SopCheckupDTO.MetricCheck metric(String label, String verdict, double latest, String tip) {
         return SopCheckupDTO.MetricCheck.builder()

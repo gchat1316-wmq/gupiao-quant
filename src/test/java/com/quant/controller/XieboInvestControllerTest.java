@@ -5,6 +5,8 @@ import com.quant.dto.xieboinvest.XieboAnalysisDetailDTO;
 import com.quant.dto.xieboinvest.XieboAnalysisListItemDTO;
 import com.quant.dto.xieboinvest.XieboNewsDTO;
 import com.quant.dto.xieboinvest.XieboQuoteDTO;
+import com.quant.repository.UserRepository;
+import com.quant.security.JwtTokenProvider;
 import com.quant.service.xieboinvest.XieboInvestAnalysisService;
 import com.quant.service.xieboinvest.XieboInvestNewsService;
 import com.quant.service.xieboinvest.XieboInvestService;
@@ -37,6 +39,8 @@ class XieboInvestControllerTest {
     @MockBean XieboInvestService service;
     @MockBean XieboInvestAnalysisService analysisService;
     @MockBean XieboInvestNewsService newsService;
+    @MockBean JwtTokenProvider jwtTokenProvider;
+    @MockBean UserRepository userRepository;
 
     @Test
     @DisplayName("watchlist endpoint returns persisted monitoring rows")
