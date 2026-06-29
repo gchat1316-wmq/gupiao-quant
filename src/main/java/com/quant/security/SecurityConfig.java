@@ -52,7 +52,13 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // 公开接口：行情/搜索/技术分析/资讯
+                // ===== 静态资源（首页/页面/CSS/JS/图片/上传文件）全部公开 =====
+                .requestMatchers("/", "/index.html", "/favicon.ico", "/error").permitAll()
+                .requestMatchers("/*.html").permitAll()
+                .requestMatchers("/css/**", "/js/**", "/lib/**", "/images/**", "/img/**").permitAll()
+                .requestMatchers("/uploads/**", "/static/**", "/assets/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/*.png", "/*.jpg", "/*.jpeg", "/*.gif", "/*.svg", "/*.ico", "/*.webp").permitAll()
+                // ===== 公开 API =====
                 .requestMatchers(HttpMethod.GET, "/api/quote/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/stock/search").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/stock/info/**").permitAll()
@@ -60,8 +66,13 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/analysis/**").permitAll()
                 // 龙江股票池读取公开
                 .requestMatchers(HttpMethod.GET, "/api/invest/pool").permitAll()
+                // SOP 体检 + 大阳线战法读公开（只放查询，不放写）
+                .requestMatchers(HttpMethod.GET, "/api/invest/sop/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/invest/big-yang/**").permitAll()
                 // 认证接口
                 .requestMatchers("/api/auth/**").permitAll()
+                // 统计上报（前端静默调用，无需认证）
+                .requestMatchers(HttpMethod.POST, "/api/stats/page-view").permitAll()
                 // actuator
                 .requestMatchers("/actuator/**").permitAll()
                 // 其他请求需要认证

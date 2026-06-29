@@ -1098,14 +1098,20 @@
   color: var(--text-mid);
 }
 
-.pool-row-btn:hover {
+.pool-row-btn:hover:not(:disabled) {
   border-color: var(--invest-gold-border);
   color: var(--invest-gold);
 }
 
-.pool-row-btn.danger:hover {
+.pool-row-btn.danger:hover:not(:disabled) {
   border-color: #fca5a5;
   color: var(--up);
+}
+
+.pool-row-btn:disabled,
+.pool-row-btn[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .pool-list-foot {
@@ -3352,4 +3358,21 @@
   gap: 8px;
   margin-top: 14px;
   justify-content: flex-end;
+}
+
+/* ===== 只读模式提示横幅 ===== */
+.invest-readonly-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  color: #9a3412;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+.invest-readonly-banner b {
+  color: #7c2d12;
 }

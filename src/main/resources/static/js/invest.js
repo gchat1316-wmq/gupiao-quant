@@ -6,6 +6,81 @@
   const POOL_TYPE_LABELS = { quality: '质量优选', tech_vc: '科技风投' };
   const STATUS_LABELS = { watching: '观察中', holding: '持仓中', exited: '已离场' };
 
+  // ---- 权限辅助 ----
+  // 当前用户是否拥有股票池修改权限（MANAGER 或 ADMIN）。
+  // 角色由 layout.js 在调用 /api/auth/me 后回填到 GPAuth。
+  function canManageInvest() {
+    return !!(window.GPAuth && typeof GPAuth.canManageInvest === 'function' && GPAuth.canManageInvest());
+  }
+
+  // 给所有修改类 fetch 拼上 Authorization 头。后端 @PreAuthorize 会按角色拦截。
+  function authJsonHeaders() {
+    return Object.assign({ 'Content-Type': 'application/json' }, (GPAuth.headers && GPAuth.headers()) || {});
+  }
+
+  // 把所有修改类入口（按钮/输入/操作列）隐藏或锁住；并显示提示横幅。
+  // 该函数幂等：被 layout.js 的 gp:role-changed 事件反复触发，每次按当前 role 重新决策。
+  function applyReadOnlyMode() {
+    const manage = canManageInvest();
+
+    // 顶部横幅：只读时插入，已有则保留
+    let banner = document.getElementById('readonlyBanner');
+    if (!manage) {
+      if (!banner) {
+        const hero = document.querySelector('.invest-hero');
+        if (hero) {
+          banner = document.createElement('div');
+          banner.id = 'readonlyBanner';
+          banner.className = 'invest-readonly-banner';
+          banner.innerHTML = '🔒 当前角色为只读模式（修改股票池需要 <b>MANAGER</b> 或 <b>ADMIN</b> 角色）';
+          hero.parentNode.insertBefore(banner, hero.nextSibling);
+        }
+      }
+    } else if (banner) {
+      banner.remove();
+    }
+
+    // 加入股票池 / 截图批量导入 / 立即扫描
+    const hideIfReadonly = (id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.toggle('hidden', !manage);
+    };
+    hideIfReadonly('addPoolBtn');
+    hideIfReadonly('importPoolBtn');
+    hideIfReadonly('bigYangRunBtn');
+
+    // SOP 5A "加入股票池"：只读时禁用按钮 + 改文案
+    const sop5aBtn = document.getElementById('sop5aSaveBtn');
+    if (sop5aBtn) {
+      sop5aBtn.disabled = !manage;
+      sop5aBtn.title = manage ? '' : '需要 MANAGER 权限';
+      sop5aBtn.textContent = manage ? '加入股票池' : '需要 MANAGER 权限';
+    }
+  }
+
+  // 每次重渲染股票池行后，根据当前角色决定是否锁定 row 内控件
+  function lockPoolRowControls() {
+    const manage = canManageInvest();
+    document.querySelectorAll('.pool-row-btn').forEach(b => {
+      b.disabled = !manage;
+      b.title = manage ? '' : '需要 MANAGER 权限';
+    });
+    document.querySelectorAll('.pool-cell-input, .pool-cell-select').forEach(el => {
+      if (manage) {
+        el.removeAttribute('readonly');
+        el.removeAttribute('disabled');
+      } else {
+        el.setAttribute('readonly', 'readonly');
+        el.setAttribute('disabled', 'disabled');
+      }
+    });
+    document.querySelectorAll('.pool-cell-memo').forEach(el => {
+      el.style.pointerEvents = manage ? '' : 'none';
+      el.style.opacity = manage ? '' : '0.6';
+    });
+  }
+
   // ---- 模块初始化 ----
   function init() {
     initTabs();
@@ -14,6 +89,13 @@
     initPool();
     initValuation();
     initPoolModal();
+    applyReadOnlyMode();
+
+    // 监听 layout.js 设角色后的事件，重新跑一次只读决策（修 /api/auth/me 异步早于 init 的竞态）
+    document.addEventListener('gp:role-changed', () => {
+      applyReadOnlyMode();
+      lockPoolRowControls();
+    });
   }
 
   // ===== 实战选股 SOP =====
@@ -97,7 +179,7 @@
     try {
       const res = await fetch('api/invest/pool', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authJsonHeaders(),
         body: JSON.stringify({
           keyword: kw,
           poolType: total >= 17 ? 'tech_vc' : 'quality',
@@ -358,10 +440,11 @@
   async function runBigYangScan() {
     const btn = document.getElementById('bigYangRunBtn');
     if (!btn) return;
+    if (!canManageInvest()) { setBigYangRunStatus('当前角色无权限（需 MANAGER/ADMIN）', 'error'); return; }
     btn.disabled = true;
     btn.textContent = '扫描中...';
     try {
-      const result = await fetchBigYangJson(`${BIG_YANG_API}/run`, { method: 'POST' });
+      const result = await fetchBigYangJson(`${BIG_YANG_API}/run`, { method: 'POST', headers: (GPAuth.headers && GPAuth.headers()) || {} });
       setBigYangRunStatus(result.message || '扫描完成', 'success');
       await loadBigYangPanel();
     } catch (e) {
@@ -375,7 +458,7 @@
   async function markBigYangAlertRead(id) {
     if (!id) return;
     try {
-      await fetchBigYangJson(`${BIG_YANG_API}/alerts/${id}/read`, { method: 'POST' });
+      await fetchBigYangJson(`${BIG_YANG_API}/alerts/${id}/read`, { method: 'POST', headers: (GPAuth.headers && GPAuth.headers()) || {} });
       bigYangState.alerts = bigYangState.alerts.map(alert => {
         if (String(alert.id) === String(id)) {
           return { ...alert, read: true };
@@ -394,7 +477,9 @@
   }
 
   async function fetchBigYangJson(url, options) {
-    const res = await fetch(url, options);
+    const opts = Object.assign({ headers: {} }, options || {});
+    // 读接口不强求登录；写接口由调用方传 headers（含 Authorization）
+    const res = await fetch(url, opts);
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       throw new Error(data.message || `请求失败：${res.status}`);
@@ -650,6 +735,7 @@
       ${renderPoolCharts(items)}`;
 
     bindPoolEvents();
+    if (!canManageInvest()) lockPoolRowControls();
   }
 
   function renderCell(col, item) {
@@ -853,6 +939,11 @@
       if (!btn) return;
       const action = btn.dataset.action;
       const id = parseInt(btn.dataset.id, 10);
+      // 只读模式下统一拦截，UI 已禁用，这里再防一手
+      if (!canManageInvest()) {
+        alert('当前角色无修改权限（需 MANAGER/ADMIN）');
+        return;
+      }
       if (action === 'edit') openEditModal(id);
       else if (action === 'delete') {
         const item = poolData.find(i => i.id === id);
@@ -864,6 +955,7 @@
   }
 
   async function onCellEdit(el) {
+    if (!canManageInvest()) return; // 只读模式直接吞掉内联编辑
     const tr = el.closest('tr');
     const id = parseInt(tr.dataset.id, 10);
     const field = el.dataset.field;
@@ -878,7 +970,7 @@
     try {
       const res = await fetch(`api/invest/pool/${id}/field`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authJsonHeaders(),
         body: JSON.stringify({ field, value: value === '' ? null : value }),
       });
       if (!res.ok) {
@@ -905,9 +997,17 @@
   }
 
   async function removePool(id, name) {
+    if (!canManageInvest()) { alert('当前角色无修改权限（需 MANAGER/ADMIN）'); return; }
     if (!confirm(`确认从股票池移除「${name}」？`)) return;
     try {
-      await fetch(`api/invest/pool/${id}`, { method: 'DELETE' });
+      const res = await fetch(`api/invest/pool/${id}`, {
+        method: 'DELETE',
+        headers: (GPAuth.headers && GPAuth.headers()) || {},
+      });
+      if (!res.ok && res.status !== 204) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || `移除失败: HTTP ${res.status}`);
+      }
       await loadPool();
     } catch (e) {
       alert('移除失败：' + e.message);
@@ -1006,7 +1106,7 @@
       if (editingPoolId) {
         const res = await fetch(`api/invest/pool/${editingPoolId}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authJsonHeaders(),
           body: JSON.stringify(body),
         });
         if (!res.ok) {
@@ -1016,7 +1116,7 @@
       } else {
         const res = await fetch('api/invest/pool', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authJsonHeaders(),
           body: JSON.stringify(body),
         });
         if (!res.ok) {
@@ -1060,7 +1160,7 @@
     try {
       const res = await fetch(`api/invest/pool/${memoEditingId}/field`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authJsonHeaders(),
         body: JSON.stringify({ field: 'memo', value: memo || null }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || '保存失败');
@@ -1162,7 +1262,7 @@
     try {
       const res = await fetch('api/invest/pool/import-image', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authJsonHeaders(),
         body: JSON.stringify({ imageBase64: importImageBase64, defaultPoolType }),
       });
       if (!res.ok) {
@@ -1287,7 +1387,7 @@
     try {
       const res = await fetch('api/invest/pool/batch-import', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authJsonHeaders(),
         body: JSON.stringify({ items }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || '导入失败');

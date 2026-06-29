@@ -14,6 +14,7 @@ import com.quant.service.InvestPoolSeedService;
 import com.quant.service.OcrPoolImportService;
 import com.quant.service.PriceMonitorService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -66,18 +67,21 @@ public class InvestController {
 
     /** 加入股票池 */
     @PostMapping("/pool")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public PoolItemDTO addToPool(@RequestBody PoolSaveRequest req) {
         return investService.addToPool(req);
     }
 
     /** 更新股票池条目（整体更新） */
     @PutMapping("/pool/{id}")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public PoolItemDTO updatePool(@PathVariable Integer id, @RequestBody PoolSaveRequest req) {
         return investService.updatePool(id, req);
     }
 
     /** 内联编辑：单字段更新 */
     @PatchMapping("/pool/{id}/field")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public PoolItemDTO updatePoolField(@PathVariable Integer id,
                                        @RequestBody PoolFieldUpdateRequest req) {
         return investService.updateField(id, req);
@@ -85,6 +89,7 @@ public class InvestController {
 
     /** 移除股票池条目 */
     @DeleteMapping("/pool/{id}")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public ResponseEntity<Map<String, String>> removeFromPool(@PathVariable Integer id) {
         investService.removeFromPool(id);
         return ResponseEntity.ok(Map.of("message", "已移除"));
@@ -92,18 +97,21 @@ public class InvestController {
 
     /** 截图批量导入：仅解析图片，返回识别结果（不入库），由前端预览后再调用 batch-import */
     @PostMapping("/pool/import-image")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public OcrParseResultDTO importFromImage(@RequestBody OcrImportRequest req) {
         return ocrService.parseImage(req);
     }
 
     /** 截图批量导入：将前端确认后的列表批量入库 */
     @PostMapping("/pool/batch-import")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public BatchImportResultDTO batchImport(@RequestBody BatchImportRequest req) {
         return ocrService.batchImport(req);
     }
 
     /** 手动触发价格监控（调试用）。 */
     @PostMapping("/pool/monitor/run")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public Map<String, String> runPriceMonitor() {
         priceMonitorService.monitorPrices();
         return Map.of("message", "monitor triggered");
@@ -111,6 +119,7 @@ public class InvestController {
 
     /** 按截图顺序重建科技风投股票池。 */
     @PostMapping("/pool/seed/tech-vc-screenshot")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public Map<String, Object> seedTechVcScreenshotPool() {
         int inserted = poolSeedService.replaceTechVcWithScreenshotPool();
         return Map.of("message", "tech_vc pool rebuilt", "inserted", inserted);
@@ -118,6 +127,7 @@ public class InvestController {
 
     /** 手动触发股票池周末刷新逻辑。补齐所有池类型（quality + tech_vc）的缺失字段。 */
     @PostMapping("/pool/refresh")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public Map<String, Object> refreshPool() {
         int refreshed = poolRefreshService.refreshAllPoolSnapshots();
         return Map.of("message", "pool refreshed", "refreshed", refreshed);

@@ -132,7 +132,7 @@
     if (!mount) return;
 
     try {
-      const response = await fetch('header.html?v=20260618-skin-switch', { cache: 'no-cache' });
+      const response = await fetch('header.html?v=20260629-profile-link', { cache: 'no-cache' });
       if (!response.ok) throw new Error('header load failed');
       mount.innerHTML = await response.text();
     }           catch (e) {
@@ -202,8 +202,39 @@
       link.classList.toggle('active', isActive(matches));
     });
 
+    // 关键修复：#authModal 必须挂在 body 直接子元素上。
+    // 否则 .modal-overlay 的 position:fixed 在多层 flex container 中失效，
+    // 表现就是"透明弹窗"——半透明遮罩能看到背后的搜索框/导航，二维码也看不见。
     bindSkinSwitch();
     loadRecapBadge(mount);
+
+    // ── 修复 #1：把 authModal 提升到 body 直接子元素 ──────────────────────
+    var authModal = document.getElementById('authModal');
+    if (authModal && authModal.parentNode !== document.body) {
+      document.body.appendChild(authModal);
+    }
+    if (authModal) {
+      // ── 修复 #2：兜底 inline style，防止 var(--surface) 解析失败或 inset 不识别 ─
+      authModal.style.position = 'fixed';
+      authModal.style.top = '0';
+      authModal.style.right = '0';
+      authModal.style.bottom = '0';
+      authModal.style.left = '0';
+      authModal.style.zIndex = '99999';
+      authModal.style.background = 'rgba(0,0,0,0.6)';
+      authModal.style.display = 'flex';
+      authModal.style.alignItems = 'center';
+      authModal.style.justifyContent = 'center';
+      var modalBox = authModal.querySelector('.modal-box');
+      if (modalBox) {
+        modalBox.style.background = '#fff';
+        modalBox.style.position = 'relative';
+        modalBox.style.zIndex = '1';
+        modalBox.style.maxWidth = '92vw';
+        modalBox.style.maxHeight = '92vh';
+        modalBox.style.overflow = 'auto';
+      }
+    }
   }
 
   function loadRecapBadge(mount) {
@@ -394,12 +425,94 @@
   bindWishPool();
   bindFooterToggle();
   bindAuth();
+  initPageViewTracker();
 }());
+
+// ============================================================
+//  页面访问追踪（静默，不阻塞导航）
+// ============================================================
+function initPageViewTracker() {
+  var SESSION_KEY = 'gp_session_id';
+  var PAGE_START_KEY = 'gp_page_start_time';
+
+  function getOrCreateSessionId() {
+    try {
+      var sid = sessionStorage.getItem(SESSION_KEY);
+      if (!sid) {
+        sid = 's' + Date.now() + '-' + Math.random().toString(36).slice(2, 9);
+        sessionStorage.setItem(SESSION_KEY, sid);
+      }
+    } catch (e) { sid = 'noid'; }
+    return sid;
+  }
+
+  var sessionId = getOrCreateSessionId();
+  var pagePath = window.location.pathname;
+
+  // 记录本页面开始时间（用于计算停留时长）
+  var pageStartTime = Date.now();
+  try { sessionStorage.setItem(PAGE_START_KEY + pagePath, pageStartTime); } catch (e) {}
+
+  // 页面卸载前尝试上报（同步 XHR，兼容性最好）
+  window.addEventListener('beforeunload', function () {
+    var duration = Math.round((Date.now() - pageStartTime) / 1000);
+    var token = (function () {
+      try { return localStorage.getItem('gp_auth_token'); } catch (e) { return null; }
+    }());
+    var userId = null;
+    if (token) {
+      try {
+        var payload = JSON.parse(atob(token.split('.')[1]));
+        userId = payload.sub || payload.userId || null;
+      } catch (e) {}
+    }
+    // 用 navigator.sendBeacon 静默发送，兜底用图片请求
+    var body = JSON.stringify({
+      pagePath: pagePath,
+      sessionId: sessionId,
+      userId: userId
+    });
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon('/gp/api/stats/page-view', new Blob([body], { type: 'application/json' }));
+    } else {
+      var img = new Image();
+      img.src = '/gp/api/stats/page-view?payload=' + encodeURIComponent(body);
+    }
+  });
+
+  // 立即上报一次（PV）
+  setTimeout(function () {
+    reportPageView(pagePath, sessionId);
+  }, 500);
+}
+
+function reportPageView(pagePath, sessionId) {
+  var token = (function () {
+    try { return localStorage.getItem('gp_auth_token'); } catch (e) { return null; }
+  }());
+  var userId = null;
+  if (token) {
+    try {
+      var payload = JSON.parse(atob(token.split('.')[1]));
+      userId = payload.sub || payload.userId || null;
+    } catch (e) {}
+  }
+  fetch('/gp/api/stats/page-view', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-User-Id': String(userId || '') },
+    body: JSON.stringify({ pagePath: pagePath, sessionId: sessionId || '' }),
+    keepalive: true
+  }).catch(function () {}); // 静默
+}
 
 // ============================================================
 //  认证：登录 / 状态 / 登出
 // ============================================================
 var AUTH_TOKEN_KEY = 'gp_auth_token';
+var AUTH_USER_KEY = 'gp_auth_user';
+var QR_POLL_HANDLE = null;
+var QR_POLL_SESSION = null;
+var QR_POLL_EXPIRES_AT = 0;
 
 function bindAuth() {
   var loginBtn = document.getElementById('authLoginBtn');
@@ -412,26 +525,181 @@ function bindAuth() {
   var codeInput = document.getElementById('authCodeInput');
   var submitBtn = document.getElementById('authSubmitBtn');
   var authError = document.getElementById('authError');
+  var tabScan = document.getElementById('authTabScan');
+  var tabCode = document.getElementById('authTabCode');
+  var paneScan = document.getElementById('authPaneScan');
+  var paneCode = document.getElementById('authPaneCode');
+  var scanLoading = document.getElementById('authScanLoading');
+  var scanReady = document.getElementById('authScanReady');
+  var scanFallback = document.getElementById('authScanFallback');
+  var scanUnavailable = document.getElementById('authScanUnavailable');
+  var scanImg = document.getElementById('authScanImg');
+  var scanStatus = document.getElementById('authScanStatus');
+  var scanMask = document.getElementById('authScanMask');
+  var scanMaskText = document.getElementById('authScanMaskText');
+  var scanRefresh = document.getElementById('authScanRefresh');
+  var scanOauth = document.getElementById('authScanOAuth');
 
   if (!loginBtn) return;
 
+  // ── 弹窗显隐 ──────────────────────────────────────────
   function showModal() {
     authError.classList.add('hidden');
     authError.textContent = '';
     codeInput.value = '';
     modal.classList.remove('hidden');
-    codeInput.focus();
+    activateTab('scan');
   }
   function hideModal() {
     modal.classList.add('hidden');
+    stopQrPoll();
   }
 
+  // ── Tab 切换 ────────────────────────────────────────
+  function activateTab(name) {
+    if (name === 'scan') {
+      tabScan.classList.add('is-active'); tabScan.setAttribute('aria-selected', 'true');
+      tabCode.classList.remove('is-active'); tabCode.setAttribute('aria-selected', 'false');
+      paneScan.classList.remove('hidden');
+      paneCode.classList.add('hidden');
+      initQrLogin();
+    } else {
+      tabCode.classList.add('is-active'); tabCode.setAttribute('aria-selected', 'true');
+      tabScan.classList.remove('is-active'); tabScan.setAttribute('aria-selected', 'false');
+      paneCode.classList.remove('hidden');
+      paneScan.classList.add('hidden');
+      stopQrPoll();
+      setTimeout(function(){ codeInput && codeInput.focus(); }, 50);
+    }
+  }
+
+  function setScanPhase(phase) {
+    scanLoading.classList.toggle('hidden', phase !== 'loading');
+    scanReady.classList.toggle('hidden', phase !== 'ready');
+    scanFallback.classList.toggle('hidden', phase !== 'fallback');
+    scanUnavailable.classList.toggle('hidden', phase !== 'unavailable');
+  }
+
+  // ── 微信扫码流程 ─────────────────────────────────────────
+  function initQrLogin() {
+    stopQrPoll();
+    setScanPhase('loading');
+    fetch('/gp/api/auth/wechat/qr-info', { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (info) {
+        if (!info) { setScanPhase('unavailable'); return; }
+        if (info.mpReady) {
+          startMpQr();
+        } else if (info.oauthReady) {
+          setScanPhase('fallback');
+        } else {
+          setScanPhase('unavailable');
+        }
+      })
+      .catch(function () { setScanPhase('unavailable'); });
+  }
+
+  function startMpQr() {
+    setScanPhase('loading');
+    fetch('/gp/api/auth/wechat/mp/qr')
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
+      .then(function (data) {
+        if (!data || !data.ready) { setScanPhase('unavailable'); return; }
+        scanImg.src = data.qrUrl;
+        scanStatus.textContent = '等待扫码…';
+        scanMask.classList.add('hidden');
+        setScanPhase('ready');
+        QR_POLL_EXPIRES_AT = Date.now() + (data.expireSeconds || 300) * 1000;
+        startQrPoll(data.sessionId);
+      })
+      .catch(function () { setScanPhase('unavailable'); });
+  }
+
+  function startQrPoll(sessionId) {
+    QR_POLL_SESSION = sessionId;
+    stopQrPoll();
+    QR_POLL_HANDLE = setInterval(function () {
+      if (QR_POLL_SESSION !== sessionId) return;
+      if (QR_POLL_EXPIRES_AT && Date.now() > QR_POLL_EXPIRES_AT) {
+        scanStatus.textContent = '二维码已过期，请刷新';
+        stopQrPoll();
+        return;
+      }
+      fetch('/gp/api/auth/wechat/mp/poll?sessionId=' + encodeURIComponent(sessionId))
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) {
+          if (!data) return;
+          if (data.status === 'SCANNING') {
+            scanStatus.textContent = '等待扫码…';
+          } else if (data.status === 'SCANNED') {
+            scanStatus.textContent = '已扫码，请在手机上确认';
+            scanMask.classList.remove('hidden');
+            scanMaskText.textContent = '已扫码';
+          } else if (data.status === 'CONFIRMED') {
+            scanStatus.textContent = '已确认，正在登录…';
+            scanMaskText.textContent = '已确认';
+          } else if (data.status === 'LOGGED_IN') {
+            scanStatus.textContent = '登录成功';
+            completeLogin(data.accessToken, data.user);
+          } else if (data.status === 'EXPIRED') {
+            scanStatus.textContent = '二维码已过期，请刷新';
+            stopQrPoll();
+          }
+        })
+        .catch(function () { /* 忽略下一次重试 */ });
+    }, 1500);
+  }
+
+  function stopQrPoll() {
+    if (QR_POLL_HANDLE) { clearInterval(QR_POLL_HANDLE); QR_POLL_HANDLE = null; }
+    QR_POLL_SESSION = null;
+  }
+
+  function completeLogin(token, user) {
+    if (!token) return;
+    localStorage.setItem(AUTH_TOKEN_KEY, token);
+    if (user) {
+      try { localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user)); } catch (e) {}
+      updateAuthUI(user);
+    } else {
+      checkAuthStatus();
+    }
+    stopQrPoll();
+    hideModal();
+  }
+
+  // ── 事件绑定 ────────────────────────────────────────────
   loginBtn.addEventListener('click', showModal);
   if (modalClose) modalClose.addEventListener('click', hideModal);
   modal.addEventListener('click', function (e) {
     if (e.target === modal) hideModal();
   });
+  if (tabScan) tabScan.addEventListener('click', function () { activateTab('scan'); });
+  if (tabCode) tabCode.addEventListener('click', function () { activateTab('code'); });
+  if (scanRefresh) scanRefresh.addEventListener('click', function () {
+    scanMask.classList.add('hidden');
+    startMpQr();
+  });
+  if (scanOauth) scanOauth.addEventListener('click', function () {
+    fetch('/gp/api/auth/wechat/qr-url')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data && data.ready && data.authorizeUrl) {
+          window.open(data.authorizeUrl, '_blank');
+          authError.classList.remove('hidden');
+          authError.textContent = '请在微信中完成扫码，登录后将自动回到此页面。';
+        } else {
+          authError.classList.remove('hidden');
+          authError.textContent = (data && data.note) || '微信登录暂不可用';
+        }
+      })
+      .catch(function () {
+        authError.classList.remove('hidden');
+        authError.textContent = '网络错误，请稍后再试';
+      });
+  });
 
+  // ── 登录码（管理员/经理） ────────────────────────────────
   submitBtn.addEventListener('click', function () {
     var code = codeInput.value.trim();
     if (!code) {
@@ -454,6 +722,9 @@ function bindAuth() {
           authError.classList.remove('hidden');
         } else {
           localStorage.setItem(AUTH_TOKEN_KEY, data.accessToken);
+          if (data.user) {
+            try { localStorage.setItem(AUTH_USER_KEY, JSON.stringify(data.user)); } catch (e) {}
+          }
           updateAuthUI(data.user);
           hideModal();
         }
@@ -474,6 +745,7 @@ function bindAuth() {
 
   logoutBtn.addEventListener('click', function () {
     localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem(AUTH_USER_KEY);
     loginBtn.classList.remove('hidden');
     authUser.classList.add('hidden');
   });
@@ -481,6 +753,26 @@ function bindAuth() {
   // 初始化：检查登录状态
   checkAuthStatus();
 }
+
+// ── 监听 OAuth 回调（或公众号回调跳转）后写回的 token ────────────────
+// OAuth 跳转在新窗口打开 callback 写 localStorage；主窗口靠 storage 事件感知。
+window.addEventListener('storage', function (e) {
+  if (e.key === AUTH_USER_KEY) {
+    try {
+      var user = JSON.parse(e.newValue || 'null');
+      if (user) updateAuthUI(user);
+    } catch (_) {}
+  } else if (e.key === AUTH_TOKEN_KEY && e.newValue) {
+    checkAuthStatus();
+  }
+});
+window.addEventListener('message', function (e) {
+  if (e.data && e.data.type === 'gp-auth-success') {
+    checkAuthStatus();
+    var m = document.getElementById('authModal');
+    if (m) m.classList.add('hidden');
+  }
+});
 
 function checkAuthStatus() {
   var token = localStorage.getItem(AUTH_TOKEN_KEY);
@@ -508,6 +800,10 @@ function updateAuthUI(user) {
   authUsername.textContent = user.username || user.phone || '用户';
   authRole.textContent = roleLabel(user.role);
   authRole.dataset.role = user.role;
+  // 把当前用户角色缓存进 GPAuth，供业务模块做按钮级权限判断
+  if (window.GPAuth && typeof GPAuth.setRole === 'function') {
+    GPAuth.setRole(user.role);
+  }
   // ADMIN 用户显示管理后台入口
   if (authAdminBtn) {
     if (user.role === 'ADMIN') {
@@ -525,12 +821,24 @@ function roleLabel(role) {
   return role || '';
 }
 
-// 供其他模块获取当前 token
-window.GPAuth = {
-  token: function () { return localStorage.getItem('gp_auth_token'); },
-  headers: function () {
-    var t = this.token();
-    return t ? { 'Authorization': 'Bearer ' + t } : {};
-  }
-};
-
+// 供其他模块获取当前 token / 角色
+window.GPAuth = (function () {
+  var currentRole = '';
+  return {
+    token: function () { return localStorage.getItem('gp_auth_token'); },
+    headers: function () {
+      var t = this.token();
+      return t ? { 'Authorization': 'Bearer ' + t } : {};
+    },
+    setRole: function (role) {
+      currentRole = role || '';
+      // 角色确定后通知业务模块重新做权限判断（修 init() 早于 /api/auth/me 的竞态）
+      document.dispatchEvent(new CustomEvent('gp:role-changed', { detail: { role: currentRole } }));
+    },
+    role: function () { return currentRole; },
+    // 是否拥有股票池修改权限（MANAGER 或 ADMIN）
+    canManageInvest: function () {
+      return currentRole === 'MANAGER' || currentRole === 'ADMIN';
+    }
+  };
+})();
