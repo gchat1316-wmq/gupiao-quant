@@ -50,6 +50,8 @@ public class SchemaInitializer implements CommandLineRunner {
         ensureIndustryResearchTables();
         ensureProsperityStockPoolTable();
         ensureProsperityStockPoolOwnerId();
+        ensurePageViewStatTable();
+        ensureUserDailyStatTable();
     }
 
     // ── 认证相关表 ───────────────────────────────────────
@@ -669,6 +671,56 @@ public class SchemaInitializer implements CommandLineRunner {
             log.info("prosperity_stock_pool uk_owner_stock 组合唯一已添加");
         } catch (Exception e) {
             log.info("prosperity_stock_pool uk_owner_stock 已存在或跳过: " + e.getMessage());
+        }
+    }
+
+    // ── 每日统计表 ────────────────────────────────────────
+
+    private void ensurePageViewStatTable() {
+        try {
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS page_view_stat (
+                    id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+                    user_id         BIGINT        DEFAULT NULL COMMENT '用户ID，null=游客',
+                    page_path       VARCHAR(255)  NOT NULL COMMENT '页面路径',
+                    visit_time      DATETIME      NOT NULL COMMENT '访问时间',
+                    visit_date      DATE          NOT NULL COMMENT '访问日期（冗余）',
+                    duration_seconds INT           DEFAULT NULL COMMENT '该页停留时长（秒）',
+                    user_agent      VARCHAR(512)  DEFAULT NULL COMMENT '浏览器UA摘要',
+                    session_id      VARCHAR(64)   DEFAULT NULL COMMENT '会话ID',
+                    INDEX idx_pvs_user_date (user_id, visit_date),
+                    INDEX idx_pvs_date (visit_date),
+                    INDEX idx_pvs_page (page_path)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """);
+            log.info("page_view_stat 表已就绪");
+        } catch (Exception e) {
+            log.debug("page_view_stat 表已存在: {}", e.getMessage());
+        }
+    }
+
+    private void ensureUserDailyStatTable() {
+        try {
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS user_daily_stat (
+                    id                    BIGINT PRIMARY KEY AUTO_INCREMENT,
+                    user_id               BIGINT     DEFAULT NULL COMMENT '用户ID，null=游客',
+                    stat_date             DATE       NOT NULL COMMENT '统计日期',
+                    page_view_count       INT        NOT NULL DEFAULT 0 COMMENT '当日PV',
+                    unique_pages          INT        NOT NULL DEFAULT 0 COMMENT '当日访问页面种类数',
+                    total_duration_seconds INT        NOT NULL DEFAULT 0 COMMENT '当日总停留时长（秒）',
+                    first_visit_time      DATETIME   DEFAULT NULL,
+                    last_visit_time       DATETIME   DEFAULT NULL,
+                    login_count           INT        NOT NULL DEFAULT 0 COMMENT '当日登录次数',
+                    is_new_user           TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否当日注册',
+                    UNIQUE KEY uk_uds_user_date (user_id, stat_date),
+                    INDEX idx_uds_date (stat_date),
+                    INDEX idx_uds_user (user_id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """);
+            log.info("user_daily_stat 表已就绪");
+        } catch (Exception e) {
+            log.debug("user_daily_stat 表已存在: {}", e.getMessage());
         }
     }
 }
