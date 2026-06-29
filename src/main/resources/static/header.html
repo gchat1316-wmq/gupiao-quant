@@ -40,6 +40,8 @@
     <div id="authArea" class="auth-area">
       <button id="authLoginBtn" class="auth-btn auth-btn-login" type="button">登录</button>
       <div id="authUser" class="auth-user hidden">
+        <a id="authProfileBtn" href="profile.html" class="auth-btn auth-btn-profile" type="button">👤 个人中心</a>
+        <a id="authAdminBtn" href="admin-users.html" class="auth-btn auth-btn-admin hidden" type="button">⚙️ 管理后台</a>
         <span id="authUsername" class="auth-username"></span>
         <span id="authRole" class="auth-role"></span>
         <button id="authLogoutBtn" class="auth-btn auth-btn-logout" type="button">退出</button>
@@ -50,20 +52,59 @@
 
 <!-- 登录弹窗 -->
 <div id="authModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
-  <div class="modal-box">
+  <div class="modal-box modal-box-auth">
     <div class="modal-header">
-      <span id="authModalTitle" class="modal-title">登录</span>
+      <span id="authModalTitle" class="modal-title">用户登录</span>
       <button id="authModalClose" class="modal-close" type="button" aria-label="关闭">×</button>
+    </div>
+    <div class="auth-tabs" role="tablist">
+      <button id="authTabScan" class="auth-tab is-active" type="button" role="tab"
+              aria-selected="true" data-tab="scan">微信扫码登录</button>
+      <button id="authTabCode" class="auth-tab" type="button" role="tab"
+              aria-selected="false" data-tab="code">登录码</button>
     </div>
     <div class="modal-body">
       <div id="authError" class="auth-error hidden"></div>
-      <div class="form-group">
-        <label for="authCodeInput">登录码</label>
-        <input id="authCodeInput" class="form-input" type="text"
-               placeholder="输入管理员提供的登录码，如 GP-20260627-XXXXXX"
-               maxlength="30" autocomplete="off" spellcheck="false" />
+
+      <!-- ============== 微信扫码面板 ============== -->
+      <div id="authPaneScan" class="auth-pane" role="tabpanel">
+        <div id="authScanLoading" class="auth-scan-loading">
+          <div class="auth-spinner"></div>
+          <p>正在加载二维码…</p>
+        </div>
+        <div id="authScanReady" class="auth-scan-ready hidden">
+          <div class="auth-scan-frame">
+            <img id="authScanImg" alt="扫码登录二维码" />
+            <div id="authScanMask" class="auth-scan-mask hidden">
+              <span id="authScanMaskText">已扫描</span>
+            </div>
+          </div>
+          <p class="auth-scan-tip">打开微信扫一扫，扫描上方二维码</p>
+          <p id="authScanStatus" class="auth-scan-status">等待扫码…</p>
+          <button id="authScanRefresh" class="auth-link-btn" type="button">二维码失效？刷新</button>
+        </div>
+        <div id="authScanFallback" class="auth-scan-fallback hidden">
+          <button id="authScanOAuth" class="primary-btn wide" type="button">
+            用微信扫码授权登录
+          </button>
+          <p class="auth-scan-tip">点击后跳转至微信登录页；扫完码会自动跳回来。</p>
+        </div>
+        <div id="authScanUnavailable" class="auth-scan-unavailable hidden">
+          <p>管理员尚未配置微信登录参数，请联系管理员处理。</p>
+        </div>
       </div>
-      <button id="authSubmitBtn" class="primary-btn wide" type="button">确认登录</button>
+
+      <!-- ============== 登录码面板 ============== -->
+      <div id="authPaneCode" class="auth-pane hidden" role="tabpanel">
+        <div class="form-group">
+          <label for="authCodeInput">登录码</label>
+          <input id="authCodeInput" class="form-input" type="text"
+                 placeholder="管理员发放的登录码，如 GP-20260627-XXXXXX"
+                 maxlength="30" autocomplete="off" spellcheck="false" />
+        </div>
+        <button id="authSubmitBtn" class="primary-btn wide" type="button">确认登录</button>
+        <p class="auth-foot-note">登录码仅供管理员/经理使用，由系统管理员后台生成。</p>
+      </div>
     </div>
   </div>
 </div>
