@@ -71,16 +71,34 @@ class JournalServiceCreateTest {
         req.setStopPrice(new BigDecimal("33"));
         req.setTargetPrice(new BigDecimal("41"));      // R:R = 6:2 = 3:1, OK
         req.setEntryShares(500);
+        req.setTags("海龟,练习1");
+        req.setSetupNotes("突破前高");
 
         var dto = service.create(req, "user-1");
 
         ArgumentCaptor<JournalTrade> cap = ArgumentCaptor.forClass(JournalTrade.class);
         verify(repo).save(cap.capture());
         var saved = cap.getValue();
+
+        // Auto-calculated
         assertEquals(new BigDecimal("2.00"), saved.getInitialRisk()); // 35 - 33
+        assertEquals(1, saved.getIsOpen());                            // open by default
+        assertEquals("MANUAL", saved.getSource());                     // manual creation
+        assertEquals("user-1", saved.getCreatedBy());                  // username captured
+        assertNotNull(saved.getEntryDate());                           // defaulted to now()
+
+        // Direct copy from request
         assertEquals(JournalTrade.Mode.PAPER, saved.getMode());
-        assertEquals("user-1", saved.getCreatedBy());
-        assertEquals(1, saved.getIsOpen());
+        assertEquals("002415", saved.getStockCode());
+        assertEquals("海康", saved.getStockName());
+        assertEquals(0, new BigDecimal("35").compareTo(saved.getEntryPrice()));
+        assertEquals(0, new BigDecimal("33").compareTo(saved.getStopPrice()));
+        assertEquals(0, new BigDecimal("41").compareTo(saved.getTargetPrice()));
+        assertEquals(500, saved.getEntryShares());
+        assertEquals("海龟,练习1", saved.getTags());
+        assertEquals("突破前高", saved.getSetupNotes());
+
+        // DTO returned matches saved
         assertEquals(dto.getInitialRisk(), saved.getInitialRisk());
     }
 }
