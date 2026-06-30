@@ -3,16 +3,174 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>用户管理 · 投资助手</title>
+  <title>管理后台 · 投资助手</title>
   <base href="/gp/" />
   <link rel="stylesheet" href="css/skin.css" />
   <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
-    body { background: var(--bg); }
-    .admin-shell { max-width: 1100px; margin: 40px auto; padding: 0 20px; }
-    .admin-title { font-size: 24px; font-weight: 700; margin-bottom: 24px; color: var(--text); }
+    :root {
+      --sidebar-w: 220px;
+      --sidebar-bg: #0f172a;
+      --sidebar-item-hover: rgba(255,255,255,0.08);
+      --sidebar-item-active: rgba(59,130,246,0.25);
+      --sidebar-text: #94a3b8;
+      --sidebar-text-active: #fff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body { background: var(--bg); overflow-x: hidden; }
+
+    /* ── 整体 Layout ─────────────────────────────── */
+    .admin-layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── 左侧 Sidebar ─────────────────────────────── */
+    .sidebar {
+      width: var(--sidebar-w);
+      min-height: 100vh;
+      background: var(--sidebar-bg);
+      position: fixed;
+      top: 0;
+      left: 0;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+      overflow-y: auto;
+    }
+
+    .sidebar-brand {
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .sidebar-brand-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .sidebar-brand-sub {
+      font-size: 12px;
+      color: var(--sidebar-text);
+      margin-top: 4px;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 12px 0;
+    }
+    .sidebar-section-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: rgba(255,255,255,0.3);
+      padding: 12px 20px 6px;
+      text-transform: uppercase;
+    }
+    .sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--sidebar-text);
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .sidebar-item:hover {
+      background: var(--sidebar-item-hover);
+      color: var(--sidebar-text-active);
+    }
+    .sidebar-item.active {
+      background: var(--sidebar-item-active);
+      color: #60a5fa;
+      border-left-color: #3b82f6;
+    }
+    .sidebar-item .badge {
+      margin-left: auto;
+      background: #ef4444;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 10px;
+      line-height: 16px;
+    }
+
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .sidebar-user {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--sidebar-text);
+    }
+    .sidebar-user-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(59,130,246,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: #60a5fa;
+      flex-shrink: 0;
+    }
+    .sidebar-user-info { flex: 1; min-width: 0; }
+    .sidebar-user-name { color: #fff; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sidebar-user-role { font-size: 11px; color: var(--sidebar-text); }
+    .sidebar-back {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 20px;
+      font-size: 13px;
+      color: var(--sidebar-text);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .sidebar-back:hover { color: #fff; }
+
+    /* ── 右侧主内容区 ─────────────────────────────── */
+    .admin-main {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      padding: 28px 32px;
+      min-width: 0;
+    }
+    .page-header {
+      margin-bottom: 28px;
+    }
+    .page-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .page-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* ── 面板通用 ─────────────────────────────── */
+    .panel { display: none; }
+    .panel.active { display: block; }
     .admin-section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
-    .admin-section-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+    .admin-section-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+
+    /* ── 用户管理 ─────────────────────────────── */
     .user-table { width: 100%; border-collapse: collapse; font-size: 13px; }
     .user-table th { text-align: left; color: var(--text-muted); padding: 8px 10px; border-bottom: 2px solid var(--border); font-weight: 500; white-space: nowrap; }
     .user-table td { padding: 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
@@ -47,9 +205,6 @@
     .msg { font-size: 13px; margin-top: 6px; }
     .msg.ok { color: #22c55e; }
     .msg.err { color: #e53; }
-    .admin-unauthorized { max-width: 400px; margin: 80px auto; text-align: center; padding: 40px; }
-    .admin-unauthorized h2 { font-size: 20px; color: var(--text); }
-    .admin-unauthorized p { color: var(--text-muted); margin-top: 12px; }
     .expand-btn { font-size: 11px; padding: 1px 5px; border-radius: 3px; border: 1px solid var(--border); cursor: pointer; background: transparent; color: var(--text-muted); }
     .expand-btn:hover { background: var(--hover-bg); }
     .notify-edit-row { display: none; background: #f8fafc; }
@@ -58,24 +213,62 @@
     .notify-toggle-item { display: flex; align-items: center; gap: 4px; font-size: 12px; }
     .notify-toggle-item input { cursor: pointer; }
     .inline-actions { display: flex; gap: 4px; align-items: center; }
-    .stat-bar { display: flex; gap: 16px; margin-bottom: 16px; }
+    .stat-bar { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
     .stat-item { font-size: 13px; color: var(--text-muted); }
     .stat-item span { font-weight: 600; color: var(--text); }
+
+    /* ── 数据统计面板 ──────────────────────────────── */
+    .stats-kpi-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .kpi-card { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; transition: border-color 0.2s; }
+    .kpi-card:hover { border-color: var(--primary); }
+    .kpi-label { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; white-space: nowrap; }
+    .kpi-value { font-size: 26px; font-weight: 800; color: var(--text); line-height: 1.2; }
+    .kpi-sub { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+    .kpi-card.blue { border-color: rgba(59,130,246,0.3); }
+    .kpi-card.blue .kpi-value { color: #3b82f6; }
+    .kpi-card.orange { border-color: rgba(245,158,11,0.3); }
+    .kpi-card.orange .kpi-value { color: #f59e0b; }
+    .kpi-card.green { border-color: rgba(34,197,94,0.3); }
+    .kpi-card.green .kpi-value { color: #22c55e; }
+    .stats-chart-wrap { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+    .stats-chart { height: 220px; }
+    .stats-chart canvas { width: 100% !important; height: 220px !important; }
+    .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .stats-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .stats-table th { text-align: left; color: var(--text-muted); padding: 8px 10px; border-bottom: 2px solid var(--border); font-weight: 500; }
+    .stats-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .stats-table tr:last-child td { border-bottom: none; }
+    .stats-table .rank { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; font-size: 11px; font-weight: 700; background: var(--border); color: var(--text-muted); flex-shrink: 0; }
+    .stats-table tr:nth-child(1) .rank { background: #fbbf24; color: #fff; }
+    .stats-table tr:nth-child(2) .rank { background: #94a3b8; color: #fff; }
+    .stats-table tr:nth-child(3) .rank { background: #cd7c2f; color: #fff; }
+    .duration-bar { display: flex; align-items: center; gap: 8px; font-size: 12px; min-width: 100px; }
+    .duration-track { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .duration-fill { height: 100%; background: var(--primary); border-radius: 2px; }
+    .date-range { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .date-range input, .date-range select { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font-size: 13px; }
+    .section-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: var(--bg); border: 1px solid var(--border); color: var(--text-muted); }
+
+    /* ── 响应式 ────────────────────────────────── */
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); transition: transform 0.2s; }
+      .sidebar.open { transform: translateX(0); }
+      .admin-main { margin-left: 0; padding: 16px; }
+      .stats-row { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
-  <div id="siteHeader"></div>
-  <div id="adminContent"></div>
-
+  <div id="adminApp"></div>
   <script src="js/layout.js" defer></script>
   <script>
   document.addEventListener('DOMContentLoaded', async function () {
     await new Promise(r => setTimeout(r, 100));
 
-    var content = document.getElementById('adminContent');
+    var app = document.getElementById('adminApp');
     var token = localStorage.getItem('gp_auth_token');
     if (!token) {
-      content.innerHTML = '<div class="admin-unauthorized"><h2>请先登录</h2><p>管理员功能需要先登录</p></div>';
+      app.innerHTML = '<div style="text-align:center;margin-top:80px;color:var(--text-muted)"><h2>请先登录</h2><p>管理员功能需要先登录</p><a href="./" style="color:var(--primary)">返回首页</a></div>';
       return;
     }
 
@@ -84,71 +277,226 @@
       .catch(function () { return null; });
 
     if (!me || me.role !== 'ADMIN') {
-      content.innerHTML = '<div class="admin-unauthorized"><h2>权限不足</h2><p>仅管理员可访问此页面</p></div>';
+      app.innerHTML = '<div style="text-align:center;margin-top:80px;color:var(--text-muted)"><h2>权限不足</h2><p>仅管理员可访问</p></div>';
       return;
     }
 
-    content.innerHTML = `
-      <div class="admin-shell">
-        <div class="admin-title">👤 用户管理</div>
-
-        <div class="admin-section">
-          <div class="admin-section-title">📋 用户概览</div>
-          <div class="stat-bar" id="statBar">
-            <div class="stat-item">总用户: <span id="statTotal">—</span></div>
-            <div class="stat-item">管理员: <span id="statAdmin">—</span></div>
-            <div class="stat-item">经理: <span id="statManager">—</span></div>
-            <div class="stat-item">普通用户: <span id="statUser">—</span></div>
-            <div class="stat-item">已禁用: <span id="statDisabled">—</span></div>
-          </div>
+    app.innerHTML = `
+    <div class="admin-layout">
+      <!-- 左侧 Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <div class="sidebar-brand-title">⚙️ 投资助手</div>
+          <div class="sidebar-brand-sub">管理后台</div>
         </div>
 
-        <div class="admin-section">
-          <div class="admin-section-title">🔑 生成登录码</div>
-          <div class="gen-code-form">
-            <div class="form-field">
-              <label class="form-label">分配角色</label>
-              <select id="genRole" class="form-input">
-                <option value="MANAGER">MANAGER（经理）</option>
-                <option value="ADMIN">ADMIN（系统管理员）</option>
+        <nav class="sidebar-nav">
+          <div class="sidebar-section-label">数据分析</div>
+          <div class="sidebar-item active" data-panel="stats">
+            📊 数据统计
+          </div>
+
+          <div class="sidebar-section-label">用户管理</div>
+          <div class="sidebar-item" data-panel="users">
+            👥 用户管理
+          </div>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="sidebar-user">
+            <div class="sidebar-user-avatar">` + (me.avatarUrl ? '<img src="' + esc(me.avatarUrl) + '" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">' : '👤') + `</div>
+            <div class="sidebar-user-info">
+              <div class="sidebar-user-name">` + esc(me.username || me.phone || '管理员') + `</div>
+              <div class="sidebar-user-role">管理员</div>
+            </div>
+          </div>
+          <a href="./" class="sidebar-back" style="margin-top:10px;display:flex;text-decoration:none;">
+            ← 返回首页
+          </a>
+        </div>
+      </aside>
+
+      <!-- 右侧主内容 -->
+      <main class="admin-main">
+
+        <!-- 数据统计面板 -->
+        <div id="panel-stats" class="panel active">
+          <div class="page-header">
+            <div class="page-title">📊 数据统计</div>
+            <div class="page-subtitle">页面访问、用户活跃、停留时长等核心指标</div>
+          </div>
+
+          <div class="admin-section">
+            <div class="admin-section-title">
+              📅 日期筛选
+              <span class="section-tag" id="statsDateTag">今日</span>
+            </div>
+            <div class="date-range">
+              <input type="date" id="statsDate" class="form-input" />
+              <select id="statsRange" class="form-input">
+                <option value="7">近 7 天趋势</option>
+                <option value="14">近 14 天趋势</option>
+                <option value="30" selected>近 30 天趋势</option>
               </select>
-            </div>
-            <div class="form-field">
-              <label class="form-label">有效期（天）</label>
-              <input id="genDays" class="form-input" type="number" value="7" min="1" max="30" style="width:80px" />
-            </div>
-            <div class="form-field">
-              <label class="form-label">&nbsp;</label>
-              <button id="genBtn" class="primary-btn">生成登录码</button>
+              <button class="primary-btn" id="loadStatsBtn">刷新数据</button>
             </div>
           </div>
-          <div id="genResult" class="gen-result hidden"></div>
-          <div id="genMsg" class="msg"></div>
+
+          <div class="stats-kpi-row" id="statsKpi">
+            <div class="kpi-card blue">
+              <div class="kpi-label">页面访问（PV）</div>
+              <div class="kpi-value" id="kpiPv">—</div>
+              <div class="kpi-sub">次</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">独立访客（UV）</div>
+              <div class="kpi-value" id="kpiUv">—</div>
+              <div class="kpi-sub">人</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">活跃用户数</div>
+              <div class="kpi-value" id="kpiUsers">—</div>
+              <div class="kpi-sub">人</div>
+            </div>
+            <div class="kpi-card orange">
+              <div class="kpi-label">累计使用时长</div>
+              <div class="kpi-value" id="kpiDuration">—</div>
+              <div class="kpi-sub" id="kpiDurationSub">秒</div>
+            </div>
+            <div class="kpi-card green">
+              <div class="kpi-label">登录次数</div>
+              <div class="kpi-value" id="kpiLogins">—</div>
+              <div class="kpi-sub">次</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">新注册用户</div>
+              <div class="kpi-value" id="kpiNewUsers">—</div>
+              <div class="kpi-sub">人</div>
+            </div>
+          </div>
+
+          <div class="stats-chart-wrap">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+              <div style="font-size:14px;font-weight:600;color:var(--text)">📈 访问趋势</div>
+              <div style="display:flex;gap:12px;font-size:12px;color:var(--text-muted);">
+                <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:12px;height:12px;background:rgba(59,130,246,0.7);border-radius:2px;"></span>PV（访问量）</span>
+                <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:12px;height:2px;background:#f59e0b;border-radius:1px;"></span>UV（独立访客）</span>
+              </div>
+            </div>
+            <div class="stats-chart"><canvas id="trendChart"></canvas></div>
+          </div>
+
+          <div class="stats-row">
+            <div class="admin-section">
+              <div class="admin-section-title">🏆 页面访问排行</div>
+              <table class="stats-table">
+                <thead><tr><th style="width:28px">#</th><th>页面</th><th>PV</th><th>UV</th></tr></thead>
+                <tbody id="pageRankBody"><tr><td colspan="4" style="color:var(--text-muted);text-align:center;padding:20px;">加载中…</td></tr></tbody>
+              </table>
+            </div>
+            <div class="admin-section">
+              <div class="admin-section-title">🌟 Top 用户排行</div>
+              <table class="stats-table">
+                <thead><tr><th style="width:28px">#</th><th>用户</th><th>PV</th><th>平均时长</th></tr></thead>
+                <tbody id="userRankBody"><tr><td colspan="4" style="color:var(--text-muted);text-align:center;padding:20px;">加载中…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
-        <div class="admin-section">
-          <div class="admin-section-title">👥 用户列表</div>
-          <table class="user-table">
-            <thead>
-              <tr>
-                <th class="avatar-cell">头像</th>
-                <th>ID</th>
-                <th>用户名 / 手机</th>
-                <th>角色</th>
-                <th>通知偏好</th>
-                <th>状态</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody id="userTableBody">
-              <tr><td colspan="7" style="text-align:center;color:var(--text-muted)">加载中…</td></tr>
-            </tbody>
-          </table>
-          <div id="listMsg" class="msg"></div>
-        </div>
-      </div>`;
+        <!-- 用户管理面板 -->
+        <div id="panel-users" class="panel">
+          <div class="page-header">
+            <div class="page-title">👥 用户管理</div>
+            <div class="page-subtitle">管理用户角色、权限与通知偏好</div>
+          </div>
 
-    // 生成登录码
+          <div class="admin-section">
+            <div class="admin-section-title">📋 用户概览</div>
+            <div class="stat-bar" id="statBar">
+              <div class="stat-item">总用户: <span id="statTotal">—</span></div>
+              <div class="stat-item">管理员: <span id="statAdmin">—</span></div>
+              <div class="stat-item">经理: <span id="statManager">—</span></div>
+              <div class="stat-item">普通用户: <span id="statUser">—</span></div>
+              <div class="stat-item">已禁用: <span id="statDisabled">—</span></div>
+            </div>
+          </div>
+
+          <div class="admin-section">
+            <div class="admin-section-title">🔑 生成登录码</div>
+            <div class="gen-code-form">
+              <div class="form-field">
+                <label class="form-label">分配角色</label>
+                <select id="genRole" class="form-input">
+                  <option value="MANAGER">MANAGER（经理）</option>
+                  <option value="ADMIN">ADMIN（系统管理员）</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label class="form-label">有效期（天）</label>
+                <input id="genDays" class="form-input" type="number" value="7" min="1" max="30" style="width:80px" />
+              </div>
+              <div class="form-field">
+                <label class="form-label">&nbsp;</label>
+                <button id="genBtn" class="primary-btn">生成登录码</button>
+              </div>
+            </div>
+            <div id="genResult" class="gen-result hidden"></div>
+            <div id="genMsg" class="msg"></div>
+          </div>
+
+          <div class="admin-section">
+            <div class="admin-section-title">👥 用户列表</div>
+            <table class="user-table">
+              <thead>
+                <tr>
+                  <th class="avatar-cell">头像</th>
+                  <th>ID</th>
+                  <th>用户名 / 手机</th>
+                  <th>角色</th>
+                  <th>通知偏好</th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="userTableBody">
+                <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:20px">加载中…</td></tr>
+              </tbody>
+            </table>
+            <div id="listMsg" class="msg"></div>
+          </div>
+        </div>
+
+      </main>
+    </div>`;
+
+    // ── Sidebar 导航 ───────────────────────────────────────
+    document.querySelectorAll('.sidebar-item').forEach(function(item) {
+      item.addEventListener('click', function() {
+        document.querySelectorAll('.sidebar-item').forEach(function(i) { i.classList.remove('active'); });
+        document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
+        item.classList.add('active');
+        var panel = document.getElementById('panel-' + item.dataset.panel);
+        if (panel) panel.classList.add('active');
+        // 懒加载
+        if (item.dataset.panel === 'stats' && !window._statsLoaded) {
+          window._statsLoaded = true;
+          initStats();
+        }
+      });
+    });
+
+    // 默认显示今天日期
+    var todayStr = new Date().toISOString().slice(0, 10);
+    var dateInput = document.getElementById('statsDate');
+    if (dateInput) dateInput.value = todayStr;
+    var rangeSelect = document.getElementById('statsRange');
+    if (rangeSelect) rangeSelect.addEventListener('change', function() { loadTrend(); });
+    var loadBtn = document.getElementById('loadStatsBtn');
+    if (loadBtn) loadBtn.addEventListener('click', function() { loadStats(); loadTrend(); });
+    if (dateInput) dateInput.addEventListener('change', function() { loadStats(); });
+
+    // ── 生成登录码 ─────────────────────────────────────────
     document.getElementById('genBtn').addEventListener('click', async function () {
       var role = document.getElementById('genRole').value;
       var days = parseInt(document.getElementById('genDays').value) || 7;
@@ -173,104 +521,98 @@
       finally { btn.disabled = false; btn.textContent = '生成登录码'; }
     });
 
+    // ── 用户列表 ────────────────────────────────────────────
     async function loadUsers() {
       var tbody = document.getElementById('userTableBody');
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">加载中…</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:20px">加载中…</td></tr>';
       try {
         var r = await fetch('/gp/api/auth/admin/users', { headers: { 'Authorization': 'Bearer ' + token } });
         if (r.status === 403 || r.status === 401) { tbody.innerHTML = '<tr><td colspan="7" style="color:#e53">权限不足</td></tr>'; return; }
         var users = await r.json();
-        updateStats(users);
+        updateUserStats(users);
         tbody.innerHTML = '';
-        users.forEach(function (u) {
+        users.forEach(function(u) {
           var isDisabled = u.disabled === true;
-          var rowClass = isDisabled ? 'disabled-row' : '';
           var avatar = u.avatarUrl
             ? '<img class="avatar-img" src="' + esc(u.avatarUrl) + '" alt="头像" onerror="this.style.display=\'none\'">'
             : '<div class="avatar-img" style="display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--text-muted)">👤</div>';
-          var roleBadge = '<span class="role-badge ' + u.role + '">' + roleName(u.role) + '</span>';
-          var statusBadge = isDisabled
-            ? '<span class="role-badge DISABLED">已禁用</span>'
-            : '<span class="notify-chip on">正常</span>';
           var notifyChips = makeNotifyChips(u);
           tbody.innerHTML +=
-            '<tr class="' + rowClass + '" id="user-row-' + u.id + '">' +
+            '<tr class="' + (isDisabled ? 'disabled-row' : '') + '" id="user-row-' + u.id + '">' +
               '<td class="avatar-cell">' + avatar + '</td>' +
               '<td>' + u.id + '</td>' +
-              '<td><div style="font-weight:500">' + esc(u.username || '—') + '</div><div style="font-size:12px;color:var(--text-muted)">' + esc(u.phone || '—') + '</div></td>' +
+              '<td><div style="font-weight:500;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(u.username || '—') + '</div><div style="font-size:12px;color:var(--text-muted);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(u.phone || '—') + '</div></td>' +
               '<td><select class="role-select" id="role-' + u.id + '">' +
                 '<option value="ADMIN"' + (u.role==='ADMIN'?' selected':'') + '>ADMIN</option>' +
                 '<option value="MANAGER"' + (u.role==='MANAGER'?' selected':'') + '>MANAGER</option>' +
                 '<option value="USER"' + (u.role==='USER'?' selected':'') + '>USER</option>' +
               '</select></td>' +
               '<td><div class="notify-badges" id="notify-' + u.id + '">' + notifyChips + '</div></td>' +
-              '<td>' + statusBadge + '</td>' +
+              '<td>' + (isDisabled ? '<span class="role-badge DISABLED">已禁用</span>' : '<span class="notify-chip on">正常</span>') + '</td>' +
               '<td class="inline-actions">' +
-                '<button class="btn-sm save-role-btn" data-id="' + u.id + '">💾 保存角色</button>' +
+                '<button class="btn-sm save-role-btn" data-id="' + u.id + '">💾</button>' +
                 (isDisabled
                   ? '<button class="btn-sm success enable-btn" data-id="' + u.id + '">启用</button>'
                   : '<button class="btn-sm danger disable-btn" data-id="' + u.id + '">禁用</button>'
                 ) +
-                '<button class="expand-btn" data-id="' + u.id + '" onclick="toggleNotifyEdit(' + u.id + ')">通知设置</button>' +
+                '<button class="expand-btn" onclick="toggleNotifyEdit(' + u.id + ')">⚙</button>' +
               '</td>' +
             '</tr>' +
             '<tr class="notify-edit-row" id="notify-edit-' + u.id + '">' +
               '<td colspan="7">' +
                 '<div style="font-size:13px;font-weight:600;margin-bottom:8px;">编辑通知偏好: ' + esc(u.username || u.phone || u.id) + '</div>' +
                 '<div class="notify-toggle-group">' +
-                  '<label class="notify-toggle-item"><input type="checkbox" id="nw-' + u.id + '" ' + (u.notifyWechat?'checked':'') + '> 💬 微信通知</label>' +
-                  '<label class="notify-toggle-item"><input type="checkbox" id="ns-' + u.id + '" ' + (u.notifySms?'checked':'') + '> 📱 短信通知</label>' +
-                  '<label class="notify-toggle-item"><input type="checkbox" id="np-' + u.id + '" ' + (u.notifyPhone?'checked':'') + '> 📞 电话通知</label>' +
-                  '<button class="btn-sm" onclick="saveNotify(' + u.id + ')">保存通知</button>' +
+                  '<label class="notify-toggle-item"><input type="checkbox" id="nw-' + u.id + '" ' + (u.notifyWechat?'checked':'') + '> 💬 微信</label>' +
+                  '<label class="notify-toggle-item"><input type="checkbox" id="ns-' + u.id + '" ' + (u.notifySms?'checked':'') + '> 📱 短信</label>' +
+                  '<label class="notify-toggle-item"><input type="checkbox" id="np-' + u.id + '" ' + (u.notifyPhone?'checked':'') + '> 📞 电话</label>' +
+                  '<button class="btn-sm" onclick="saveNotify(' + u.id + ')">保存</button>' +
                   '<button class="btn-sm" onclick="toggleNotifyEdit(' + u.id + ')">收起</button>' +
                 '</div>' +
               '</td>' +
             '</tr>';
         });
-        // 绑定保存角色按钮
-        tbody.querySelectorAll('.save-role-btn').forEach(function (btn) {
-          btn.addEventListener('click', async function () {
+        // 绑定按钮
+        tbody.querySelectorAll('.save-role-btn').forEach(function(b) {
+          b.addEventListener('click', async function() {
             var id = this.dataset.id;
             var sel = document.getElementById('role-' + id);
-            var newRole = sel.value;
             var msgEl = document.getElementById('listMsg');
             var r = await fetch('/gp/api/auth/admin/users/' + id + '/role', {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-              body: JSON.stringify({ role: newRole })
+              method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+              body: JSON.stringify({ role: sel.value })
             });
             var res = await r.json();
-            if (res.error) { msgEl.textContent = res.error; msgEl.className = 'msg err'; }
-            else { msgEl.textContent = '已更新为 ' + roleName(newRole); msgEl.className = 'msg ok'; loadUsers(); }
+            msgEl.textContent = res.error ? res.error : '已更新为 ' + roleName(sel.value);
+            msgEl.className = 'msg ' + (res.error ? 'err' : 'ok');
+            if (!res.error) loadUsers();
           });
         });
-        // 绑定禁用/启用按钮
-        tbody.querySelectorAll('.disable-btn').forEach(function (btn) {
-          btn.addEventListener('click', async function () {
+        tbody.querySelectorAll('.disable-btn').forEach(function(b) {
+          b.addEventListener('click', async function() {
             var id = this.dataset.id;
             var msgEl = document.getElementById('listMsg');
             var r = await fetch('/gp/api/auth/admin/users/' + id + '/disabled', {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+              method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
               body: JSON.stringify({ disabled: true })
             });
             var res = await r.json();
-            if (res.error) { msgEl.textContent = res.error; msgEl.className = 'msg err'; }
-            else { msgEl.textContent = '用户已禁用'; msgEl.className = 'msg ok'; loadUsers(); }
+            msgEl.textContent = res.error ? res.error : '用户已禁用';
+            msgEl.className = 'msg ' + (res.error ? 'err' : 'ok');
+            if (!res.error) loadUsers();
           });
         });
-        tbody.querySelectorAll('.enable-btn').forEach(function (btn) {
-          btn.addEventListener('click', async function () {
+        tbody.querySelectorAll('.enable-btn').forEach(function(b) {
+          b.addEventListener('click', async function() {
             var id = this.dataset.id;
             var msgEl = document.getElementById('listMsg');
             var r = await fetch('/gp/api/auth/admin/users/' + id + '/disabled', {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+              method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
               body: JSON.stringify({ disabled: false })
             });
             var res = await r.json();
-            if (res.error) { msgEl.textContent = res.error; msgEl.className = 'msg err'; }
-            else { msgEl.textContent = '用户已启用'; msgEl.className = 'msg ok'; loadUsers(); }
+            msgEl.textContent = res.error ? res.error : '用户已启用';
+            msgEl.className = 'msg ' + (res.error ? 'err' : 'ok');
+            if (!res.error) loadUsers();
           });
         });
       } catch (e) { tbody.innerHTML = '<tr><td colspan="7" style="color:#e53">加载失败: ' + e.message + '</td></tr>'; }
@@ -288,8 +630,7 @@
       var msgEl = document.getElementById('listMsg');
       try {
         var r = await fetch('/gp/api/auth/admin/users/' + id + '/notify', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
           body: JSON.stringify({ notifyWechat: nw, notifySms: ns, notifyPhone: np })
         });
         var res = await r.json();
@@ -303,24 +644,17 @@
     };
 
     function makeNotifyChips(u) {
-      var chips = [];
-      chips.push('<span class="notify-chip ' + (u.notifyWechat ? 'on' : 'off') + '">💬 微信</span>');
-      chips.push('<span class="notify-chip ' + (u.notifySms ? 'on' : 'off') + '">📱 短信</span>');
-      chips.push('<span class="notify-chip ' + (u.notifyPhone ? 'on' : 'off') + '">📞 电话</span>');
-      return chips.join('');
+      return '<span class="notify-chip ' + (u.notifyWechat ? 'on' : 'off') + '">💬</span>' +
+             '<span class="notify-chip ' + (u.notifySms ? 'on' : 'off') + '">📱</span>' +
+             '<span class="notify-chip ' + (u.notifyPhone ? 'on' : 'off') + '">📞</span>';
     }
 
-    function updateStats(users) {
-      var total = users.length;
-      var admin = users.filter(function(u){ return u.role==='ADMIN'; }).length;
-      var manager = users.filter(function(u){ return u.role==='MANAGER'; }).length;
-      var user = users.filter(function(u){ return u.role==='USER'; }).length;
-      var disabled = users.filter(function(u){ return u.disabled; }).length;
-      document.getElementById('statTotal').textContent = total;
-      document.getElementById('statAdmin').textContent = admin;
-      document.getElementById('statManager').textContent = manager;
-      document.getElementById('statUser').textContent = user;
-      document.getElementById('statDisabled').textContent = disabled;
+    function updateUserStats(users) {
+      document.getElementById('statTotal').textContent = users.length;
+      document.getElementById('statAdmin').textContent = users.filter(function(u){ return u.role==='ADMIN'; }).length;
+      document.getElementById('statManager').textContent = users.filter(function(u){ return u.role==='MANAGER'; }).length;
+      document.getElementById('statUser').textContent = users.filter(function(u){ return u.role==='USER'; }).length;
+      document.getElementById('statDisabled').textContent = users.filter(function(u){ return u.disabled; }).length;
     }
 
     function roleName(r) {
@@ -331,7 +665,119 @@
     }
     function esc(s) { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-    loadUsers();
+    // ── 数据统计 ────────────────────────────────────────────
+    function initStats() { loadStats(); loadTrend(); }
+
+    async function loadStats() {
+      var dateEl = document.getElementById('statsDate');
+      var date = dateEl && dateEl.value ? dateEl.value : new Date().toISOString().slice(0, 10);
+      var dateTag = document.getElementById('statsDateTag');
+      if (dateTag) dateTag.textContent = date === new Date().toISOString().slice(0,10) ? '今日' : date;
+      try {
+        var r = await fetch('/gp/api/stats/daily?date=' + date, { headers: { 'Authorization': 'Bearer ' + token } });
+        if (r.status === 403 || r.status === 401) return;
+        var data = await r.json();
+        renderKpi(data.overview || {});
+        renderPageRank(data.pageStats || []);
+        renderUserRank(data.topUsers || []);
+      } catch(e) { console.error('stats load failed', e); }
+    }
+
+    function renderKpi(o) {
+      var fmtDur = function(s) {
+        if (!s || s <= 0) return '—';
+        if (s < 60) return s + 's';
+        if (s < 3600) return Math.floor(s/60) + 'm';
+        return Math.floor(s/3600) + 'h' + Math.floor((s%3600)/60) + 'm';
+      };
+      document.getElementById('kpiPv').textContent = o.pageViewCount != null ? o.pageViewCount : '—';
+      document.getElementById('kpiUv').textContent = o.uniqueVisitors != null ? o.uniqueVisitors : '—';
+      document.getElementById('kpiUsers').textContent = o.userCount != null ? o.userCount : '—';
+      document.getElementById('kpiDuration').textContent = (o.totalDurationSec || 0) > 0 ? fmtDur(o.totalDurationSec) : '—';
+      document.getElementById('kpiLogins').textContent = o.loginCount != null ? o.loginCount : '—';
+      document.getElementById('kpiNewUsers').textContent = o.newUserCount != null ? o.newUserCount : '—';
+    }
+
+    function renderPageRank(pages) {
+      var tbody = document.getElementById('pageRankBody');
+      if (!pages || pages.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="color:var(--text-muted);text-align:center;padding:20px">暂无数据</td></tr>';
+        return;
+      }
+      tbody.innerHTML = pages.slice(0, 8).map(function(p, i) {
+        return '<tr><td><span class="rank">' + (i+1) + '</span></td><td><span style="font-size:12px;color:var(--text-muted);">' + esc(p.pageName||p.pagePath||'') + '</span></td><td style="font-weight:600">' + p.pv + '</td><td style="color:var(--text-muted)">' + p.uv + '</td></tr>';
+      }).join('');
+    }
+
+    function renderUserRank(users) {
+      var tbody = document.getElementById('userRankBody');
+      if (!users || users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="color:var(--text-muted);text-align:center;padding:20px">暂无数据</td></tr>';
+        return;
+      }
+      var maxDur = Math.max.apply(null, users.map(function(u) { return u.totalDurationSec||0; }));
+      tbody.innerHTML = users.slice(0, 8).map(function(u, i) {
+        var label = esc(u.username || u.phone || ('ID ' + u.userId));
+        var pct = maxDur > 0 ? Math.round((u.totalDurationSec||0) / maxDur * 100) : 0;
+        return '<tr>' +
+          '<td><span class="rank">' + (i+1) + '</span></td>' +
+          '<td><div style="font-weight:500;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + label + '">' + label + '</div></td>' +
+          '<td style="font-weight:600">' + (u.pageViewCount||0) + '</td>' +
+          '<td><div class="duration-bar"><div class="duration-track"><div class="duration-fill" style="width:' + pct + '%"></div></div><span style="font-size:11px;color:var(--text-muted);min-width:40px">' + (u.avgDuration||'—') + '</span></div></td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    async function loadTrend() {
+      var rangeEl = document.getElementById('statsRange');
+      var days = rangeEl ? parseInt(rangeEl.value) : 30;
+      try {
+        var r = await fetch('/gp/api/stats/daily-overview?days=' + days, { headers: { 'Authorization': 'Bearer ' + token } });
+        if (r.status === 403 || r.status === 401) return;
+        var data = await r.json();
+        renderTrendChart(data);
+      } catch(e) { console.error('trend load failed', e); }
+    }
+
+    function renderTrendChart(data) {
+      var canvas = document.getElementById('trendChart');
+      if (!canvas) return;
+      if (window._trendChart) { window._trendChart.destroy(); window._trendChart = null; }
+      var ctx = canvas.getContext('2d');
+      var labels = data.map(function(d) {
+        var dt = new Date(d.date);
+        return (dt.getMonth()+1) + '/' + dt.getDate();
+      });
+      var pvData = data.map(function(d) { return d.pageViewCount || 0; });
+      var uvData = data.map(function(d) { return d.uniqueVisitors || 0; });
+      window._trendChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            { label: 'PV', data: pvData, backgroundColor: 'rgba(59,130,246,0.6)', borderRadius: 4, borderSkipped: false, yAxisID: 'y' },
+            { label: 'UV', data: uvData, type: 'line', borderColor: '#f59e0b', backgroundColor: 'transparent', tension: 0.4, pointRadius: 3, pointBackgroundColor: '#f59e0b', yAxisID: 'y1', borderWidth: 2 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: { backgroundColor: '#1e293b', titleColor: '#fff', bodyColor: '#94a3b8', borderColor: '#334155', borderWidth: 1, padding: 10 }
+          },
+          scales: {
+            x: { ticks: { color: '#64748b', maxRotation: 45, font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+            y: { position: 'left', title: { display: true, text: 'PV', color: '#3b82f6', font: { size: 11 } }, ticks: { color: '#64748b', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+            y1: { position: 'right', title: { display: true, text: 'UV', color: '#f59e0b', font: { size: 11 } }, ticks: { color: '#64748b', font: { size: 11 } }, grid: { drawOnChartArea: false } }
+          }
+        }
+      });
+    }
+
+    // 默认加载
+    initStats();
   });
   </script>
 </body>

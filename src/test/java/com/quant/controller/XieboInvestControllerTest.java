@@ -39,6 +39,7 @@ class XieboInvestControllerTest {
     @MockBean XieboInvestService service;
     @MockBean XieboInvestAnalysisService analysisService;
     @MockBean XieboInvestNewsService newsService;
+    @MockBean com.quant.service.xieboinvest.XieboWeeklyOpportunityService weeklyOpportunityService;
     @MockBean JwtTokenProvider jwtTokenProvider;
     @MockBean UserRepository userRepository;
 

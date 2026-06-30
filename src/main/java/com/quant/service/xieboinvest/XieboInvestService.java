@@ -154,6 +154,9 @@ public class XieboInvestService {
                 .digestYears(metrics.digestYears())
                 .valuationVerdict(metrics.valuationVerdict())
                 .valuationCommentary(metrics.valuationCommentary())
+                .valuationDeviationPct(metrics.valuationDeviationPct())
+                .valuationDeviationRef(metrics.valuationDeviationRef())
+                .valuationDeviationLabel(metrics.valuationDeviationLabel())
                 .build();
     }
 
@@ -187,7 +190,8 @@ public class XieboInvestService {
         var financials = financialRepository.findByStockCodeOrderByReportDateDesc(basic.getStockCode());
         Ps10ValuationService.Ps10Result ps10 = ps10ValuationService.evaluateFromMarketCap(marketCap, price, basic.getStockCode(), financials);
         return new QuoteMetrics(price, marketCap, cagrPct, peg, pegRating, digestYears,
-                ps10.verdict(), ps10.commentary());
+                ps10.verdict(), ps10.commentary(),
+                ps10.deviationPct(), ps10.deviationRef(), ps10.deviationLabel());
     }
 
     private String normalizeKey(String code) {
@@ -289,6 +293,9 @@ public class XieboInvestService {
                                 String pegRating,
                                 BigDecimal digestYears,
                                 String valuationVerdict,    // 10xPS: 低估/合理/泡沫/—
-                                String valuationCommentary) {
+                                String valuationCommentary,
+                                BigDecimal valuationDeviationPct,
+                                String valuationDeviationRef,
+                                String valuationDeviationLabel) {
     }
 }

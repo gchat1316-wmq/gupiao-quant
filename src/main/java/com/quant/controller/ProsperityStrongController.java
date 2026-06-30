@@ -44,6 +44,7 @@ public class ProsperityStrongController {
 
     /** 手动触发流水线(同步,可能耗时几十秒) */
     @PostMapping("/run")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public ResponseEntity<PipelineRunResultDTO> run(
             @RequestParam(value = "date", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
@@ -175,6 +176,7 @@ public class ProsperityStrongController {
 
     /** 删除指定日期的流水线执行数据（板块+龙头候选+候选+执行记录） */
     @DeleteMapping("/runs/{snapDate}")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public Map<String, Object> deleteRun(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate snapDate) {
         pipeline.deleteRun(snapDate);

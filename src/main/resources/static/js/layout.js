@@ -132,7 +132,7 @@
     if (!mount) return;
 
     try {
-      const response = await fetch('header.html?v=20260629-profile-link', { cache: 'no-cache' });
+      const response = await fetch('header.html?v=20260630-profile-fix', { cache: 'no-cache' });
       if (!response.ok) throw new Error('header load failed');
       mount.innerHTML = await response.text();
     }           catch (e) {
@@ -149,7 +149,6 @@
                 '<span class="nav-recap-count" id="navRecapCount" hidden></span>' +
               '</a>' +
               '<a href="tech-ai.html" class="nav-link" data-match="tech-ai.html">AI监控</a>' +
-              '<a href="potential.html" class="nav-link" data-match="potential.html">潜力监控</a>' +
               '<a href="prosperity-pick.html" class="nav-link" data-match="prosperity-pick.html,stock-analysis.html">个股研究</a>' +
               '<a href="prosperity-strong.html" class="nav-link" data-match="prosperity-strong.html">热点强势选股</a>' +
               '<a href="study.html" class="nav-link" data-match="study.html,course.html,node.html,card.html,quiz.html">学习搭子</a>' +
@@ -425,6 +424,7 @@
   bindWishPool();
   bindFooterToggle();
   bindAuth();
+  bindForgotAuth();
   initPageViewTracker();
 }());
 
@@ -525,8 +525,15 @@ function bindAuth() {
   var codeInput = document.getElementById('authCodeInput');
   var submitBtn = document.getElementById('authSubmitBtn');
   var authError = document.getElementById('authError');
+  // ── 5 个 Tab（phone / emailPwd / emailCode / scan / code）──
+  var tabPhone = document.getElementById('authTabPhone');
+  var tabEmailPwd = document.getElementById('authTabEmailPwd');
+  var tabEmailCode = document.getElementById('authTabEmailCode');
   var tabScan = document.getElementById('authTabScan');
   var tabCode = document.getElementById('authTabCode');
+  var panePhone = document.getElementById('authPanePhone');
+  var paneEmailPwd = document.getElementById('authPaneEmailPwd');
+  var paneEmailCode = document.getElementById('authPaneEmailCode');
   var paneScan = document.getElementById('authPaneScan');
   var paneCode = document.getElementById('authPaneCode');
   var scanLoading = document.getElementById('authScanLoading');
@@ -540,36 +547,134 @@ function bindAuth() {
   var scanRefresh = document.getElementById('authScanRefresh');
   var scanOauth = document.getElementById('authScanOAuth');
 
+  // 手机号 + 验证码
+  var phoneInput = document.getElementById('authPhoneInput');
+  var phoneCodeInput = document.getElementById('authPhoneCodeInput');
+  var phoneSendBtn = document.getElementById('authPhoneSendBtn');
+  var phoneSubmitBtn = document.getElementById('authPhoneSubmitBtn');
+  var phoneGotoPwd = document.getElementById('authPhoneGotoPwd');
+  var phoneForgot = document.getElementById('authPhoneForgot');
+
+  // 邮箱 + 密码
+  var emailInput = document.getElementById('authEmailInput');
+  var emailPwdInput = document.getElementById('authEmailPwdInput');
+  var emailPwdLoginBtn = document.getElementById('authEmailPwdLoginBtn');
+  var emailPwdGotoRegister = document.getElementById('authEmailPwdGotoRegister');
+  var emailPwdForgot = document.getElementById('authEmailPwdForgot');
+
+  // 邮箱 + 验证码
+  var emailCodeAddr = document.getElementById('authEmailCodeAddr');
+  var emailCodeInput = document.getElementById('authEmailCodeInput');
+  var emailCodeSendBtn = document.getElementById('authEmailCodeSendBtn');
+  var emailCodeSubmitBtn = document.getElementById('authEmailCodeSubmitBtn');
+
+  var forgotModal = document.getElementById('forgotModal');
+
   if (!loginBtn) return;
+
+  var ALL_TABS = {
+    phone:     { btn: tabPhone,     pane: panePhone },
+    emailPwd:  { btn: tabEmailPwd,  pane: paneEmailPwd },
+    emailCode: { btn: tabEmailCode, pane: paneEmailCode },
+    scan:      { btn: tabScan,      pane: paneScan },
+    code:      { btn: tabCode,      pane: paneCode }
+  };
+
+  function showError(msg) {
+    if (!authError) return;
+    authError.style.background = '#fff0ee';
+    authError.style.color = '#e53';
+    authError.style.borderColor = '#fcc';
+    authError.textContent = msg;
+    authError.classList.remove('hidden');
+  }
+  function showInfo(msg) {
+    if (!authError) return;
+    authError.style.background = '#f0fff5';
+    authError.style.color = '#07c160';
+    authError.style.borderColor = '#b7eccc';
+    authError.textContent = msg;
+    authError.classList.remove('hidden');
+  }
+  function clearError() {
+    if (!authError) return;
+    authError.textContent = '';
+    authError.classList.add('hidden');
+    authError.style.background = '';
+    authError.style.color = '';
+    authError.style.borderColor = '';
+  }
+
+  /** 通用 API POST，自动解析错误 */
+  function apiPost(path, body) {
+    return fetch('/gp' + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function (r) {
+      return r.json().then(function (d) { return { ok: r.ok, data: d }; });
+    }).then(function (res) {
+      if (!res.ok || (res.data && res.data.error)) {
+        showError((res.data && res.data.error) || '请求失败');
+        return null;
+      }
+      return res.data;
+    }).catch(function () { showError('网络错误，请稍后重试'); return null; });
+  }
+
+  /** 60s 倒计时挂到发送按钮上 */
+  function startSendCooldown(btn) {
+    btn.dataset.cooldownLeft = '60';
+    var handle = setInterval(function () {
+      var left = parseInt(btn.dataset.cooldownLeft || '0', 10);
+      if (left > 0) {
+        btn.disabled = true;
+        btn.textContent = left + 's 后重发';
+        btn.dataset.cooldownLeft = String(left - 1);
+      } else {
+        btn.disabled = false;
+        btn.textContent = '发送验证码';
+        delete btn.dataset.cooldownLeft;
+        clearInterval(handle);
+      }
+    }, 1000);
+  }
 
   // ── 弹窗显隐 ──────────────────────────────────────────
   function showModal() {
-    authError.classList.add('hidden');
-    authError.textContent = '';
-    codeInput.value = '';
-    modal.classList.remove('hidden');
-    activateTab('scan');
+    clearError();
+    if (codeInput) codeInput.value = '';
+    if (modal) modal.classList.remove('hidden');
+    activateTab('phone');
   }
   function hideModal() {
-    modal.classList.add('hidden');
+    if (modal) modal.classList.add('hidden');
     stopQrPoll();
   }
 
-  // ── Tab 切换 ────────────────────────────────────────
+  // ── Tab 切换（5 tab 通用） ─────────────────────────────
   function activateTab(name) {
+    clearError();
+    Object.keys(ALL_TABS).forEach(function (k) {
+      var t = ALL_TABS[k];
+      var active = k === name;
+      if (t.btn) {
+        t.btn.classList.toggle('is-active', active);
+        t.btn.setAttribute('aria-selected', active ? 'true' : 'false');
+      }
+      if (t.pane) t.pane.classList.toggle('hidden', !active);
+    });
     if (name === 'scan') {
-      tabScan.classList.add('is-active'); tabScan.setAttribute('aria-selected', 'true');
-      tabCode.classList.remove('is-active'); tabCode.setAttribute('aria-selected', 'false');
-      paneScan.classList.remove('hidden');
-      paneCode.classList.add('hidden');
       initQrLogin();
-    } else {
-      tabCode.classList.add('is-active'); tabCode.setAttribute('aria-selected', 'true');
-      tabScan.classList.remove('is-active'); tabScan.setAttribute('aria-selected', 'false');
-      paneCode.classList.remove('hidden');
-      paneScan.classList.add('hidden');
+    } else if (name === 'code') {
       stopQrPoll();
-      setTimeout(function(){ codeInput && codeInput.focus(); }, 50);
+      setTimeout(function () { codeInput && codeInput.focus(); }, 50);
+    } else if (name === 'phone') {
+      setTimeout(function () { phoneInput && phoneInput.focus(); }, 50);
+    } else if (name === 'emailPwd') {
+      setTimeout(function () { emailInput && emailInput.focus(); }, 50);
+    } else if (name === 'emailCode') {
+      setTimeout(function () { emailCodeAddr && emailCodeAddr.focus(); }, 50);
     }
   }
 
@@ -674,8 +779,152 @@ function bindAuth() {
   modal.addEventListener('click', function (e) {
     if (e.target === modal) hideModal();
   });
+  if (tabPhone) tabPhone.addEventListener('click', function () { activateTab('phone'); });
+  if (tabEmailPwd) tabEmailPwd.addEventListener('click', function () { activateTab('emailPwd'); });
+  if (tabEmailCode) tabEmailCode.addEventListener('click', function () { activateTab('emailCode'); });
   if (tabScan) tabScan.addEventListener('click', function () { activateTab('scan'); });
   if (tabCode) tabCode.addEventListener('click', function () { activateTab('code'); });
+
+  // ── 手机号 + 验证码 提交 ────────────────────────────────
+  if (phoneSendBtn) {
+    phoneSendBtn.addEventListener('click', function () {
+      var phone = phoneInput.value.trim();
+      if (!/^1[3-9]\d{9}$/.test(phone)) {
+        showError('手机号格式不正确');
+        phoneInput.focus();
+        return;
+      }
+      clearError();
+      phoneSendBtn.disabled = true;
+      phoneSendBtn.textContent = '发送中…';
+      apiPost('/api/auth/send-code', { phone: phone }).then(function (data) {
+        if (!data) {
+          phoneSendBtn.disabled = false;
+          phoneSendBtn.textContent = '发送验证码';
+          return;
+        }
+        // 后端仅在 dev/mock 模式（未配 SMS 服务商）才回传 code 字段
+        // 真服务上线后这里不会被填，用户去查短信
+        if (data.code && phoneCodeInput) {
+          phoneCodeInput.value = data.code;
+          showInfo('验证码已自动填入，可直接登录');
+        } else {
+          showInfo('验证码已发送，请查收短信');
+        }
+        startSendCooldown(phoneSendBtn);
+      });
+    });
+  }
+  function submitPhoneLogin() {
+    var phone = phoneInput.value.trim();
+    var code = phoneCodeInput.value.trim();
+    if (!/^1[3-9]\d{9}$/.test(phone)) { showError('手机号不正确'); phoneInput.focus(); return; }
+    if (!/^\d{6}$/.test(code)) { showError('请输入 6 位数字验证码'); phoneCodeInput.focus(); return; }
+    clearError();
+    phoneSubmitBtn.disabled = true;
+    phoneSubmitBtn.textContent = '登录中…';
+    apiPost('/api/auth/verify-code', { phone: phone, code: code }).then(function (data) {
+      if (!data) {
+        phoneSubmitBtn.disabled = false;
+        phoneSubmitBtn.textContent = '登录 / 注册';
+        return;
+      }
+      completeLogin(data.accessToken, data.user);
+    });
+  }
+  if (phoneSubmitBtn) phoneSubmitBtn.addEventListener('click', submitPhoneLogin);
+  if (phoneCodeInput) phoneCodeInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); submitPhoneLogin(); }
+  });
+  if (phoneGotoPwd) phoneGotoPwd.addEventListener('click', function () { activateTab('emailPwd'); });
+  if (phoneForgot) phoneForgot.addEventListener('click', function () {
+    hideModal();
+    if (window.GPAuth && typeof GPAuth.showForgot === 'function') {
+      GPAuth.showForgot('phone');
+    }
+  });
+
+  // ── 邮箱 + 密码 登录 ────────────────────────────────────
+  function submitEmailPwdLogin() {
+    var email = emailInput.value.trim();
+    var pwd = emailPwdInput.value;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError('邮箱格式不正确'); emailInput.focus(); return; }
+    if (!pwd || pwd.length < 8) { showError('密码至少 8 位'); emailPwdInput.focus(); return; }
+    clearError();
+    emailPwdLoginBtn.disabled = true;
+    emailPwdLoginBtn.textContent = '登录中…';
+    apiPost('/api/auth/login', { username: email, password: pwd }).then(function (data) {
+      if (!data) {
+        emailPwdLoginBtn.disabled = false;
+        emailPwdLoginBtn.textContent = '登录';
+        return;
+      }
+      completeLogin(data.accessToken, data.user);
+    });
+  }
+  if (emailPwdLoginBtn) emailPwdLoginBtn.addEventListener('click', submitEmailPwdLogin);
+  if (emailPwdInput) emailPwdInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); submitEmailPwdLogin(); }
+  });
+  if (emailPwdGotoRegister) emailPwdGotoRegister.addEventListener('click', function () { activateTab('emailCode'); });
+  if (emailPwdForgot) emailPwdForgot.addEventListener('click', function () {
+    hideModal();
+    if (window.GPAuth && typeof GPAuth.showForgot === 'function') {
+      GPAuth.showForgot('email');
+    }
+  });
+
+  // ── 邮箱 + 验证码 提交 ──────────────────────────────────
+  if (emailCodeSendBtn) {
+    emailCodeSendBtn.addEventListener('click', function () {
+      var email = emailCodeAddr.value.trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showError('邮箱格式不正确');
+        emailCodeAddr.focus();
+        return;
+      }
+      clearError();
+      emailCodeSendBtn.disabled = true;
+      emailCodeSendBtn.textContent = '发送中…';
+      apiPost('/api/auth/send-email-code', { email: email }).then(function (data) {
+        if (!data) {
+          emailCodeSendBtn.disabled = false;
+          emailCodeSendBtn.textContent = '发送验证码';
+          return;
+        }
+        // 后端仅在 dev/mock 模式（未配邮件服务）才回传 code 字段
+        // 真服务上线后这里不会被填，用户去查邮箱
+        if (data.code && emailCodeInput) {
+          emailCodeInput.value = data.code;
+          showInfo('验证码已自动填入，可直接登录');
+        } else {
+          showInfo('验证码已发送，请查收邮箱');
+        }
+        startSendCooldown(emailCodeSendBtn);
+      });
+    });
+  }
+  function submitEmailCodeLogin() {
+    var email = emailCodeAddr.value.trim();
+    var code = emailCodeInput.value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError('邮箱不正确'); emailCodeAddr.focus(); return; }
+    if (!/^\d{6}$/.test(code)) { showError('请输入 6 位数字验证码'); emailCodeInput.focus(); return; }
+    clearError();
+    emailCodeSubmitBtn.disabled = true;
+    emailCodeSubmitBtn.textContent = '登录中…';
+    apiPost('/api/auth/verify-email-code', { email: email, code: code }).then(function (data) {
+      if (!data) {
+        emailCodeSubmitBtn.disabled = false;
+        emailCodeSubmitBtn.textContent = '登录 / 注册';
+        return;
+      }
+      completeLogin(data.accessToken, data.user);
+    });
+  }
+  if (emailCodeSubmitBtn) emailCodeSubmitBtn.addEventListener('click', submitEmailCodeLogin);
+  if (emailCodeInput) emailCodeInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); submitEmailCodeLogin(); }
+  });
   if (scanRefresh) scanRefresh.addEventListener('click', function () {
     scanMask.classList.add('hidden');
     startMpQr();
@@ -754,6 +1003,238 @@ function bindAuth() {
   checkAuthStatus();
 }
 
+// ============================================================
+//  忘记密码 modal（手机号 / 邮箱 两种重置路径）
+// ============================================================
+function bindForgotAuth() {
+  var modal = document.getElementById('forgotModal');
+  if (!modal) return;
+
+  var closeBtn = document.getElementById('forgotModalClose');
+  var tabPhone = document.getElementById('forgotTabPhone');
+  var tabEmail = document.getElementById('forgotTabEmail');
+  var panePhone = document.getElementById('forgotPanePhone');
+  var paneEmail = document.getElementById('forgotPaneEmail');
+  var errEl = document.getElementById('forgotError');
+  var okEl = document.getElementById('forgotMessage');
+
+  var phoneInput = document.getElementById('forgotPhoneInput');
+  var phoneCode = document.getElementById('forgotPhoneCodeInput');
+  var phoneSend = document.getElementById('forgotPhoneSendBtn');
+  var phonePwd = document.getElementById('forgotPhoneNewPwd');
+  var phoneSubmit = document.getElementById('forgotPhoneSubmitBtn');
+
+  var emailInput = document.getElementById('forgotEmailInput');
+  var emailCode = document.getElementById('forgotEmailCodeInput');
+  var emailSend = document.getElementById('forgotEmailSendBtn');
+  var emailPwd = document.getElementById('forgotEmailNewPwd');
+  var emailSubmit = document.getElementById('forgotEmailSubmitBtn');
+
+  function showErr(msg) {
+    if (!errEl) return;
+    okEl.classList.add('hidden');
+    errEl.textContent = msg;
+    errEl.classList.remove('hidden');
+  }
+  function showOk(msg) {
+    if (!okEl) return;
+    errEl.classList.add('hidden');
+    okEl.textContent = msg;
+    okEl.classList.remove('hidden');
+  }
+  function clearAll() {
+    if (errEl) { errEl.classList.add('hidden'); errEl.textContent = ''; }
+    if (okEl) { okEl.classList.add('hidden'); okEl.textContent = ''; }
+  }
+  function activateTab(name) {
+    var isPhone = name === 'phone';
+    if (tabPhone) {
+      tabPhone.classList.toggle('is-active', isPhone);
+      tabPhone.setAttribute('aria-selected', isPhone ? 'true' : 'false');
+    }
+    if (tabEmail) {
+      tabEmail.classList.toggle('is-active', !isPhone);
+      tabEmail.setAttribute('aria-selected', !isPhone ? 'true' : 'false');
+    }
+    if (panePhone) panePhone.classList.toggle('hidden', !isPhone);
+    if (paneEmail) paneEmail.classList.toggle('hidden', isPhone);
+  }
+  function hide() { modal.classList.add('hidden'); }
+
+  // 手机号重置
+  if (phoneSend) {
+    phoneSend.addEventListener('click', function () {
+      var phone = phoneInput.value.trim();
+      if (!/^1[3-9]\d{9}$/.test(phone)) { showErr('手机号不正确'); phoneInput.focus(); return; }
+      clearAll();
+      phoneSend.disabled = true;
+      phoneSend.textContent = '发送中…';
+      fetch('/gp/api/auth/send-code', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: phone })
+      }).then(function (r) { return r.json(); }).then(function (data) {
+        if (data.error) {
+          showErr(data.error);
+          phoneSend.disabled = false;
+          phoneSend.textContent = '发送验证码';
+          return;
+        }
+        // 后端仅在 dev/mock 模式（未配 SMS 服务商）才回传 code 字段
+        // 真服务上线后这里不会被填，用户去查短信
+        if (data.code && phoneCode) {
+          phoneCode.value = data.code;
+          showOk('验证码已自动填入，可直接重置');
+        } else {
+          showOk('验证码已发送，请查收短信');
+        }
+        phoneSend.dataset.cooldownLeft = '60';
+        var handle = setInterval(function () {
+          var left = parseInt(phoneSend.dataset.cooldownLeft || '0', 10);
+          if (left > 0) {
+            phoneSend.textContent = left + 's 后重发';
+            phoneSend.dataset.cooldownLeft = String(left - 1);
+          } else {
+            phoneSend.disabled = false;
+            phoneSend.textContent = '发送验证码';
+            delete phoneSend.dataset.cooldownLeft;
+            clearInterval(handle);
+          }
+        }, 1000);
+      }).catch(function () {
+        showErr('网络错误');
+        phoneSend.disabled = false;
+        phoneSend.textContent = '发送验证码';
+      });
+    });
+  }
+  if (phoneSubmit) {
+    phoneSubmit.addEventListener('click', function () {
+      var phone = phoneInput.value.trim();
+      var code = phoneCode.value.trim();
+      var pwd = phonePwd.value;
+      if (!/^1[3-9]\d{9}$/.test(phone)) { showErr('手机号不正确'); return; }
+      if (!/^\d{6}$/.test(code)) { showErr('请输入 6 位验证码'); return; }
+      if (!pwd || pwd.length < 8) { showErr('新密码至少 8 位'); return; }
+      clearAll();
+      phoneSubmit.disabled = true;
+      phoneSubmit.textContent = '重置中…';
+      fetch('/gp/api/auth/reset-password-sms', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: phone, code: code, newPassword: pwd })
+      }).then(function (r) { return r.json(); }).then(function (data) {
+        if (data.error) {
+          showErr(data.error);
+          phoneSubmit.disabled = false;
+          phoneSubmit.textContent = '重置密码';
+          return;
+        }
+        showOk('重置成功，请使用新密码登录');
+        phoneInput.value = ''; phoneCode.value = ''; phonePwd.value = '';
+        phoneSubmit.disabled = false;
+        phoneSubmit.textContent = '重置密码';
+        setTimeout(function () { hide(); }, 1500);
+      }).catch(function () {
+        showErr('网络错误');
+        phoneSubmit.disabled = false;
+        phoneSubmit.textContent = '重置密码';
+      });
+    });
+  }
+
+  // 邮箱重置
+  if (emailSend) {
+    emailSend.addEventListener('click', function () {
+      var email = emailInput.value.trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showErr('邮箱格式不正确'); emailInput.focus(); return; }
+      clearAll();
+      emailSend.disabled = true;
+      emailSend.textContent = '发送中…';
+      fetch('/gp/api/auth/send-email-code', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email })
+      }).then(function (r) { return r.json(); }).then(function (data) {
+        if (data.error) {
+          showErr(data.error);
+          emailSend.disabled = false;
+          emailSend.textContent = '发送验证码';
+          return;
+        }
+        // 后端仅在 dev/mock 模式（未配邮件服务）才回传 code 字段
+        // 真服务上线后这里不会被填，用户去查邮箱
+        if (data.code && emailCode) {
+          emailCode.value = data.code;
+          showOk('验证码已自动填入，可直接重置');
+        } else {
+          showOk('验证码已发送，请查收邮箱');
+        }
+        emailSend.dataset.cooldownLeft = '60';
+        var handle = setInterval(function () {
+          var left = parseInt(emailSend.dataset.cooldownLeft || '0', 10);
+          if (left > 0) {
+            emailSend.textContent = left + 's 后重发';
+            emailSend.dataset.cooldownLeft = String(left - 1);
+          } else {
+            emailSend.disabled = false;
+            emailSend.textContent = '发送验证码';
+            delete emailSend.dataset.cooldownLeft;
+            clearInterval(handle);
+          }
+        }, 1000);
+      }).catch(function () {
+        showErr('网络错误');
+        emailSend.disabled = false;
+        emailSend.textContent = '发送验证码';
+      });
+    });
+  }
+  if (emailSubmit) {
+    emailSubmit.addEventListener('click', function () {
+      var email = emailInput.value.trim();
+      var code = emailCode.value.trim();
+      var pwd = emailPwd.value;
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showErr('邮箱不正确'); return; }
+      if (!/^\d{6}$/.test(code)) { showErr('请输入 6 位验证码'); return; }
+      if (!pwd || pwd.length < 8) { showErr('新密码至少 8 位'); return; }
+      clearAll();
+      emailSubmit.disabled = true;
+      emailSubmit.textContent = '重置中…';
+      fetch('/gp/api/auth/reset-password-email', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email, code: code, newPassword: pwd })
+      }).then(function (r) { return r.json(); }).then(function (data) {
+        if (data.error) {
+          showErr(data.error);
+          emailSubmit.disabled = false;
+          emailSubmit.textContent = '重置密码';
+          return;
+        }
+        showOk('重置成功，请使用新密码登录');
+        emailInput.value = ''; emailCode.value = ''; emailPwd.value = '';
+        emailSubmit.disabled = false;
+        emailSubmit.textContent = '重置密码';
+        setTimeout(function () { hide(); }, 1500);
+      }).catch(function () {
+        showErr('网络错误');
+        emailSubmit.disabled = false;
+        emailSubmit.textContent = '重置密码';
+      });
+    });
+  }
+
+  if (tabPhone) tabPhone.addEventListener('click', function () { clearAll(); activateTab('phone'); });
+  if (tabEmail) tabEmail.addEventListener('click', function () { clearAll(); activateTab('email'); });
+  if (closeBtn) closeBtn.addEventListener('click', hide);
+  modal.addEventListener('click', function (e) { if (e.target === modal) hide(); });
+
+  // 把 showForgot 暴露给 GPAuth，供 bindAuth() 里"忘记密码"链接调用
+  window.GPAuth = window.GPAuth || {};
+  window.GPAuth.showForgot = function (initialTab) {
+    clearAll();
+    activateTab(initialTab === 'email' ? 'email' : 'phone');
+    modal.classList.remove('hidden');
+  };
+}
+
 // ── 监听 OAuth 回调（或公众号回调跳转）后写回的 token ────────────────
 // OAuth 跳转在新窗口打开 callback 写 localStorage；主窗口靠 storage 事件感知。
 window.addEventListener('storage', function (e) {
@@ -804,13 +1285,9 @@ function updateAuthUI(user) {
   if (window.GPAuth && typeof GPAuth.setRole === 'function') {
     GPAuth.setRole(user.role);
   }
-  // ADMIN 用户显示管理后台入口
+  // 管理后台链接始终隐藏（用户通过 URL 直接访问 admin-users.html）
   if (authAdminBtn) {
-    if (user.role === 'ADMIN') {
-      authAdminBtn.classList.remove('hidden');
-    } else {
-      authAdminBtn.classList.add('hidden');
-    }
+    authAdminBtn.classList.add('hidden');
   }
 }
 

@@ -37,7 +37,7 @@ public class StockQueryService {
     private static final int DEFAULT_QUARTERS = 16;
     private static final BigDecimal TEN = BigDecimal.TEN;
     private static final BigDecimal YI = BigDecimal.valueOf(100_000_000L);
-    private static final BigDecimal TEN_PS_NET_MARGIN_THRESHOLD = BigDecimal.valueOf(22.5);
+    private static final BigDecimal TEN_PS_NET_MARGIN_THRESHOLD = BigDecimal.valueOf(25);
 
     private final TradeStockBasicRepository stockBasicRepository;
     private final TradeStockFinancialRepository financialRepository;
@@ -204,7 +204,17 @@ public class StockQueryService {
                 .build();
     }
 
-    private TenPsSnapshot buildTenPsSnapshot(TradeStockBasic basic, List<TradeStockFinancial> financials) {
+    /**
+     * 与 {@link Ps10ValuationService} 对齐的快照：
+     * <ul>
+     *   <li>净利率 ≥ 25% 才视为 10PS 标的</li>
+     *   <li>当前市值 &lt; Y1×10 → 低估</li>
+     *   <li>Y1×10 ≤ 当前市值 ≤ Y2×10 → 合理</li>
+     *   <li>当前市值 &gt; Y2×10 → 泡沫（需警惕）</li>
+     * </ul>
+     * 暴露为包私有以便 {@code StockQueryServiceTest} 直接覆盖。
+     */
+    TenPsSnapshot buildTenPsSnapshot(TradeStockBasic basic, List<TradeStockFinancial> financials) {
         BigDecimal currentMarketCapYi = latestMarketCapYi(basic);
         if (financials == null || financials.isEmpty()) {
             return TenPsSnapshot.empty(currentMarketCapYi);
@@ -229,20 +239,20 @@ public class StockQueryService {
         String verdict = null;
         String detail = null;
         if (Boolean.TRUE.equals(candidate) && currentMarketCapYi != null && fairCap != null) {
-            BigDecimal fairCapY3 = multiply(forecastY3, TEN);
-            if (currentMarketCapYi.compareTo(fairCap) <= 0) {
-                verdict = "合理/低估";
+            BigDecimal fairCapY2 = multiply(forecastY2, TEN);
+            if (currentMarketCapYi.compareTo(fairCap) < 0) {
+                verdict = "低估";
                 detail = "当前市值对应明年10倍PS以内";
-            } else if (fairCapY3 != null && currentMarketCapYi.compareTo(fairCapY3) <= 0) {
-                verdict = "偏贵";
-                detail = "当前市值对应2-3年后10倍PS";
+            } else if (fairCapY2 != null && currentMarketCapYi.compareTo(fairCapY2) <= 0) {
+                verdict = "合理";
+                detail = "当前市值对应2年内10倍PS";
             } else {
-                verdict = "泡沫警惕";
-                detail = "当前市值超过3年预测营收10倍PS";
+                verdict = "泡沫";
+                detail = "当前市值超过2年预测营收10倍PS，需警惕";
             }
         } else if (Boolean.FALSE.equals(candidate)) {
             verdict = "不适用";
-            detail = "净利率未接近25%，不按10PS标尺";
+            detail = String.format(Locale.ROOT, "净利率 %.2f%%，低于 25%% 基准线，不适用 10 倍 PS 估值", netMargin);
         }
 
         return new TenPsSnapshot(
@@ -319,7 +329,8 @@ public class StockQueryService {
         return value.setScale(2, RoundingMode.HALF_UP);
     }
 
-    private record TenPsSnapshot(
+    // 包级可见：StockQueryServiceTest 在 src/test 跨包访问需要 default visibility
+    record TenPsSnapshot(
             BigDecimal currentMarketCapYi,
             BigDecimal annualizedRevenueYi,
             BigDecimal latestNetMargin,

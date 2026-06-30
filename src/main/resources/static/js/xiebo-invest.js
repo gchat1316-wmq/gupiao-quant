@@ -36,6 +36,13 @@
     return 'bad';
   }
 
+  function valuationClass(verdict) {
+    if (verdict === '低估') return 'good';
+    if (verdict === '合理') return 'warn';
+    if (verdict === '泡沫') return 'bad';
+    return 'muted';
+  }
+
   async function api(path, options) {
     const res = await fetch(path, options);
     const text = await res.text();
@@ -77,6 +84,11 @@
     if (!keyword) return;
     state.quote = await api('api/xiebo-invest/quote?keyword=' + encodeURIComponent(keyword));
     renderQuote();
+    // 同步「传奇仓位管理」跳转链接,让用户能带着当前股票关键字跳过去
+    const pmLink = $('pmJumpFromQuote');
+    if (pmLink) {
+      pmLink.setAttribute('href', 'position-management.html?stock=' + encodeURIComponent(keyword));
+    }
   }
 
   async function loadSector() {
@@ -122,7 +134,7 @@
       return;
     }
     mount.innerHTML = '<table class="lynch-table"><thead><tr>' +
-      '<th>股票</th><th>现价</th><th>PE</th><th>PB</th><th>CAGR</th><th>PEG</th><th>评级</th><th>操作</th>' +
+      '<th>股票</th><th>现价</th><th>PE</th><th>PB</th><th>CAGR</th><th>PEG</th><th>评级</th><th>10PS 估值</th><th>操作</th>' +
       '</tr></thead><tbody>' +
       state.watchlist.map(function (item) {
         return '<tr>' +
@@ -132,7 +144,10 @@
           '<td>' + fmt(item.pb, 2) + '</td>' +
           '<td>' + fmt(item.cagrPct, 2) + '%</td>' +
           '<td>' + fmt(item.peg, 2) + '</td>' +
-          '<td><span class="lynch-chip ' + pegClass(item.pegRating) + '">' + esc(item.pegRating || '—') + '</span></td>' +
+         '<td><span class="lynch-chip ' + pegClass(item.pegRating) + '">' + esc(item.pegRating || '—') + '</span></td>' +
+          '<td><span class="lynch-chip ' + valuationClass(item.valuationVerdict) + '">' + esc(item.valuationVerdict || '—') + '</span>' +
+          (item.valuationDeviationLabel ? '<div style="color:#6b7280;font-size:11px;margin-top:2px">' + esc(item.valuationDeviationLabel) + '</div>' : '') +
+          '</td>' +
           '<td><button class="metric-link-btn lynch-remove-btn" data-code="' + esc(item.stockCode) + '">删除</button></td>' +
           '</tr>';
       }).join('') + '</tbody></table>';

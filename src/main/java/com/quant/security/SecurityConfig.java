@@ -64,8 +64,14 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/stock/info/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/news/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/analysis/**").permitAll()
+                // 传奇仓位管理计算器:读档位/案例 + 算仓位建议,纯计算无写,允许匿名访问
+                .requestMatchers("/api/position-management/**").permitAll()
                 // 龙江股票池读取公开
                 .requestMatchers(HttpMethod.GET, "/api/invest/pool").permitAll()
+                // 股票池元信息读取公开（写由 @PreAuthorize 拦截）
+                .requestMatchers(HttpMethod.GET, "/api/invest/pool-meta", "/api/invest/pool-meta/**").permitAll()
+                // 每周机会点读取公开（写由 @PreAuthorize 拦截）
+                .requestMatchers(HttpMethod.GET, "/api/invest/weekly-opportunity", "/api/invest/weekly-opportunity/**").permitAll()
                 // SOP 体检 + 大阳线战法读公开（只放查询，不放写）
                 .requestMatchers(HttpMethod.GET, "/api/invest/sop/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/invest/big-yang/**").permitAll()

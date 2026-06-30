@@ -1,10 +1,13 @@
 package com.quant.service;
 
 import com.quant.config.NotificationProperties;
+import com.quant.entity.InvestPositionCommon;
 import com.quant.entity.InvestStockPool;
 import com.quant.entity.TradeStockBasic;
+import com.quant.repository.InvestPositionCommonRepository;
 import com.quant.repository.InvestStockPoolRepository;
 import com.quant.repository.TradeStockBasicRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -19,29 +22,22 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class PriceMonitorService {
 
+    private static final String POOL_TYPE_INVEST = "invest";
     private static final String STATE_NONE = "none";
     private static final String STATE_BUY  = "buy_alerted";
     private static final String STATE_SELL = "sell_alerted";
+    public static final String TYPE_BUY  = "PRICE_BUY_ALERT";
+    public static final String TYPE_SELL = "PRICE_SELL_ALERT";
 
     private final InvestStockPoolRepository poolRepository;
+    private final InvestPositionCommonRepository positionRepository;
     private final TradeStockBasicRepository basicRepository;
     private final AStockDataQuoteService aStockDataQuoteService;
-    private final NotificationService notificationService;
     private final NotificationProperties notifProps;
-
-    public PriceMonitorService(InvestStockPoolRepository poolRepository,
-                               TradeStockBasicRepository basicRepository,
-                               AStockDataQuoteService aStockDataQuoteService,
-                               NotificationService notificationService,
-                               NotificationProperties notifProps) {
-        this.poolRepository = poolRepository;
-        this.basicRepository = basicRepository;
-        this.aStockDataQuoteService = aStockDataQuoteService;
-        this.notificationService = notificationService;
-        this.notifProps = notifProps;
-    }
+    private final NotificationDispatcher notificationDispatcher;
 
     @Scheduled(cron = "${notification.price-monitor.cron:0 */5 9-15 * * MON-FRI}")
     @Transactional
@@ -54,18 +50,17 @@ public class PriceMonitorService {
             return;
         }
 
-        List<InvestStockPool> activePool = poolRepository.findAllByOrderByCreatedAtDesc().stream()
+        Map<String, InvestPositionCommon> posMap = positionRepository
+                .findByPoolType(POOL_TYPE_INVEST).stream()
                 .filter(p -> !"exited".equalsIgnoreCase(p.getStatus()))
-                .filter(p -> p.getTargetBuyPrice() != null || p.getTargetSellPrice() != null)
-                .collect(Collectors.toList());
+                .collect(Collectors.toMap(InvestPositionCommon::getStockCode, p -> p, (a, b) -> a));
 
-        if (activePool.isEmpty()) {
+        if (posMap.isEmpty()) {
             log.debug("股票池中无需要监控的标的");
             return;
         }
 
-        List<String> codes = activePool.stream().map(InvestStockPool::getStockCode).distinct().toList();
-        // 实时价格统一走 a-stock-data 实时接口；trade_stock_daily 收盘价有同步延迟、不准确
+        List<String> codes = posMap.keySet().stream().toList();
         Map<String, BigDecimal> latestPriceMap = aStockDataQuoteService.fetchQuotes(codes).values().stream()
                 .filter(snapshot -> snapshot.latestPrice() != null)
                 .collect(Collectors.toMap(
@@ -75,20 +70,29 @@ public class PriceMonitorService {
                 ));
         Map<String, String> nameMap = basicRepository.findByStockCodeIn(codes).stream()
                 .collect(Collectors.toMap(TradeStockBasic::getStockCode, TradeStockBasic::getStockName, (a, b) -> a));
+        Map<String, InvestStockPool> poolMap = poolRepository.findByStockCodeIn(codes).stream()
+                .collect(Collectors.toMap(InvestStockPool::getStockCode, p -> p, (a, b) -> a));
 
         int triggered = 0;
         LocalDateTime now = LocalDateTime.now();
 
-        for (InvestStockPool pool : activePool) {
-            BigDecimal close = latestPriceMap.get(pool.getStockCode());
+        for (Map.Entry<String, InvestPositionCommon> entry : posMap.entrySet()) {
+            String code = entry.getKey();
+            InvestPositionCommon position = entry.getValue();
+            InvestStockPool pool = poolMap.get(code);
+            if (pool == null) continue;
+
+            BigDecimal close = latestPriceMap.get(code);
             if (close == null) continue;
 
-            String currentState = pool.getAlertState() == null ? STATE_NONE : pool.getAlertState();
+            if ((pool.getTargetBuyPrice() == null && position.getTargetSellPrice() == null)) continue;
+
+            String currentState = position.getAlertState() == null ? STATE_NONE : position.getAlertState();
             String desiredState = STATE_NONE;
 
             if (pool.getTargetBuyPrice() != null && close.compareTo(pool.getTargetBuyPrice()) <= 0) {
                 desiredState = STATE_BUY;
-            } else if (pool.getTargetSellPrice() != null && close.compareTo(pool.getTargetSellPrice()) >= 0) {
+            } else if (position.getTargetSellPrice() != null && close.compareTo(position.getTargetSellPrice()) >= 0) {
                 desiredState = STATE_SELL;
             }
 
@@ -96,57 +100,61 @@ public class PriceMonitorService {
                 continue;
             }
 
-            // 触发新的提醒：检查冷却期
-            if (!STATE_NONE.equals(desiredState) && pool.getLastAlertAt() != null
-                    && pool.getLastAlertAt().plusMinutes(cfg.getCooldownMinutes()).isAfter(now)) {
-                log.debug("[{}] {} 状态需要切换到 {} 但仍在冷却期内", pool.getStockCode(), currentState, desiredState);
+            if (!STATE_NONE.equals(desiredState) && position.getLastAlertAt() != null
+                    && position.getLastAlertAt().plusMinutes(cfg.getCooldownMinutes()).isAfter(now)) {
+                log.debug("[{}] {} 状态需要切换到 {} 但仍在冷却期内", code, currentState, desiredState);
                 continue;
             }
 
-            String stockName = nameMap.getOrDefault(pool.getStockCode(), pool.getStockCode());
-            pool.setAlertState(desiredState);
+            String stockName = nameMap.getOrDefault(code, code);
+            position.setAlertState(desiredState);
 
             if (STATE_NONE.equals(desiredState)) {
-                // 价格回到中间区间，重置状态，不发送通知
-                poolRepository.save(pool);
-                log.info("[{}] {} 价格 {} 已回到正常区间，重置提醒状态", pool.getStockCode(), stockName, close);
+                positionRepository.save(position);
+                log.info("[{}] {} 价格 {} 已回到正常区间，重置提醒状态", code, stockName, close);
                 continue;
             }
 
-            // 发送通知
             String title;
             String desp;
+            String alertType;
             if (STATE_BUY.equals(desiredState)) {
-                title = String.format("📉 %s(%s) 触及买入价 %s", stockName, pool.getStockCode(), pool.getTargetBuyPrice());
-                desp = buildAlertContent(stockName, pool, close, true);
+                title = String.format("📉 %s(%s) 触及买入价 %s", stockName, code, pool.getTargetBuyPrice());
+                desp = buildAlertContent(stockName, pool, position, close, true);
+                alertType = TYPE_BUY;
             } else {
-                title = String.format("📈 %s(%s) 触及卖出价 %s", stockName, pool.getStockCode(), pool.getTargetSellPrice());
-                desp = buildAlertContent(stockName, pool, close, false);
+                title = String.format("📈 %s(%s) 触及卖出价 %s", stockName, code, position.getTargetSellPrice());
+                desp = buildAlertContent(stockName, pool, position, close, false);
+                alertType = TYPE_SELL;
             }
-            boolean sent = notificationService.sendServerChan(title, desp);
-            if (sent) {
-                pool.setLastAlertAt(now);
+
+            // 按用户偏好 fanout 到 SMS / WECHAT，每个目标写一条 user_notification_log
+            NotificationDispatcher.DispatchResult result =
+                    notificationDispatcher.dispatchPriceAlert(code, alertType, title, desp);
+
+            if (result.succeeded() > 0) {
+                position.setLastAlertAt(now);
                 triggered++;
             }
-            poolRepository.save(pool);
+            positionRepository.save(position);
         }
 
         if (triggered > 0) {
-            log.info("价格监控本次触发 {} 条推送（共 {} 只标的）", triggered, activePool.size());
+            log.info("价格监控本次触发 {} 条推送（共 {} 只标的）", triggered, posMap.size());
         }
     }
 
-    private String buildAlertContent(String stockName, InvestStockPool pool, BigDecimal close, boolean isBuy) {
+    private String buildAlertContent(String stockName, InvestStockPool pool, InvestPositionCommon position, BigDecimal close, boolean isBuy) {
         StringBuilder sb = new StringBuilder();
         sb.append("## ").append(stockName).append("（").append(pool.getStockCode()).append("）\n\n");
         sb.append("**当前价**：").append(close).append("\n\n");
         if (isBuy) {
             sb.append("**目标买入价**：").append(pool.getTargetBuyPrice()).append(" ✅ 已触发\n\n");
-            if (pool.getTargetSellPrice() != null) {
-                sb.append("**目标卖出价**：").append(pool.getTargetSellPrice()).append("\n\n");
+            if (position.getTargetSellPrice() != null) {
+                sb.append("**目标卖出价**：").append(position.getTargetSellPrice()).append("\n\n");
             }
         } else {
-            sb.append("**目标卖出价**：").append(pool.getTargetSellPrice()).append(" ✅ 已触发\n\n");
+            sb.append("**目标卖出价**：").append(position.getTargetSellPrice()).append(" ✅ 已触发\n\n");
             if (pool.getTargetBuyPrice() != null) {
                 sb.append("**目标买入价**：").append(pool.getTargetBuyPrice()).append("\n\n");
             }

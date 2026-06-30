@@ -9,6 +9,7 @@ import com.quant.repository.IndustryResearchCategoryRepository;
 import com.quant.service.industryresearch.IndustryResearchPipeline;
 import com.quant.service.industryresearch.IndustryResearchService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -83,6 +84,7 @@ public class IndustryResearchController {
 
     /* ============ 触发流水线 ============ */
     @PostMapping("/pipeline/run")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public ResponseEntity<TaskDTO> triggerPipeline(@RequestBody PipelineTriggerRequest req) {
         IndustryResearchTask task = pipeline.createAndRun(
                 req.categoryCode(), req.keyword(), req.taskName(), req.articleId());

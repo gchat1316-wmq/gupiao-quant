@@ -47,6 +47,12 @@ class SecurityConfigStaticResourceTest {
     private UserRepository userRepository;
     @MockBean
     private com.quant.service.wechat.WechatMpService wechatMpService;
+    @MockBean
+    private com.quant.service.SmsService smsService;
+    @MockBean
+    private com.quant.service.EmailService emailService;
+    @MockBean
+    private com.quant.service.wechat.WechatScanSession wechatScanSession;
 
     /** 状态码既不是 401 也不是 403（即没被 Security 链拒掉） */
     private static final ResultMatcher NOT_SECURITY_BLOCKED = result -> {

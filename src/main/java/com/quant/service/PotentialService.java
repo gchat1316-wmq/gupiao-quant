@@ -8,6 +8,7 @@ import com.quant.dto.techai.PositionFillDTO;
 import com.quant.dto.techai.TechAiAlertDTO;
 import com.quant.dto.techai.TechAiPoolItemDTO;
 import com.quant.entity.InvestAlert;
+import com.quant.entity.InvestPositionCommon;
 import com.quant.entity.PotentialPool;
 import com.quant.entity.PotentialPositionFill;
 import com.quant.entity.TechAiQuoteSnapshot;
@@ -16,6 +17,7 @@ import com.quant.entity.TradeStockDaily;
 import com.quant.entity.TradeStockRealtimeKline;
 import com.quant.entity.TradeStockRealtimeQuote;
 import com.quant.repository.InvestAlertRepository;
+import com.quant.repository.InvestPositionCommonRepository;
 import com.quant.repository.PotentialPoolRepository;
 import com.quant.repository.PotentialPositionFillRepository;
 import com.quant.repository.TechAiQuoteSnapshotRepository;
@@ -44,14 +46,19 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 public class PotentialService {
 
+    private static final String POOL_TYPE_POTENTIAL = "potential";
+
     private final PotentialPoolRepository poolRepository;
+    private final InvestPositionCommonRepository positionRepository;
     private final PotentialPositionFillRepository fillRepository;
     private final TradeStockBasicRepository basicRepository;
     private final TradeStockDailyRepository dailyRepository;
@@ -71,6 +78,7 @@ public class PotentialService {
 
     public PotentialService(PotentialPoolRepository poolRepository,
                             PotentialPositionFillRepository fillRepository,
+                            InvestPositionCommonRepository positionRepository,
                             TradeStockBasicRepository basicRepository,
                             TradeStockDailyRepository dailyRepository,
                             TechAiQuoteSnapshotRepository quoteRepository,
@@ -88,6 +96,7 @@ public class PotentialService {
                             NotificationProperties notificationProperties) {
         this.poolRepository = poolRepository;
         this.fillRepository = fillRepository;
+        this.positionRepository = positionRepository;
         this.basicRepository = basicRepository;
         this.dailyRepository = dailyRepository;
         this.quoteRepository = quoteRepository;
@@ -114,8 +123,11 @@ public class PotentialService {
         List<String> codes = pool.stream().map(PotentialPool::getStockCode).toList();
         Map<String, TechAiQuoteSnapshot> quotes = latestQuotes(codes);
         Map<String, TradeStockBasic> basics = basics(codes);
+        Map<String, InvestPositionCommon> posMap = positionRepository.findByStockCodeIn(codes).stream()
+                .collect(Collectors.toMap(InvestPositionCommon::getStockCode, p -> p, (a, b) -> a));
         return pool.stream()
-                .map(item -> toPoolDTO(item, basicFromMap(basics, item.getStockCode()), quotes.get(item.getStockCode())))
+                .map(item -> toPoolDTO(item, posMap.get(item.getStockCode()),
+                        basicFromMap(basics, item.getStockCode()), quotes.get(item.getStockCode())))
                 .toList();
     }
 
@@ -137,68 +149,83 @@ public class PotentialService {
         if (basic != null) {
             pool.setStockName(basic.getStockName());
         }
-        pool.setStatus(request.getStatus() == null || request.getStatus().isBlank() ? "watching" : request.getStatus());
         pool.setMemo(request.getMemo());
-        pool.setAddStepPct(BigDecimal.valueOf(10));
-        pool.setTrailPct(BigDecimal.valueOf(10));
-        pool.setAddSizeSchedule("1,1,1");
-        pool.setTakeProfitPct(BigDecimal.valueOf(50));
-        pool.setBreakevenAfterTp(1);
-        pool.setUseAtr(0);
-        pool.setAtrPeriod(14);
-        pool.setAtrAddMult(BigDecimal.ONE);
-        pool.setAtrTrailMult(BigDecimal.valueOf(2));
-        pool.setPositionLots(BigDecimal.ZERO);
-        pool.setAddCount(0);
-        pool.setRealizedPnl(BigDecimal.ZERO);
-        pool.setPositionState("none");
-        pool.setTakeProfitDone(0);
         PotentialPool saved = poolRepository.save(pool);
-        return toPoolDTO(saved, basic, quoteRepository.findFirstByStockCodeOrderByQuoteTimeDesc(saved.getStockCode()).orElse(null));
+
+        InvestPositionCommon pos = new InvestPositionCommon();
+        pos.setStockCode(stockCode);
+        pos.setPoolType(POOL_TYPE_POTENTIAL);
+        pos.setStatus(request.getStatus() == null || request.getStatus().isBlank() ? "watching" : request.getStatus());
+        pos.setPositionState("none");
+        pos.setPositionLots(BigDecimal.ZERO);
+        pos.setAddCount(0);
+        pos.setRealizedPnl(BigDecimal.ZERO);
+        pos.setTakeProfitDone(0);
+        pos.setAddStepPct(BigDecimal.valueOf(10));
+        pos.setTrailPct(BigDecimal.valueOf(10));
+        pos.setAddSizeSchedule("1,1,1");
+        pos.setTakeProfitPct(BigDecimal.valueOf(50));
+        pos.setBreakevenAfterTp(1);
+        pos.setUseAtr(0);
+        pos.setAtrPeriod(14);
+        pos.setAtrAddMult(BigDecimal.ONE);
+        pos.setAtrTrailMult(BigDecimal.valueOf(2));
+        pos.setAlertState("none");
+        positionRepository.save(pos);
+
+        return toPoolDTO(saved, pos, basic,
+                quoteRepository.findFirstByStockCodeOrderByQuoteTimeDesc(saved.getStockCode()).orElse(null));
     }
 
     @Transactional
     public TechAiPoolItemDTO updateField(Integer id, PoolFieldUpdateRequest request) {
         PotentialPool pool = poolRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("监控池条目不存在：" + id));
+        InvestPositionCommon position = positionRepository
+                .findByStockCodeAndPoolType(pool.getStockCode(), POOL_TYPE_POTENTIAL)
+                .orElseThrow(() -> new IllegalStateException("持仓记录不存在：" + pool.getStockCode()));
         String field = request.getField() == null ? "" : request.getField().trim();
         String value = request.getValue();
         boolean blank = value == null || value.isBlank();
         switch (field) {
-            case "status" -> pool.setStatus(blank ? "watching" : value.trim());
+            case "status" -> position.setStatus(blank ? "watching" : value.trim());
             case "memo" -> pool.setMemo(blank ? null : value);
-            case "alertMinute1mPct" -> pool.setAlertMinute1mPct(parsePositiveDecimal(value, field));
-            case "alertMinute5mPct" -> pool.setAlertMinute5mPct(parsePositiveDecimal(value, field));
-            case "alertDailyPct" -> pool.setAlertDailyPct(parsePositiveDecimal(value, field));
-            case "alertThreeDayPct" -> pool.setAlertThreeDayPct(parsePositiveDecimal(value, field));
-            case "alertTurnoverRatioPct" -> pool.setAlertTurnoverRatioPct(parsePositiveDecimal(value, field));
-            case "addStepPct" -> pool.setAddStepPct(parsePositiveDecimal(value, field));
-            case "trailPct" -> pool.setTrailPct(parsePositiveDecimal(value, field));
-            case "addSizeSchedule" -> pool.setAddSizeSchedule(blank ? "1,1,1" : value.trim());
-            case "maxLots" -> pool.setMaxLots(parsePositiveDecimal(value, field));
+            case "alertMinute1mPct" -> position.setAlertMinute1mPct(parsePositiveDecimal(value, field));
+            case "alertMinute5mPct" -> position.setAlertMinute5mPct(parsePositiveDecimal(value, field));
+            case "alertDailyPct" -> position.setAlertDailyPct(parsePositiveDecimal(value, field));
+            case "alertThreeDayPct" -> position.setAlertThreeDayPct(parsePositiveDecimal(value, field));
+            case "alertTurnoverRatioPct" -> position.setAlertTurnoverRatioPct(parsePositiveDecimal(value, field));
+            case "addStepPct" -> position.setAddStepPct(parsePositiveDecimal(value, field));
+            case "trailPct" -> position.setTrailPct(parsePositiveDecimal(value, field));
+            case "addSizeSchedule" -> position.setAddSizeSchedule(blank ? "1,1,1" : value.trim());
+            case "maxLots" -> position.setMaxLots(parsePositiveDecimal(value, field));
             case "takeProfitPct" -> {
-                pool.setTakeProfitPct(parsePositiveDecimal(value, field));
-                if (pool.getTargetSellPrice() == null) {
-                    pool.setTargetSellPrice(defaultTargetPrice(pool.getEntryPrice(), pool.getTakeProfitPct()));
+                position.setTakeProfitPct(parsePositiveDecimal(value, field));
+                if (position.getTargetSellPrice() == null) {
+                    position.setTargetSellPrice(defaultTargetPrice(position.getEntryPrice(), position.getTakeProfitPct()));
                 }
             }
-            case "breakevenAfterTp" -> pool.setBreakevenAfterTp(parseFlag(value));
-            case "timeStopDays" -> pool.setTimeStopDays(parsePositiveInteger(value, field));
-            case "useAtr" -> pool.setUseAtr(parseFlag(value));
-            case "atrPeriod" -> pool.setAtrPeriod(parsePositiveInteger(value, field));
-            case "atrAddMult" -> pool.setAtrAddMult(parsePositiveDecimal(value, field));
-            case "atrTrailMult" -> pool.setAtrTrailMult(parsePositiveDecimal(value, field));
-            case "targetSellPrice" -> pool.setTargetSellPrice(parsePositiveDecimal(value, field));
+            case "breakevenAfterTp" -> position.setBreakevenAfterTp(parseFlag(value));
+            case "timeStopDays" -> position.setTimeStopDays(parsePositiveInteger(value, field));
+            case "useAtr" -> position.setUseAtr(parseFlag(value));
+            case "atrPeriod" -> position.setAtrPeriod(parsePositiveInteger(value, field));
+            case "atrAddMult" -> position.setAtrAddMult(parsePositiveDecimal(value, field));
+            case "atrTrailMult" -> position.setAtrTrailMult(parsePositiveDecimal(value, field));
+            case "targetSellPrice" -> position.setTargetSellPrice(parsePositiveDecimal(value, field));
             default -> throw new IllegalArgumentException("不支持的字段：" + field);
         }
-        PotentialPool saved = poolRepository.save(pool);
-        return toPoolDTO(saved, basic(saved.getStockCode()), quoteRepository.findFirstByStockCodeOrderByQuoteTimeDesc(saved.getStockCode()).orElse(null));
+        positionRepository.save(position);
+        poolRepository.save(pool);
+        return toPoolDTO(pool, position, basic(pool.getStockCode()),
+                quoteRepository.findFirstByStockCodeOrderByQuoteTimeDesc(pool.getStockCode()).orElse(null));
     }
 
     @Transactional
     public void removeFromPool(Integer id) {
         PotentialPool pool = poolRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("监控池条目不存在：" + id));
+        positionRepository.findByStockCodeAndPoolType(pool.getStockCode(), POOL_TYPE_POTENTIAL)
+                .ifPresent(positionRepository::delete);
         fillRepository.deleteByPoolId(pool.getId());
         poolRepository.delete(pool);
     }
@@ -207,6 +234,7 @@ public class PotentialService {
     public TechAiPoolItemDTO recordFill(Integer poolId, PositionFillRequest request) {
         PotentialPool pool = poolRepository.findById(poolId)
                 .orElseThrow(() -> new IllegalArgumentException("监控池条目不存在：" + poolId));
+        InvestPositionCommon position = getOrCreatePosition(pool.getStockCode());
         String action = request.getAction() == null ? "" : request.getAction().trim().toLowerCase();
         if (!List.of("open", "add", "reduce", "clear").contains(action)) {
             throw new IllegalArgumentException("不支持的操作：" + action);
@@ -214,7 +242,7 @@ public class PotentialService {
         if (request.getPrice() == null || request.getPrice().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("成交价必须大于 0");
         }
-        BigDecimal currentLots = pool.getPositionLots() == null ? BigDecimal.ZERO : pool.getPositionLots();
+        BigDecimal currentLots = position.getPositionLots() == null ? BigDecimal.ZERO : position.getPositionLots();
         BigDecimal lots;
         if ("clear".equals(action)) {
             lots = currentLots;
@@ -244,10 +272,10 @@ public class PotentialService {
         fill.setFilledAt(request.getFilledAt() == null ? LocalDateTime.now() : request.getFilledAt());
         fillRepository.save(fill);
 
-        recomputeAggregates(pool);
-        PotentialPool saved = poolRepository.save(pool);
-        return toPoolDTO(saved, basic(saved.getStockCode()),
-                quoteRepository.findFirstByStockCodeOrderByQuoteTimeDesc(saved.getStockCode()).orElse(null));
+        recomputeAggregates(position);
+        positionRepository.save(position);
+        return toPoolDTO(pool, position, basic(pool.getStockCode()),
+                quoteRepository.findFirstByStockCodeOrderByQuoteTimeDesc(pool.getStockCode()).orElse(null));
     }
 
     @Transactional(readOnly = true)
@@ -269,10 +297,11 @@ public class PotentialService {
             throw new IllegalArgumentException("成交记录与标的不匹配");
         }
         fillRepository.delete(fill);
-        recomputeAggregates(pool);
-        PotentialPool saved = poolRepository.save(pool);
-        return toPoolDTO(saved, basic(saved.getStockCode()),
-                quoteRepository.findFirstByStockCodeOrderByQuoteTimeDesc(saved.getStockCode()).orElse(null));
+        InvestPositionCommon position = getOrCreatePosition(pool.getStockCode());
+        recomputeAggregates(position);
+        positionRepository.save(position);
+        return toPoolDTO(pool, position, basic(pool.getStockCode()),
+                quoteRepository.findFirstByStockCodeOrderByQuoteTimeDesc(pool.getStockCode()).orElse(null));
     }
 
     @Transactional(readOnly = true)
@@ -311,15 +340,17 @@ public class PotentialService {
             if (quote == null) {
                 continue;
             }
+            InvestPositionCommon position = positionRepository
+                    .findByStockCodeAndPoolType(item.getStockCode(), POOL_TYPE_POTENTIAL).orElse(null);
             String stockName = displayStockName(item, basicFromMap(basics, item.getStockCode()));
             TechAiMarketContext ctx = buildContext(item.getStockCode(), stockName, quote);
-            for (TechAiAlertCandidate candidate : ruleEngine.evaluate(ctx, thresholds(item))) {
+            for (TechAiAlertCandidate candidate : ruleEngine.evaluate(ctx, thresholds(position))) {
                 if (shouldPush(candidate, cfg)) {
                     saveAndPush(candidate, quote);
                     triggered++;
                 }
             }
-            triggered += evaluateIntradayPosition(item, quote, cfg);
+            triggered += evaluateIntradayPosition(item, position, quote, cfg);
         }
         if (triggered > 0) {
             log.info("潜力监控行情监控触发 {} 条告警", triggered);
@@ -344,12 +375,14 @@ public class PotentialService {
                 pool.stream().map(PotentialPool::getStockCode).toList());
         int triggered = 0;
         for (PotentialPool item : pool) {
-            BigDecimal lots = item.getPositionLots();
-            if (lots == null || lots.compareTo(BigDecimal.ZERO) <= 0) {
+            InvestPositionCommon position = positionRepository
+                    .findByStockCodeAndPoolType(item.getStockCode(), POOL_TYPE_POTENTIAL).orElse(null);
+            if (position == null || position.getPositionLots() == null
+                    || position.getPositionLots().compareTo(BigDecimal.ZERO) <= 0) {
                 continue;
             }
-            AStockDataQuoteService.QuoteSnapshot snapshot = quoteMap.get(item.getStockCode() == null
-                    ? "" : item.getStockCode().trim().toUpperCase(java.util.Locale.ROOT));
+            AStockDataQuoteService.QuoteSnapshot snapshot = quoteMap.get(
+                    item.getStockCode() == null ? "" : item.getStockCode().trim().toUpperCase(Locale.ROOT));
             if (snapshot == null || snapshot.latestPrice() == null || snapshot.latestPrice().compareTo(BigDecimal.ZERO) <= 0) {
                 continue;
             }
@@ -357,17 +390,18 @@ public class PotentialService {
             // 历史 K 线仍来自 trade_stock_daily（用于峰值参考与 ATR）
             List<TradeStockDaily> recentKline = dailyRepository.findTop6ByStockCodeOrderByTradeDateDesc(item.getStockCode());
             BigDecimal historicalHigh = recentKline.isEmpty() ? null : recentKline.get(0).getHighPrice();
-            BigDecimal atr = isAtrMode(item) ? atrFor(item) : null;
-            BigDecimal peak = item.getPeakPrice() == null ? close : item.getPeakPrice();
+            BigDecimal atr = isAtrMode(position) ? atrFor(position, item.getStockCode()) : null;
+            BigDecimal peak = position.getPeakPrice() == null ? close : position.getPeakPrice();
             if (historicalHigh != null) {
                 peak = peak.max(historicalHigh);
             }
             peak = peak.max(close);
-            item.setPeakPrice(peak);
-            TechAiPositionEngine.PositionPlan plan = positionEngine.evaluate(item, close, atr);
-            item.setStopPrice(plan.getStopPrice());
-            poolRepository.save(item);
-            if (plan.getPendingSignal() != null && pushPositionSignal(item, close, plan, true, cfg)) {
+            position.setPeakPrice(peak);
+            TechAiPositionEngine.PositionPlan plan = positionEngine.evaluate(
+                    TechAiPositionEngine.from(position), close, atr);
+            position.setStopPrice(plan.getStopPrice());
+            positionRepository.save(position);
+            if (plan.getPendingSignal() != null && pushPositionSignal(item, position, close, plan, true, cfg)) {
                 triggered++;
             }
         }
@@ -379,28 +413,29 @@ public class PotentialService {
 
     // ===== private helpers =====
 
-    private int evaluateIntradayPosition(PotentialPool item, TechAiQuoteSnapshot quote, NotificationProperties.QuoteMonitor cfg) {
-        BigDecimal lots = item.getPositionLots();
-        if (lots == null || lots.compareTo(BigDecimal.ZERO) <= 0) {
+    private int evaluateIntradayPosition(PotentialPool item, InvestPositionCommon position, TechAiQuoteSnapshot quote, NotificationProperties.QuoteMonitor cfg) {
+        if (position == null || position.getPositionLots() == null
+                || position.getPositionLots().compareTo(BigDecimal.ZERO) <= 0) {
             return 0;
         }
         BigDecimal price = quote.getLatestPrice();
         if (price == null || price.compareTo(BigDecimal.ZERO) <= 0) {
             return 0;
         }
-        BigDecimal atr = isAtrMode(item) ? atrFor(item) : null;
-        BigDecimal peak = item.getPeakPrice() == null ? price : item.getPeakPrice().max(price);
-        item.setPeakPrice(peak);
-        TechAiPositionEngine.PositionPlan plan = positionEngine.evaluate(item, price, atr);
-        item.setStopPrice(plan.getStopPrice());
-        poolRepository.save(item);
+        BigDecimal atr = isAtrMode(position) ? atrFor(position, item.getStockCode()) : null;
+        BigDecimal peak = position.getPeakPrice() == null ? price : position.getPeakPrice().max(price);
+        position.setPeakPrice(peak);
+        TechAiPositionEngine.PositionPlan plan = positionEngine.evaluate(
+                TechAiPositionEngine.from(position), price, atr);
+        position.setStopPrice(plan.getStopPrice());
+        positionRepository.save(position);
         if (plan.getPendingSignal() == null) {
             return 0;
         }
-        return pushPositionSignal(item, price, plan, false, cfg) ? 1 : 0;
+        return pushPositionSignal(item, position, price, plan, false, cfg) ? 1 : 0;
     }
 
-    private boolean pushPositionSignal(PotentialPool item, BigDecimal price,
+    private boolean pushPositionSignal(PotentialPool item, InvestPositionCommon position, BigDecimal price,
                                        TechAiPositionEngine.PositionPlan plan, boolean confirm,
                                        NotificationProperties.QuoteMonitor cfg) {
         String signal = plan.getPendingSignal();
@@ -418,7 +453,7 @@ public class PotentialService {
         };
         String title = String.format("【%s·%s】%s(%s) @ %s",
                 actionLabel, phase, stockName, item.getStockCode(), fmt(price));
-        String content = buildPositionContent(item, stockName, price, plan, signal, phase);
+        String content = buildPositionContent(item, position, stockName, price, plan, signal, phase);
 
         InvestAlert alert = new InvestAlert();
         alert.setStockCode(item.getStockCode());
@@ -458,14 +493,14 @@ public class PotentialService {
         };
     }
 
-    private String buildPositionContent(PotentialPool item, String stockName, BigDecimal price,
+    private String buildPositionContent(PotentialPool item, InvestPositionCommon position, String stockName, BigDecimal price,
                                         TechAiPositionEngine.PositionPlan plan, String signal, String phase) {
         String advice = switch (signal) {
             case TechAiPositionEngine.SIGNAL_STOP -> "现价已触及移动止损，建议清仓离场。";
             case TechAiPositionEngine.SIGNAL_ADD -> String.format("现价突破加仓位，建议加仓 %s 手。",
                     plan.getNextAddLots() == null ? "-" : fmt(plan.getNextAddLots()));
             case TechAiPositionEngine.SIGNAL_TP -> String.format("现价达到目标价，建议减仓 %s%% 止盈。",
-                    item.getTakeProfitPct() == null ? "50" : fmt(item.getTakeProfitPct()));
+                    position == null || position.getTakeProfitPct() == null ? "50" : fmt(position.getTakeProfitPct()));
             default -> "";
         };
         String warn = plan.isStopBelowCost() ? "\n\n> ⚠️ 当前止损价低于平均成本，触发止损将产生亏损。" : "";
@@ -485,21 +520,49 @@ public class PotentialService {
                 stockName, item.getStockCode(), phase,
                 advice,
                 fmt(price),
-                fmt(item.getAvgCost()),
-                fmt(item.getPositionLots()),
+                fmt(position != null ? position.getAvgCost() : null),
+                fmt(position != null ? position.getPositionLots() : null),
                 fmt(plan.getStopPrice()),
                 fmt(plan.getNextAddPrice()),
                 fmt(plan.getTargetPrice()),
                 fmt(plan.getFloatingPnl()), fmt(plan.getFloatingPnlPct()), warn);
     }
 
+    private InvestPositionCommon getOrCreatePosition(String stockCode) {
+        return positionRepository.findByStockCodeAndPoolType(stockCode, POOL_TYPE_POTENTIAL)
+                .orElseGet(() -> {
+                    InvestPositionCommon pos = new InvestPositionCommon();
+                    pos.setStockCode(stockCode);
+                    pos.setPoolType(POOL_TYPE_POTENTIAL);
+                    pos.setStatus("watching");
+                    pos.setAlertState("none");
+                    pos.setPositionState("none");
+                    pos.setPositionLots(BigDecimal.ZERO);
+                    pos.setRealizedPnl(BigDecimal.ZERO);
+                    pos.setAddCount(0);
+                    pos.setTakeProfitDone(0);
+                    pos.setAddStepPct(BigDecimal.valueOf(10));
+                    pos.setTrailPct(BigDecimal.valueOf(10));
+                    pos.setAddSizeSchedule("1,1,1");
+                    pos.setTakeProfitPct(BigDecimal.valueOf(50));
+                    pos.setBreakevenAfterTp(1);
+                    pos.setUseAtr(0);
+                    pos.setAtrPeriod(14);
+                    pos.setAtrAddMult(BigDecimal.ONE);
+                    pos.setAtrTrailMult(BigDecimal.valueOf(2));
+                    return positionRepository.save(pos);
+                });
+    }
+
     private String fmt(BigDecimal v) {
         return v == null ? "-" : v.stripTrailingZeros().toPlainString();
     }
 
-    private void recomputeAggregates(PotentialPool pool) {
+    private void recomputeAggregates(InvestPositionCommon position) {
+        PotentialPool pool = poolRepository.findByStockCode(position.getStockCode())
+                .orElseThrow(() -> new IllegalStateException("pool not found for " + position.getStockCode()));
         List<PotentialPositionFill> fills = fillRepository.findByPoolIdOrderByFilledAtAscIdAsc(pool.getId());
-        BigDecimal target = pool.getTargetSellPrice();
+        BigDecimal target = position.getTargetSellPrice();
 
         BigDecimal lots = BigDecimal.ZERO;
         BigDecimal avg = null;
@@ -522,7 +585,7 @@ public class PotentialService {
                     lots = fl;
                     entry = price;
                     if (target == null) {
-                        target = defaultTargetPrice(entry, pool.getTakeProfitPct());
+                        target = defaultTargetPrice(entry, position.getTakeProfitPct());
                     }
                     addCount = 0;
                     peak = price;
@@ -556,59 +619,60 @@ public class PotentialService {
         }
 
         boolean hasPosition = lots.compareTo(BigDecimal.ZERO) > 0;
-        pool.setPositionLots(lots);
-        pool.setAddCount(hasPosition ? addCount : 0);
-        pool.setRealizedPnl(realized.setScale(2, RoundingMode.HALF_UP));
+        position.setPositionLots(lots);
+        position.setAddCount(hasPosition ? addCount : 0);
+        position.setRealizedPnl(realized.setScale(2, RoundingMode.HALF_UP));
 
         if (fills.isEmpty()) {
-            pool.setPositionState("none");
-            pool.setAvgCost(null);
-            pool.setEntryPrice(null);
-            pool.setLastAddPrice(null);
-            pool.setPeakPrice(null);
-            pool.setStopPrice(null);
-            pool.setTotalInvested(BigDecimal.ZERO);
-            pool.setOpenedAt(null);
-            pool.setTakeProfitDone(0);
+            position.setPositionState("none");
+            position.setAvgCost(null);
+            position.setEntryPrice(null);
+            position.setLastAddPrice(null);
+            position.setPeakPrice(null);
+            position.setStopPrice(null);
+            position.setTotalInvested(BigDecimal.ZERO);
+            position.setOpenedAt(null);
+            position.setTakeProfitDone(0);
             return;
         }
 
         if (!hasPosition) {
-            pool.setPositionState("exited");
-            pool.setAvgCost(null);
-            pool.setEntryPrice(null);
-            pool.setLastAddPrice(null);
-            pool.setPeakPrice(null);
-            pool.setStopPrice(null);
-            pool.setTotalInvested(BigDecimal.ZERO);
-            pool.setOpenedAt(openedAt);
-            pool.setTakeProfitDone(0);
-            if (!"exited".equals(pool.getStatus())) {
-                pool.setStatus("exited");
+            position.setPositionState("exited");
+            position.setAvgCost(null);
+            position.setEntryPrice(null);
+            position.setLastAddPrice(null);
+            position.setPeakPrice(null);
+            position.setStopPrice(null);
+            position.setTotalInvested(BigDecimal.ZERO);
+            position.setOpenedAt(openedAt);
+            position.setTakeProfitDone(0);
+            if (!"exited".equals(position.getStatus())) {
+                position.setStatus("exited");
             }
             return;
         }
 
-        pool.setAvgCost(avg.setScale(2, RoundingMode.HALF_UP));
-        pool.setEntryPrice(entry);
-        if (pool.getTargetSellPrice() == null) {
-            pool.setTargetSellPrice(target);
+        position.setAvgCost(avg.setScale(2, RoundingMode.HALF_UP));
+        position.setEntryPrice(entry);
+        if (position.getTargetSellPrice() == null) {
+            position.setTargetSellPrice(target);
         }
-        pool.setLastAddPrice(lastBuyPrice);
+        position.setLastAddPrice(lastBuyPrice);
         BigDecimal effectivePeak = peak == null ? entry : peak;
-        pool.setPeakPrice(effectivePeak);
-        pool.setTotalInvested(avg.multiply(lots)
+        position.setPeakPrice(effectivePeak);
+        position.setTotalInvested(avg.multiply(lots)
                 .multiply(BigDecimal.valueOf(TechAiPositionEngine.SHARES_PER_LOT)).setScale(2, RoundingMode.HALF_UP));
-        pool.setOpenedAt(openedAt);
-        pool.setTakeProfitDone(tpDone ? 1 : 0);
-        pool.setPositionState(scaled ? "scaled" : "holding");
-        if (!"holding".equals(pool.getStatus())) {
-            pool.setStatus("holding");
+        position.setOpenedAt(openedAt);
+        position.setTakeProfitDone(tpDone ? 1 : 0);
+        position.setPositionState(scaled ? "scaled" : "holding");
+        if (!"holding".equals(position.getStatus())) {
+            position.setStatus("holding");
         }
 
-        BigDecimal atr = isAtrMode(pool) ? atrFor(pool) : null;
-        TechAiPositionEngine.PositionPlan plan = positionEngine.evaluate(positionView(pool, pool.getTargetSellPrice()), effectivePeak, atr);
-        pool.setStopPrice(plan.getStopPrice());
+        BigDecimal atr = isAtrMode(position) ? atrFor(position, position.getStockCode()) : null;
+        TechAiPositionEngine.PositionPlan plan = positionEngine.evaluate(
+                TechAiPositionEngine.from(position), effectivePeak, atr);
+        position.setStopPrice(plan.getStopPrice());
     }
 
     private PositionFillDTO toFillDTO(PotentialPositionFill fill) {
@@ -626,17 +690,18 @@ public class PotentialService {
                 .build();
     }
 
-    private TechAiPoolItemDTO toPoolDTO(PotentialPool item, TradeStockBasic basic, TechAiQuoteSnapshot quote) {
+    private TechAiPoolItemDTO toPoolDTO(PotentialPool item, InvestPositionCommon pos, TradeStockBasic basic, TechAiQuoteSnapshot quote) {
         BigDecimal dailyChange = quote == null ? null : pctChange(quote.getLatestPrice(), quote.getPrevClosePrice());
         BigDecimal price = quote == null ? null : quote.getLatestPrice();
-        BigDecimal atr = isAtrMode(item) ? atrFor(item) : null;
-        BigDecimal targetSellPrice = effectiveTargetPrice(item);
-        TechAiPositionEngine.PoolView view = positionView(item, targetSellPrice);
+        BigDecimal atr = pos != null && isAtrMode(pos) ? atrFor(pos, item.getStockCode()) : null;
+        BigDecimal targetSellPrice = effectiveTargetPrice(pos);
+        TechAiPositionEngine.PoolView view = pos != null ? TechAiPositionEngine.from(pos).withTargetSellPrice(targetSellPrice)
+                : TechAiPositionEngine.PoolView.builder().build();
         TechAiPositionEngine.PositionPlan plan = positionEngine.evaluate(view, price, atr);
 
         // 策略路线图：watching 时按现价预演全部档位
         List<com.quant.dto.techai.StrategyLevelDTO> roadmap = List.of();
-        boolean hasPosition = item.getPositionLots() != null && item.getPositionLots().compareTo(BigDecimal.ZERO) > 0;
+        boolean hasPosition = pos != null && pos.getPositionLots() != null && pos.getPositionLots().compareTo(BigDecimal.ZERO) > 0;
         if (!hasPosition && price != null && price.compareTo(BigDecimal.ZERO) > 0) {
             roadmap = positionEngine.computeRoadmap(price, view, atr);
         }
@@ -646,41 +711,41 @@ public class PotentialService {
                 .stockCode(item.getStockCode())
                 .qmtCode(TechAiStockCodeUtils.toQmtCode(item.getStockCode()))
                 .stockName(displayStockName(item, basic))
-                .status(item.getStatus())
+                .status(pos != null ? pos.getStatus() : "watching")
                 .memo(item.getMemo())
                 .latestPrice(price)
                 .dailyChangePct(dailyChange)
                 .turnoverRate(quote == null ? null : quote.getTurnoverRate())
                 .volume(quote == null ? null : quote.getVolume())
                 .quoteTime(quote == null ? null : quote.getQuoteTime())
-                .alertMinute1mPct(item.getAlertMinute1mPct())
-                .alertMinute5mPct(item.getAlertMinute5mPct())
-                .alertDailyPct(item.getAlertDailyPct())
-                .alertThreeDayPct(item.getAlertThreeDayPct())
-                .alertTurnoverRatioPct(item.getAlertTurnoverRatioPct())
-                .entryPrice(item.getEntryPrice())
-                .positionLots(item.getPositionLots())
-                .avgCost(item.getAvgCost())
-                .totalInvested(item.getTotalInvested())
-                .addCount(item.getAddCount())
-                .lastAddPrice(item.getLastAddPrice())
-                .peakPrice(item.getPeakPrice())
-                .stopPrice(item.getStopPrice())
-                .realizedPnl(item.getRealizedPnl())
-                .positionState(item.getPositionState())
-                .takeProfitDone(item.getTakeProfitDone() != null && item.getTakeProfitDone() == 1)
-                .openedAt(item.getOpenedAt())
-                .addStepPct(item.getAddStepPct())
-                .trailPct(item.getTrailPct())
-                .addSizeSchedule(item.getAddSizeSchedule())
-                .maxLots(item.getMaxLots())
-                .takeProfitPct(item.getTakeProfitPct())
-                .breakevenAfterTp(item.getBreakevenAfterTp() != null && item.getBreakevenAfterTp() == 1)
-                .timeStopDays(item.getTimeStopDays())
-                .useAtr(isAtrMode(item))
-                .atrPeriod(item.getAtrPeriod())
-                .atrAddMult(item.getAtrAddMult())
-                .atrTrailMult(item.getAtrTrailMult())
+                .alertMinute1mPct(pos != null ? pos.getAlertMinute1mPct() : null)
+                .alertMinute5mPct(pos != null ? pos.getAlertMinute5mPct() : null)
+                .alertDailyPct(pos != null ? pos.getAlertDailyPct() : null)
+                .alertThreeDayPct(pos != null ? pos.getAlertThreeDayPct() : null)
+                .alertTurnoverRatioPct(pos != null ? pos.getAlertTurnoverRatioPct() : null)
+                .entryPrice(pos != null ? pos.getEntryPrice() : null)
+                .positionLots(pos != null ? pos.getPositionLots() : null)
+                .avgCost(pos != null ? pos.getAvgCost() : null)
+                .totalInvested(pos != null ? pos.getTotalInvested() : null)
+                .addCount(pos != null ? pos.getAddCount() : null)
+                .lastAddPrice(pos != null ? pos.getLastAddPrice() : null)
+                .peakPrice(pos != null ? pos.getPeakPrice() : null)
+                .stopPrice(pos != null ? pos.getStopPrice() : null)
+                .realizedPnl(pos != null ? pos.getRealizedPnl() : null)
+                .positionState(pos != null ? pos.getPositionState() : null)
+                .takeProfitDone(pos != null && pos.getTakeProfitDone() != null && pos.getTakeProfitDone() == 1)
+                .openedAt(pos != null ? pos.getOpenedAt() : null)
+                .addStepPct(pos != null ? pos.getAddStepPct() : null)
+                .trailPct(pos != null ? pos.getTrailPct() : null)
+                .addSizeSchedule(pos != null ? pos.getAddSizeSchedule() : null)
+                .maxLots(pos != null ? pos.getMaxLots() : null)
+                .takeProfitPct(pos != null ? pos.getTakeProfitPct() : null)
+                .breakevenAfterTp(pos != null && pos.getBreakevenAfterTp() != null && pos.getBreakevenAfterTp() == 1)
+                .timeStopDays(pos != null ? pos.getTimeStopDays() : null)
+                .useAtr(pos != null && isAtrMode(pos))
+                .atrPeriod(pos != null ? pos.getAtrPeriod() : null)
+                .atrAddMult(pos != null ? pos.getAtrAddMult() : null)
+                .atrTrailMult(pos != null ? pos.getAtrTrailMult() : null)
                 .targetSellPrice(targetSellPrice)
                 .nextAddPrice(plan.getNextAddPrice())
                 .nextAddLots(plan.getNextAddLots())
@@ -696,32 +761,14 @@ public class PotentialService {
                 .build();
     }
 
-    private TechAiPositionEngine.PoolView positionView(PotentialPool item, BigDecimal targetSellPrice) {
-        return TechAiPositionEngine.PoolView.builder()
-                .positionLots(item.getPositionLots())
-                .avgCost(item.getAvgCost())
-                .useAtr(item.getUseAtr())
-                .entryPrice(item.getEntryPrice())
-                .lastAddPrice(item.getLastAddPrice())
-                .peakPrice(item.getPeakPrice())
-                .addSizeSchedule(item.getAddSizeSchedule())
-                .addCount(item.getAddCount())
-                .maxLots(item.getMaxLots())
-                .atrAddMult(item.getAtrAddMult())
-                .addStepPct(item.getAddStepPct())
-                .atrTrailMult(item.getAtrTrailMult())
-                .trailPct(item.getTrailPct())
-                .stopPrice(item.getStopPrice())
-                .targetSellPrice(targetSellPrice)
-                .takeProfitDone(item.getTakeProfitDone())
-                .build();
-    }
-
-    private BigDecimal effectiveTargetPrice(PotentialPool item) {
-        if (item.getTargetSellPrice() != null) {
-            return item.getTargetSellPrice();
+    private BigDecimal effectiveTargetPrice(InvestPositionCommon pos) {
+        if (pos == null) {
+            return null;
         }
-        return defaultTargetPrice(item.getEntryPrice(), item.getTakeProfitPct());
+        if (pos.getTargetSellPrice() != null) {
+            return pos.getTargetSellPrice();
+        }
+        return defaultTargetPrice(pos.getEntryPrice(), pos.getTakeProfitPct());
     }
 
     private BigDecimal defaultTargetPrice(BigDecimal entryPrice, BigDecimal takeProfitPct) {
@@ -734,23 +781,23 @@ public class PotentialService {
         return entryPrice.multiply(multiplier).setScale(2, RoundingMode.HALF_UP);
     }
 
-    private boolean isAtrMode(PotentialPool item) {
-        return item.getUseAtr() != null && item.getUseAtr() == 1;
+    private boolean isAtrMode(InvestPositionCommon pos) {
+        return pos != null && pos.getUseAtr() != null && pos.getUseAtr() == 1;
     }
 
-    private BigDecimal atrFor(PotentialPool item) {
-        int period = item.getAtrPeriod() == null || item.getAtrPeriod() <= 0 ? 14 : item.getAtrPeriod();
-        List<TradeStockDaily> recent = dailyRepository.findTop30ByStockCodeOrderByTradeDateDesc(item.getStockCode());
+    private BigDecimal atrFor(InvestPositionCommon pos, String stockCode) {
+        int period = pos.getAtrPeriod() == null || pos.getAtrPeriod() <= 0 ? 14 : pos.getAtrPeriod();
+        List<TradeStockDaily> recent = dailyRepository.findTop30ByStockCodeOrderByTradeDateDesc(stockCode);
         return atrCalculator.atr(recent, period);
     }
 
-    private TechAiAlertThresholds thresholds(PotentialPool item) {
+    private TechAiAlertThresholds thresholds(InvestPositionCommon pos) {
         return TechAiAlertThresholds.builder()
-                .minute1Pct(item.getAlertMinute1mPct())
-                .minute5Pct(item.getAlertMinute5mPct())
-                .dailyPct(item.getAlertDailyPct())
-                .threeDayPct(item.getAlertThreeDayPct())
-                .turnoverRatioPct(item.getAlertTurnoverRatioPct())
+                .minute1Pct(pos != null ? pos.getAlertMinute1mPct() : null)
+                .minute5Pct(pos != null ? pos.getAlertMinute5mPct() : null)
+                .dailyPct(pos != null ? pos.getAlertDailyPct() : null)
+                .threeDayPct(pos != null ? pos.getAlertThreeDayPct() : null)
+                .turnoverRatioPct(pos != null ? pos.getAlertTurnoverRatioPct() : null)
                 .build();
     }
 

@@ -1,6 +1,8 @@
 package com.quant.service;
 
+import com.quant.entity.InvestPositionCommon;
 import com.quant.entity.InvestStockPool;
+import com.quant.repository.InvestPositionCommonRepository;
 import com.quant.repository.InvestStockPoolRepository;
 import com.quant.repository.TradeStockBasicRepository;
 import org.springframework.stereotype.Service;
@@ -17,11 +19,14 @@ public class InvestPoolSeedService {
     public static final String POOL_TYPE = "tech_vc";
 
     private final InvestStockPoolRepository poolRepository;
+    private final InvestPositionCommonRepository positionRepository;
     private final TradeStockBasicRepository stockBasicRepository;
 
     public InvestPoolSeedService(InvestStockPoolRepository poolRepository,
+                                 InvestPositionCommonRepository positionRepository,
                                  TradeStockBasicRepository stockBasicRepository) {
         this.poolRepository = poolRepository;
+        this.positionRepository = positionRepository;
         this.stockBasicRepository = stockBasicRepository;
     }
 
@@ -35,8 +40,23 @@ public class InvestPoolSeedService {
         poolRepository.deleteByPoolTypeOrUpperStockCodeIn(POOL_TYPE, seedRows.stream()
                 .map(row -> row.code().toUpperCase(Locale.ROOT))
                 .toList());
-        poolRepository.saveAll(entities);
-        return entities.size();
+        List<InvestStockPool> saved = poolRepository.saveAll(entities);
+        // 为每个池子创建对应的持仓记录
+        List<InvestPositionCommon> positions = saved.stream().map(pool -> {
+            InvestPositionCommon pos = new InvestPositionCommon();
+            pos.setStockCode(pool.getStockCode());
+            pos.setPoolType(POOL_TYPE);
+            pos.setStatus("watching");
+            pos.setPositionState("none");
+            pos.setPositionLots(BigDecimal.ZERO);
+            pos.setRealizedPnl(BigDecimal.ZERO);
+            pos.setAddCount(0);
+            pos.setTakeProfitDone(0);
+            pos.setAlertState("none");
+            return pos;
+        }).toList();
+        positionRepository.saveAll(positions);
+        return saved.size();
     }
 
     private InvestStockPool toEntity(SeedRow row, int displayOrder) {
@@ -44,7 +64,6 @@ public class InvestPoolSeedService {
         pool.setStockCode(row.code());
         pool.setStockName(row.name());
         pool.setPoolType(POOL_TYPE);
-        pool.setStatus("watching");
         pool.setDisplayOrder(displayOrder);
         pool.setRevenue2023(row.rev2023());
         pool.setRevenue2024(row.rev2024());

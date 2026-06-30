@@ -5,6 +5,7 @@ import com.quant.service.StockQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.CacheManager;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -32,8 +33,9 @@ public class StockController {
      * Q3 = Q3累计 - Q2；Q4 = annual - Q1 - Q2 - Q3
      * 注意：Q4 已严重损坏（如药明康德-1357亿）的行，公式 Q4=Q4-Q1-Q2-Q3 会越修越差
      * 需用 /admin/force-fix-field 手动修复
-     */
-    @PostMapping("/admin/fix-annual-to-quarterly")
+    */
+   @PostMapping("/admin/fix-annual-to-quarterly")
+    @PreAuthorize("hasRole('ADMIN')")
     public Map<String, Object> fixAnnualToQuarterly() {
         int updated = stockQueryService.fixAnnualToQuarterlyRevenue();
         var cache = cacheManager.getCache("financial");
@@ -43,6 +45,7 @@ public class StockController {
 
     /** 手动清空 revenue_yoy 缓存列，让 app 动态计算 */
     @PostMapping("/admin/clear-yoy-cache")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> clearYoyCache(@RequestParam String code, @RequestParam(required = false) Integer year) {
         var jdbc = new org.springframework.jdbc.core.JdbcTemplate(dataSource);
         String sql;
@@ -62,6 +65,7 @@ public class StockController {
 
     /** 手动修复特定单元值：POST /admin/force-fix-field?code=603259.SH&field=revenue&date=2025-12-31&value=125.99 */
     @PostMapping("/admin/force-fix-field")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> forceFixField(@RequestParam String code,
             @RequestParam String field, @RequestParam String date, @RequestParam BigDecimal value) {
         String col = switch (field) {
@@ -81,6 +85,7 @@ public class StockController {
 
     /** 查询特定股票特定年份的原始 DB 行 */
     @GetMapping("/admin/debug-db-row")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> debugDbRow(@RequestParam String code, @RequestParam int year) {
         var jdbc = new org.springframework.jdbc.core.JdbcTemplate(dataSource);
         List<Map<String, Object>> rows = jdbc.queryForList(

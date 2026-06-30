@@ -7,6 +7,7 @@ import com.quant.entity.TechAiQuoteSnapshot;
 import com.quant.entity.TradeStockDaily;
 import com.quant.repository.InvestAlertRepository;
 import com.quant.repository.InvestBigYangSignalRepository;
+import com.quant.repository.InvestPositionCommonRepository;
 import com.quant.repository.InvestStockPoolRepository;
 import com.quant.repository.TradeStockDailyRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,6 +46,9 @@ class InvestBigYangSignalServiceTest {
     private InvestStockPoolRepository poolRepository;
 
     @Mock
+    private InvestPositionCommonRepository positionRepository;
+
+    @Mock
     private InvestAlertRepository alertRepository;
 
     @Mock
@@ -76,9 +80,13 @@ class InvestBigYangSignalServiceTest {
         props.setExpireTradingDays(20);
         // 默认所有股票 a-stock-data 实时行情为空，迫使 trigger 扫描跳过（与现有 EastMoney/Sina mock 隔离）
         org.mockito.Mockito.lenient().when(aStockDataQuoteService.fetchQuotes(any())).thenReturn(Map.of());
+        // signals() 不查实时价，但其它测试 (signalsQuotes) 会调；给个空 Map 默认，避免 strict-stub 报错
+        org.mockito.Mockito.lenient().when(eastMoneyRealtimeQuoteService.fetch(anyList())).thenReturn(Map.of());
+        org.mockito.Mockito.lenient().when(sinaRealtimeQuoteService.fetch(anyList())).thenReturn(Map.of());
         service = new InvestBigYangSignalService(
                 signalRepository,
                 poolRepository,
+                positionRepository,
                 alertRepository,
                 dailyRepository,
                 eastMoneyRealtimeQuoteService,
@@ -95,6 +103,7 @@ class InvestBigYangSignalServiceTest {
         service = new InvestBigYangSignalService(
                 signalRepository,
                 poolRepository,
+                positionRepository,
                 alertRepository,
                 dailyRepository,
                 eastMoneyRealtimeQuoteService,
@@ -125,34 +134,51 @@ class InvestBigYangSignalServiceTest {
     }
 
     @Test
-    @DisplayName("信号列表返回最新收盘日期")
-    void signalsExposeLatestDailyDate() {
+    @DisplayName("信号基础列表不查实时行情（首屏秒级返回）")
+    void signalsBasicDoesNotCallRealtimeQuote() {
+        InvestBigYangSignal signal = watchingSignal();
+        when(signalRepository.findTop200ByOrderByUpdatedAtDescIdDesc()).thenReturn(List.of(signal));
+
+        List<com.quant.dto.invest.BigYangSignalDTO> dtos = service.signals();
+
+        assertThat(dtos).hasSize(1);
+        // signals() 只返基础数据，currentPrice/distanceToBasePct 留 null 给前端异步填
+        assertThat(dtos.get(0).getCurrentPrice()).isNull();
+        assertThat(dtos.get(0).getCurrentPriceDate()).isNull();
+        assertThat(dtos.get(0).getDistanceToBasePct()).isNull();
+        // 关键断言：signals() 不应该调 realtime quote 服务
+        verify(eastMoneyRealtimeQuoteService, never()).fetch(anyList());
+        verify(sinaRealtimeQuoteService, never()).fetch(anyList());
+    }
+
+    @Test
+    @DisplayName("signalsQuotes 端点返回最新实时行情")
+    void signalsQuotesExposeLatestDailyDate() {
         InvestBigYangSignal signal = watchingSignal();
         when(signalRepository.findTop200ByOrderByUpdatedAtDescIdDesc()).thenReturn(List.of(signal));
         when(eastMoneyRealtimeQuoteService.fetch(anyList())).thenReturn(Map.of(
                 "000001.SZ", quote("000001.SZ", "10.66", LocalDateTime.of(2026, 6, 17, 15, 0))
         ));
 
-        List<com.quant.dto.invest.BigYangSignalDTO> dtos = service.signals();
+        List<com.quant.dto.invest.BigYangQuoteDTO> quotes = service.signalsQuotes();
 
-        assertThat(dtos).hasSize(1);
-        assertThat(dtos.get(0).getCurrentPriceDate()).isEqualTo(LocalDate.of(2026, 6, 17));
-        assertThat(dtos.get(0).getCurrentPrice()).isEqualByComparingTo("10.66");
+        assertThat(quotes).hasSize(1);
+        assertThat(quotes.get(0).getStockCode()).isEqualTo("000001.sz");
+        assertThat(quotes.get(0).getCurrentPrice()).isEqualByComparingTo("10.66");
+        assertThat(quotes.get(0).getCurrentPriceDate()).isEqualTo(LocalDate.of(2026, 6, 17));
     }
 
     @Test
-    @DisplayName("信号列表不再回退显示旧日线收盘价")
-    void signalsDoNotFallbackToStaleDailyClose() {
+    @DisplayName("signalsQuotes 东方财富拿不到时回退新浪，新浪也无则返空")
+    void signalsQuotesFallbackToSinaAndBack() {
         InvestBigYangSignal signal = watchingSignal();
         when(signalRepository.findTop200ByOrderByUpdatedAtDescIdDesc()).thenReturn(List.of(signal));
         when(eastMoneyRealtimeQuoteService.fetch(anyList())).thenReturn(Map.of());
         when(sinaRealtimeQuoteService.fetch(anyList())).thenReturn(Map.of());
 
-        List<com.quant.dto.invest.BigYangSignalDTO> dtos = service.signals();
+        List<com.quant.dto.invest.BigYangQuoteDTO> quotes = service.signalsQuotes();
 
-        assertThat(dtos).hasSize(1);
-        assertThat(dtos.get(0).getCurrentPrice()).isNull();
-        assertThat(dtos.get(0).getCurrentPriceDate()).isNull();
+        assertThat(quotes).isEmpty();
     }
 
     @Test
@@ -218,6 +244,7 @@ class InvestBigYangSignalServiceTest {
         service = new InvestBigYangSignalService(
                 signalRepository,
                 poolRepository,
+                positionRepository,
                 alertRepository,
                 dailyRepository,
                 eastMoneyRealtimeQuoteService,
@@ -261,6 +288,7 @@ class InvestBigYangSignalServiceTest {
         service = new InvestBigYangSignalService(
                 signalRepository,
                 poolRepository,
+                positionRepository,
                 alertRepository,
                 dailyRepository,
                 eastMoneyRealtimeQuoteService,
@@ -297,7 +325,6 @@ class InvestBigYangSignalServiceTest {
         pool.setStockCode(stockCode);
         pool.setStockName(stockName);
         pool.setPoolType("quality");
-        pool.setStatus("watching");
         return pool;
     }
 

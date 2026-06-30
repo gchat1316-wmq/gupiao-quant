@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="css/skin.css?v=20260622-ps-v2" />
   <link rel="stylesheet" href="css/style.css?v=20260622-ps-v2" />
   <link rel="stylesheet" href="css/study.css?v=20260622-ps-v2" />
-  <link rel="stylesheet" href="css/invest.css?v=20260629-role-guard-v2" />
+  <link rel="stylesheet" href="css/invest.css?v=20260629-pool-meta-v1" />
   <script src="js/layout.js?v=20260629-profile-link" defer></script>
 </head>
 <body>
@@ -17,27 +17,40 @@
 
   <main class="container">
 
-    <!-- Hero -->
-    <div class="invest-hero">
-      <div class="invest-hero-icon">📈</div>
-      <div>
-        <h2 class="invest-hero-title">谢博投资</h2>
-        <p class="invest-hero-sub">价值景气投资法 · 增量市场，稀缺卡位 · 顺势而为</p>
-      </div>
-      <div id="bigYangHeroAlert" class="invest-hero-alert hidden">
-        <span class="invest-hero-alert-label">大阳线提示</span>
-        <span id="bigYangHeroCount" class="invest-hero-alert-count">0</span>
+    <!-- ★ 一级 tab：科技AI / 创新药 / 质量优选（占满整页、三等分） -->
+    <div class="invest-main-tabs" id="investMainTabs">
+      <button class="invest-main-tab active" data-section="techai">科技AI</button>
+      <button class="invest-main-tab" data-section="biopharma">创新药</button>
+      <button class="invest-main-tab" data-section="quality">质量优选</button>
+    </div>
+
+    <!-- 二级 tab：每个一级 section 一组，section 切换时整组切换 -->
+    <!-- 科技AI：5 个二级 tab + 学习搭子入口 -->
+    <div class="invest-sub-tabs-wrap" data-main-section="techai">
+      <div class="invest-tabs">
+        <button class="invest-tab active" data-panel="panel-pool">股票池</button>
+        <button class="invest-tab" data-panel="panel-big-yang">大阳线战法<span id="bigYangTabBadge" class="invest-tab-badge hidden">0</span></button>
+        <button class="invest-tab" data-panel="panel-valuation">估值计算器</button>
+        <button class="invest-tab" data-panel="panel-practical">🎯 实战选股</button>
+        <button class="invest-tab" data-panel="panel-sop">实战选股SOP</button>
+        <a href="study.html" class="invest-tab-study-link">学习搭子 →</a>
       </div>
     </div>
 
-    <!-- Sub-tabs -->
-    <div class="invest-tabs">
-      <button class="invest-tab active" data-panel="panel-pool">股票池</button>
-      <button class="invest-tab" data-panel="panel-big-yang">大阳线战法<span id="bigYangTabBadge" class="invest-tab-badge hidden">0</span></button>
-      <button class="invest-tab" data-panel="panel-valuation">估值计算器</button>
-      <button class="invest-tab" data-panel="panel-practical">🎯 实战选股</button>
-      <button class="invest-tab" data-panel="panel-sop">实战选股SOP</button>
-      <a href="study.html" class="invest-tab-study-link">学习搭子 →</a>
+    <!-- 创新药：股票池 + 估值方法 -->
+    <div class="invest-sub-tabs-wrap" data-main-section="biopharma" hidden>
+      <div class="invest-tabs">
+        <button class="invest-tab active" data-panel="panel-pool">股票池</button>
+        <button class="invest-tab" data-panel="panel-biopharma-valuation">估值方法</button>
+      </div>
+    </div>
+
+    <!-- 质量优选：股票池 + 估值方法 -->
+    <div class="invest-sub-tabs-wrap" data-main-section="quality" hidden>
+      <div class="invest-tabs">
+        <button class="invest-tab active" data-panel="panel-pool">股票池</button>
+        <button class="invest-tab" data-panel="panel-quality-valuation">估值方法</button>
+      </div>
     </div>
 
     <!-- Panel 0.5：实战选股 · 一键综合分析（走势 + 财务 + 星级 + 估值） -->
@@ -209,6 +222,37 @@
 
     <!-- Panel 3：股票池 -->
     <div id="panel-pool" class="invest-panel active">
+      <!-- 股票池元信息（封面图 + 估值方法 + 每周机会点）-->
+      <div class="pool-meta-section" id="poolMetaSection">
+        <div class="pool-meta-cover-wrap">
+          <img class="pool-meta-cover" id="poolMetaCover" alt="封面图" src="images/pool-covers/tech-ai.png"/>
+        </div>
+        <div class="pool-meta-body">
+          <div class="pool-meta-head">
+            <h3 class="pool-meta-title" id="poolMetaTitle">加载中...</h3>
+            <button class="pool-meta-edit-btn hidden" id="poolMetaEditBtn" type="button">✎ 编辑</button>
+          </div>
+          <div class="pool-meta-block">
+            <h4>估值方法</h4>
+            <div class="pool-meta-html" id="poolMetaValuationHtml">
+              <div class="pool-meta-loading">加载中...</div>
+            </div>
+          </div>
+          <div class="pool-meta-block">
+            <h4>
+              每周机会点
+              <span class="pool-meta-head-actions">
+                <span id="weeklyOppCount" class="pool-meta-badge">0/9</span>
+                <button class="pool-meta-edit-btn hidden" id="weeklyOppEditBtn" type="button">✎ 管理 9 格</button>
+              </span>
+            </h4>
+            <div class="weekly-opp-grid" id="weeklyOppGrid">
+              <div class="pool-meta-loading">加载中...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="pool-header">
         <div class="pool-filter-tabs">
           <button class="pool-filter-btn active" data-filter="all">全部</button>
@@ -261,6 +305,10 @@
 
     <!-- Panel 4：估值计算器 -->
     <div id="panel-valuation" class="invest-panel">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:color-mix(in srgb, var(--primary) 6%, transparent);border:1px solid color-mix(in srgb, var(--primary) 22%, transparent);border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:var(--text-primary,#333);line-height:1.6;">
+        <span style="font-size:18px;">📐</span>
+        <span><strong>算完估值,下一步该买多少?</strong>用 <a href="position-management.html" style="color:var(--primary);text-decoration:underline;font-weight:600;">传奇仓位管理</a>,输入账户资金 + 入场/止损/目标价,立刻得到建议仓位、风报比与期望值 — Mark Minervini 风格的 1:3 风报预设一键可用。</span>
+      </div>
       <div class="valuation-grid">
 
         <!-- PE匹配法 -->
@@ -314,6 +362,66 @@
       </div>
     </div>
 
+    <!-- Panel 5：创新药 · 估值方法 -->
+    <div id="panel-biopharma-valuation" class="invest-panel">
+      <div class="valuation-method-intro">
+        <div class="valuation-method-intro-title">💊 创新药 · 估值方法</div>
+        <div class="valuation-method-intro-sub">创新药估值不能简单套 PE/PS，通常采用<b>管线 NPV 风险调整</b> + <b>峰值销售倍数</b> + <b>BD 对标</b> 相结合。</div>
+      </div>
+      <div class="valuation-method-grid">
+        <div class="valuation-method-card">
+          <div class="vmc-name">① 管线 NPV（rNPV）</div>
+          <div class="vmc-formula">NPV = Σ(峰值销售 × 成功率 × P(上市)) × 1/(1+r)^t − 研发成本</div>
+          <div class="vmc-desc">对每条管线分别计算风险调整后的净现值，再求和。I 期成功率 ~10%，II 期 ~30%，III 期 ~60%。贴现率 r 通常取 12-15%。</div>
+        </div>
+        <div class="valuation-method-card">
+          <div class="vmc-name">② 峰值销售 PS</div>
+          <div class="vmc-formula">市值 ≈ 峰值销售 × 3~8 倍（取决于靶点独占性）</div>
+          <div class="vmc-desc">针对已上市/即将上市品种的简化法。<b>FIC/BIC</b> 取 6~8 倍，<b>Me-better</b> 取 3~5 倍，<b>Me-too</b> 取 2~3 倍。需扣除研发摊销。</div>
+        </div>
+        <div class="valuation-method-card">
+          <div class="vmc-name">③ BD 对标</div>
+          <div class="vmc-formula">参考近期 License-out 交易：首付款 + 里程碑 + 销售分成</div>
+          <div class="vmc-desc">2024-2025 国内 License-out 首付款中位数约 <b>5000 万 ~ 2 亿美金</b>，可作为重置成本参考；累计交易总额（Total Deal Value）多在 5-30 亿美金。</div>
+        </div>
+        <div class="valuation-method-card">
+          <div class="vmc-name">④ 现金跑道估值</div>
+          <div class="vmc-formula">现金跑道(月) = 现金及等价物 / 月均研发+管理费用</div>
+          <div class="vmc-desc">早期 biotech 估值底线：现金跑道 &lt; 12 个月估值打折；&gt; 24 个月叠加管线重估。配合再融资能力判断。</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel 6：质量优选 · 估值方法 -->
+    <div id="panel-quality-valuation" class="invest-panel">
+      <div class="valuation-method-intro">
+        <div class="valuation-method-intro-title">⭐ 质量优选 · 估值方法</div>
+        <div class="valuation-method-intro-sub">质量优选标的强调"用合理价格买好公司"，估值以 <b>现金流折现为主</b>，PE/股息率为辅。</div>
+      </div>
+      <div class="valuation-method-grid">
+        <div class="valuation-method-card">
+          <div class="vmc-name">① DCF（现金流折现）</div>
+          <div class="vmc-formula">V = Σ FCF_t / (1+WACC)^t + 终值</div>
+          <div class="vmc-desc">用未来 5-10 年自由现金流折现。<b>WACC</b> 取 8-10%，<b>永续增长率</b> 2-3%（不超过长期 GDP 增速）。适合现金流稳定的成熟龙头。</div>
+        </div>
+        <div class="valuation-method-card">
+          <div class="vmc-name">② 股息率折现（DDM）</div>
+          <div class="vmc-formula">V = D₁ / (r − g)</div>
+          <div class="vmc-desc">Gordon 增长模型，适合分红稳定的消费/公用事业。要求 r &gt; g（折现率 &gt; 永续增长），<b>分红率 ≥ 50%</b>，股息连续发放 ≥ 5 年。</div>
+        </div>
+        <div class="valuation-method-card">
+          <div class="vmc-name">③ 合理 PE 法</div>
+          <div class="vmc-formula">合理市值 = 净利润 × 合理 PE（15-25 倍）</div>
+          <div class="vmc-desc">简化法。优质龙头取 <b>20-25 倍</b>，普通标的 <b>15 倍</b>。配合 ROE 判断：ROE 15-20% 给 15 倍，&gt; 20% 给 20 倍，&gt; 25% 给 25 倍。</div>
+        </div>
+        <div class="valuation-method-card">
+          <div class="vmc-name">④ PEG（市盈增长比）</div>
+          <div class="vmc-formula">PEG = PE / (盈利增速 × 100)</div>
+          <div class="vmc-desc">PEG &lt; 1 为低估，1-2 合理，&gt; 2 高估。适合稳定增长的消费/医药龙头。增速取未来 3-5 年复合增长率。</div>
+        </div>
+      </div>
+    </div>
+
   </main>
   <div id="siteFooter"></div>
 
@@ -334,7 +442,8 @@
             <label>分类</label>
             <select id="modalPoolType">
               <option value="quality">质量优选（巴菲特式）</option>
-              <option value="tech_vc">科技风投（成长股）</option>
+              <option value="tech_vc">科技AI（成长股）</option>
+              <option value="innovative_drug">创新药</option>
             </select>
           </div>
           <div class="invest-modal-field">
@@ -417,8 +526,9 @@
             <div class="import-default-poolType">
               <label>默认分类：</label>
               <select id="importDefaultPoolType">
-                <option value="tech_vc">科技风投（成长股）</option>
+                <option value="tech_vc">科技AI（成长股）</option>
                 <option value="quality">质量优选</option>
+                <option value="innovative_drug">创新药</option>
               </select>
             </div>
             <button class="invest-btn" id="importParseBtn">🤖 AI 识别</button>
@@ -455,8 +565,60 @@
     </div>
   </div>
 
+  <!-- 股票池元信息编辑弹窗（封面图 + 估值方法 + 每周机会点）-->
+  <div class="invest-modal-mask hidden" id="poolMetaModalMask">
+    <div class="invest-modal invest-modal-wide">
+      <div class="invest-modal-header">
+        <span class="invest-modal-title" id="poolMetaModalTitle">编辑股票池说明</span>
+        <button class="invest-modal-close" id="poolMetaModalClose">×</button>
+      </div>
+      <div class="invest-modal-form">
+        <div class="invest-modal-field">
+          <label>封面图</label>
+          <div class="pool-meta-cover-edit">
+            <img id="poolMetaModalCoverPreview" alt="封面图预览" />
+            <div class="pool-meta-cover-actions">
+              <input type="file" id="poolMetaModalCoverFile" accept="image/*" hidden />
+              <button type="button" class="invest-btn-outline" id="poolMetaModalCoverBtn" style="height:32px;font-size:12px;padding:0 12px">📷 上传新图</button>
+              <span id="poolMetaModalCoverStatus" class="pool-meta-cover-status"></span>
+            </div>
+          </div>
+        </div>
+        <div class="invest-modal-field">
+          <label>估值方法（Markdown）</label>
+          <textarea id="poolMetaModalValuationMd" rows="8" placeholder="如：### 10 倍 PS 市值法&#10;&#10;合理市值 = 预测营收 × 10..."></textarea>
+        </div>
+        <div class="invest-modal-field">
+          <label>每周机会点（Markdown）</label>
+          <textarea id="poolMetaModalWeeklyMd" rows="6" placeholder="如：本周关注 XXX 行业..."></textarea>
+        </div>
+      </div>
+      <div class="invest-modal-footer">
+        <button class="btn-ghost" id="poolMetaModalCancel">取消</button>
+        <button class="btn-primary-dark" id="poolMetaModalSave">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 每周机会点 9 格管理弹窗 -->
+  <div class="invest-modal-mask hidden" id="weeklyOppModalMask">
+    <div class="invest-modal invest-modal-wide">
+      <div class="invest-modal-header">
+        <span class="invest-modal-title" id="weeklyOppModalTitle">管理 9 格</span>
+        <button class="invest-modal-close" id="weeklyOppModalClose">×</button>
+      </div>
+      <div class="invest-modal-form" id="weeklyOppModalBody">
+        <!-- slot-row 动态生成 -->
+      </div>
+      <div class="invest-modal-footer">
+        <button class="btn-ghost" id="weeklyOppModalCancel">取消</button>
+        <button class="btn-primary-dark" id="weeklyOppModalSave">保存</button>
+      </div>
+    </div>
+  </div>
+
   <script src="lib/pinyin-pro.js"></script>
   <script src="js/practical-select.js?v=20260622-ps-v1"></script>
-  <script src="js/invest.js?v=20260629-role-guard-v2"></script>
+  <script src="js/invest.js?v=20260629-pool-meta-v1"></script>
 </body>
 </html>

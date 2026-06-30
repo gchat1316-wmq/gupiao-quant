@@ -7,6 +7,8 @@ import com.quant.dto.invest.OcrImportRequest;
 import com.quant.dto.invest.OcrParseResultDTO;
 import com.quant.dto.invest.PoolFieldUpdateRequest;
 import com.quant.dto.invest.PoolItemDTO;
+import com.quant.dto.invest.PoolMetaDTO;
+import com.quant.dto.invest.PoolMetaUpdateRequest;
 import com.quant.dto.invest.PoolSaveRequest;
 import com.quant.dto.invest.SopCheckupDTO;
 import com.quant.entity.User;
@@ -14,9 +16,11 @@ import com.quant.repository.UserRepository;
 import com.quant.security.JwtAuthFilter;
 import com.quant.security.JwtTokenProvider;
 import com.quant.security.SecurityConfig;
+import com.quant.service.InvestPoolMetaService;
 import com.quant.service.InvestPoolRefreshService;
 import com.quant.service.InvestPoolSeedService;
 import com.quant.service.InvestService;
+import com.quant.service.InvestWeeklyOpportunityService;
 import com.quant.service.OcrPoolImportService;
 import com.quant.service.PriceMonitorService;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,6 +32,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -79,6 +84,8 @@ class InvestControllerAuthTest {
     @MockBean private PriceMonitorService priceMonitorService;
     @MockBean private InvestPoolSeedService poolSeedService;
     @MockBean private InvestPoolRefreshService poolRefreshService;
+    @MockBean private InvestPoolMetaService poolMetaService;
+    @MockBean private InvestWeeklyOpportunityService weeklyOpportunityService;
     @MockBean private UserRepository userRepository;
 
     private String adminToken;

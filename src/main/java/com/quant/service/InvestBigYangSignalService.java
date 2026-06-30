@@ -2,20 +2,26 @@ package com.quant.service;
 
 import com.quant.config.InvestBigYangProperties;
 import com.quant.dto.invest.BigYangAlertDTO;
+import com.quant.dto.invest.BigYangQuoteDTO;
 import com.quant.dto.invest.BigYangRunResultDTO;
 import com.quant.dto.invest.BigYangSignalDTO;
 import com.quant.dto.invest.BigYangSummaryDTO;
 import com.quant.entity.InvestAlert;
 import com.quant.entity.InvestBigYangSignal;
+import com.quant.entity.InvestPositionCommon;
 import com.quant.entity.InvestStockPool;
 import com.quant.entity.TechAiQuoteSnapshot;
 import com.quant.entity.TradeStockDaily;
 import com.quant.repository.InvestAlertRepository;
 import com.quant.repository.InvestBigYangSignalRepository;
+import com.quant.repository.InvestPositionCommonRepository;
 import com.quant.repository.InvestStockPoolRepository;
 import com.quant.repository.TradeStockDailyRepository;
+import com.quant.service.techai.TechAiStockCodeUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,10 +51,11 @@ public class InvestBigYangSignalService {
     static final String SIGNAL_STATUS_TRIGGERED = "triggered";
     static final String SIGNAL_STATUS_EXPIRED = "expired";
     static final String ALERT_SIGNAL_TYPE = "BIG_YANG_BUY_TRIGGER";
-    private static final Set<String> SOURCE_POOL_TYPES = Set.of("quality", "tech_vc");
+    private static final Set<String> SOURCE_POOL_TYPES = Set.of("quality", "tech_vc", "innovative_drug");
 
     private final InvestBigYangSignalRepository signalRepository;
     private final InvestStockPoolRepository poolRepository;
+    private final InvestPositionCommonRepository positionRepository;
     private final InvestAlertRepository alertRepository;
     private final TradeStockDailyRepository dailyRepository;
     private final EastMoneyRealtimeQuoteService eastMoneyRealtimeQuoteService;
@@ -60,6 +67,7 @@ public class InvestBigYangSignalService {
     private final AtomicBoolean running = new AtomicBoolean(false);
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "big-yang-summary", unless = "#result == null")
     public BigYangSummaryDTO summary() {
         LocalDateTime todayStart = LocalDate.now().atStartOfDay();
         return BigYangSummaryDTO.builder()
@@ -72,16 +80,52 @@ public class InvestBigYangSignalService {
                 .build();
     }
 
+    /**
+     * 信号基础列表（不含实时行情，便于快速渲染）。
+     *
+     * <p>前端拿到本结果立刻渲染表格（实时价列显示"—"），再异步调 {@link #signalsQuotes()} 拿报价填上。
+     * 性能：缓存命中时只走一次 DB，毫秒级；缓存未命中也只是几次 count + 200 行 select。
+     */
     @Transactional(readOnly = true)
+    @Cacheable(value = "big-yang-signals", unless = "#result.isEmpty()")
     public List<BigYangSignalDTO> signals() {
         List<InvestBigYangSignal> signals = signalRepository.findTop200ByOrderByUpdatedAtDescIdDesc();
-        Map<String, TechAiQuoteSnapshot> realtimeQuoteMap = realtimeQuoteMap(signals.stream().map(InvestBigYangSignal::getStockCode).toList());
         return signals.stream()
                 .sorted(Comparator
                         .comparingInt((InvestBigYangSignal signal) -> statusOrder(signal.getSignalStatus()))
                         .thenComparing(InvestBigYangSignal::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
-                .map(signal -> toSignalDTO(signal, realtimeQuoteMap.get(normalizeCode(signal.getStockCode()))))
+                .map(signal -> toSignalDTO(signal, null))
                 .toList();
+    }
+
+    /**
+     * 实时行情（精简 DTO），配合 {@link #signals()} 使用。
+     *
+     * <p>异步调用，不阻塞基础数据返回；调用方按 stockCode 合并。
+     * 不缓存：行情实时性要求高，且已通过 HttpClient 并发 + 内部 Caffeine 自动过期避免重复拉取。
+     */
+    @Transactional(readOnly = true)
+    public List<BigYangQuoteDTO> signalsQuotes() {
+        List<InvestBigYangSignal> signals = signalRepository.findTop200ByOrderByUpdatedAtDescIdDesc();
+        if (signals.isEmpty()) {
+            return List.of();
+        }
+        List<String> codes = signals.stream()
+                .map(InvestBigYangSignal::getStockCode)
+                .distinct()
+                .toList();
+        Map<String, TechAiQuoteSnapshot> quoteMap = realtimeQuoteMap(codes);
+        return quoteMap.values().stream()
+                .map(this::toQuoteDTO)
+                .toList();
+    }
+
+    private BigYangQuoteDTO toQuoteDTO(TechAiQuoteSnapshot quote) {
+        return BigYangQuoteDTO.builder()
+                .stockCode(TechAiStockCodeUtils.normalizeProjectCode(quote.getStockCode()))
+                .currentPrice(scalePrice(quote.getLatestPrice()))
+                .currentPriceDate(quote.getQuoteTime() == null ? null : quote.getQuoteTime().toLocalDate())
+                .build();
     }
 
     @Transactional(readOnly = true)
@@ -104,14 +148,17 @@ public class InvestBigYangSignalService {
         alertRepository.save(alert);
     }
 
+    @CacheEvict(value = {"big-yang-signals", "big-yang-summary"}, allEntries = true)
     public BigYangRunResultDTO runManual() {
         return runScan(true, true, "manual");
     }
 
+    @CacheEvict(value = {"big-yang-signals", "big-yang-summary"}, allEntries = true)
     public BigYangRunResultDTO runCandidateScan() {
         return runScan(true, false, "candidate");
     }
 
+    @CacheEvict(value = {"big-yang-signals", "big-yang-summary"}, allEntries = true)
     public BigYangRunResultDTO runTriggerScan() {
         return runScan(false, true, "trigger");
     }
@@ -247,6 +294,10 @@ public class InvestBigYangSignalService {
                                 .toList())
                 .stream()
                 .collect(Collectors.toMap(InvestStockPool::getId, pool -> pool));
+        List<String> poolCodes = sourcePoolMap.values().stream().map(InvestStockPool::getStockCode).distinct().toList();
+        Map<String, InvestPositionCommon> posMap = poolCodes.isEmpty() ? Map.of() :
+                positionRepository.findByStockCodeIn(poolCodes).stream()
+                        .collect(Collectors.toMap(InvestPositionCommon::getStockCode, p -> p, (a, b) -> a));
         Map<String, BigDecimal> realtimePriceMap = realtimePriceMap(watchingSignals.stream().map(InvestBigYangSignal::getStockCode).toList());
         Map<String, TradeStockDaily> latestDailyMap = latestDailyMap(watchingSignals.stream().map(InvestBigYangSignal::getStockCode).toList());
         Map<String, AStockDataQuoteService.QuoteSnapshot> aStockDataMap = aStockDataQuoteService.fetchQuotes(
@@ -256,7 +307,8 @@ public class InvestBigYangSignalService {
         int expiredCount = 0;
         for (InvestBigYangSignal signal : watchingSignals) {
             InvestStockPool sourcePool = signal.getSourcePoolId() == null ? null : sourcePoolMap.get(signal.getSourcePoolId());
-            if (sourcePool == null || !isSourcePool(sourcePool)) {
+            InvestPositionCommon pos = sourcePool == null ? null : posMap.get(sourcePool.getStockCode());
+            if (sourcePool == null || !isSourcePool(sourcePool, pos)) {
                 signal.setSignalStatus(SIGNAL_STATUS_EXPIRED);
                 signal.setStatusReason("源股票池条目已移除或已离场");
                 signalRepository.save(signal);
@@ -580,16 +632,21 @@ public class InvestBigYangSignalService {
     }
 
     private List<InvestStockPool> sourcePools() {
-        return poolRepository.findAllByOrderByCreatedAtDesc().stream()
-                .filter(this::isSourcePool)
+        List<InvestStockPool> all = poolRepository.findAllByOrderByCreatedAtDesc();
+        if (all.isEmpty()) return List.of();
+        List<String> codes = all.stream().map(InvestStockPool::getStockCode).toList();
+        Map<String, InvestPositionCommon> posMap = positionRepository.findByStockCodeIn(codes).stream()
+                .collect(Collectors.toMap(InvestPositionCommon::getStockCode, p -> p, (a, b) -> a));
+        return all.stream()
+                .filter(pool -> isSourcePool(pool, posMap.get(pool.getStockCode())))
                 .toList();
     }
 
-    private boolean isSourcePool(InvestStockPool pool) {
+    private boolean isSourcePool(InvestStockPool pool, InvestPositionCommon pos) {
         return pool != null
                 && pool.getStockCode() != null
                 && SOURCE_POOL_TYPES.contains(pool.getPoolType())
-                && !"exited".equalsIgnoreCase(pool.getStatus());
+                && (pos == null || !"exited".equalsIgnoreCase(pos.getStatus()));
     }
 
     private String displayName(InvestStockPool pool) {

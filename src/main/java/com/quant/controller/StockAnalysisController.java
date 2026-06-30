@@ -8,6 +8,7 @@ import com.quant.service.StockAnalysisPdfService;
 import com.quant.service.StockAnalysisService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
@@ -187,6 +188,7 @@ public class StockAnalysisController {
      * 删除单条分析记录 (仅允许删除 FAILED 状态, 同时清理生成的 PDF 文件)
      */
     @DeleteMapping("/record/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     @org.springframework.transaction.annotation.Transactional
     public Map<String, Object> deleteRecord(@PathVariable Long id) {
         StockAnalysisRecord rec = service.getById(id);

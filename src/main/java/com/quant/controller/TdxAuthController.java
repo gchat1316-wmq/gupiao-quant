@@ -3,6 +3,7 @@ package com.quant.controller;
 import com.quant.service.tdx.TdxMcpClient;
 import com.quant.service.tdx.TdxOAuthClient;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -44,6 +45,7 @@ public class TdxAuthController {
 
     /** 启动授权：返回 authorize URL */
     @GetMapping("/start")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public Map<String, Object> start(jakarta.servlet.http.HttpServletRequest request) {
         // 自动用当前请求的 host 拼 redirect_uri（避免 8080/8090 切换麻烦）
         String currentOrigin = request.getScheme() + "://" + request.getServerName()
@@ -82,6 +84,7 @@ public class TdxAuthController {
 
     /** 清空 token (登出) */
     @GetMapping("/logout")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public Map<String, Object> logout() {
         // 直接调 oauthClient 清空: 删 token.json 即可
         try {

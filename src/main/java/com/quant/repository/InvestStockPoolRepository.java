@@ -14,11 +14,11 @@ public interface InvestStockPoolRepository extends JpaRepository<InvestStockPool
 
     Optional<InvestStockPool> findByStockCode(String stockCode);
 
+    List<InvestStockPool> findByStockCodeIn(Collection<String> stockCodes);
+
     List<InvestStockPool> findAllByOrderByCreatedAtDesc();
 
     List<InvestStockPool> findByPoolTypeOrderByCreatedAtDesc(String poolType);
-
-    List<InvestStockPool> findByPoolTypeAndStatusNotOrderByCreatedAtDesc(String poolType, String status);
 
     long countByPoolType(String poolType);
 

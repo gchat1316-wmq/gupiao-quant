@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <base href="/gp/" />
+  <title>每周机会点 · Demo v3</title>
+  <link rel="stylesheet" href="css/skin.css?v=20260622-ps-v2" />
+  <link rel="stylesheet" href="css/style.css?v=20260622-ps-v2" />
+  <link rel="stylesheet" href="css/invest.css?v=20260629-pool-meta-v1" />
+  <style>
+    body { font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; background: #f1f5f9; margin: 0; }
+    .demo-wrap { max-width: 760px; margin: 24px auto; padding: 0 16px; }
+    .demo-title-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 12px; flex-wrap: wrap; }
+    .demo-title-bar h2 { margin: 0; font-size: 22px; color: #1e3a8a; }
+    .admin-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #475569; background: #fff; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 16px; cursor: pointer; user-select: none; }
+    .admin-toggle.is-on { background: #fef3c7; border-color: #fcd34d; color: #92400e; font-weight: 600; }
+
+    /* 一级 tab */
+    .invest-main-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+    .invest-main-tab { padding: 12px 0; font-size: 15px; font-weight: 700; background: #fff; border: 1px solid #cbd5e1; border-radius: 10px; color: #475569; cursor: pointer; transition: all 0.15s; }
+    .invest-main-tab.active { background: linear-gradient(180deg, #1e3a8a, #1e40af); color: #fff; border-color: #1e3a8a; box-shadow: 0 4px 12px rgba(30, 58, 138, 0.25); }
+    .invest-main-tab:not(.active):hover { background: #f8fafc; }
+
+    /* ===== 3×3 表格（紧凑） ===== */
+    .opp-section {
+      background: #fff; border: 1px solid #cbd5e1; border-radius: 10px;
+      padding: 12px 14px; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    }
+    .opp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 10px; flex-wrap: wrap; }
+    .opp-head-title { font-size: 15px; font-weight: 800; color: #1e3a8a; display: flex; align-items: center; gap: 6px; }
+    .opp-head-title .badge { background: #fff7ed; color: #c2410c; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 8px; border: 1px solid #fed7aa; }
+    .opp-edit-btn { background: linear-gradient(180deg, #fbbf24, #d4a017); color: #422006; border: none; font-weight: 700; font-size: 12px; padding: 5px 10px; border-radius: 6px; cursor: pointer; }
+    .opp-edit-btn[hidden] { display: none; }
+
+    .opp-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;
+      background: #e2e8f0; gap: 1px;
+    }
+    .opp-cell {
+      background: #fff; padding: 10px 12px; min-height: 78px;
+      display: flex; flex-direction: column; gap: 4px; position: relative;
+    }
+    .opp-cell.is-empty { background: #f8fafc; align-items: center; justify-content: center; color: #cbd5e1; font-size: 18px; min-height: 60px; }
+
+    .opp-cell-name { font-size: 14px; font-weight: 700; color: #0f172a; line-height: 1.3; }
+    .opp-cell-name .lvl { font-weight: 600; }
+    .opp-cell-name .lvl.low  { color: #16a34a; }
+    .opp-cell-name .lvl.fair { color: #d97706; }
+    .opp-cell-name .lvl.high { color: #dc2626; }
+
+    .opp-cell-reason {
+      font-size: 12px; color: #475569; line-height: 1.45;
+      overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
+      -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    }
+    .opp-cell-reason:empty { display: none; }
+
+    .opp-cell-time { font-size: 10px; color: #94a3b8; display: flex; align-items: center; gap: 4px; margin-top: auto; }
+    .opp-cell-time .dot { width: 5px; height: 5px; border-radius: 50%; background: #cbd5e1; }
+    .opp-cell-time.is-fresh { color: #16a34a; }
+    .opp-cell-time.is-fresh .dot { background: #16a34a; }
+    .opp-cell-time.is-stale { color: #ef4444; }
+    .opp-cell-time.is-stale .dot { background: #ef4444; }
+
+    /* admin 模式下可点击编辑 */
+    .opp-cell[data-admin] { cursor: pointer; transition: background 0.12s; }
+    .opp-cell[data-admin]:hover { background: #fef9c3; }
+
+    /* 弹窗：管理 9 个格子 */
+    .demo-modal-mask { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+    .demo-modal-mask.hidden { display: none; }
+    .demo-modal { background: #fff; border-radius: 14px; width: 100%; max-width: 720px; box-shadow: 0 20px 60px rgba(15, 23, 42, 0.25); display: flex; flex-direction: column; max-height: 90vh; }
+    .demo-modal-head { padding: 14px 18px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+    .demo-modal-head h3 { margin: 0; font-size: 15px; color: #0f172a; }
+    .demo-modal-close { background: transparent; border: none; font-size: 22px; color: #94a3b8; cursor: pointer; line-height: 1; }
+    .demo-modal-body { padding: 18px; overflow-y: auto; }
+    .demo-modal-foot { padding: 12px 18px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 8px; }
+    .slot-row { display: grid; grid-template-columns: 32px 130px 1fr 50px; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .slot-no { text-align: center; font-size: 12px; color: #94a3b8; font-weight: 700; }
+    .slot-row select, .slot-row input { padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-family: inherit; width: 100%; box-sizing: border-box; }
+    .demo-btn { padding: 7px 16px; font-size: 13px; font-weight: 600; border-radius: 7px; cursor: pointer; border: 1px solid transparent; }
+    .demo-btn-ghost { background: #fff; border-color: #cbd5e1; color: #475569; }
+    .demo-btn-primary { background: linear-gradient(180deg, #fbbf24, #d4a017); color: #422006; }
+
+    .demo-notice { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 8px 12px; margin-bottom: 14px; font-size: 12px; color: #78350f; }
+  </style>
+</head>
+<body>
+  <div class="demo-wrap">
+    <div class="demo-title-bar">
+      <h2>每周机会点 · Demo v3</h2>
+      <label class="admin-toggle" id="adminToggle">
+        <input type="checkbox" id="adminChk" />
+        <span>🔒 模拟管理后台</span>
+      </label>
+    </div>
+
+    <div class="demo-notice" id="notice">💡 默认只读。打开右上「<b>模拟管理后台</b>」可编辑 9 个格子。</div>
+
+    <div class="invest-main-tabs" id="mainTabs">
+      <button class="invest-main-tab active" data-section="techai">科技AI</button>
+      <button class="invest-main-tab" data-section="biopharma">创新药</button>
+      <button class="invest-main-tab" data-section="quality">质量优选</button>
+    </div>
+
+    <div class="opp-section">
+      <div class="opp-head">
+        <div class="opp-head-title">🎯 <span id="sectionTitle">科技AI · 每周机会点</span> <span class="badge" id="oppCount">0/9</span></div>
+        <button class="opp-edit-btn" id="openEditBtn" hidden>✎ 管理 9 格</button>
+      </div>
+      <div class="opp-grid" id="oppGrid"></div>
+    </div>
+  </div>
+
+  <!-- 管理弹窗 -->
+  <div class="demo-modal-mask hidden" id="editModal">
+    <div class="demo-modal">
+      <div class="demo-modal-head">
+        <h3 id="modalTitle">管理机会点</h3>
+        <button class="demo-modal-close" id="modalClose">×</button>
+      </div>
+      <div class="demo-modal-body">
+        <div class="demo-notice" style="margin-bottom:14px">为每个格子选择股票（不选 = 空），估值水平自动联动，保存后自动记录更新时间。</div>
+        <div id="slotList"></div>
+      </div>
+      <div class="demo-modal-foot">
+        <button class="demo-btn demo-btn-ghost" id="modalCancel">取消</button>
+        <button class="demo-btn demo-btn-primary" id="modalSave">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============== Mock：股票池 ==============
+    const poolMock = {
+      techai: [
+        { code: '002371', name: '北方华创', level: 'low' },
+        { code: '300750', name: '宁德时代', level: 'fair' },
+        { code: '603083', name: '赛腾股份', level: 'high' },
+        { code: '688981', name: '中芯国际', level: 'low' },
+        { code: '002415', name: '海康威视', level: 'fair' },
+        { code: '002230', name: '科大讯飞', level: 'high' },
+        { code: '300059', name: '东方财富', level: 'fair' }
+      ],
+      biopharma: [
+        { code: '600276', name: '恒瑞医药', level: 'fair' },
+        { code: '688235', name: '百济神州', level: 'high' },
+        { code: '300760', name: '迈瑞医疗', level: 'low' },
+        { code: '600196', name: '复星医药', level: 'low' },
+        { code: '688180', name: '君实生物', level: 'high' }
+      ],
+      quality: [
+        { code: '600519', name: '贵州茅台', level: 'fair' },
+        { code: '000858', name: '五粮液',   level: 'low' },
+        { code: '000333', name: '美的集团', level: 'high' },
+        { code: '000651', name: '格力电器', level: 'low' },
+        { code: '600887', name: '伊利股份', level: 'fair' }
+      ]
+    };
+
+    // ============== Mock：每周机会点（每个分类 9 个 slot，部分为空） ==============
+    let slotsMock = {
+      techai: [
+        { code: '002371', reason: '回踩 295，估值切换低估，设备国产替代加速' },
+        { code: '300750', reason: 'PE 19× 合理区间，海外储能催化临近' },
+        { code: '603083', reason: '短期进入高估区间，警惕回调风险' },
+        { code: '688981', reason: 'A/H 折价 25%，订单可见度延伸至 2027' },
+        { code: '' }, { code: '' },
+        { code: '' }, { code: '' }, { code: '' }
+      ],
+      biopharma: [
+        { code: '300760', reason: '海外份额破前 5，海外收入占比 42% 创新高' },
+        { code: '600276', reason: 'GLP-1 海外授权首付款 4 亿美金，催化兑现' },
+        { code: '' }, { code: '' }, { code: '' },
+        { code: '' }, { code: '' }, { code: '' }, { code: '' }
+      ],
+      quality: [
+        { code: '000858', reason: '普五批价回升，PE 14× 落入历史中枢下沿' },
+        { code: '600519', reason: '股息率 3.5%，无风险利率下行周期有吸引力' },
+        { code: '' }, { code: '' }, { code: '' },
+        { code: '' }, { code: '' }, { code: '' }, { code: '' }
+      ]
+    };
+
+    // 模拟不同更新时间，让 admin 视角下能看出"我编辑了 → 那个格子时间变了"
+    const timeMock = {
+      '002371': '2026-06-29 21:30',
+      '300750': '2026-06-22 16:45',
+      '603083': '2026-06-29 09:10',
+      '688981': '2026-06-28 10:12',
+      '300760': '2026-06-29 09:20',
+      '600276': '2026-06-25 14:08',
+      '000858': '2026-06-29 18:55',
+      '600519': '2026-06-27 11:00'
+    };
+    // 临时编辑后的时间（用户改了 → 变 2026-06-29 22:00）
+    let editTimeOverride = {};
+
+    const sectionLabels = { techai: '科技AI', biopharma: '创新药', quality: '质量优选' };
+    const levelLabel = { low: '低估', fair: '合理', high: '高估' };
+    let currentSection = 'techai';
+    let isAdmin = false;
+
+    function escHtml(s) { return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+    function hoursAgo(ts) {
+      const now = new Date('2026-06-29 22:00');
+      const t = new Date(ts.replace(' ', 'T'));
+      return Math.max(0, (now - t) / 3600000);
+    }
+    function agoText(h) {
+      if (h < 1) return '刚刚';
+      if (h < 24) return Math.floor(h) + ' 小时前';
+      if (h < 168) return Math.floor(h / 24) + ' 天前';
+      if (h < 720) return Math.floor(h / 24 / 7) + ' 周前';
+      return Math.floor(h / 24 / 30) + ' 月前';
+    }
+
+    function render() {
+      const list = slotsMock[currentSection];
+      const filled = list.filter(s => s.code).length;
+      document.getElementById('sectionTitle').textContent = `${sectionLabels[currentSection]} · 每周机会点`;
+      document.getElementById('oppCount').textContent = `${filled}/9`;
+      const grid = document.getElementById('oppGrid');
+      grid.innerHTML = list.map((s, i) => {
+        if (!s.code) {
+          return `<div class="opp-cell is-empty" data-idx="${i}" ${isAdmin ? 'data-admin' : ''}>${isAdmin ? '＋' : '·'}</div>`;
+        }
+        const stock = poolMock[currentSection].find(x => x.code === s.code);
+        if (!stock) return `<div class="opp-cell is-empty" data-idx="${i}">?</div>`;
+        const ts = editTimeOverride[currentSection + ':' + s.code] || timeMock[s.code] || '2026-06-29 22:00';
+        const h = hoursAgo(ts);
+        const freshCls = h <= 48 ? 'is-fresh' : (h > 168 ? 'is-stale' : '');
+        return `
+          <div class="opp-cell" data-idx="${i}" data-level="${stock.level}" ${isAdmin ? 'data-admin' : ''}>
+            <div class="opp-cell-name">${escHtml(stock.name)} <span class="lvl ${stock.level}">(${levelLabel[stock.level]})</span></div>
+            <div class="opp-cell-reason">${escHtml(s.reason || '')}</div>
+            <div class="opp-cell-time ${freshCls}">
+              <span class="dot"></span>${ts.slice(5, 16)} · ${agoText(h)}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('openEditBtn').hidden = !isAdmin;
+
+      if (isAdmin) {
+        grid.querySelectorAll('.opp-cell[data-admin]').forEach(cell => {
+          cell.addEventListener('click', () => {
+            const idx = parseInt(cell.dataset.idx);
+            openEdit(idx);
+          });
+        });
+      }
+    }
+
+    // ============== Tab 切换 ==============
+    document.getElementById('mainTabs').addEventListener('click', e => {
+      const btn = e.target.closest('.invest-main-tab');
+      if (!btn) return;
+      document.querySelectorAll('.invest-main-tabs .invest-main-tab').forEach(b => b.classList.toggle('active', b === btn));
+      currentSection = btn.dataset.section;
+      render();
+    });
+
+    // ============== Admin 开关 ==============
+    const adminChk = document.getElementById('adminChk');
+    adminChk.addEventListener('change', () => {
+      isAdmin = adminChk.checked;
+      document.getElementById('adminToggle').classList.toggle('is-on', isAdmin);
+      document.getElementById('notice').innerHTML = isAdmin
+        ? '🛠 当前是 <b>管理后台视角</b>，点击任意格子可编辑该位置。'
+        : '💡 默认只读。打开右上「<b>模拟管理后台</b>」可编辑 9 个格子。';
+      render();
+    });
+
+    // ============== 管理弹窗 ==============
+    const modal = document.getElementById('editModal');
+    const slotList = document.getElementById('slotList');
+    let editingIdx = null;
+
+    function openEdit(idx = null) {
+      editingIdx = idx;
+      const list = slotsMock[currentSection];
+      const stocks = poolMock[currentSection];
+      const opts = stocks.map(s => `<option value="${s.code}">${s.name}</option>`).join('');
+      slotList.innerHTML = list.map((s, i) => `
+        <div class="slot-row">
+          <div class="slot-no">#${i + 1}</div>
+          <select data-idx="${i}">
+            <option value="">— 空 —</option>
+            ${opts.split('<option').map(o => o ? '<option' + o : '').map(o => {
+              const m = o.match(/value="(\w+)"/);
+              return m && m[1] === s.code ? o.replace('<option', '<option selected') : o;
+            }).join('')}
+          </select>
+          <input type="text" data-reason="${i}" placeholder="推荐理由（1-2 句话）" maxlength="80" value="${escHtml(s.reason || '')}" />
+          <button class="demo-btn demo-btn-ghost" data-clear="${i}" style="padding:5px 8px;font-size:12px">清空</button>
+        </div>
+      `).join('');
+      slotList.querySelectorAll('button[data-clear]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const i = btn.dataset.clear;
+          slotList.querySelector(`select[data-idx="${i}"]`).value = '';
+          slotList.querySelector(`input[data-reason="${i}"]`).value = '';
+        });
+      });
+      modal.classList.remove('hidden');
+    }
+    function closeModal() { modal.classList.add('hidden'); editingIdx = null; }
+
+    document.getElementById('openEditBtn').addEventListener('click', () => openEdit());
+    document.getElementById('modalClose').addEventListener('click', closeModal);
+    document.getElementById('modalCancel').addEventListener('click', closeModal);
+    document.getElementById('editModal').addEventListener('click', e => { if (e.target.id === 'editModal') closeModal(); });
+
+    document.getElementById('modalSave').addEventListener('click', () => {
+      const now = '2026-06-29 22:00';
+      const newSlots = [];
+      slotList.querySelectorAll('select[data-idx]').forEach(sel => {
+        const idx = sel.dataset.idx;
+        const code = sel.value;
+        const reason = (slotList.querySelector(`input[data-reason="${idx}"]`).value || '').trim();
+        newSlots.push({ code, reason });
+        if (code) {
+          editTimeOverride[currentSection + ':' + code] = now;
+        }
+      });
+      slotsMock[currentSection] = newSlots;
+      closeModal();
+      render();
+    });
+
+    // URL 参数
+    const urlParams = new URLSearchParams(location.search);
+    const urlTab = urlParams.get('tab');
+    if (urlTab && ['techai', 'biopharma', 'quality'].includes(urlTab)) {
+      currentSection = urlTab;
+      document.querySelectorAll('.invest-main-tabs .invest-main-tab').forEach(b => b.classList.toggle('active', b.dataset.section === urlTab));
+    }
+    if (urlParams.get('admin') === '1') {
+      adminChk.checked = true;
+      adminChk.dispatchEvent(new Event('change'));
+    }
+    render();
+    if (urlParams.get('modalOpen') === '1') {
+      setTimeout(() => openEdit(), 50);
+    }
+  </script>
+</body>
+</html>

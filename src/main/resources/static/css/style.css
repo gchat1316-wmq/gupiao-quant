@@ -1214,12 +1214,15 @@ body {
 /*  登录弹窗                                                  */
 /* ============================================================ */
 .modal-overlay {
-  position: fixed; inset: 0; z-index: 9999;
+  /* 用 longhand 兜底：inset 在某些 flex container 内被识别成非 0，需要 top/right/bottom/left 兜住 */
+  position: fixed;
+  top: 0; right: 0; bottom: 0; left: 0;
+  z-index: 9999;
   background: rgba(0,0,0,0.5);
   display: flex; align-items: center; justify-content: center;
 }
 .modal-box {
-  background: var(--surface);
+  background: #ffffff;
   border: 1px solid var(--border);
   border-radius: 12px;
   width: 400px; max-width: 90vw;
@@ -1243,3 +1246,112 @@ body {
   outline: none; transition: border-color 0.15s;
 }
 .form-input:focus { border-color: var(--primary); }
+
+/* ============================================================ */
+/*  登录弹窗：扫码 + 登录码 + 手机 + 邮箱(密码/验证码) 多 Tab     */
+/* ============================================================ */
+.modal-box.modal-box-auth { width: 440px; }
+.auth-tabs {
+  display: flex; padding: 0 6px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.auth-tab {
+  flex: 1; padding: 11px 2px; background: none; border: 0;
+  border-bottom: 2px solid transparent;
+  font-size: 13px; color: var(--text-muted); cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.auth-tab:hover { color: var(--text); }
+.auth-tab.is-active {
+  color: var(--primary); font-weight: 600;
+  border-bottom-color: var(--primary);
+}
+.auth-pane { display: flex; flex-direction: column; gap: 12px; }
+
+/* 验证码行：输入框 + 发送按钮 横向对齐 */
+.auth-code-row {
+  display: flex; gap: 8px; align-items: stretch;
+}
+.auth-code-input { flex: 1; }
+.auth-send-btn {
+  flex: 0 0 auto; min-width: 110px;
+  padding: 8px 10px;
+  font-size: 13px; color: var(--primary);
+  background: var(--surface); border: 1px solid var(--primary);
+  border-radius: 6px; cursor: pointer;
+  transition: background 0.15s, color 0.15s, opacity 0.15s;
+}
+.auth-send-btn:hover:not(:disabled) {
+  background: var(--primary); color: #fff;
+}
+.auth-send-btn:disabled {
+  cursor: not-allowed; opacity: 0.55;
+  border-color: var(--border); color: var(--text-muted);
+}
+
+/* inline 链接按钮（小号） */
+.auth-link-btn.inline {
+  display: inline; background: none; border: 0; padding: 0;
+  color: var(--primary); font-size: 12px; cursor: pointer;
+  text-decoration: underline;
+}
+.auth-link-btn.inline:hover { opacity: 0.8; }
+
+.auth-success {
+  color: #07c160; font-size: 13px;
+  background: #f0fff5; border: 1px solid #b7eccc;
+  border-radius: 6px; padding: 8px 12px;
+}
+.auth-spinner {
+  width: 32px; height: 32px; margin: 0 auto 12px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: authSpin 0.8s linear infinite;
+}
+@keyframes authSpin { to { transform: rotate(360deg); } }
+.auth-scan-loading,
+.auth-scan-fallback,
+.auth-scan-unavailable {
+  padding: 24px 16px; text-align: center; color: var(--text-muted); font-size: 13px;
+}
+.auth-scan-loading p { margin: 0; }
+.auth-scan-frame {
+  position: relative; width: 220px; height: 220px;
+  margin: 0 auto; padding: 8px;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: #fff; overflow: hidden;
+}
+.auth-scan-frame img {
+  display: block; width: 100%; height: 100%; object-fit: contain;
+}
+.auth-scan-mask {
+  position: absolute; inset: 0;
+  background: rgba(7,193,96,0.85); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 600; letter-spacing: 2px;
+}
+.auth-scan-tip { margin: 0; text-align: center; font-size: 13px; color: var(--text); }
+.auth-scan-status {
+  margin: 0; text-align: center; font-size: 12px; color: var(--text-muted);
+  min-height: 16px;
+}
+.auth-scan-status.is-warn { color: #e53; }
+.auth-scan-status.is-ok { color: #07c160; font-weight: 600; }
+.auth-link-btn {
+  display: block; margin: 4px auto 0;
+  background: none; border: 0;
+  color: var(--primary); font-size: 12px; cursor: pointer;
+  text-decoration: underline;
+}
+.auth-link-btn:hover { opacity: 0.8; }
+.auth-foot-note {
+  margin: -4px 0 0; font-size: 11px; color: var(--text-soft); text-align: center;
+}
+
+@media (max-width: 480px) {
+  .modal-box.modal-box-auth { width: 92vw; }
+  .auth-scan-frame { width: 180px; height: 180px; }
+}

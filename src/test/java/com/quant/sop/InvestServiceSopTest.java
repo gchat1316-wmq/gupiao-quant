@@ -3,6 +3,7 @@ package com.quant.sop;
 import com.quant.dto.invest.SopCheckupDTO;
 import com.quant.entity.TradeStockBasic;
 import com.quant.entity.TradeStockFinancial;
+import com.quant.repository.InvestPositionCommonRepository;
 import com.quant.repository.InvestStockPoolRepository;
 import com.quant.repository.TradeStockBasicRepository;
 import com.quant.repository.TradeStockFinancialRepository;
@@ -33,13 +34,14 @@ class InvestServiceSopTest {
     @Mock TradeStockBasicRepository stockBasicRepo;
     @Mock TradeStockFinancialRepository financialRepo;
     @Mock InvestStockPoolRepository poolRepo;
+    @Mock InvestPositionCommonRepository positionRepo;
     @Mock AStockDataQuoteService quoteService;
 
     InvestService service;
 
     @BeforeEach
     void setUp() {
-        service = new InvestService(stockBasicRepo, financialRepo, poolRepo, quoteService);
+        service = new InvestService(stockBasicRepo, financialRepo, poolRepo, positionRepo, quoteService);
     }
 
     private TradeStockBasic stockBasic(String code, String name) {

@@ -88,6 +88,44 @@
   margin: 0;
 }
 
+/* ===== 一级 tab：科技AI / 创新药 / 质量优选（占满整页、三等分） ===== */
+.invest-main-tabs {
+  display: flex;
+  gap: 0;
+  margin: 0 0 16px;
+  border-bottom: 2px solid var(--border);
+  background: var(--bg-card);
+  border-radius: 12px 12px 0 0;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+.invest-main-tab {
+  flex: 1;
+  padding: 18px 24px;
+  font-size: 17px;
+  font-weight: 500;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  color: var(--text-mid);
+  border-right: 1px solid var(--border);
+  transition: all 0.15s;
+  letter-spacing: 0.5px;
+}
+.invest-main-tab:last-child { border-right: 0; }
+.invest-main-tab:hover {
+  background: var(--hover-bg, #f9fafb);
+  color: var(--primary);
+}
+.invest-main-tab.active {
+  background: linear-gradient(135deg, var(--primary) 0%, #0d6efd 100%);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* sub-tabs 容器：根据当前激活的一级 tab 显示 */
+.invest-sub-tabs-wrap[hidden] { display: none; }
+
 /* ===== Sub-tabs ===== */
 .invest-tabs {
   display: flex;
@@ -140,11 +178,11 @@
 }
 
 .invest-panel {
-  display: none;
+  display: block;
 }
 
-.invest-panel.active {
-  display: block;
+.invest-panel[hidden] {
+  display: none;
 }
 
 .invest-tab-study-link {
@@ -3375,4 +3413,513 @@
 }
 .invest-readonly-banner b {
   color: #7c2d12;
+}
+
+/* ===== 顶部 3 个股票池分类 tab ===== */
+.pool-type-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 18px;
+  background: linear-gradient(135deg, #fffaf0 0%, #fff 60%);
+  border: 1px solid var(--invest-gold-border);
+  border-radius: 12px;
+  padding: 6px;
+  width: fit-content;
+  box-shadow: 0 2px 8px rgba(212, 160, 23, 0.08);
+}
+
+.pool-type-tab {
+  background: transparent;
+  border: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-mid);
+  padding: 8px 22px;
+  cursor: pointer;
+  border-radius: 8px;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s, transform 0.12s;
+}
+
+.pool-type-tab:hover {
+  color: #92400e;
+  background: rgba(252, 211, 77, 0.25);
+}
+
+.pool-type-tab.active {
+  background: linear-gradient(135deg, #fbbf24 0%, #d4a017 100%);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(212, 160, 23, 0.28);
+}
+
+.pool-type-tab.active:hover {
+  color: #fff;
+  background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%);
+}
+
+/* ===== 股票池元信息区（封面图 + 估值方法 + 每周机会点） ===== */
+.pool-meta-section {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 20px;
+  background: linear-gradient(180deg, #fff 0%, #fbfcfe 100%);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+.pool-meta-cover-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f1f5f9;
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pool-meta-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.pool-meta-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.pool-meta-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pool-meta-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #1e3a8a;
+  margin: 0;
+  letter-spacing: 0.5px;
+}
+
+.pool-meta-edit-btn {
+  background: #fff;
+  border: 1px solid var(--invest-gold-border);
+  color: #92400e;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.pool-meta-edit-btn:hover {
+  background: var(--invest-gold-soft);
+  border-color: #d4a017;
+}
+
+.pool-meta-block {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  padding: 12px 14px;
+}
+
+.pool-meta-block h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-mid);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pool-meta-block h4::before {
+  content: "";
+  width: 4px;
+  height: 14px;
+  background: linear-gradient(180deg, #fbbf24, #d4a017);
+  border-radius: 2px;
+}
+
+.pool-meta-html {
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--text);
+}
+
+.pool-meta-html h1,
+.pool-meta-html h2,
+.pool-meta-html h3,
+.pool-meta-html h4 {
+  margin: 12px 0 6px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.pool-meta-html h1 { font-size: 18px; }
+.pool-meta-html h2 { font-size: 16px; }
+.pool-meta-html h3 { font-size: 14px; }
+.pool-meta-html h4 { font-size: 13px; }
+
+.pool-meta-html h1:first-child,
+.pool-meta-html h2:first-child,
+.pool-meta-html h3:first-child {
+  margin-top: 0;
+}
+
+.pool-meta-html p {
+  margin: 6px 0;
+}
+
+.pool-meta-html ul,
+.pool-meta-html ol {
+  margin: 6px 0;
+  padding-left: 22px;
+}
+
+.pool-meta-html li {
+  margin-bottom: 3px;
+}
+
+.pool-meta-html code {
+  background: #f1f5f9;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+}
+
+.pool-meta-html pre {
+  background: #1e293b;
+  color: #f1f5f9;
+  padding: 10px 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 12px;
+}
+
+.pool-meta-html blockquote {
+  border-left: 3px solid var(--invest-gold);
+  padding-left: 12px;
+  color: var(--text-mid);
+  margin: 8px 0;
+  background: #fffbeb;
+  padding: 8px 12px;
+  border-radius: 0 6px 6px 0;
+}
+
+.pool-meta-html table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 12px;
+}
+
+.pool-meta-html th,
+.pool-meta-html td {
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.pool-meta-html th {
+  background: #f8fafc;
+  font-weight: 700;
+}
+
+.pool-meta-html a {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+.pool-meta-loading {
+  color: var(--text-soft);
+  font-size: 12px;
+  padding: 8px 0;
+  font-style: italic;
+}
+
+.pool-meta-empty {
+  color: var(--text-soft);
+  font-size: 12px;
+  padding: 8px 0;
+  font-style: italic;
+}
+
+/* 弹窗内封面图编辑区 */
+.pool-meta-cover-edit {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.pool-meta-cover-edit img {
+  width: 120px;
+  height: 90px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+.pool-meta-cover-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.pool-meta-cover-status {
+  font-size: 12px;
+  color: var(--text-mid);
+}
+
+.pool-meta-cover-status.success { color: #065f46; }
+.pool-meta-cover-status.error { color: #991b1b; }
+
+/* 弹窗内 textarea 略大 */
+#poolMetaModalValuationMd,
+#poolMetaModalWeeklyMd {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  min-height: 100px;
+  resize: vertical;
+}
+
+@media (max-width: 900px) {
+  .pool-meta-section {
+    grid-template-columns: 1fr;
+  }
+  .pool-meta-cover-wrap {
+    max-width: 320px;
+    aspect-ratio: 16 / 9;
+  }
+}
+
+@media (max-width: 600px) {
+  .pool-type-tabs {
+    width: 100%;
+    overflow-x: auto;
+  }
+  .pool-meta-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* ===== 估值方法卡片（创新药 / 质量优选用） ===== */
+.valuation-method-intro {
+  background: linear-gradient(135deg, #fffaf0 0%, #fff 60%);
+  border: 1px solid var(--invest-gold-border, #fcd34d);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+.valuation-method-intro-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text, #1f2937);
+  margin-bottom: 8px;
+}
+.valuation-method-intro-sub {
+  font-size: 14px;
+  color: var(--text-mid, #4b5563);
+  line-height: 1.6;
+}
+.valuation-method-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+.valuation-method-card {
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  transition: box-shadow 0.15s, transform 0.12s;
+}
+.valuation-method-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+.valuation-method-card .vmc-name {
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--primary, #1e88ff);
+  margin-bottom: 10px;
+}
+.valuation-method-card .vmc-formula {
+  background: #f3f4f6;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 13px;
+  color: #1f2937;
+  margin-bottom: 12px;
+  word-break: break-word;
+  line-height: 1.5;
+}
+.valuation-method-card .vmc-desc {
+  font-size: 13px;
+  color: var(--text-mid, #4b5563);
+  line-height: 1.7;
+}
+.valuation-method-card .vmc-desc b {
+  color: #92400e;
+  font-weight: 600;
+}
+
+/* ===== 每周机会点 3×3 表格 ===== */
+.pool-meta-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.pool-meta-badge {
+  background: #fff7ed;
+  color: #c2410c;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 10px;
+  border: 1px solid #fed7aa;
+}
+.pool-meta-block h4 {
+  /* 保留原样式但允许 h4 内右侧元素浮动 */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.weekly-opp-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #e2e8f0;
+  gap: 1px;
+}
+.weekly-opp-cell {
+  background: #fff;
+  padding: 8px 10px;
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  position: relative;
+}
+.weekly-opp-cell.is-empty {
+  background: #f8fafc;
+  align-items: center;
+  justify-content: center;
+  color: #cbd5e1;
+  font-size: 14px;
+  min-height: 50px;
+}
+.weekly-opp-cell-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.3;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.weekly-opp-cell-name .lvl {
+  font-weight: 600;
+  font-size: 12px;
+}
+.weekly-opp-cell-name .lvl.low  { color: #16a34a; }
+.weekly-opp-cell-name .lvl.fair { color: #d97706; }
+.weekly-opp-cell-name .lvl.high { color: #dc2626; }
+.weekly-opp-cell-reason {
+  font-size: 11px;
+  color: #475569;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.weekly-opp-cell-reason:empty { display: none; }
+.weekly-opp-cell-time {
+  font-size: 10px;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: auto;
+}
+.weekly-opp-cell-time .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #cbd5e1;
+}
+.weekly-opp-cell-time.is-fresh { color: #16a34a; }
+.weekly-opp-cell-time.is-fresh .dot { background: #16a34a; }
+.weekly-opp-cell-time.is-stale { color: #ef4444; }
+.weekly-opp-cell-time.is-stale .dot { background: #ef4444; }
+
+/* 每周机会点 9 格管理弹窗 */
+#weeklyOppModalBody .slot-row {
+  display: grid;
+  grid-template-columns: 32px 140px 1fr 56px;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+#weeklyOppModalBody .slot-no {
+  text-align: center;
+  font-size: 12px;
+  color: #94a3b8;
+  font-weight: 700;
+}
+#weeklyOppModalBody select,
+#weeklyOppModalBody input[type="text"] {
+  padding: 6px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+  background: #fff;
+  color: #0f172a;
+}
+#weeklyOppModalBody .slot-clear {
+  padding: 5px 8px;
+  font-size: 12px;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  border-radius: 6px;
+  cursor: pointer;
+}
+#weeklyOppModalBody .slot-clear:hover {
+  background: #f1f5f9;
 }

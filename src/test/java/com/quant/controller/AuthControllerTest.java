@@ -9,6 +9,8 @@ import com.quant.security.SecurityConfig;
 import com.quant.service.AuthService;
 import com.quant.service.AuthService.AuthResult;
 import com.quant.service.AuthService.UserDto;
+import com.quant.service.EmailService;
+import com.quant.service.SmsService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -51,8 +53,12 @@ class AuthControllerTest {
     @Autowired private MockMvc mvc;
     @Autowired private ObjectMapper mapper;
     @Autowired private JwtTokenProvider tokenProvider; // 真实 provider，用于生成测试 token
+    @Autowired private AuthController authController;
     @MockBean private AuthService authService;
     @MockBean private UserRepository userRepository;
+    @MockBean private com.quant.service.wechat.WechatMpService wechatMpService;
+    @MockBean private SmsService smsService;
+    @MockBean private EmailService emailService;
 
     // 预生成各类角色的真实 JWT（JwtAuthFilter 会把它们解析成 UserPrincipal）
     private String adminToken;
@@ -93,23 +99,38 @@ class AuthControllerTest {
     class SendCode {
 
         @Test
-        @DisplayName("正常发送验证码 → 200")
+        @DisplayName("正常发送验证码 → 200（mock 模式回传 code 字段）")
         void sendCodeOk() throws Exception {
-            doNothing().when(authService).sendCode(eq("13800138000"), anyString());
+            when(authService.sendCode(eq("13800138000"), anyString())).thenReturn("123456");
+            when(smsService.isMock()).thenReturn(true);
 
             mvc.perform(post("/api/auth/send-code")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{\"phone\":\"13800138000\"}"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.message").value("验证码已发送"));
+                    .andExpect(jsonPath("$.message").value("验证码已发送"))
+                    .andExpect(jsonPath("$.code").value("123456"));
         }
 
         @Test
-        @DisplayName("手机号为空 → 400")
-        void emptyPhoneReturns400() throws Exception {
-            // controller 没有对空 phone 做校验，直接透传给 service
-            // 实际行为：service.sendCode("") → 发空手机号短信（service 内部处理）
-            doNothing().when(authService).sendCode(eq(""), anyString());
+        @DisplayName("非 mock 模式（已配真 SMS 服务）→ 不回传 code 字段")
+        void sendCodeNoCodeWhenRealService() throws Exception {
+            when(authService.sendCode(eq("13800138000"), anyString())).thenReturn("123456");
+            when(smsService.isMock()).thenReturn(false);
+
+            mvc.perform(post("/api/auth/send-code")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"phone\":\"13800138000\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.message").value("验证码已发送"))
+                    .andExpect(jsonPath("$.code").doesNotExist());
+        }
+
+        @Test
+        @DisplayName("手机号为空 → 200（透传给 service）")
+        void emptyPhoneReturns200() throws Exception {
+            when(authService.sendCode(eq(""), anyString())).thenReturn("000000");
+            when(smsService.isMock()).thenReturn(true);
             mvc.perform(post("/api/auth/send-code")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{\"phone\":\"\"}"))
@@ -119,8 +140,8 @@ class AuthControllerTest {
         @Test
         @DisplayName("Service 抛异常 → 400")
         void serviceThrowsReturns400() throws Exception {
-            doThrow(new RuntimeException("频率限制"))
-                    .when(authService).sendCode(anyString(), anyString());
+            when(authService.sendCode(anyString(), anyString()))
+                    .thenThrow(new RuntimeException("频率限制"));
 
             mvc.perform(post("/api/auth/send-code")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -202,6 +223,188 @@ class AuthControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{}"))
                     .andExpect(status().isBadRequest());
+        }
+    }
+
+    // ── 邮箱相关接口（RED：现在还都 404，等 AuthController 加完才能 200）──
+
+    @Nested
+    @DisplayName("POST /api/auth/send-email-code")
+    class SendEmailCode {
+
+        @Test
+        @DisplayName("正常发送邮箱验证码 → 200（mock 模式回传 code 字段）")
+        void sendEmailCodeOk() throws Exception {
+            when(authService.sendEmailCode(eq("a@b.com"), anyString())).thenReturn("654321");
+            when(emailService.isMock()).thenReturn(true);
+
+            mvc.perform(post("/api/auth/send-email-code")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"email\":\"a@b.com\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.message").value("验证码已发送"))
+                    .andExpect(jsonPath("$.code").value("654321"));
+        }
+
+        @Test
+        @DisplayName("非 mock 模式（已配真邮件服务）→ 不回传 code 字段")
+        void sendEmailCodeNoCodeWhenRealService() throws Exception {
+            when(authService.sendEmailCode(eq("a@b.com"), anyString())).thenReturn("654321");
+            when(emailService.isMock()).thenReturn(false);
+
+            mvc.perform(post("/api/auth/send-email-code")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"email\":\"a@b.com\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.message").value("验证码已发送"))
+                    .andExpect(jsonPath("$.code").doesNotExist());
+        }
+
+        @Test
+        @DisplayName("Service 抛频率限制 → 400")
+        void serviceThrowsReturns400() throws Exception {
+            when(authService.sendEmailCode(anyString(), anyString()))
+                    .thenThrow(new RuntimeException("发送太频繁"));
+
+            mvc.perform(post("/api/auth/send-email-code")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"email\":\"a@b.com\"}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("发送太频繁"));
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/auth/register-email")
+    class RegisterEmail {
+
+        @Test
+        @DisplayName("新邮箱注册 → 200 + token + isNewUser=true")
+        void newEmailRegisters() throws Exception {
+            when(authService.registerWithEmail("new@b.com", "Pwd1234!", "127.0.0.1"))
+                    .thenReturn(new AuthResult("jwt-email-new", true, user(30L, User.Role.USER, false)));
+
+            mvc.perform(post("/api/auth/register-email")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"email\":\"new@b.com\",\"password\":\"Pwd1234!\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.accessToken").value("jwt-email-new"))
+                    .andExpect(jsonPath("$.isNewUser").value(true))
+                    .andExpect(jsonPath("$.user.role").value("USER"));
+        }
+
+        @Test
+        @DisplayName("邮箱已被注册 → 400")
+        void duplicateEmailReturns400() throws Exception {
+            when(authService.registerWithEmail(anyString(), anyString(), anyString()))
+                    .thenThrow(new RuntimeException("该邮箱已注册"));
+
+            mvc.perform(post("/api/auth/register-email")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"email\":\"dup@b.com\",\"password\":\"Pwd1234!\"}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("该邮箱已注册"));
+        }
+
+        @Test
+        @DisplayName("缺 password 字段 → 400")
+        void missingPasswordReturns400() throws Exception {
+            mvc.perform(post("/api/auth/register-email")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"email\":\"a@b.com\"}"))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/auth/verify-email-code")
+    class VerifyEmailCode {
+
+        @Test
+        @DisplayName("正确验证码 → 200 + token + isNewUser=true（首次登录即注册）")
+        void validCodeReturnsToken() throws Exception {
+            when(authService.verifyEmailCode("new@b.com", "123456", "127.0.0.1"))
+                    .thenReturn(new AuthResult("jwt-email-code", true, user(40L, User.Role.USER, false)));
+
+            mvc.perform(post("/api/auth/verify-email-code")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"email\":\"new@b.com\",\"code\":\"123456\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.accessToken").value("jwt-email-code"))
+                    .andExpect(jsonPath("$.isNewUser").value(true));
+        }
+
+        @Test
+        @DisplayName("错误验证码 → 400")
+        void wrongCodeReturns400() throws Exception {
+            when(authService.verifyEmailCode(anyString(), anyString(), anyString()))
+                    .thenThrow(new RuntimeException("验证码错误或已过期"));
+
+            mvc.perform(post("/api/auth/verify-email-code")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"email\":\"a@b.com\",\"code\":\"wrong\"}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("验证码错误或已过期"));
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/auth/reset-password-email")
+    class ResetPasswordByEmail {
+
+        @Test
+        @DisplayName("有效验证码 → 重置密码成功")
+        void resetSuccess() throws Exception {
+            doNothing().when(authService).resetPasswordByEmail(eq("a@b.com"), eq("123456"), eq("NewPwd!"), anyString());
+
+            mvc.perform(post("/api/auth/reset-password-email")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"email\":\"a@b.com\",\"code\":\"123456\",\"newPassword\":\"NewPwd!\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.message").value("密码已重置"));
+        }
+
+        @Test
+        @DisplayName("用户不存在 → 400")
+        void userNotFoundReturns400() throws Exception {
+            doThrow(new RuntimeException("用户不存在"))
+                    .when(authService).resetPasswordByEmail(anyString(), anyString(), anyString(), anyString());
+
+            mvc.perform(post("/api/auth/reset-password-email")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"email\":\"ghost@b.com\",\"code\":\"123456\",\"newPassword\":\"x\"}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("用户不存在"));
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/auth/reset-password-sms")
+    class ResetPasswordBySms {
+
+        @Test
+        @DisplayName("有效短信码 → 重置密码成功")
+        void resetSuccess() throws Exception {
+            doNothing().when(authService).resetPasswordBySms(eq("13800138000"), eq("123456"), eq("NewPwd!"), anyString());
+
+            mvc.perform(post("/api/auth/reset-password-sms")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"phone\":\"13800138000\",\"code\":\"123456\",\"newPassword\":\"NewPwd!\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.message").value("密码已重置"));
+        }
+
+        @Test
+        @DisplayName("验证码错误 → 400")
+        void wrongCodeReturns400() throws Exception {
+            doThrow(new RuntimeException("验证码错误或已过期"))
+                    .when(authService).resetPasswordBySms(anyString(), anyString(), anyString(), anyString());
+
+            mvc.perform(post("/api/auth/reset-password-sms")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"phone\":\"13800138000\",\"code\":\"wrong\",\"newPassword\":\"x\"}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("验证码错误或已过期"));
         }
     }
 
@@ -379,8 +582,8 @@ class AuthControllerTest {
         @DisplayName("ADMIN 查看用户列表 → 200")
         void adminListUsers() throws Exception {
             when(authService.listUsers()).thenReturn(List.of(
-                    new UserDto(1L, "13800000001", null, "Alice", "ADMIN", false, null, true, false, false),
-                    new UserDto(2L, "13800000002", null, "Bob", "MANAGER", false, null, true, false, false)
+                    new UserDto(1L, "13800000001", null, null, "Alice", "ADMIN", false, null, true, false, false),
+                    new UserDto(2L, "13800000002", null, null, "Bob", "MANAGER", false, null, true, false, false)
             ));
 
             mvc.perform(get("/api/auth/admin/users")
@@ -416,7 +619,7 @@ class AuthControllerTest {
         @DisplayName("ADMIN 改用户角色 → 200")
         void adminUpdatesRole() throws Exception {
             when(authService.updateUserRole(eq(1L), eq(10L), eq(User.Role.MANAGER)))
-                    .thenReturn(new UserDto(10L, "13800000010", null, "Bob", "MANAGER", false, null, true, false, false));
+                    .thenReturn(new UserDto(10L, "13800000010", null, null, "Bob", "MANAGER", false, null, true, false, false));
 
             mvc.perform(put("/api/auth/admin/users/10/role")
                             .header("Authorization", "Bearer " + adminToken)
@@ -462,6 +665,71 @@ class AuthControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{\"disabled\":true}"))
                     .andExpect(status().isForbidden());
+        }
+    }
+
+    // ══════════════════════════════════════════════════════
+    // 微信扫码能力探测
+    // ══════════════════════════════════════════════════════
+
+    @Nested
+    @DisplayName("GET /api/auth/wechat/qr-info")
+    class WechatQrInfo {
+
+        @BeforeEach
+        void resetWechatConfig() {
+            org.springframework.test.util.ReflectionTestUtils.setField(authController, "wechatAppId", "");
+            org.springframework.test.util.ReflectionTestUtils.setField(authController, "wechatAppSecret", "");
+            org.springframework.test.util.ReflectionTestUtils.setField(authController, "mpAppId", "");
+            org.springframework.test.util.ReflectionTestUtils.setField(authController, "mpAppSecret", "");
+        }
+
+        @Test
+        @DisplayName("凭据都未配置 → mode=none")
+        void noneWhenAllBlank() throws Exception {
+            mvc.perform(get("/api/auth/wechat/qr-info"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.mode").value("none"))
+                    .andExpect(jsonPath("$.mpReady").value(false))
+                    .andExpect(jsonPath("$.oauthReady").value(false));
+        }
+
+        @Test
+        @DisplayName("仅公众号凭据配置 → mode=mp, mpReady=true")
+        void mpModeWhenMpConfigured() throws Exception {
+            org.springframework.test.util.ReflectionTestUtils.setField(authController, "mpAppId", "wx-mp-id");
+            org.springframework.test.util.ReflectionTestUtils.setField(authController, "mpAppSecret", "wx-mp-secret");
+            mvc.perform(get("/api/auth/wechat/qr-info"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.mode").value("mp"))
+                    .andExpect(jsonPath("$.mpReady").value(true))
+                    .andExpect(jsonPath("$.oauthReady").value(false))
+                    .andExpect(jsonPath("$.description").exists());
+        }
+
+        @Test
+        @DisplayName("仅开放平台凭据配置 → mode=oauth, oauthReady=true")
+        void oauthModeWhenOAuthConfigured() throws Exception {
+            org.springframework.test.util.ReflectionTestUtils.setField(authController, "wechatAppId", "wx-oauth-id");
+            org.springframework.test.util.ReflectionTestUtils.setField(authController, "wechatAppSecret", "wx-oauth-secret");
+            mvc.perform(get("/api/auth/wechat/qr-info"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.mode").value("oauth"))
+                    .andExpect(jsonPath("$.mpReady").value(false))
+                    .andExpect(jsonPath("$.oauthReady").value(true));
+        }
+
+        @Test
+        @DisplayName("两个凭据都配置 → mode=mp（mp 优先级更高）")
+        void mpWinsOverOauth() throws Exception {
+            org.springframework.test.util.ReflectionTestUtils.setField(authController, "wechatAppId", "wx-oauth-id");
+            org.springframework.test.util.ReflectionTestUtils.setField(authController, "wechatAppSecret", "wx-oauth-secret");
+            org.springframework.test.util.ReflectionTestUtils.setField(authController, "mpAppId", "wx-mp-id");
+            org.springframework.test.util.ReflectionTestUtils.setField(authController, "mpAppSecret", "wx-mp-secret");
+            mvc.perform(get("/api/auth/wechat/qr-info"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.mode").value("mp"))
+                    .andExpect(jsonPath("$.oauthReady").value(true));
         }
     }
 }

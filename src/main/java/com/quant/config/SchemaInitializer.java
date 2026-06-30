@@ -30,8 +30,11 @@ public class SchemaInitializer implements CommandLineRunner {
     @Override
     public void run(String... args) {
         ensureAuthUserTable();
+        ensureSmsCodeTable();
+        ensureEmailCodeTable();
         ensureLoginCodeTable();
         ensureAuditLogTable();
+        ensureUserNotificationLogTable();
         bootstrapFirstAdmin();
         ensureXieboInvestTables();
         ensureInvestAlertTable();
@@ -52,6 +55,11 @@ public class SchemaInitializer implements CommandLineRunner {
         ensureProsperityStockPoolOwnerId();
         ensurePageViewStatTable();
         ensureUserDailyStatTable();
+        ensureInvestPoolMetaTable();
+        ensureInvestPoolMetaSeed();
+        ensureWeeklyOpportunitySlotTable();
+        ensureXieboWeeklyOpportunitySlotTable();
+        ensureInvestPositionCommon();
     }
 
     // ── 认证相关表 ───────────────────────────────────────
@@ -64,6 +72,7 @@ public class SchemaInitializer implements CommandLineRunner {
                     username      VARCHAR(50),
                     password_hash VARCHAR(255),
                     phone         VARCHAR(20)  UNIQUE,
+                    email         VARCHAR(255) UNIQUE,
                     openid        VARCHAR(128) UNIQUE,
                     unionid       VARCHAR(128) UNIQUE,
                     role          VARCHAR(20)  NOT NULL DEFAULT 'USER',
@@ -87,6 +96,45 @@ public class SchemaInitializer implements CommandLineRunner {
             try { jdbc.execute("ALTER TABLE auth_user ADD COLUMN notify_wechat BOOLEAN NOT NULL DEFAULT TRUE"); log.info("auth_user notify_wechat 列已添加"); } catch (Exception ex) { log.debug("notify_wechat 列已存在: {}", ex.getMessage()); }
             try { jdbc.execute("ALTER TABLE auth_user ADD COLUMN notify_sms BOOLEAN NOT NULL DEFAULT FALSE"); log.info("auth_user notify_sms 列已添加"); } catch (Exception ex) { log.debug("notify_sms 列已存在: {}", ex.getMessage()); }
             try { jdbc.execute("ALTER TABLE auth_user ADD COLUMN notify_phone BOOLEAN NOT NULL DEFAULT FALSE"); log.info("auth_user notify_phone 列已添加"); } catch (Exception ex) { log.debug("notify_phone 列已存在: {}", ex.getMessage()); }
+            try { jdbc.execute("ALTER TABLE auth_user ADD COLUMN email VARCHAR(255) UNIQUE"); log.info("auth_user email 列已添加"); } catch (Exception ex) { log.debug("email 列已存在: {}", ex.getMessage()); }
+        }
+    }
+
+    private void ensureSmsCodeTable() {
+        try {
+            jdbc.execute("""
+                CREATE TABLE auth_sms_code (
+                    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    phone       VARCHAR(20)  NOT NULL,
+                    code        VARCHAR(6)   NOT NULL,
+                    expire_at   DATETIME     NOT NULL,
+                    used        BOOLEAN      NOT NULL DEFAULT FALSE,
+                    created_at  DATETIME     DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_sms_code_phone (phone)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """);
+            log.info("auth_sms_code 表已创建");
+        } catch (Exception e) {
+            log.debug("auth_sms_code 表已存在: {}", e.getMessage());
+        }
+    }
+
+    private void ensureEmailCodeTable() {
+        try {
+            jdbc.execute("""
+                CREATE TABLE auth_email_code (
+                    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    email       VARCHAR(255) NOT NULL,
+                    code        VARCHAR(6)   NOT NULL,
+                    expire_at   DATETIME     NOT NULL,
+                    used        BOOLEAN      NOT NULL DEFAULT FALSE,
+                    created_at  DATETIME     DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_email_code_email (email)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """);
+            log.info("auth_email_code 表已创建");
+        } catch (Exception e) {
+            log.debug("auth_email_code 表已存在: {}", e.getMessage());
         }
     }
 
@@ -125,6 +173,30 @@ public class SchemaInitializer implements CommandLineRunner {
             log.info("audit_log 表已创建");
         } catch (Exception e) {
             log.debug("audit_log 表已存在: {}", e.getMessage());
+        }
+    }
+
+    private void ensureUserNotificationLogTable() {
+        try {
+            jdbc.execute("""
+                CREATE TABLE user_notification_log (
+                    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    user_id     BIGINT       NOT NULL,
+                    channel     VARCHAR(16)  NOT NULL,
+                    stock_code  VARCHAR(16),
+                    type        VARCHAR(32)  NOT NULL,
+                    title       VARCHAR(200) NOT NULL,
+                    content     TEXT,
+                    status      VARCHAR(16)  NOT NULL,
+                    error       VARCHAR(500),
+                    sent_at     DATETIME     DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_unl_user_time (user_id, sent_at),
+                    INDEX idx_unl_stock     (stock_code, sent_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """);
+            log.info("user_notification_log 表已创建");
+        } catch (Exception e) {
+            log.debug("user_notification_log 表已存在: {}", e.getMessage());
         }
     }
 
@@ -484,7 +556,11 @@ public class SchemaInitializer implements CommandLineRunner {
             {"current_market_cap", "DECIMAL(12,2)", "当前市值快照(亿元)"},
             {"ytd_gain_pct", "DECIMAL(8,2)", "今年涨幅快照(%)"},
             {"pool_data_updated_at", "DATETIME", "股票池数据刷新时间"},
-            {"pool_update_error", "VARCHAR(1000)", "股票池数据刷新错误"}
+            {"pool_update_error", "VARCHAR(1000)", "股票池数据刷新错误"},
+            // 2026-06-30 数据库漂移补齐：sql/wucai_trade.sql 有这列但实际库缺。
+            // entity InvestStockPool.targetSellPrice 期望它存在，缺失时 JPA 报
+            // "Unknown column 'isp1_0.target_sell_price'" 导致 /api/invest/pool 500。
+            {"target_sell_price", "DECIMAL(10,2)", "希望卖出价"}
         };
         for (String[] col : columns) {
             try {
@@ -721,6 +797,297 @@ public class SchemaInitializer implements CommandLineRunner {
             log.info("user_daily_stat 表已就绪");
         } catch (Exception e) {
             log.debug("user_daily_stat 表已存在: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 股票池元信息表（封面图、估值方法、周度机会）。每种 pool_type 一行。
+     */
+    private void ensureInvestPoolMetaTable() {
+        try {
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS invest_pool_meta (
+                    pool_type              VARCHAR(20)  NOT NULL,
+                    display_name           VARCHAR(64)  NOT NULL,
+                    cover_image_url        VARCHAR(512) DEFAULT NULL,
+                    valuation_method_md    LONGTEXT     DEFAULT NULL,
+                    valuation_method_html  LONGTEXT     DEFAULT NULL,
+                    weekly_opportunity_md  LONGTEXT     DEFAULT NULL,
+                    weekly_opportunity_html LONGTEXT    DEFAULT NULL,
+                    display_order          INT          NOT NULL DEFAULT 0,
+                    created_at             DATETIME     DEFAULT CURRENT_TIMESTAMP,
+                    updated_at             DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    PRIMARY KEY (pool_type)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                  COMMENT='股票池类型元信息'
+                """);
+            log.info("invest_pool_meta 表已就绪");
+        } catch (Exception e) {
+            log.warn("检查 invest_pool_meta 表失败 (可忽略): {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 3 种股票池元信息种子（占位文案，ADMIN 可在页面里编辑）。
+     * 创新药、质量优选首批不放示例股票，由用户通过加入股票池入口手动添加。
+     */
+    private void ensureInvestPoolMetaSeed() {
+        try {
+            jdbc.update("""
+                INSERT INTO invest_pool_meta
+                  (pool_type, display_name, cover_image_url, valuation_method_md, weekly_opportunity_md, display_order)
+                VALUES
+                  ('tech_vc', '科技AI', 'images/pool-covers/tech_ai.svg', '### 10 倍 PS 市值法\n\n合理市值 = 预测营收 × 10\n\n- 当前市值 ≤ Y1 × 10：低估\n- 当前市值介于 Y1×10 ~ Y2×10：合理\n- 当前市值 ≥ Y2 × 10：泡沫\n\n适用于净利率接近 25% 的高科技成长股。', '本周暂无更新', 1),
+                  ('innovative_drug', '创新药', 'images/pool-covers/innovative_drug.svg', '### 创新药估值方法\n\n按 III 期管线 NPV 加总。\n\n待补充：\n- 风险调整成功率 (POS)\n- 上市峰值销售 (Peak Sales)\n- 净利率假设\n- 折现率与管线分摊', '本周暂无更新', 2),
+                  ('quality', '质量优选', 'images/pool-covers/quality.svg', '### 质量优选 · 巴菲特式估值\n\n**核心**：自由现金流优异、赚取真金白银、分红稳定。\n\n**简易模型**：现金流折现 + PE 匹配法\n\n合理 PE ≈ 预期未来 10 年净利润复合增长率 × 2\n\n**判断口诀**：若股票 PE 为 30 倍，需确认其未来十年能否实现 15% 复合增长。达标则考虑，不达标则放弃。\n\n代表企业：片仔癀、海天味业。', '本周暂无更新', 3)
+                ON DUPLICATE KEY UPDATE display_name = VALUES(display_name)
+                """);
+            log.info("invest_pool_meta 3 行种子数据已就绪");
+        } catch (Exception e) {
+            log.warn("插入 invest_pool_meta 种子失败 (可忽略): {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 每周机会点 3×3 卡片槽位表（每个 pool_type 固定 9 个 slot）。
+     * 无 seed：首次启动为空表，ADMIN 在页面里编辑填充。
+     */
+    private void ensureWeeklyOpportunitySlotTable() {
+        try {
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS invest_weekly_opportunity_slot (
+                    id         BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    pool_type  VARCHAR(20)  NOT NULL,
+                    slot_index INT          NOT NULL,
+                    stock_code VARCHAR(16)  DEFAULT NULL,
+                    reason     VARCHAR(500) DEFAULT NULL,
+                    created_at DATETIME     DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    UNIQUE KEY uk_pool_slot (pool_type, slot_index),
+                    KEY idx_pool_type (pool_type)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                  COMMENT='每周机会点 3×3 卡片槽位'
+                """);
+            log.info("invest_weekly_opportunity_slot 表已就绪");
+        } catch (Exception e) {
+            log.warn("检查 invest_weekly_opportunity_slot 表失败 (可忽略): {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 谢博投资 · 每周重点股票 3×3 卡片槽位表。
+     * pool_type: watch / focus / explore 三分类。
+     */
+    private void ensureXieboWeeklyOpportunitySlotTable() {
+        try {
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS xiebo_weekly_opportunity_slot (
+                    id         BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    pool_type  VARCHAR(20)  NOT NULL,
+                    slot_index INT          NOT NULL,
+                    stock_code VARCHAR(16)  DEFAULT NULL,
+                    reason     VARCHAR(500) DEFAULT NULL,
+                    created_at DATETIME     DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    UNIQUE KEY uk_xiebo_pool_slot (pool_type, slot_index),
+                    KEY idx_xiebo_pool_type (pool_type)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                  COMMENT='谢博投资 每周重点股票 3×3 卡片槽位'
+                """);
+            log.info("xiebo_weekly_opportunity_slot 表已就绪");
+        } catch (Exception e) {
+            log.warn("检查 xiebo_weekly_opportunity_slot 表失败 (可忽略): {}", e.getMessage());
+        }
+    }
+
+    // ── 三池持仓状态聚合表（invest_position_common）──────────
+    // 将 invest_stock_pool / tech_ai_pool / potential_pool 的持仓/告警字段
+    // 迁移到统一表，消除字段冗余。一次性迁移后各池实体改为 @OneToOne 引用。
+    //
+    // 复合主键 (pool_type, stock_code) 确保同一股票可出现在不同池中。
+    // 持仓流水（成交记录）暂存各池独立的 *_position_fill 表，待后续统一。
+    private void ensureInvestPositionCommon() {
+        try {
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS invest_position_common (
+                    stock_code                  VARCHAR(20)  NOT NULL,
+                    pool_type                   VARCHAR(20)  NOT NULL,
+                    status                      VARCHAR(10)  DEFAULT 'watching',
+                    alert_state                 VARCHAR(20)  DEFAULT 'none',
+                    last_alert_at               DATETIME     DEFAULT NULL,
+                    alert_minute_1m_pct         DECIMAL(8,2) DEFAULT NULL,
+                    alert_minute_5m_pct         DECIMAL(8,2) DEFAULT NULL,
+                    alert_daily_pct             DECIMAL(8,2) DEFAULT NULL,
+                    alert_three_day_pct         DECIMAL(8,2) DEFAULT NULL,
+                    alert_turnover_ratio_pct    DECIMAL(8,2) DEFAULT NULL,
+                    entry_price                 DECIMAL(10,2) DEFAULT NULL,
+                    position_lots               DECIMAL(10,2) DEFAULT 0.00,
+                    avg_cost                    DECIMAL(10,2) DEFAULT NULL,
+                    total_invested              DECIMAL(14,2) DEFAULT NULL,
+                    add_count                   INT           DEFAULT 0,
+                    last_add_price              DECIMAL(10,2) DEFAULT NULL,
+                    peak_price                  DECIMAL(10,2) DEFAULT NULL,
+                    stop_price                  DECIMAL(10,2) DEFAULT NULL,
+                    realized_pnl                DECIMAL(14,2) DEFAULT 0.00,
+                    position_state              VARCHAR(20)  DEFAULT 'none',
+                    take_profit_done            TINYINT(1)   DEFAULT 0,
+                    opened_at                   DATETIME     DEFAULT NULL,
+                    target_sell_price            DECIMAL(10,2) DEFAULT NULL,
+                    add_step_pct                DECIMAL(6,2)  DEFAULT NULL,
+                    trail_pct                   DECIMAL(6,2)  DEFAULT NULL,
+                    add_size_schedule           VARCHAR(50)  DEFAULT NULL,
+                    max_lots                    DECIMAL(10,2) DEFAULT NULL,
+                    take_profit_pct             DECIMAL(6,2)  DEFAULT NULL,
+                    breakeven_after_tp          TINYINT(1)   DEFAULT 1,
+                    time_stop_days              INT           DEFAULT NULL,
+                    use_atr                     TINYINT(1)   DEFAULT 0,
+                    atr_period                  INT           DEFAULT NULL,
+                    atr_add_mult                DECIMAL(6,2)  DEFAULT NULL,
+                    atr_trail_mult              DECIMAL(6,2)  DEFAULT NULL,
+                    created_at                  DATETIME     DEFAULT CURRENT_TIMESTAMP,
+                    updated_at                  DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    PRIMARY KEY (pool_type, stock_code),
+                    KEY idx_ipc_stock_code (stock_code)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                  COMMENT='三池持仓/告警状态聚合表（invest/tech_ai/potential 共用）'
+                """);
+            log.info("invest_position_common 表已就绪");
+        } catch (Exception e) {
+            log.warn("invest_position_common 建表失败 (可忽略): {}", e.getMessage());
+            return;
+        }
+
+        // 迁移 invest_stock_pool 持仓字段（pool_type = 'invest'）
+        migratePoolToCommon("invest_stock_pool", "invest");
+        // 迁移 tech_ai_pool 持仓字段（pool_type = 'tech_ai'）
+        migratePoolToCommon("tech_ai_pool", "tech_ai");
+        // 迁移 potential_pool 持仓字段（pool_type = 'potential'）
+        migratePoolToCommon("potential_pool", "potential");
+
+        // 删除 invest_stock_pool 冗余列（26 个持仓 + 告警字段，已迁至 invest_position_common）
+        dropPositionColumnsFromPool("invest_stock_pool", new String[]{
+            "status", "alert_state", "last_alert_at",
+            "alert_minute_1m_pct", "alert_minute_5m_pct", "alert_daily_pct",
+            "alert_three_day_pct", "alert_turnover_ratio_pct",
+            "entry_price", "position_lots", "avg_cost", "total_invested",
+            "add_count", "last_add_price", "peak_price", "stop_price",
+            "realized_pnl", "position_state", "take_profit_done", "opened_at",
+            "add_step_pct", "trail_pct", "add_size_schedule", "max_lots",
+            "take_profit_pct", "breakeven_after_tp", "time_stop_days",
+            "use_atr", "atr_period", "atr_add_mult", "atr_trail_mult",
+            "target_sell_price"
+        });
+
+        // 删除 tech_ai_pool 冗余列（26 个持仓 + 告警字段，已迁至 invest_position_common）
+        dropPositionColumnsFromPool("tech_ai_pool", new String[]{
+            "status", "alert_state", "last_alert_at",
+            "alert_minute_1m_pct", "alert_minute_5m_pct", "alert_daily_pct",
+            "alert_three_day_pct", "alert_turnover_ratio_pct",
+            "entry_price", "position_lots", "avg_cost", "total_invested",
+            "add_count", "last_add_price", "peak_price", "stop_price",
+            "realized_pnl", "position_state", "take_profit_done", "opened_at",
+            "target_sell_price", "add_step_pct", "trail_pct",
+            "add_size_schedule", "max_lots", "take_profit_pct",
+            "breakeven_after_tp", "time_stop_days",
+            "use_atr", "atr_period", "atr_add_mult", "atr_trail_mult"
+        });
+
+        // 删除 potential_pool 冗余列（26 个持仓 + 告警字段，已迁至 invest_position_common）
+        dropPositionColumnsFromPool("potential_pool", new String[]{
+            "status",
+            "alert_minute_1m_pct", "alert_minute_5m_pct", "alert_daily_pct",
+            "alert_three_day_pct", "alert_turnover_ratio_pct",
+            "entry_price", "position_lots", "avg_cost", "total_invested",
+            "add_count", "last_add_price", "peak_price", "stop_price",
+            "realized_pnl", "position_state", "take_profit_done", "opened_at",
+            "target_sell_price", "add_step_pct", "trail_pct",
+            "add_size_schedule", "max_lots", "take_profit_pct",
+            "breakeven_after_tp", "time_stop_days",
+            "use_atr", "atr_period", "atr_add_mult", "atr_trail_mult"
+        });
+    }
+
+    private void migratePoolToCommon(String sourceTable, String poolType) {
+        String sql = String.format("""
+            INSERT INTO invest_position_common (
+                stock_code, pool_type, status, alert_state, last_alert_at,
+                alert_minute_1m_pct, alert_minute_5m_pct, alert_daily_pct,
+                alert_three_day_pct, alert_turnover_ratio_pct,
+                entry_price, position_lots, avg_cost, total_invested,
+                add_count, last_add_price, peak_price, stop_price,
+                realized_pnl, position_state, take_profit_done, opened_at,
+                target_sell_price, add_step_pct, trail_pct,
+                add_size_schedule, max_lots, take_profit_pct,
+                breakeven_after_tp, time_stop_days,
+                use_atr, atr_period, atr_add_mult, atr_trail_mult
+            )
+            SELECT
+                stock_code, '%s', status, alert_state, last_alert_at,
+                alert_minute_1m_pct, alert_minute_5m_pct, alert_daily_pct,
+                alert_three_day_pct, alert_turnover_ratio_pct,
+                entry_price, position_lots, avg_cost, total_invested,
+                add_count, last_add_price, peak_price, stop_price,
+                realized_pnl, position_state, take_profit_done, opened_at,
+                target_sell_price, add_step_pct, trail_pct,
+                add_size_schedule, max_lots, take_profit_pct,
+                breakeven_after_tp, time_stop_days,
+                use_atr, atr_period, atr_add_mult, atr_trail_mult
+            FROM %s
+            ON DUPLICATE KEY UPDATE
+                status = VALUES(status),
+                alert_state = VALUES(alert_state),
+                last_alert_at = VALUES(last_alert_at),
+                alert_minute_1m_pct = VALUES(alert_minute_1m_pct),
+                alert_minute_5m_pct = VALUES(alert_minute_5m_pct),
+                alert_daily_pct = VALUES(alert_daily_pct),
+                alert_three_day_pct = VALUES(alert_three_day_pct),
+                alert_turnover_ratio_pct = VALUES(alert_turnover_ratio_pct),
+                entry_price = VALUES(entry_price),
+                position_lots = VALUES(position_lots),
+                avg_cost = VALUES(avg_cost),
+                total_invested = VALUES(total_invested),
+                add_count = VALUES(add_count),
+                last_add_price = VALUES(last_add_price),
+                peak_price = VALUES(peak_price),
+                stop_price = VALUES(stop_price),
+                realized_pnl = VALUES(realized_pnl),
+                position_state = VALUES(position_state),
+                take_profit_done = VALUES(take_profit_done),
+                opened_at = VALUES(opened_at),
+                target_sell_price = VALUES(target_sell_price),
+                add_step_pct = VALUES(add_step_pct),
+                trail_pct = VALUES(trail_pct),
+                add_size_schedule = VALUES(add_size_schedule),
+                max_lots = VALUES(max_lots),
+                take_profit_pct = VALUES(take_profit_pct),
+                breakeven_after_tp = VALUES(breakeven_after_tp),
+                time_stop_days = VALUES(time_stop_days),
+                use_atr = VALUES(use_atr),
+                atr_period = VALUES(atr_period),
+                atr_add_mult = VALUES(atr_add_mult),
+                atr_trail_mult = VALUES(atr_trail_mult)
+            """, poolType, sourceTable);
+        try {
+            jdbc.execute(sql);
+            log.info("invest_position_common 数据迁移完成（来源：{}）", sourceTable);
+        } catch (Exception e) {
+            log.warn("migratePoolToCommon({}) 失败 (可忽略): {}", sourceTable, e.getMessage());
+        }
+    }
+
+    private void dropPositionColumnsFromPool(String tableName, String[] columns) {
+        for (String col : columns) {
+            try {
+                Integer count = jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = '" + tableName + "' AND column_name = '" + col + "'",
+                    Integer.class);
+                if (count != null && count > 0) {
+                    jdbc.execute("ALTER TABLE " + tableName + " DROP COLUMN " + col);
+                    log.info("{}.{} 列已删除（已迁至 invest_position_common）", tableName, col);
+                }
+            } catch (Exception e) {
+                log.debug("{}.{} 列删除跳过: {}", tableName, col, e.getMessage());
+            }
         }
     }
 }

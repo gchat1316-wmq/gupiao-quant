@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
@@ -88,6 +89,43 @@ public class Ps10ValuationService {
                 BigDecimal netMargin, BigDecimal growth, BigDecimal marketCap) {
             return new Ps10Result(true, verdict, commentary, "10 倍 PS 法",
                     ttm, y1, y2, fair1, fair2, netMargin, growth, marketCap);
+        }
+
+        // ── 估值偏离（基于参考年的合理市值） ────────────────────────
+        // 偏离参考年：低估/合理 → Y1（合理市值下界），泡沫 → Y2（合理市值上界）。
+        // 适用=false 或缺数据时返回 null。
+
+        public BigDecimal deviationPct() { return deviation().pct(); }
+        public String deviationRef()   { return deviation().ref(); }
+        public String deviationLabel() { return deviation().label(); }
+
+        private record Deviation(BigDecimal pct, String ref, String label) {
+            static final Deviation EMPTY = new Deviation(null, null, null);
+        }
+
+        private Deviation deviation() {
+            if (!applicable || currentMarketCapYi == null) return Deviation.EMPTY;
+            BigDecimal ref; String refName;
+            if ("泡沫".equals(verdict) && fairCapY2Yi != null && fairCapY2Yi.signum() > 0) {
+                ref = fairCapY2Yi; refName = "Y2";
+            } else if (fairCapY1Yi != null && fairCapY1Yi.signum() > 0) {
+                ref = fairCapY1Yi; refName = "Y1";
+            } else {
+                return Deviation.EMPTY;
+            }
+            BigDecimal diff = currentMarketCapYi.subtract(ref);
+            BigDecimal pct = diff.divide(ref, 4, RoundingMode.HALF_UP)
+                    .multiply(BigDecimal.valueOf(100))
+                    .setScale(1, RoundingMode.HALF_UP);
+            String label;
+            if (pct.signum() < 0) {
+                label = String.format(Locale.ROOT, "低于 %s 估值 %.1f%%", refName, pct.abs());
+            } else if (pct.signum() > 0) {
+                label = String.format(Locale.ROOT, "高于 %s 估值 %.1f%%", refName, pct);
+            } else {
+                label = String.format(Locale.ROOT, "等于 %s 估值", refName);
+            }
+            return new Deviation(pct, refName, label);
         }
     }
 

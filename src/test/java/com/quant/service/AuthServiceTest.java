@@ -2,7 +2,10 @@ package com.quant.service;
 
 import com.quant.entity.LoginCode;
 import com.quant.entity.User;
+import com.quant.entity.EmailCode;
+import com.quant.entity.SmsCode;
 import com.quant.repository.AuditLogRepository;
+import com.quant.repository.EmailCodeRepository;
 import com.quant.repository.LoginCodeRepository;
 import com.quant.repository.SmsCodeRepository;
 import com.quant.repository.UserRepository;
@@ -42,9 +45,11 @@ class AuthServiceTest {
 
     @Mock private UserRepository userRepository;
     @Mock private SmsCodeRepository smsCodeRepository;
+    @Mock private EmailCodeRepository emailCodeRepository;
     @Mock private LoginCodeRepository loginCodeRepository;
     @Mock private AuditLogRepository auditLogRepository;
     @Mock private SmsService smsService;
+    @Mock private EmailService emailService;
     @Mock private JwtTokenProvider tokenProvider;
     @Mock private PasswordEncoder passwordEncoder;
 
@@ -53,8 +58,8 @@ class AuthServiceTest {
     @BeforeEach
     void setUp() {
         authService = new AuthService(
-                userRepository, smsCodeRepository, loginCodeRepository,
-                auditLogRepository, smsService, tokenProvider, passwordEncoder);
+                userRepository, smsCodeRepository, emailCodeRepository, loginCodeRepository,
+                auditLogRepository, smsService, emailService, tokenProvider, passwordEncoder);
     }
 
     // ── 登录码生成 ───────────────────────────────────────
@@ -243,87 +248,382 @@ class AuthServiceTest {
                     .isInstanceOf(RuntimeException.class)
                     .hasMessageContaining("不存在");
         }
+
+        @Test
+        @DisplayName("ADMIN 改自己角色 → 抛异常，不入库")
+        void adminCannotChangeOwnRole() {
+            assertThatThrownBy(() -> authService.updateUserRole(99L, 99L, User.Role.MANAGER))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessageContaining("自己");
+            verify(userRepository, never()).save(any(User.class));
+        }
+
+        @Test
+        @DisplayName("ADMIN 禁用自己的账号 → 抛异常，不入库")
+        void adminCannotDisableSelf() {
+            assertThatThrownBy(() -> authService.toggleUserDisabled(99L, 99L, true))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessageContaining("自己");
+            verify(userRepository, never()).save(any(User.class));
+        }
     }
 
-    // ── 微信扫码登录 ─────────────────────────────────────
+
+    // ── 手机号+密码 / 邮箱+密码 注册 ───────────────────────────
 
     @Nested
-    @DisplayName("loginWithWechat")
-    class LoginWithWechat {
+    @DisplayName("registerWithPhone")
+    class RegisterWithPhone {
 
         @Test
-        @DisplayName("新用户扫码 → 创建 USER 角色账号，返回 token")
-        void newUserWechatLogin() {
-            when(userRepository.findByOpenid("wx_abc123")).thenReturn(Optional.empty());
+        @DisplayName("手机号已存在 → 抛异常（不允许重复注册）")
+        void duplicatePhoneThrows() {
+            when(userRepository.existsByPhone("13800000001")).thenReturn(true);
+
+            assertThatThrownBy(() -> authService.registerWithPhone("13800000001", "pwd", "127.0.0.1"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("已注册");
+        }
+
+        @Test
+        @DisplayName("新手机号 → 创建 USER 账号，密码 hash 写入")
+        void newPhoneRegisters() {
+            when(userRepository.existsByPhone("13800000001")).thenReturn(false);
+            when(passwordEncoder.encode("pwd")).thenReturn("$2a$hashed");
             when(userRepository.save(any(User.class))).thenAnswer(inv -> {
-                User u = inv.getArgument(0);
-                u.setId(100L);
-                return u;
+                User u = inv.getArgument(0); u.setId(50L); return u;
             });
-            when(tokenProvider.generate(100L, "USER")).thenReturn("jwt_token_new");
             when(auditLogRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-            AuthService.AuthResult result = authService.loginWithWechat("wx_abc123", "union_001", "小明", "1.2.3.4");
+            AuthService.AuthResult result = authService.registerWithPhone("13800000001", "pwd", "127.0.0.1");
 
-            assertThat(result.isNewUser()).isTrue();
-            assertThat(result.token()).isEqualTo("jwt_token_new");
-
-            ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
-            verify(userRepository).save(userCaptor.capture());
-            User saved = userCaptor.getValue();
-            assertThat(saved.getOpenid()).isEqualTo("wx_abc123");
-            assertThat(saved.getUnionid()).isEqualTo("union_001");
-            assertThat(saved.getUsername()).isEqualTo("小明");
-            assertThat(saved.getRole()).isEqualTo(User.Role.USER);
-
-            // 审计日志记录注册
-            verify(auditLogRepository).save(argThat(log ->
-                log.getAction().equals("WECHAT_REGISTER")));
-        }
-
-        @Test
-        @DisplayName("老用户扫码 → 更新昵称，返回 token，不记注册日志")
-        void existingUserWechatLogin() {
-            User existing = new User();
-            existing.setId(50L);
-            existing.setOpenid("wx_abc123");
-            existing.setUsername("旧昵称");
-            existing.setRole(User.Role.MANAGER);
-
-            when(userRepository.findByOpenid("wx_abc123")).thenReturn(Optional.of(existing));
-            when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
-            when(tokenProvider.generate(50L, "MANAGER")).thenReturn("jwt_token_existing");
-            when(auditLogRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-
-            AuthService.AuthResult result = authService.loginWithWechat("wx_abc123", "union_001", "新昵称", "5.6.7.8");
-
-            assertThat(result.isNewUser()).isFalse();
-            assertThat(result.token()).isEqualTo("jwt_token_existing");
-
-            // 审计日志记录登录，不是注册
-            verify(auditLogRepository).save(argThat(log ->
-                log.getAction().equals("WECHAT_LOGIN")));
-            verify(auditLogRepository, never()).save(argThat(log ->
-                log.getAction().equals("WECHAT_REGISTER")));
-        }
-
-        @Test
-        @DisplayName("老用户无昵称变更 → 不改 username，只记登录日志")
-        void existingUserNoNicknameChange() {
-            User existing = new User();
-            existing.setId(60L);
-            existing.setOpenid("wx_abc123");
-            existing.setUsername("不变");
-            existing.setRole(User.Role.USER);
-
-            when(userRepository.findByOpenid("wx_abc123")).thenReturn(Optional.of(existing));
-            when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
-            when(tokenProvider.generate(60L, "USER")).thenReturn("jwt_token");
-            when(auditLogRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-
-            AuthService.AuthResult result = authService.loginWithWechat("wx_abc123", null, null, "1.1.1.1");
-
-            assertThat(result.user().getUsername()).isEqualTo("不变"); // username 未被 null 覆盖
+            assertThat(result.user().getPhone()).isEqualTo("13800000001");
+            assertThat(result.user().getPasswordHash()).isEqualTo("$2a$hashed");
+            assertThat(result.user().getRole()).isEqualTo(User.Role.USER);
         }
     }
+
+    @Nested
+    @DisplayName("registerWithEmail")
+    class RegisterWithEmail {
+
+        @Test
+        @DisplayName("邮箱已存在 → 抛异常")
+        void duplicateEmailThrows() {
+            when(userRepository.existsByEmail("a@b.com")).thenReturn(true);
+
+            assertThatThrownBy(() -> authService.registerWithEmail("a@b.com", "pwd", "127.0.0.1"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("已注册");
+        }
+
+        @Test
+        @DisplayName("新邮箱 → 创建 USER 账号，密码 hash 写入")
+        void newEmailRegisters() {
+            when(userRepository.existsByEmail("new@b.com")).thenReturn(false);
+            when(passwordEncoder.encode("pwd")).thenReturn("$2a$hashed");
+            when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+                User u = inv.getArgument(0); u.setId(60L); return u;
+            });
+            when(auditLogRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            AuthService.AuthResult result = authService.registerWithEmail("new@b.com", "pwd", "127.0.0.1");
+
+            assertThat(result.user().getEmail()).isEqualTo("new@b.com");
+            assertThat(result.user().getPasswordHash()).isEqualTo("$2a$hashed");
+            assertThat(result.user().getRole()).isEqualTo(User.Role.USER);
+        }
+    }
+
+    // ── 密码登录支持邮箱 ─────────────────────────────────
+
+    @Nested
+    @DisplayName("loginWithPassword 扩展：identifier 支持邮箱")
+    class LoginWithPasswordEmail {
+
+        @Test
+        @DisplayName("用邮箱 + 密码登录成功")
+        void emailLoginSuccess() {
+            User u = new User();
+            u.setId(7L);
+            u.setEmail("a@b.com");
+            u.setRole(User.Role.USER);
+            u.setPasswordHash("$2a$hash");
+            u.setDisabled(false);
+            when(userRepository.findByEmail("a@b.com")).thenReturn(Optional.of(u));
+            when(passwordEncoder.matches("pwd", "$2a$hash")).thenReturn(true);
+            when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(tokenProvider.generate(7L, "USER")).thenReturn("jwt-email-login");
+
+            AuthService.AuthResult result = authService.loginWithPassword("a@b.com", "pwd", "127.0.0.1");
+
+            assertThat(result.token()).isEqualTo("jwt-email-login");
+            assertThat(result.user().getEmail()).isEqualTo("a@b.com");
+        }
+    }
+
+    // ── 邮箱验证码 ──────────────────────────────────────────
+
+    @Nested
+    @DisplayName("sendEmailCode")
+    class SendEmailCode {
+
+        @Test
+        @DisplayName("60秒内重复发送 → 抛频率限制")
+        void cooldownThrows() {
+            EmailCode existing = new EmailCode();
+            existing.setEmail("a@b.com");
+            when(emailCodeRepository.findValidCode(eq("a@b.com"), any(LocalDateTime.class)))
+                .thenReturn(existing);
+            assertThatThrownBy(() -> authService.sendEmailCode("a@b.com", "127.0.0.1"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("频繁");
+        }
+
+        @Test
+        @DisplayName("正常发送 → 保存新码 + 标记旧码")
+        void sendSucceeds() {
+            when(emailCodeRepository.findValidCode(eq("a@b.com"), any())).thenReturn(null);
+            when(emailService.generateCode()).thenReturn("654321");
+            when(emailService.sendCode("a@b.com", "654321")).thenReturn("654321");
+            when(emailCodeRepository.save(any(EmailCode.class)))
+                .thenAnswer(inv -> { EmailCode e = inv.getArgument(0); e.setId(1L); return e; });
+
+            authService.sendEmailCode("a@b.com", "127.0.0.1");
+
+            verify(emailCodeRepository).markUsed("a@b.com");
+            ArgumentCaptor<EmailCode> captor = ArgumentCaptor.forClass(EmailCode.class);
+            verify(emailCodeRepository).save(captor.capture());
+            assertThat(captor.getValue().getEmail()).isEqualTo("a@b.com");
+            assertThat(captor.getValue().getCode()).isEqualTo("654321");
+            assertThat(captor.getValue().getExpireAt()).isAfter(LocalDateTime.now());
+        }
+
+        @Test
+        @DisplayName("邮件发送失败 → 抛异常")
+        void sendFailureThrows() {
+            when(emailCodeRepository.findValidCode(any(), any())).thenReturn(null);
+            when(emailService.generateCode()).thenReturn("111111");
+            when(emailService.sendCode(anyString(), anyString())).thenReturn(null);
+
+            assertThatThrownBy(() -> authService.sendEmailCode("a@b.com", "127.0.0.1"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("邮件发送失败");
+        }
+    }
+
+    @Nested
+    @DisplayName("verifyEmailCode")
+    class VerifyEmailCode {
+
+        @Test
+        @DisplayName("新邮箱 → 自动注册 USER，返回 token")
+        void newEmailRegisters() {
+            EmailCode record = new EmailCode();
+            record.setEmail("new@b.com");
+            record.setCode("123456");
+            record.setUsed(false);
+            when(emailCodeRepository.findValidCode(eq("new@b.com"), any())).thenReturn(record);
+            when(userRepository.findByEmail("new@b.com")).thenReturn(Optional.empty());
+            when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+                User u = inv.getArgument(0); u.setId(99L); return u;
+            });
+            when(tokenProvider.generate(99L, "USER")).thenReturn("jwt-new-email");
+            when(auditLogRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            AuthService.AuthResult result = authService.verifyEmailCode("new@b.com", "123456", "127.0.0.1");
+
+            assertThat(result.isNewUser()).isTrue();
+            assertThat(result.token()).isEqualTo("jwt-new-email");
+            ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+            verify(userRepository).save(captor.capture());
+            assertThat(captor.getValue().getEmail()).isEqualTo("new@b.com");
+        }
+
+        @Test
+        @DisplayName("错误验证码 → 抛异常")
+        void wrongCodeThrows() {
+            when(emailCodeRepository.findValidCode(any(), any())).thenReturn(null);
+            assertThatThrownBy(() -> authService.verifyEmailCode("a@b.com", "wrong", "127.0.0.1"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("验证码错误");
+        }
+    }
+
+    // ── 密码重置 ───────────────────────────────────────────
+
+    @Nested
+    @DisplayName("resetPasswordBySms")
+    class ResetPasswordBySms {
+
+        @Test
+        @DisplayName("有效短信码 + 已有用户 → 改密码 hash 成功")
+        void successResetsPassword() {
+            SmsCode record = new SmsCode();
+            record.setCode("123456");
+            User u = new User();
+            u.setId(11L);
+            u.setPhone("13800000001");
+            when(smsCodeRepository.findValidCode(eq("13800000001"), any())).thenReturn(record);
+            when(userRepository.findByPhone("13800000001")).thenReturn(Optional.of(u));
+            when(passwordEncoder.encode("newPwd")).thenReturn("$2a$new");
+            when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            authService.resetPasswordBySms("13800000001", "123456", "newPwd", "127.0.0.1");
+
+            verify(userRepository).save(argThat(user -> "$2a$new".equals(user.getPasswordHash())));
+            verify(smsCodeRepository).save(argThat(s -> Boolean.TRUE.equals(s.getUsed())));
+        }
+
+        @Test
+        @DisplayName("用户不存在 → 抛异常")
+        void userNotFoundThrows() {
+            SmsCode record = new SmsCode();
+            record.setCode("123456");
+            when(smsCodeRepository.findValidCode(eq("13800000001"), any())).thenReturn(record);
+            when(userRepository.findByPhone("13800000001")).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> authService.resetPasswordBySms("13800000001", "123456", "newPwd", "127.0.0.1"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("用户不存在");
+        }
+    }
+
+    @Nested
+    @DisplayName("resetPasswordByEmail")
+    class ResetPasswordByEmail {
+
+        @Test
+        @DisplayName("有效邮箱码 + 已有用户 → 改密码 hash 成功")
+        void successResetsPassword() {
+            EmailCode record = new EmailCode();
+            record.setCode("123456");
+            User u = new User();
+            u.setId(22L);
+            u.setEmail("a@b.com");
+            when(emailCodeRepository.findValidCode(eq("a@b.com"), any())).thenReturn(record);
+            when(userRepository.findByEmail("a@b.com")).thenReturn(Optional.of(u));
+            when(passwordEncoder.encode("newPwd")).thenReturn("$2a$new");
+            when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            authService.resetPasswordByEmail("a@b.com", "123456", "newPwd", "127.0.0.1");
+
+            verify(userRepository).save(argThat(user -> "$2a$new".equals(user.getPasswordHash())));
+            verify(emailCodeRepository).save(argThat(e -> Boolean.TRUE.equals(e.getUsed())));
+        }
+
+        @Test
+        @DisplayName("用户不存在 → 抛异常")
+        void userNotFoundThrows() {
+            EmailCode record = new EmailCode();
+            record.setCode("123456");
+            when(emailCodeRepository.findValidCode(eq("a@b.com"), any())).thenReturn(record);
+            when(userRepository.findByEmail("a@b.com")).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> authService.resetPasswordByEmail("a@b.com", "123456", "newPwd", "127.0.0.1"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("用户不存在");
+        }
+    }
+
+    // ── updateProfile：改手机号需要短信验证 ───────────────────────
+
+    @Nested
+    @DisplayName("updateProfile")
+    class UpdateProfile {
+
+        @Test
+        @DisplayName("不改手机号 → 跳过验证码，直接更新")
+        void samePhoneSkipsCode() {
+            User u = new User();
+            u.setId(7L);
+            u.setPhone("13800000001");
+            when(userRepository.findById(7L)).thenReturn(Optional.of(u));
+            when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            AuthService.UserDto dto = authService.updateProfile(
+                    7L, "13800000001", null, null,
+                    true, true, false, "127.0.0.1");
+
+            assertThat(dto.phone()).isEqualTo("13800000001");
+            verify(smsCodeRepository, never()).findValidCode(anyString(), any());
+        }
+
+        @Test
+        @DisplayName("改手机号未传验证码 → 抛异常，不入库")
+        void changePhoneWithoutCodeThrows() {
+            User u = new User();
+            u.setId(7L);
+            u.setPhone("13800000001");
+            when(userRepository.findById(7L)).thenReturn(Optional.of(u));
+
+            assertThatThrownBy(() -> authService.updateProfile(
+                    7L, "13800000099", null, null, null, null, null, "127.0.0.1"))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessageContaining("验证码");
+            verify(userRepository, never()).save(any(User.class));
+        }
+
+        @Test
+        @DisplayName("改手机号验证码错误 → 抛异常")
+        void changePhoneWithWrongCodeThrows() {
+            User u = new User();
+            u.setId(7L);
+            u.setPhone("13800000001");
+            when(userRepository.findById(7L)).thenReturn(Optional.of(u));
+
+            SmsCode record = new SmsCode();
+            record.setCode("111111");
+            when(smsCodeRepository.findValidCode(eq("13800000099"), any())).thenReturn(record);
+
+            assertThatThrownBy(() -> authService.updateProfile(
+                    7L, "13800000099", "999999", null, null, null, null, "127.0.0.1"))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessageContaining("验证码");
+            verify(userRepository, never()).save(any(User.class));
+        }
+
+        @Test
+        @DisplayName("改手机号验证码正确 → 改号成功，验证码标记已用")
+        void changePhoneWithCorrectCodeSucceeds() {
+            User u = new User();
+            u.setId(7L);
+            u.setPhone("13800000001");
+            when(userRepository.findById(7L)).thenReturn(Optional.of(u));
+            when(userRepository.existsByPhone("13800000099")).thenReturn(false);
+            when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            SmsCode record = new SmsCode();
+            record.setCode("123456");
+            when(smsCodeRepository.findValidCode(eq("13800000099"), any())).thenReturn(record);
+
+            AuthService.UserDto dto = authService.updateProfile(
+                    7L, "13800000099", "123456", null, null, null, null, "127.0.0.1");
+
+            assertThat(dto.phone()).isEqualTo("13800000099");
+            verify(smsCodeRepository).save(argThat(s -> Boolean.TRUE.equals(s.getUsed())));
+            verify(userRepository).save(argThat(user -> "13800000099".equals(user.getPhone())));
+        }
+
+        @Test
+        @DisplayName("改手机号目标号已被占用 → 抛异常")
+        void changePhoneToOccupiedNumberThrows() {
+            User u = new User();
+            u.setId(7L);
+            u.setPhone("13800000001");
+            when(userRepository.findById(7L)).thenReturn(Optional.of(u));
+
+            SmsCode record = new SmsCode();
+            record.setCode("123456");
+            when(smsCodeRepository.findValidCode(eq("13800000099"), any())).thenReturn(record);
+            when(userRepository.existsByPhone("13800000099")).thenReturn(true);
+
+            assertThatThrownBy(() -> authService.updateProfile(
+                    7L, "13800000099", "123456", null, null, null, null, "127.0.0.1"))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessageContaining("占用");
+            verify(userRepository, never()).save(any(User.class));
+        }
+    }
+
 }

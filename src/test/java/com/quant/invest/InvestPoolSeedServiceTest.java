@@ -1,6 +1,7 @@
 package com.quant.invest;
 
 import com.quant.entity.InvestStockPool;
+import com.quant.repository.InvestPositionCommonRepository;
 import com.quant.repository.InvestStockPoolRepository;
 import com.quant.repository.TradeStockBasicRepository;
 import com.quant.service.InvestPoolSeedService;
@@ -23,10 +24,11 @@ class InvestPoolSeedServiceTest {
     @DisplayName("只重建科技风投池并按截图顺序设置 displayOrder")
     void replaceTechVcKeepsScreenshotOrder() {
         InvestStockPoolRepository poolRepo = mock(InvestStockPoolRepository.class);
+        InvestPositionCommonRepository positionRepo = mock(InvestPositionCommonRepository.class);
         TradeStockBasicRepository basicRepo = mock(TradeStockBasicRepository.class);
         when(basicRepo.findByStockCode("688668.SH")).thenReturn(Optional.empty());
 
-        InvestPoolSeedService service = new InvestPoolSeedService(poolRepo, basicRepo);
+        InvestPoolSeedService service = new InvestPoolSeedService(poolRepo, positionRepo, basicRepo);
 
         int inserted = service.replaceTechVcWithScreenshotPool();
 

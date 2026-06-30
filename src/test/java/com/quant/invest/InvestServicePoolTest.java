@@ -3,6 +3,7 @@ package com.quant.invest;
 import com.quant.dto.invest.PoolItemDTO;
 import com.quant.entity.InvestStockPool;
 import com.quant.entity.TradeStockBasic;
+import com.quant.repository.InvestPositionCommonRepository;
 import com.quant.repository.InvestStockPoolRepository;
 import com.quant.repository.TradeStockBasicRepository;
 import com.quant.repository.TradeStockFinancialRepository;
@@ -31,13 +32,14 @@ class InvestServicePoolTest {
     @Mock TradeStockBasicRepository stockBasicRepo;
     @Mock TradeStockFinancialRepository financialRepo;
     @Mock InvestStockPoolRepository poolRepo;
+    @Mock InvestPositionCommonRepository positionRepo;
     @Mock AStockDataQuoteService quoteService;
 
     InvestService service;
 
     @BeforeEach
     void setUp() {
-        service = new InvestService(stockBasicRepo, financialRepo, poolRepo, quoteService);
+        service = new InvestService(stockBasicRepo, financialRepo, poolRepo, positionRepo, quoteService);
     }
 
     @Test

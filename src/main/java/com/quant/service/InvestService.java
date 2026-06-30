@@ -4,9 +4,11 @@ import com.quant.dto.invest.PoolItemDTO;
 import com.quant.dto.invest.PoolSaveRequest;
 import com.quant.dto.invest.SopCheckupDTO;
 import com.quant.dto.invest.PoolFieldUpdateRequest;
+import com.quant.entity.InvestPositionCommon;
 import com.quant.entity.InvestStockPool;
 import com.quant.entity.TradeStockBasic;
 import com.quant.entity.TradeStockFinancial;
+import com.quant.repository.InvestPositionCommonRepository;
 import com.quant.repository.InvestStockPoolRepository;
 import com.quant.repository.TradeStockBasicRepository;
 import com.quant.repository.TradeStockFinancialRepository;
@@ -37,16 +39,43 @@ public class InvestService {
     private final TradeStockBasicRepository stockBasicRepository;
     private final TradeStockFinancialRepository financialRepository;
     private final InvestStockPoolRepository poolRepository;
+    private final InvestPositionCommonRepository positionRepository;
     private final AStockDataQuoteService aStockDataQuoteService;
 
     public InvestService(TradeStockBasicRepository stockBasicRepository,
                          TradeStockFinancialRepository financialRepository,
                          InvestStockPoolRepository poolRepository,
+                         InvestPositionCommonRepository positionRepository,
                          AStockDataQuoteService aStockDataQuoteService) {
         this.stockBasicRepository = stockBasicRepository;
         this.financialRepository = financialRepository;
         this.poolRepository = poolRepository;
+        this.positionRepository = positionRepository;
         this.aStockDataQuoteService = aStockDataQuoteService;
+    }
+
+    private static final String POOL_TYPE_INVEST = "invest";
+
+    /**
+     * 获取持仓记录（若不存在则创建空白记录）。
+     */
+    private InvestPositionCommon getOrCreatePosition(String stockCode) {
+        return positionRepository.findByStockCodeAndPoolType(stockCode, POOL_TYPE_INVEST)
+                .orElseGet(() -> {
+                    InvestPositionCommon pos = new InvestPositionCommon();
+                    pos.setStockCode(stockCode);
+                    pos.setPoolType(POOL_TYPE_INVEST);
+                    pos.setStatus("watching");
+                    pos.setAlertState("none");
+                    pos.setPositionState("none");
+                    pos.setPositionLots(BigDecimal.ZERO);
+                    pos.setRealizedPnl(BigDecimal.ZERO);
+                    pos.setAddCount(0);
+                    pos.setTakeProfitDone(0);
+                    pos.setBreakevenAfterTp(1);
+                    pos.setUseAtr(0);
+                    return pos;
+                });
     }
 
     // ===== 通用工具方法（供股票池 + SOP 共用）=====
@@ -143,11 +172,27 @@ public class InvestService {
     }
 
     private Comparator<InvestStockPool> poolDisplayComparator() {
+        // 优先级：tech_vc (0) < innovative_drug (1) < quality (2)；同池内按 displayOrder，再按创建时间倒序
         return Comparator
-                .comparing((InvestStockPool p) -> "tech_vc".equals(p.getPoolType()) ? 0 : 1)
+                .comparingInt((InvestStockPool p) -> poolTypePriority(p.getPoolType()))
                 .thenComparing(p -> p.getDisplayOrder() == null ? Integer.MAX_VALUE : p.getDisplayOrder())
                 .thenComparing(InvestStockPool::getCreatedAt,
                         Comparator.nullsLast(Comparator.reverseOrder()));
+    }
+
+    private static int poolTypePriority(String poolType) {
+        if ("tech_vc".equals(poolType)) return 0;
+        if ("innovative_drug".equals(poolType)) return 1;
+        if ("quality".equals(poolType)) return 2;
+        return 9;
+    }
+
+    /** poolType → 中文标签。tech_vc 在 DB 中仍是 "tech_vc"，显示为"科技AI"。 */
+    public static String poolTypeLabelOf(String poolType) {
+        if ("quality".equals(poolType)) return "质量优选";
+        if ("tech_vc".equals(poolType)) return "科技AI";
+        if ("innovative_drug".equals(poolType)) return "创新药";
+        return poolType == null ? "" : poolType;
     }
 
     private record PoolPriceContext(Map<String, TradeStockBasic> basicMap,
@@ -189,10 +234,13 @@ public class InvestService {
         pool.setStockCode(info.getStockCode());
         pool.setStockName(info.getStockName());
         pool.setPoolType(req.getPoolType() != null ? req.getPoolType() : "quality");
-        pool.setStatus(req.getStatus() != null ? req.getStatus() : "watching");
         applyPoolFields(pool, req);
 
         InvestStockPool saved = poolRepository.save(pool);
+        InvestPositionCommon position = getOrCreatePosition(saved.getStockCode());
+        position.setStatus(req.getStatus() != null ? req.getStatus() : "watching");
+        if (req.getTargetSellPrice() != null) position.setTargetSellPrice(req.getTargetSellPrice());
+        positionRepository.save(position);
         return toPoolItemDTO(saved);
     }
 
@@ -201,7 +249,14 @@ public class InvestService {
         InvestStockPool pool = poolRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("股票池条目不存在：" + id));
         if (req.getPoolType() != null) pool.setPoolType(req.getPoolType());
-        if (req.getStatus() != null) pool.setStatus(req.getStatus());
+        InvestPositionCommon pos = getOrCreatePosition(pool.getStockCode());
+        if (req.getStatus() != null) {
+            pos.setStatus(req.getStatus());
+        }
+        if (req.getTargetSellPrice() != null) {
+            pos.setTargetSellPrice(req.getTargetSellPrice());
+        }
+        positionRepository.save(pos);
         applyPoolFields(pool, req);
         return toPoolItemDTO(poolRepository.save(pool));
     }
@@ -213,7 +268,6 @@ public class InvestService {
         if (req.getFairPrice() != null) pool.setFairPrice(req.getFairPrice());
         if (req.getOvervaluedPrice() != null) pool.setOvervaluedPrice(req.getOvervaluedPrice());
         if (req.getTargetBuyPrice() != null) pool.setTargetBuyPrice(req.getTargetBuyPrice());
-        if (req.getTargetSellPrice() != null) pool.setTargetSellPrice(req.getTargetSellPrice());
         if (req.getRevenueForecastY0() != null) pool.setRevenueForecastY0(req.getRevenueForecastY0());
         if (req.getRevenueForecastY1() != null) pool.setRevenueForecastY1(req.getRevenueForecastY1());
         if (req.getRevenueForecastY2() != null) pool.setRevenueForecastY2(req.getRevenueForecastY2());
@@ -247,10 +301,12 @@ public class InvestService {
             case "poolType" -> pool.setPoolType(blank ? "quality" : raw.trim());
             case "status" -> {
                 String v = blank ? "watching" : raw.trim();
-                pool.setStatus(v);
-                if (!"watching".equals(pool.getAlertState()) && "exited".equals(v)) {
-                    pool.setAlertState("none");
+                InvestPositionCommon pos = getOrCreatePosition(pool.getStockCode());
+                pos.setStatus(v);
+                if (!"watching".equals(pos.getAlertState()) && "exited".equals(v)) {
+                    pos.setAlertState("none");
                 }
+                positionRepository.save(pos);
             }
             case "memo" -> pool.setMemo(blank ? null : raw);
             case "undervaluedPrice" -> pool.setUndervaluedPrice(parseDecimal(raw));
@@ -258,11 +314,15 @@ public class InvestService {
             case "overvaluedPrice" -> pool.setOvervaluedPrice(parseDecimal(raw));
             case "targetBuyPrice" -> {
                 pool.setTargetBuyPrice(parseDecimal(raw));
-                pool.setAlertState("none");
+                InvestPositionCommon pos = getOrCreatePosition(pool.getStockCode());
+                pos.setAlertState("none");
+                positionRepository.save(pos);
             }
             case "targetSellPrice" -> {
-                pool.setTargetSellPrice(parseDecimal(raw));
-                pool.setAlertState("none");
+                InvestPositionCommon pos = getOrCreatePosition(pool.getStockCode());
+                pos.setTargetSellPrice(parseDecimal(raw));
+                pos.setAlertState("none");
+                positionRepository.save(pos);
             }
             case "revenueForecastY0" -> pool.setRevenueForecastY0(parseDecimal(raw));
             case "revenueForecastY1" -> pool.setRevenueForecastY1(parseDecimal(raw));
@@ -335,18 +395,22 @@ public class InvestService {
         BigDecimal latestProfitYoy = fin != null ? fin.getDeductedNetProfitYoy() : null;
         String latestLevel = prosperityLevel(latestRevenueYoy);
 
+        // 从 invest_position_common 读取持仓/告警状态
+        InvestPositionCommon position = positionRepository
+                .findByStockCodeAndPoolType(code, POOL_TYPE_INVEST).orElse(null);
+
         return PoolItemDTO.builder()
                 .id(pool.getId())
                 .stockCode(code)
                 .stockName(stockName)
                 .poolType(pool.getPoolType())
-                .poolTypeLabel("quality".equals(pool.getPoolType()) ? "质量优选" : "科技风投")
+                .poolTypeLabel(poolTypeLabelOf(pool.getPoolType()))
                 .memo(pool.getMemo())
                 .undervaluedPrice(pool.getUndervaluedPrice())
                 .fairPrice(pool.getFairPrice())
                 .overvaluedPrice(pool.getOvervaluedPrice())
                 .targetBuyPrice(pool.getTargetBuyPrice())
-                .targetSellPrice(pool.getTargetSellPrice())
+                .targetSellPrice(position != null ? position.getTargetSellPrice() : null)
                 .targetPrice(pool.getTargetPrice())
                 .revenueForecastY0(pool.getRevenueForecastY0())
                 .revenueForecastY1(pool.getRevenueForecastY1())
@@ -365,10 +429,10 @@ public class InvestService {
                 .poolUpdateError(pool.getPoolUpdateError())
                 .profitLevel(pool.getProfitLevel())
                 .valuationRange(valuationRange)
-                .status(pool.getStatus())
-                .statusLabel(statusLabel(pool.getStatus()))
-                .alertState(pool.getAlertState())
-                .lastAlertAt(pool.getLastAlertAt())
+                .status(position != null ? position.getStatus() : null)
+                .statusLabel(statusLabel(position != null ? position.getStatus() : null))
+                .alertState(position != null ? position.getAlertState() : null)
+                .lastAlertAt(position != null ? position.getLastAlertAt() : null)
                 .latestPrice(latestPrice)
                 .ytdGain(ytdGain)
                 .marketCap(computedMarketCap)
@@ -436,6 +500,9 @@ public class InvestService {
     }
 
     private String statusLabel(String status) {
+        if (status == null) {
+            return "观察中";
+        }
         return switch (status) {
             case "holding" -> "持仓中";
             case "exited" -> "已离场";

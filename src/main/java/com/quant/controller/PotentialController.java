@@ -8,6 +8,7 @@ import com.quant.dto.techai.TechAiAlertDTO;
 import com.quant.dto.techai.TechAiPoolItemDTO;
 import com.quant.service.PotentialService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -38,22 +39,26 @@ public class PotentialController {
     }
 
     @PostMapping("/pool")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public TechAiPoolItemDTO addToPool(@RequestBody PoolSaveRequest request) {
         return potentialService.addToPool(request);
     }
 
     @PatchMapping("/pool/{id}/field")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public TechAiPoolItemDTO updateField(@PathVariable Integer id, @RequestBody PoolFieldUpdateRequest request) {
         return potentialService.updateField(id, request);
     }
 
     @DeleteMapping("/pool/{id}")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public ResponseEntity<Map<String, String>> removeFromPool(@PathVariable Integer id) {
         potentialService.removeFromPool(id);
         return ResponseEntity.ok(Map.of("message", "已移除"));
     }
 
     @PostMapping("/pool/{id}/fill")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public TechAiPoolItemDTO recordFill(@PathVariable Integer id, @RequestBody PositionFillRequest request) {
         return potentialService.recordFill(id, request);
     }
@@ -64,6 +69,7 @@ public class PotentialController {
     }
 
     @DeleteMapping("/pool/{id}/fills/{fillId}")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public TechAiPoolItemDTO deleteFill(@PathVariable Integer id, @PathVariable Long fillId) {
         return potentialService.deleteFill(id, fillId);
     }
@@ -74,6 +80,7 @@ public class PotentialController {
     }
 
     @PostMapping("/monitor/run")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public Map<String, Object> runMonitor() {
         int triggered = potentialService.monitorQuotes();
         return Map.of("message", "monitor triggered", "triggered", triggered);

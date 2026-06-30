@@ -68,10 +68,21 @@ app:
       username: ${HUAXIN_SMS_USER:}
       password: ${HUAXIN_SMS_PASSWORD:}
       product-id: ${HUAXIN_SMS_PRODUCT_ID:}
+  # 微信登录：有两种方案共存，前端按配置优先级自动选择
   wechat:
+    # ── 方案 A：开放平台 - 网站应用 OAuth（点登录按钮 → 微信页面 → 扫码 → 跳回） ──
     app-id: ${WECHAT_APP_ID:}
     app-secret: ${WECHAT_APP_SECRET:}
     redirect-uri: ${WECHAT_REDIRECT_URI:http://localhost:8080/gp/api/auth/wechat/callback}
+    # ── 方案 B：微信公众号"带参数二维码"扫码登录（业内标准体验，登录页直接显示二维码） ──
+    # 前置条件：已认证的"服务号"（订阅号不能生成临时二维码），公众号后台"服务器地址(URL)"
+    # 配置为本服务的 ${app.wechat.mp.callback-url}（必须公网 80 端口，且开发者中心"网页授权"开启）。
+    # 同时配置"消息加解密方式"为"明文模式"，把"消息校验 Token"填到 mp.callback-token。
+    mp:
+      app-id: ${WECHAT_MP_APP_ID:}
+      app-secret: ${WECHAT_MP_APP_SECRET:}
+      callback-url: ${WECHAT_MP_CALLBACK_URL:https://aidaily.dpdns.org/gp/api/auth/wechat/mp/callback}
+      callback-token: ${WECHAT_MP_CALLBACK_TOKEN:}
 
 baostock-sync:
   enabled: true

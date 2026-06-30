@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#1e88ff" />
+  <base href="/gp/" />
+  <title>传奇仓位管理 · 投资助手</title>
+  <link rel="stylesheet" href="css/skin.css?v=20260630-pm-v1" />
+  <link rel="stylesheet" href="css/style.css?v=20260630-pm-v1" />
+  <link rel="stylesheet" href="css/study.css?v=20260630-pm-v1" />
+  <link rel="stylesheet" href="css/position-management.css?v=20260630-pm-v1" />
+  <script src="js/layout.js?v=20260629-profile-link" defer></script>
+  <script src="js/position-management.js?v=20260630-pm-v1" defer></script>
+</head>
+<body>
+  <div id="siteHeader"></div>
+
+  <main class="container pm-page">
+    <!-- ===== Hero ===== -->
+    <section class="pm-hero">
+      <div class="pm-hero-copy">
+        <div class="pm-hero-kicker">Position Management · 三大数学公式</div>
+        <h1>传奇仓位管理</h1>
+        <p>
+          当你想投入一只股票时,先回答三个问题:
+          <strong>「这笔能赚多少?会亏多少?我应该买多少股?」</strong>
+          本页基于 Mark Minervini、Jesse Livermore、Richard Dennis 等六位华尔街传奇的三大数学公式 —
+          <em>风险回报比、期望值、仓位管理</em> — 给出可量化的仓位建议与纪律提醒。
+        </p>
+      </div>
+      <div class="pm-hero-stat">
+        <span>Minervini 最低门槛</span>
+        <strong>风报比 ≥ 1 : 3</strong>
+        <span style="margin-top:8px;">盈亏平衡胜率仅需 25%</span>
+      </div>
+    </section>
+
+    <!-- ===== 输入 + 三段公式 ===== -->
+    <section class="pm-card" aria-labelledby="pm-form-title">
+      <h2 id="pm-form-title">第一步 · 准备买入时的输入</h2>
+      <p class="pm-sub">填好账户资金、入场价、止损价、目标价。系统会立刻给出建议仓位、风报比与期望值。</p>
+
+      <form id="pmForm" autocomplete="off">
+        <div class="pm-form-grid">
+          <label>
+            股票 / 关键词
+            <input id="pmStockKeyword" type="text" placeholder="可选,如 600519 / 贵州茅台" />
+          </label>
+          <label>
+            账户资金 (元)
+            <input id="pmAccountCapital" type="number" step="0.01" min="0" placeholder="100000" value="100000" required />
+          </label>
+          <label>
+            入场价 (元)
+            <input id="pmEntryPrice" type="number" step="0.01" min="0.01" placeholder="50.00" value="50.00" required />
+          </label>
+          <label>
+            止损价 (元)
+            <input id="pmStopLossPrice" type="number" step="0.01" min="0.01" placeholder="48.00" value="48.00" required />
+          </label>
+          <label>
+            目标价 (元)
+            <input id="pmTargetPrice" type="number" step="0.01" min="0.01" placeholder="56.00" value="56.00" required />
+          </label>
+          <label>
+            单笔风险比例
+            <select id="pmRiskPercent">
+              <option value="0.005">0.5% — 极保守</option>
+              <option value="0.01" selected>1% — 标准 (Minervini 默认)</option>
+              <option value="0.015">1.5% — 积极</option>
+              <option value="0.02">2% — 激进</option>
+              <option value="0.03">3% — 重仓试错</option>
+            </select>
+          </label>
+          <label>
+            系统估计胜率
+            <select id="pmWinRate">
+              <option value="0.25">25% — 高风报补偿</option>
+              <option value="0.33">33% — 1:2 风报平衡</option>
+              <option value="0.40" selected>40% — 海龟/传奇水平</option>
+              <option value="0.50">50% — 1:1 风报平衡</option>
+              <option value="0.60">60% — 高胜率系统</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="pm-form-actions">
+          <button id="pmSubmit" type="submit" class="pm-btn-primary">计算仓位建议</button>
+          <button id="pmReset" type="button" class="pm-btn-ghost">重置</button>
+          <span style="color:var(--text-secondary,#888);font-size:12px;">
+            公式 1:Position = 账户 × 风险比例 ÷ (入场 − 止损)
+          </span>
+        </div>
+        <div id="pmError" class="pm-error" role="alert"></div>
+      </form>
+    </section>
+
+    <!-- ===== 预设档位 ===== -->
+    <section class="pm-card" style="margin-top:20px;" aria-labelledby="pm-preset-title">
+      <h2 id="pm-preset-title">快速预设 · Mark Minervini 风格档位</h2>
+      <p class="pm-sub">点击任意档位,会以当前入场价为锚(默认止损距离 5%)反推止损/目标价,再自动计算。</p>
+      <div id="pmPresetRow" class="pm-preset-row"></div>
+    </section>
+
+    <!-- ===== 公式 1:仓位 ===== -->
+    <section class="pm-card" style="margin-top:20px;" aria-labelledby="pm-sizing-title">
+      <h2 id="pm-sizing-title">公式 1 · 仓位管理 (Position Sizing)</h2>
+      <p class="pm-sub">
+        <strong>核心问题:</strong> 如果我判断错误,愿意亏多少?
+        Michael Marcus:「让我害怕的不是亏钱,而是失去控制。」仓位管理就是控制的核心。
+      </p>
+      <div class="pm-formula">Position (股数) = 账户资金 × 风险比例 ÷ (入场价 − 止损价)</div>
+      <div id="pmSizingResult" class="pm-result-row"></div>
+    </section>
+
+    <!-- ===== 公式 2 & 3 并排 ===== -->
+    <div class="pm-grid two" style="margin-top:20px;">
+      <section class="pm-card" aria-labelledby="pm-rr-title">
+        <h2 id="pm-rr-title">公式 2 · 风险回报比 (R:R)</h2>
+        <p class="pm-sub">
+          <strong>核心问题:</strong> 当我做对的时候,能赚多少?
+          Minervini:「除非风报比 ≥ 1:3,否则我不会进场。」
+        </p>
+        <div class="pm-formula">盈亏平衡胜率 = 1 ÷ (1 + 回报/风险)</div>
+        <div id="pmRRResult" class="pm-result-row"></div>
+      </section>
+
+      <section class="pm-card" aria-labelledby="pm-ev-title">
+        <h2 id="pm-ev-title">公式 3 · 期望值 (Expected Value)</h2>
+        <p class="pm-sub">
+          <strong>核心问题:</strong> 这套系统长期到底赚不赚钱?
+          Richard Dennis 的海龟交易员靠正期望值累计盈利 1.5 亿美元。
+        </p>
+        <div class="pm-formula">EV = 胜率 × 平均盈利 − 败率 × 平均亏损</div>
+        <div id="pmEvResult" class="pm-result-row"></div>
+      </section>
+    </div>
+
+    <!-- ===== 结论 / 原则 ===== -->
+    <section class="pm-card" style="margin-top:20px;" aria-labelledby="pm-verdict-title">
+      <h2 id="pm-verdict-title">综合结论 · 纪律提示</h2>
+      <div id="pmSummary" class="pm-summary" style="margin-bottom:10px;"></div>
+      <div id="pmVerdict" class="pm-verdict" data-calculated="false">请填写左侧表单,系统会基于三大数学公式给出仓位建议。</div>
+      <h3 style="font-size:14px;margin:18px 0 8px;">执行清单</h3>
+      <ul id="pmPrinciples" class="pm-principles"></ul>
+    </section>
+
+    <!-- ===== 回撤表 ===== -->
+    <section class="pm-card" style="margin-top:20px;" aria-labelledby="pm-drawdown-title">
+      <h2 id="pm-drawdown-title">连续亏损场景 · 回撤表</h2>
+      <p class="pm-sub">
+        假设每笔都按当前风险比例下单,且全部止损 — 账户还剩多少?恢复需要多少涨幅?
+        注意:50% 回撤需要 <strong>+100%</strong> 才能回本,这是大多数人没意识到的数学陷阱。
+      </p>
+      <div style="overflow-x:auto;">
+        <table class="pm-table">
+          <thead>
+            <tr>
+              <th>场景</th>
+              <th>账户剩余</th>
+              <th>恢复所需涨幅</th>
+            </tr>
+          </thead>
+          <tbody id="pmDrawdownTbody">
+            <tr><td colspan="3" class="pm-empty">计算后会填充 1 - 12 次连续亏损场景</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== 传奇卡片 ===== -->
+    <section style="margin-top:20px;" aria-labelledby="pm-legend-title">
+      <h2 id="pm-legend-title" style="font-size:18px;margin-bottom:4px;">方法论来源 · 六位华尔街传奇</h2>
+      <p class="pm-sub">这些人都不是「每笔都对」,胜率都低于 40% — 真正让他们脱颖而出的,是对三大公式的纪律。</p>
+      <div id="pmLegendGrid" class="pm-legend-grid">
+        <div class="pm-empty">加载中...</div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

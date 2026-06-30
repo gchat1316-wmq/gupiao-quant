@@ -239,7 +239,7 @@
       kvs += infoKV('合理市值', fmtYi(info.tenPsFairMarketCapYi));
     }
     if (info.tenPsValuationVerdict) {
-      var verdictClass = info.tenPsValuationVerdict === '合理/低估' ? 'ok'
+      var verdictClass = (info.tenPsValuationVerdict === '低估' || info.tenPsValuationVerdict === '合理') ? 'ok'
         : info.tenPsValuationVerdict === '不适用' ? 'muted' : 'warn';
       kvs += infoKV('估值', info.tenPsValuationVerdict, verdictClass, info.tenPsValuationDetail);
     }

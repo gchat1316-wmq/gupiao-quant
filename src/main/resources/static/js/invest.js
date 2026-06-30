@@ -3,8 +3,26 @@
   'use strict';
 
   // ---- 常量 ----
-  const POOL_TYPE_LABELS = { quality: '质量优选', tech_vc: '科技风投' };
+  const POOL_TYPE_LABELS = {
+    quality: '质量优选',
+    tech_vc: '科技AI',
+    innovative_drug: '创新药',
+  };
+  const POOL_TYPE_ORDER = ['tech_vc', 'innovative_drug', 'quality'];
+  const POOL_TYPE_DEFAULT = 'tech_vc';
   const STATUS_LABELS = { watching: '观察中', holding: '持仓中', exited: '已离场' };
+
+  // 一级 tab 映射：section id → poolType
+  const SECTION_TO_POOL = {
+    techai: 'tech_vc',
+    biopharma: 'innovative_drug',
+    quality: 'quality',
+  };
+  const POOL_TO_SECTION = {
+    tech_vc: 'techai',
+    innovative_drug: 'biopharma',
+    quality: 'quality',
+  };
 
   // ---- 权限辅助 ----
   // 当前用户是否拥有股票池修改权限（MANAGER 或 ADMIN）。
@@ -27,13 +45,14 @@
     let banner = document.getElementById('readonlyBanner');
     if (!manage) {
       if (!banner) {
-        const hero = document.querySelector('.invest-hero');
-        if (hero) {
+        // 锚点：插到一级 tab 上方（hero 已删，改用 main-tabs 作为锚点）
+        const anchor = document.getElementById('investMainTabs');
+        if (anchor) {
           banner = document.createElement('div');
           banner.id = 'readonlyBanner';
           banner.className = 'invest-readonly-banner';
           banner.innerHTML = '🔒 当前角色为只读模式（修改股票池需要 <b>MANAGER</b> 或 <b>ADMIN</b> 角色）';
-          hero.parentNode.insertBefore(banner, hero.nextSibling);
+          anchor.parentNode.insertBefore(banner, anchor);
         }
       }
     } else if (banner) {
@@ -49,6 +68,7 @@
     hideIfReadonly('addPoolBtn');
     hideIfReadonly('importPoolBtn');
     hideIfReadonly('bigYangRunBtn');
+    hideIfReadonly('poolMetaEditBtn');
 
     // SOP 5A "加入股票池"：只读时禁用按钮 + 改文案
     const sop5aBtn = document.getElementById('sop5aSaveBtn');
@@ -83,12 +103,15 @@
 
   // ---- 模块初始化 ----
   function init() {
-    initTabs();
+    initMainTabs();      // 一级 tab：科技AI / 创新药 / 质量优选（占满整页）
+    initTabs();          // 二级 tab（sub-tabs）：按当前 section 切换 panel
     initSop();
     initBigYang();
     initPool();
     initValuation();
     initPoolModal();
+    initPoolMetaModal();
+    initWeeklyOpportunity();
     applyReadOnlyMode();
 
     // 监听 layout.js 设角色后的事件，重新跑一次只读决策（修 /api/auth/me 异步早于 init 的竞态）
@@ -316,15 +339,106 @@
     return '—';
   }
 
-  // ===== Sub-tabs =====
-  function initTabs() {
-    document.querySelectorAll('.invest-tab').forEach(btn => {
+  // ===== 一级 tab：科技AI / 创新药 / 质量优选（占满整页） =====
+  function initMainTabs() {
+    document.querySelectorAll('.invest-main-tab').forEach(btn => {
       btn.addEventListener('click', () => {
-        document.querySelectorAll('.invest-tab').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.invest-panel').forEach(p => p.classList.remove('active'));
-        btn.classList.add('active');
-        const panelId = btn.dataset.panel;
-        document.getElementById(panelId)?.classList.add('active');
+        const sec = btn.dataset.section;
+        if (!sec) return;
+        activateMainSection(sec, /* updateHash */ true, /* preferredSub */ null);
+      });
+    });
+    // 初始化：从 hash 读取 section + sub，否则用默认 techai
+    const initHash = readHashState();
+    const initSec = initHash.section || POOL_TO_SECTION[currentPoolType] || 'techai';
+    const initSub = initHash.sub || null;
+    activateMainSection(initSec, /* updateHash */ false, initSub);
+    // 监听 hashchange：前进/后退 / 外部修改 URL 时同步状态
+    window.addEventListener('hashchange', () => {
+      const h = readHashState();
+      const sec = h.section || POOL_TO_SECTION[currentPoolType] || 'techai';
+      activateMainSection(sec, /* updateHash */ false, h.sub);
+    });
+  }
+
+  function readHashState() {
+    const h = (window.location.hash || '').replace(/^#/, '');
+    if (!h) return { section: null, sub: null };
+    const parts = h.split('&').map(kv => {
+      const idx = kv.indexOf('=');
+      return idx >= 0 ? [kv.slice(0, idx), kv.slice(idx + 1)] : [kv, ''];
+    });
+    const obj = Object.fromEntries(parts);
+    return { section: obj.section || null, sub: obj.sub || null };
+  }
+
+  function activateMainSection(sec, updateHash, preferredSub) {
+    // 1. 高亮一级 tab
+    document.querySelectorAll('.invest-main-tab').forEach(t =>
+      t.classList.toggle('active', t.dataset.section === sec)
+    );
+    // 2. 显示对应 sub-tabs-wrap，隐藏其它
+    document.querySelectorAll('.invest-sub-tabs-wrap').forEach(w =>
+      w.hidden = (w.dataset.mainSection !== sec)
+    );
+    // 3. 同步 poolType（决定股票池 + 元信息内容）
+    const poolType = SECTION_TO_POOL[sec];
+    if (poolType) {
+      currentPoolType = poolType;
+      // 首次进入页面（poolTypeLoaded=null）或切换到不同 poolType 时加载股票池。
+      // 修复：原来 `poolType !== currentPoolType` 会让首次直连 #section=techai（默认值即 tech_vc）跳过 loadPool。
+      if (poolType !== poolTypeLoaded) {
+        poolTypeLoaded = poolType;
+        loadPool();
+      }
+      loadPoolMeta(currentPoolType);
+      loadWeeklyOpportunity(currentPoolType);
+    }
+    // 4. 决定激活哪个 sub-tab：优先用 preferredSub；否则用 HTML 默认 active
+    const wrap = document.querySelector(`.invest-sub-tabs-wrap[data-main-section="${sec}"]`);
+    let subBtn = null;
+    if (preferredSub && wrap) {
+      subBtn = wrap.querySelector(`.invest-tab[data-panel="${preferredSub}"]`);
+    }
+    if (!subBtn && wrap) {
+      subBtn = wrap.querySelector('.invest-tab.active') || wrap.querySelector('.invest-tab');
+    }
+    if (subBtn) {
+      activateSubPanel(sec, subBtn.dataset.panel);
+    }
+    // 5. 写 hash（用 #section=xxx 替代旧的 #pool=xxx，兼容旧 hash 读取）
+    if (updateHash) {
+      const cur = wrap?.querySelector('.invest-tab.active')?.dataset.panel;
+      writeSectionToHash(sec, cur);
+    }
+  }
+
+  function activateSubPanel(sec, panelId) {
+    if (!panelId) return;
+    const wrap = document.querySelector(`.invest-sub-tabs-wrap[data-main-section="${sec}"]`);
+    if (wrap) {
+      wrap.querySelectorAll('.invest-tab').forEach(t =>
+        t.classList.toggle('active', t.dataset.panel === panelId)
+      );
+    }
+    // 隐藏所有 panel，显示选中的
+    document.querySelectorAll('.invest-panel').forEach(p => {
+      p.hidden = (p.id !== panelId);
+    });
+    // 大阳线面板懒加载
+    if (panelId === 'panel-big-yang' && !bigYangState.loaded) {
+      loadBigYangPanel();
+    }
+  }
+
+  // ===== 二级 sub-tab 切换 =====
+  function initTabs() {
+    document.querySelectorAll('.invest-sub-tabs-wrap .invest-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const sec = btn.closest('.invest-sub-tabs-wrap')?.dataset.mainSection;
+        if (!sec) return;
+        activateSubPanel(sec, btn.dataset.panel);
+        writeSectionToHash(sec, btn.dataset.panel);
       });
     });
   }
@@ -334,6 +448,9 @@
   let poolFilter = 'all';
   let poolKeyword = '';
   let poolSearchCache = new Map();   // id -> { name, nameLow, initials, codeLow, searchKey }
+  let currentPoolType = POOL_TYPE_DEFAULT;
+  let poolTypeLoaded = null;         // 上次加载过的 poolType。null 表示还没加载过任何池子，用于保证「首次直连 #section=techai 也能 loadPool」而不只是切过别的 poolType 再回来时。
+  let currentPoolMeta = null;        // 缓存最近一次拉到的 pool-meta，用于编辑弹窗回填
 
   // 把股票名转成「拼音首字母缩写」。pinyinPro 未加载时降级为空字符串。
   function pinyinInitials(name) {
@@ -421,6 +538,7 @@
     if (signalList) signalList.innerHTML = '<div class="bigyang-empty">加载中...</div>';
     if (alertList) alertList.innerHTML = '<div class="bigyang-empty">加载中...</div>';
     try {
+      // 阶段 1：基础数据（缓存命中时毫秒级返回）。拿到立刻渲染骨架 + 基础表格
       const [summary, signals, alerts] = await Promise.all([
         fetchBigYangJson(`${BIG_YANG_API}/summary`),
         fetchBigYangJson(`${BIG_YANG_API}/signals`),
@@ -431,10 +549,50 @@
       bigYangState.alerts = alerts || [];
       bigYangState.loaded = true;
       renderBigYang();
+      // 阶段 2：实时行情（异步，不阻塞首屏）
+      loadBigYangQuotes();
     } catch (e) {
       if (signalList) signalList.innerHTML = `<div class="bigyang-empty error">加载失败：${escHtml(e.message)}</div>`;
       if (alertList) alertList.innerHTML = `<div class="bigyang-empty error">加载失败：${escHtml(e.message)}</div>`;
     }
+  }
+
+  /**
+   * 异步拉取实时行情，按 stockCode 合并到 signals 上后只重渲染信号列表。
+   * 失败时保持"—"，不影响首屏展示。
+   */
+  async function loadBigYangQuotes() {
+    if (!bigYangState.signals || !bigYangState.signals.length) return;
+    try {
+      const quotes = await fetchBigYangJson(`${BIG_YANG_API}/signals/quotes`);
+      if (!Array.isArray(quotes) || quotes.length === 0) return;
+      const quoteMap = new Map(quotes.map(q => [normalizeStockCode(q.stockCode), q]));
+      bigYangState.signals = bigYangState.signals.map(s => {
+        const q = quoteMap.get(normalizeStockCode(s.stockCode));
+        if (!q) return s;
+        const currentPrice = q.currentPrice == null ? null : Number(q.currentPrice);
+        const baseStartPrice = s.baseStartPrice == null ? null : Number(s.baseStartPrice);
+        const distanceToBasePct = (currentPrice != null && baseStartPrice && baseStartPrice > 0)
+          ? (currentPrice - baseStartPrice) / baseStartPrice * 100
+          : null;
+        return {
+          ...s,
+          currentPrice,
+          currentPriceDate: q.currentPriceDate || null,
+          distanceToBasePct,
+        };
+      });
+      renderBigYangSignals();
+    } catch (e) {
+      // 静默失败：实时价拉不到就保持"—"，下次刷新再试
+      console.warn('加载大阳线实时行情失败:', e);
+    }
+  }
+
+  /** 把 000001.SZ / 000001.sz 都归一为小写 stockCode，便于 map 查询 */
+  function normalizeStockCode(code) {
+    if (!code) return '';
+    return String(code).trim().toLowerCase();
   }
 
   async function runBigYangScan() {
@@ -499,6 +657,7 @@
     const hero = document.getElementById('bigYangHeroAlert');
     const heroCount = document.getElementById('bigYangHeroCount');
     const tabBadge = document.getElementById('bigYangTabBadge');
+    // 注：bigYangHeroAlert / bigYangHeroCount 在新版布局中已被移除（hero 删了），这里安全降级
     if (hero && heroCount) {
       hero.classList.toggle('hidden', unread <= 0);
       heroCount.textContent = unread;
@@ -634,7 +793,10 @@
   ];
 
   function initPool() {
-    loadPool();
+    // 从 URL hash 恢复当前 poolType（注意：loadPool/loadPoolMeta 已由 initMainTabs → activateMainSection 触发）
+    currentPoolType = readPoolTypeFromHash() || POOL_TYPE_DEFAULT;
+    syncPoolTypeTabsUI();
+
     document.querySelectorAll('.pool-filter-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.pool-filter-btn').forEach(b => b.classList.remove('active'));
@@ -644,6 +806,24 @@
       });
     });
     initPoolSearch();
+
+    // 监听 hash 变化（用户前进/后退、手动改 URL）—— 切到一级 tab
+    window.addEventListener('hashchange', () => {
+      const next = readPoolTypeFromHash();
+      if (next && next !== currentPoolType) {
+        currentPoolType = next;
+        syncPoolTypeTabsUI();
+        // 同步 sub-tabs-wrap 显隐 + 激活默认 sub-tab
+        const sec = POOL_TO_SECTION[currentPoolType];
+        const wrap = document.querySelector(`.invest-sub-tabs-wrap[data-main-section="${sec}"]`);
+        if (wrap) {
+          const activeSub = wrap.querySelector('.invest-tab.active') || wrap.querySelector('.invest-tab');
+          if (activeSub) activateSubPanel(sec, activeSub.dataset.panel);
+        }
+        loadPool();
+        loadPoolMeta(currentPoolType);
+      }
+    });
   }
 
   function initPoolSearch() {
@@ -671,12 +851,452 @@
     const wrap = document.getElementById('poolListWrap');
     if (!wrap) return;
     try {
-      const res = await fetch('api/invest/pool');
+      const url = currentPoolType
+        ? `api/invest/pool?poolType=${encodeURIComponent(currentPoolType)}`
+        : 'api/invest/pool';
+      const res = await fetch(url);
       poolData = await res.json();
       ensurePoolSearchCache();
       renderPool();
     } catch (e) {
       wrap.innerHTML = `<div class="pool-empty">加载失败：${e.message}</div>`;
+    }
+  }
+
+  // ===== 旧 pool-type-tab 兼容：保留函数签名以避免破坏外部调用 =====
+// （DOM 上已不再有 .pool-type-tab 按钮，分类切换由一级 tab 接管）
+  function initPoolTypeTabs() {
+    // no-op: 原 .pool-type-tab 已被一级 tab 吸收
+  }
+
+  // 同步 UI 高亮：一级 tab（按 currentPoolType 决定哪个 active）
+  function syncPoolTypeTabsUI() {
+    const sec = POOL_TO_SECTION[currentPoolType];
+    if (!sec) return;
+    document.querySelectorAll('.invest-main-tab').forEach(t =>
+      t.classList.toggle('active', t.dataset.section === sec)
+    );
+    document.querySelectorAll('.invest-sub-tabs-wrap').forEach(w =>
+      w.hidden = (w.dataset.mainSection !== sec)
+    );
+  }
+
+  // 兼容两种 hash：#pool=xxx（旧）和 #section=xxx（新）
+  function readPoolTypeFromHash() {
+    const h = window.location.hash || '';
+    let m = /section=([a-z_]+)/.exec(h);
+    if (m) {
+      const sec = m[1];
+      const pool = SECTION_TO_POOL[sec];
+      if (pool) return pool;
+    }
+    m = /pool=([a-z_]+)/.exec(h);
+    if (m) {
+      const v = m[1];
+      return POOL_TYPE_ORDER.includes(v) ? v : null;
+    }
+    return null;
+  }
+
+  function writeSectionToHash(sec, sub) {
+    const newHash = '#section=' + sec + (sub ? '&sub=' + sub : '');
+    if (window.location.hash !== newHash) {
+      const url = window.location.pathname + window.location.search + newHash;
+      window.history.replaceState(null, '', url);
+    }
+  }
+
+  // 兼容旧调用：把 poolType 写成 section=
+  function writePoolTypeToHash(type) {
+    const sec = POOL_TO_SECTION[type];
+    if (sec) writeSectionToHash(sec);
+  }
+
+  // ===== 股票池元信息（封面图 / 估值方法 / 每周机会点） =====
+  async function loadPoolMeta(poolType) {
+    if (!poolType) return;
+    const titleEl = document.getElementById('poolMetaTitle');
+    const coverEl = document.getElementById('poolMetaCover');
+    const valEl = document.getElementById('poolMetaValuationHtml');
+    const weekEl = document.getElementById('poolMetaWeeklyHtml');
+    if (titleEl) titleEl.textContent = '加载中...';
+    if (valEl) valEl.innerHTML = '<div class="pool-meta-loading">加载中...</div>';
+    if (weekEl) weekEl.innerHTML = '<div class="pool-meta-loading">加载中...</div>';
+    try {
+      const res = await fetch(`api/invest/pool-meta/${encodeURIComponent(poolType)}`);
+      if (!res.ok) {
+        if (res.status === 404) {
+          currentPoolMeta = null;
+          renderPoolMetaEmpty();
+          return;
+        }
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      currentPoolMeta = data;
+      renderPoolMeta(data);
+    } catch (e) {
+      if (titleEl) titleEl.textContent = '加载失败';
+      if (valEl) valEl.innerHTML = `<div class="pool-meta-empty">加载失败：${escHtml(e.message)}</div>`;
+      if (weekEl) weekEl.innerHTML = '';
+      currentPoolMeta = null;
+    }
+  }
+
+  function renderPoolMeta(meta) {
+    const titleEl = document.getElementById('poolMetaTitle');
+    const coverEl = document.getElementById('poolMetaCover');
+    const valEl = document.getElementById('poolMetaValuationHtml');
+    const weekEl = document.getElementById('poolMetaWeeklyHtml');
+    if (!meta) {
+      renderPoolMetaEmpty();
+      return;
+    }
+    if (titleEl) titleEl.textContent = meta.displayName || POOL_TYPE_LABELS[currentPoolType] || currentPoolType;
+    if (coverEl) {
+      const url = meta.coverImageUrl || `images/pool-covers/${currentPoolType}.svg`;
+      coverEl.src = url;
+      coverEl.alt = (meta.displayName || currentPoolType) + ' 封面图';
+    }
+    if (valEl) {
+      valEl.innerHTML = meta.valuationMethodHtml
+        || '<div class="pool-meta-empty">暂无估值方法说明，点击右上角"编辑"添加。</div>';
+    }
+    if (weekEl) {
+      weekEl.innerHTML = meta.weeklyOpportunityHtml
+        || '<div class="pool-meta-empty">本周暂无更新，点击右上角"编辑"添加。</div>';
+    }
+  }
+
+  function renderPoolMetaEmpty() {
+    const titleEl = document.getElementById('poolMetaTitle');
+    const coverEl = document.getElementById('poolMetaCover');
+    const valEl = document.getElementById('poolMetaValuationHtml');
+    const weekEl = document.getElementById('poolMetaWeeklyHtml');
+    if (titleEl) titleEl.textContent = POOL_TYPE_LABELS[currentPoolType] || currentPoolType;
+    if (coverEl) coverEl.src = `images/pool-covers/${currentPoolType}.svg`;
+    if (valEl) valEl.innerHTML = '<div class="pool-meta-empty">暂无元信息，点击右上角"编辑"添加。</div>';
+    if (weekEl) weekEl.innerHTML = '';
+  }
+
+  // ===== 股票池元信息编辑弹窗 =====
+  let poolMetaUploadInFlight = false;
+
+  function initPoolMetaModal() {
+    const editBtn = document.getElementById('poolMetaEditBtn');
+    if (editBtn) editBtn.addEventListener('click', openPoolMetaModal);
+
+    document.getElementById('poolMetaModalClose')?.addEventListener('click', closePoolMetaModal);
+    document.getElementById('poolMetaModalCancel')?.addEventListener('click', closePoolMetaModal);
+    document.getElementById('poolMetaModalSave')?.addEventListener('click', savePoolMetaModal);
+    document.getElementById('poolMetaModalMask')?.addEventListener('click', e => {
+      if (e.target === e.currentTarget) closePoolMetaModal();
+    });
+
+    const coverBtn = document.getElementById('poolMetaModalCoverBtn');
+    const coverFile = document.getElementById('poolMetaModalCoverFile');
+    if (coverBtn && coverFile) {
+      coverBtn.addEventListener('click', () => coverFile.click());
+      coverFile.addEventListener('change', e => {
+        const f = e.target.files && e.target.files[0];
+        if (f) uploadPoolMetaCover(f);
+      });
+    }
+  }
+
+  function openPoolMetaModal() {
+    if (!canManageInvest()) {
+      alert('需要 MANAGER/ADMIN 权限');
+      return;
+    }
+    const titleEl = document.getElementById('poolMetaModalTitle');
+    if (titleEl) titleEl.textContent = `编辑「${POOL_TYPE_LABELS[currentPoolType] || currentPoolType}」说明`;
+
+    // 优先用当前缓存；没有则用占位
+    const meta = currentPoolMeta || {};
+    document.getElementById('poolMetaModalValuationMd').value = meta.valuationMethodMd || '';
+    document.getElementById('poolMetaModalWeeklyMd').value = meta.weeklyOpportunityMd || '';
+    const preview = document.getElementById('poolMetaModalCoverPreview');
+    const url = meta.coverImageUrl || `images/pool-covers/${currentPoolType}.svg`;
+    if (preview) preview.src = url;
+    const status = document.getElementById('poolMetaModalCoverStatus');
+    if (status) { status.textContent = ''; status.className = 'pool-meta-cover-status'; }
+    document.getElementById('poolMetaModalCoverFile').value = '';
+
+    document.getElementById('poolMetaModalMask').classList.remove('hidden');
+  }
+
+  function closePoolMetaModal() {
+    document.getElementById('poolMetaModalMask').classList.add('hidden');
+  }
+
+  async function uploadPoolMetaCover(file) {
+    if (!canManageInvest()) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setPoolMetaCoverStatus('图片大小不能超过 10MB', 'error');
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      setPoolMetaCoverStatus('请选择图片文件', 'error');
+      return;
+    }
+    setPoolMetaCoverStatus('上传中...', '');
+    poolMetaUploadInFlight = true;
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch(`api/invest/pool-meta/${encodeURIComponent(currentPoolType)}/cover-image`, {
+        method: 'POST',
+        headers: (GPAuth.headers && GPAuth.headers()) || {},
+        body: formData,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      const url = data.coverImageUrl || data.cover_image_url;
+      if (!url) throw new Error('服务端未返回 coverImageUrl');
+      const preview = document.getElementById('poolMetaModalCoverPreview');
+      if (preview) preview.src = url;
+      // 同步更新缓存
+      currentPoolMeta = currentPoolMeta || {};
+      currentPoolMeta.coverImageUrl = url;
+      setPoolMetaCoverStatus('✓ 上传成功', 'success');
+    } catch (e) {
+      setPoolMetaCoverStatus('✗ ' + e.message, 'error');
+    } finally {
+      poolMetaUploadInFlight = false;
+    }
+  }
+
+  function setPoolMetaCoverStatus(text, tone) {
+    const el = document.getElementById('poolMetaModalCoverStatus');
+    if (!el) return;
+    el.textContent = text || '';
+    el.className = 'pool-meta-cover-status' + (tone ? ' ' + tone : '');
+  }
+
+  // ===== 每周机会点（3×3 卡片） =====
+  let weeklyOppCache = new Map(); // poolType -> SlotDTO[9]
+
+  async function loadWeeklyOpportunity(poolType) {
+    if (!poolType) return;
+    const grid = document.getElementById('weeklyOppGrid');
+    const count = document.getElementById('weeklyOppCount');
+    if (grid) grid.innerHTML = '<div class="pool-meta-loading">加载中...</div>';
+    if (count) count.textContent = '—/9';
+    try {
+      const res = await fetch(`api/invest/weekly-opportunity/${encodeURIComponent(poolType)}`);
+      if (!res.ok) {
+        if (res.status === 404) {
+          weeklyOppCache.set(poolType, emptySlots());
+          renderWeeklyOpportunity(poolType);
+          return;
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      // 补齐到 9 个（后端已保证 9 个，防御一下）
+      const slots = (Array.isArray(data) ? data : []).slice(0, 9);
+      while (slots.length < 9) slots.push({ poolType, slotIndex: slots.length, stockCode: null, stockName: null, reason: null, updatedAt: null });
+      weeklyOppCache.set(poolType, slots);
+      renderWeeklyOpportunity(poolType);
+    } catch (e) {
+      if (grid) grid.innerHTML = `<div class="pool-meta-empty">加载失败：${escHtml(e.message)}</div>`;
+      if (count) count.textContent = '0/9';
+    }
+  }
+
+  function emptySlots() {
+    return Array.from({ length: 9 }, (_, i) => ({
+      poolType: '', slotIndex: i, stockCode: null, stockName: null, reason: null, updatedAt: null,
+    }));
+  }
+
+  function renderWeeklyOpportunity(poolType) {
+    const grid = document.getElementById('weeklyOppGrid');
+    const count = document.getElementById('weeklyOppCount');
+    const slots = weeklyOppCache.get(poolType) || emptySlots();
+    const filled = slots.filter(s => s.stockCode).length;
+    if (count) count.textContent = `${filled}/9`;
+
+    if (!grid) return;
+    grid.innerHTML = slots.map((s, i) => {
+      if (!s.stockCode) {
+        return `<div class="weekly-opp-cell is-empty" data-idx="${i}">·</div>`;
+      }
+      const stock = poolData.find(p => p.stockCode === s.stockCode);
+      const level = stock ? inferValuationRange(stock) : '';
+      const levelLabel = level === '低估' ? '低估' : level === '泡沫' ? '高估' : level === '合理' ? '合理' : '';
+      const lvlClass = level === '低估' ? 'low' : level === '泡沫' ? 'high' : level === '合理' ? 'fair' : '';
+      const ts = s.updatedAt;
+      const freshCls = ts && isFreshUpdate(ts) ? 'is-fresh' : (ts && isStaleUpdate(ts) ? 'is-stale' : '');
+      const tsText = ts ? `${formatDateTimeShort(ts)} · ${agoText(parseBackendDate(ts))}` : '尚未更新';
+      return `
+        <div class="weekly-opp-cell" data-idx="${i}">
+          <div class="weekly-opp-cell-name">${escHtml(s.stockName || s.stockCode)}${levelLabel ? ` <span class="lvl ${lvlClass}">(${levelLabel})</span>` : ''}</div>
+          <div class="weekly-opp-cell-reason">${escHtml(s.reason || '')}</div>
+          <div class="weekly-opp-cell-time ${freshCls}">
+            <span class="dot"></span>${tsText}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // 管理按钮：仅 admin/manager 可见
+    const editBtn = document.getElementById('weeklyOppEditBtn');
+    if (editBtn) {
+      editBtn.classList.toggle('hidden', !canManageInvest());
+    }
+  }
+
+  // 时间格式化工具
+  function formatDateTimeShort(iso) {
+    if (!iso) return '';
+    // 后端返回形如 "2026-06-29T21:30:00" 或 "2026-06-29 21:30:00"
+    return String(iso).replace('T', ' ').slice(5, 16);
+  }
+  function parseBackendDate(iso) {
+    if (!iso) return new Date(0);
+    return new Date(String(iso).replace(' ', 'T'));
+  }
+  function isFreshUpdate(iso) {
+    return (Date.now() - parseBackendDate(iso).getTime()) <= 48 * 3600 * 1000;
+  }
+  function isStaleUpdate(iso) {
+    return (Date.now() - parseBackendDate(iso).getTime()) > 168 * 3600 * 1000;
+  }
+  function agoText(date) {
+    const h = (Date.now() - date.getTime()) / 3600000;
+    if (h < 1) return '刚刚';
+    if (h < 24) return Math.floor(h) + ' 小时前';
+    if (h < 168) return Math.floor(h / 24) + ' 天前';
+    if (h < 720) return Math.floor(h / 24 / 7) + ' 周前';
+    return Math.floor(h / 24 / 30) + ' 月前';
+  }
+
+  // 管理弹窗
+  function openWeeklyOpportunityModal() {
+    const slots = weeklyOppCache.get(currentPoolType) || emptySlots();
+    const html = slots.map((s, i) => {
+      const opts = poolData
+        .filter(p => p.poolType === currentPoolType || !p.poolType)
+        .map(p => `<option value="${escHtml(p.stockCode)}" ${p.stockCode === s.stockCode ? 'selected' : ''}>${escHtml(p.stockName || p.stockCode)} (${escHtml(p.stockCode)})</option>`)
+        .join('');
+      return `
+        <div class="slot-row">
+          <div class="slot-no">#${i + 1}</div>
+          <select data-idx="${i}">
+            <option value="">— 空 —</option>
+            ${opts}
+          </select>
+          <input type="text" data-reason="${i}" maxlength="80" placeholder="推荐理由（1-2 句话）" value="${escHtml(s.reason || '')}" />
+          <button type="button" class="slot-clear" data-clear="${i}">清空</button>
+        </div>
+      `;
+    }).join('');
+    const body = document.getElementById('weeklyOppModalBody');
+    if (body) body.innerHTML = html;
+    body.querySelectorAll('button[data-clear]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const i = btn.dataset.clear;
+        body.querySelector(`select[data-idx="${i}"]`).value = '';
+        body.querySelector(`input[data-reason="${i}"]`).value = '';
+      });
+    });
+    document.getElementById('weeklyOppModalTitle').textContent = `管理 9 格 · ${POOL_TYPE_LABELS[currentPoolType] || currentPoolType}`;
+    document.getElementById('weeklyOppModalMask').classList.remove('hidden');
+  }
+  function closeWeeklyOpportunityModal() {
+    document.getElementById('weeklyOppModalMask').classList.add('hidden');
+  }
+  async function saveWeeklyOpportunityModal() {
+    const body = document.getElementById('weeklyOppModalBody');
+    const items = [];
+    body.querySelectorAll('select[data-idx]').forEach(sel => {
+      const i = sel.dataset.idx;
+      const reasonEl = body.querySelector(`input[data-reason="${i}"]`);
+      items.push({
+        slotIndex: parseInt(i, 10),
+        stockCode: sel.value || null,
+        reason: reasonEl ? (reasonEl.value || '').trim() || null : null,
+      });
+    });
+    const btn = document.getElementById('weeklyOppModalSave');
+    btn.disabled = true; btn.textContent = '保存中...';
+    try {
+      const res = await fetch(`api/invest/weekly-opportunity/${encodeURIComponent(currentPoolType)}`, {
+        method: 'PUT',
+        headers: authJsonHeaders(),
+        body: JSON.stringify({ slots: items }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || `HTTP ${res.status}`);
+      }
+      // 刷新缓存
+      weeklyOppCache.set(currentPoolType, items.map((it, i) => ({
+        poolType: currentPoolType, slotIndex: i,
+        stockCode: it.stockCode, stockName: null, reason: it.reason, updatedAt: new Date().toISOString(),
+      })));
+      renderWeeklyOpportunity(currentPoolType);
+      closeWeeklyOpportunityModal();
+    } catch (e) {
+      alert('保存失败：' + e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = '保存';
+    }
+  }
+
+  function initWeeklyOpportunity() {
+    const editBtn = document.getElementById('weeklyOppEditBtn');
+    if (editBtn) editBtn.addEventListener('click', openWeeklyOpportunityModal);
+    const closeBtn = document.getElementById('weeklyOppModalClose');
+    if (closeBtn) closeBtn.addEventListener('click', closeWeeklyOpportunityModal);
+    const cancelBtn = document.getElementById('weeklyOppModalCancel');
+    if (cancelBtn) cancelBtn.addEventListener('click', closeWeeklyOpportunityModal);
+    const saveBtn = document.getElementById('weeklyOppModalSave');
+    if (saveBtn) saveBtn.addEventListener('click', saveWeeklyOpportunityModal);
+    const mask = document.getElementById('weeklyOppModalMask');
+    if (mask) mask.addEventListener('click', e => { if (e.target === mask) closeWeeklyOpportunityModal(); });
+  }
+
+  async function savePoolMetaModal() {
+    if (!canManageInvest()) { alert('需要 MANAGER/ADMIN 权限'); return; }
+    if (poolMetaUploadInFlight) {
+      alert('封面图正在上传中，请稍候再点保存');
+      return;
+    }
+    const valuationMd = document.getElementById('poolMetaModalValuationMd').value;
+    const weeklyMd = document.getElementById('poolMetaModalWeeklyMd').value;
+    const btn = document.getElementById('poolMetaModalSave');
+    btn.disabled = true;
+    btn.textContent = '保存中...';
+    try {
+      const res = await fetch(`api/invest/pool-meta/${encodeURIComponent(currentPoolType)}`, {
+        method: 'PUT',
+        headers: authJsonHeaders(),
+        body: JSON.stringify({
+          displayName: POOL_TYPE_LABELS[currentPoolType] || currentPoolType,
+          valuationMethodMd: valuationMd,
+          weeklyOpportunityMd: weeklyMd,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      currentPoolMeta = data;
+      renderPoolMeta(data);
+      closePoolMetaModal();
+    } catch (e) {
+      alert('保存失败：' + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '保存';
     }
   }
 

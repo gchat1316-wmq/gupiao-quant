@@ -15,8 +15,8 @@
       <a href="prosperity-strong.html" class="nav-link" data-match="prosperity-strong.html">热点强势选股</a>
       <a href="industry-research.html" class="nav-link" data-match="industry-research.html">产业投研</a>
       <a href="tech-ai.html" class="nav-link" data-match="tech-ai.html">AI监控</a>
-      <a href="potential.html" class="nav-link" data-match="potential.html">潜力监控</a>
       <a href="xiebo-invest.html" class="nav-link" data-match="xiebo-invest.html">林奇投资</a>
+      <a href="position-management.html" class="nav-link" data-match="position-management.html">仓位管理</a>
       <a href="study.html" class="nav-link" data-match="study.html,course.html,node.html,card.html,quiz.html">学习搭子</a>
     </nav>
     <div class="skin-switch" id="skinSwitch" data-skin="tech">
@@ -40,7 +40,7 @@
     <div id="authArea" class="auth-area">
       <button id="authLoginBtn" class="auth-btn auth-btn-login" type="button">登录</button>
       <div id="authUser" class="auth-user hidden">
-        <a id="authProfileBtn" href="profile.html" class="auth-btn auth-btn-profile" type="button">👤 个人中心</a>
+        <a id="authProfileBtn" href="profile.html" class="auth-btn auth-btn-profile" type="button" aria-label="个人中心" title="个人中心">👤</a>
         <a id="authAdminBtn" href="admin-users.html" class="auth-btn auth-btn-admin hidden" type="button">⚙️ 管理后台</a>
         <span id="authUsername" class="auth-username"></span>
         <span id="authRole" class="auth-role"></span>
@@ -58,16 +58,86 @@
       <button id="authModalClose" class="modal-close" type="button" aria-label="关闭">×</button>
     </div>
     <div class="auth-tabs" role="tablist">
-      <button id="authTabScan" class="auth-tab is-active" type="button" role="tab"
-              aria-selected="true" data-tab="scan">微信扫码登录</button>
+      <button id="authTabPhone" class="auth-tab is-active" type="button" role="tab"
+              aria-selected="true" data-tab="phone">手机号</button>
+      <button id="authTabEmailPwd" class="auth-tab" type="button" role="tab"
+              aria-selected="false" data-tab="emailPwd">邮箱</button>
+      <button id="authTabEmailCode" class="auth-tab" type="button" role="tab"
+              aria-selected="false" data-tab="emailCode">邮箱码</button>
+      <button id="authTabScan" class="auth-tab" type="button" role="tab"
+              aria-selected="false" data-tab="scan">微信</button>
       <button id="authTabCode" class="auth-tab" type="button" role="tab"
               aria-selected="false" data-tab="code">登录码</button>
     </div>
     <div class="modal-body">
       <div id="authError" class="auth-error hidden"></div>
 
+      <!-- ============== 手机号 + 验证码 ============== -->
+      <div id="authPanePhone" class="auth-pane" role="tabpanel">
+        <div class="form-group">
+          <label for="authPhoneInput">手机号</label>
+          <input id="authPhoneInput" class="form-input" type="tel"
+                 placeholder="11 位手机号" maxlength="11" autocomplete="tel" />
+        </div>
+        <div class="form-group">
+          <label for="authPhoneCodeInput">验证码</label>
+          <div class="auth-code-row">
+            <input id="authPhoneCodeInput" class="form-input auth-code-input" type="text"
+                   placeholder="6 位数字" maxlength="6" inputmode="numeric" autocomplete="one-time-code" />
+            <button id="authPhoneSendBtn" class="auth-send-btn" type="button">发送验证码</button>
+          </div>
+        </div>
+        <button id="authPhoneSubmitBtn" class="primary-btn wide" type="button">登录 / 注册</button>
+        <p class="auth-foot-note">首次验证即自动注册为 USER 账号。</p>
+        <p class="auth-foot-note">
+          已有密码？
+          <button id="authPhoneGotoPwd" class="auth-link-btn inline" type="button">去邮箱登录</button>
+          · <button id="authPhoneForgot" class="auth-link-btn inline" type="button">忘记密码</button>
+        </p>
+      </div>
+
+      <!-- ============== 邮箱 + 密码 ============== -->
+      <div id="authPaneEmailPwd" class="auth-pane hidden" role="tabpanel">
+        <div class="form-group">
+          <label for="authEmailInput">邮箱</label>
+          <input id="authEmailInput" class="form-input" type="email"
+                 placeholder="example@mail.com" autocomplete="email" spellcheck="false" />
+        </div>
+        <div class="form-group">
+          <label for="authEmailPwdInput">密码</label>
+          <input id="authEmailPwdInput" class="form-input" type="password"
+                 placeholder="8 位以上密码" autocomplete="current-password" maxlength="64" />
+        </div>
+        <button id="authEmailPwdLoginBtn" class="primary-btn wide" type="button">登录</button>
+        <p class="auth-foot-note">
+          没有账号？<button id="authEmailPwdGotoRegister" class="auth-link-btn inline" type="button">用邮箱+验证码注册/登录</button>
+        </p>
+        <p class="auth-foot-note">
+          <button id="authEmailPwdForgot" class="auth-link-btn inline" type="button">忘记密码？</button>
+        </p>
+      </div>
+
+      <!-- ============== 邮箱 + 验证码 ============== -->
+      <div id="authPaneEmailCode" class="auth-pane hidden" role="tabpanel">
+        <div class="form-group">
+          <label for="authEmailCodeAddr">邮箱</label>
+          <input id="authEmailCodeAddr" class="form-input" type="email"
+                 placeholder="example@mail.com" autocomplete="email" spellcheck="false" />
+        </div>
+        <div class="form-group">
+          <label for="authEmailCodeInput">验证码</label>
+          <div class="auth-code-row">
+            <input id="authEmailCodeInput" class="form-input auth-code-input" type="text"
+                   placeholder="6 位数字" maxlength="6" inputmode="numeric" autocomplete="one-time-code" />
+            <button id="authEmailCodeSendBtn" class="auth-send-btn" type="button">发送验证码</button>
+          </div>
+        </div>
+        <button id="authEmailCodeSubmitBtn" class="primary-btn wide" type="button">登录 / 注册</button>
+        <p class="auth-foot-note">首次验证即自动注册为 USER 账号。</p>
+      </div>
+
       <!-- ============== 微信扫码面板 ============== -->
-      <div id="authPaneScan" class="auth-pane" role="tabpanel">
+      <div id="authPaneScan" class="auth-pane hidden" role="tabpanel">
         <div id="authScanLoading" class="auth-scan-loading">
           <div class="auth-spinner"></div>
           <p>正在加载二维码…</p>
@@ -104,6 +174,72 @@
         </div>
         <button id="authSubmitBtn" class="primary-btn wide" type="button">确认登录</button>
         <p class="auth-foot-note">登录码仅供管理员/经理使用，由系统管理员后台生成。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 忘记密码弹窗 -->
+<div id="forgotModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="forgotModalTitle">
+  <div class="modal-box modal-box-auth">
+    <div class="modal-header">
+      <span id="forgotModalTitle" class="modal-title">重置密码</span>
+      <button id="forgotModalClose" class="modal-close" type="button" aria-label="关闭">×</button>
+    </div>
+    <div class="auth-tabs" role="tablist">
+      <button id="forgotTabPhone" class="auth-tab is-active" type="button" role="tab"
+              aria-selected="true" data-tab="phone">手机号重置</button>
+      <button id="forgotTabEmail" class="auth-tab" type="button" role="tab"
+              aria-selected="false" data-tab="email">邮箱重置</button>
+    </div>
+    <div class="modal-body">
+      <div id="forgotError" class="auth-error hidden"></div>
+      <div id="forgotMessage" class="auth-success hidden"></div>
+
+      <!-- ============== 手机号重置 ============== -->
+      <div id="forgotPanePhone" class="auth-pane" role="tabpanel">
+        <div class="form-group">
+          <label for="forgotPhoneInput">手机号</label>
+          <input id="forgotPhoneInput" class="form-input" type="tel"
+                 placeholder="11 位手机号" maxlength="11" autocomplete="tel" />
+        </div>
+        <div class="form-group">
+          <label for="forgotPhoneCodeInput">验证码</label>
+          <div class="auth-code-row">
+            <input id="forgotPhoneCodeInput" class="form-input auth-code-input" type="text"
+                   placeholder="6 位数字" maxlength="6" inputmode="numeric" autocomplete="one-time-code" />
+            <button id="forgotPhoneSendBtn" class="auth-send-btn" type="button">发送验证码</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="forgotPhoneNewPwd">新密码</label>
+          <input id="forgotPhoneNewPwd" class="form-input" type="password"
+                 placeholder="8 位以上新密码" autocomplete="new-password" maxlength="64" />
+        </div>
+        <button id="forgotPhoneSubmitBtn" class="primary-btn wide" type="button">重置密码</button>
+      </div>
+
+      <!-- ============== 邮箱重置 ============== -->
+      <div id="forgotPaneEmail" class="auth-pane hidden" role="tabpanel">
+        <div class="form-group">
+          <label for="forgotEmailInput">邮箱</label>
+          <input id="forgotEmailInput" class="form-input" type="email"
+                 placeholder="example@mail.com" autocomplete="email" spellcheck="false" />
+        </div>
+        <div class="form-group">
+          <label for="forgotEmailCodeInput">验证码</label>
+          <div class="auth-code-row">
+            <input id="forgotEmailCodeInput" class="form-input auth-code-input" type="text"
+                   placeholder="6 位数字" maxlength="6" inputmode="numeric" autocomplete="one-time-code" />
+            <button id="forgotEmailSendBtn" class="auth-send-btn" type="button">发送验证码</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="forgotEmailNewPwd">新密码</label>
+          <input id="forgotEmailNewPwd" class="form-input" type="password"
+                 placeholder="8 位以上新密码" autocomplete="new-password" maxlength="64" />
+        </div>
+        <button id="forgotEmailSubmitBtn" class="primary-btn wide" type="button">重置密码</button>
       </div>
     </div>
   </div>

@@ -5,8 +5,10 @@ import com.quant.dto.invest.SopCheckupDTO;
 import com.quant.repository.UserRepository;
 import com.quant.security.JwtTokenProvider;
 import com.quant.service.InvestService;
+import com.quant.service.InvestPoolMetaService;
 import com.quant.service.InvestPoolRefreshService;
 import com.quant.service.InvestPoolSeedService;
+import com.quant.service.InvestWeeklyOpportunityService;
 import com.quant.service.OcrPoolImportService;
 import com.quant.service.PriceMonitorService;
 import org.junit.jupiter.api.DisplayName;
@@ -35,6 +37,8 @@ class InvestControllerSopTest {
     @MockBean  PriceMonitorService priceMonitorService;
     @MockBean  InvestPoolSeedService investPoolSeedService;
     @MockBean  InvestPoolRefreshService investPoolRefreshService;
+    @MockBean  InvestPoolMetaService poolMetaService;
+    @MockBean  InvestWeeklyOpportunityService weeklyOpportunityService;
     @MockBean  JwtTokenProvider jwtTokenProvider;
     @MockBean  UserRepository userRepository;
 

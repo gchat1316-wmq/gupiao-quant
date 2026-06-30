@@ -1,9 +1,7 @@
 package com.quant.service.techai;
 
 import com.quant.dto.techai.StrategyLevelDTO;
-import com.quant.entity.InvestStockPool;
-import com.quant.entity.PotentialPool;
-import com.quant.entity.TechAiPool;
+import com.quant.entity.InvestPositionCommon;
 import lombok.Builder;
 import lombok.Getter;
 import org.springframework.stereotype.Component;
@@ -47,68 +45,51 @@ public class TechAiPositionEngine {
         private final BigDecimal stopPrice;
         private final BigDecimal targetSellPrice;
         private final Integer takeProfitDone;
+
+        /** 返回以 targetSellPrice 覆盖后的副本。 */
+        public PoolView withTargetSellPrice(BigDecimal override) {
+            return PoolView.builder()
+                    .positionLots(this.positionLots)
+                    .avgCost(this.avgCost)
+                    .useAtr(this.useAtr)
+                    .entryPrice(this.entryPrice)
+                    .lastAddPrice(this.lastAddPrice)
+                    .peakPrice(this.peakPrice)
+                    .addSizeSchedule(this.addSizeSchedule)
+                    .addCount(this.addCount)
+                    .maxLots(this.maxLots)
+                    .atrAddMult(this.atrAddMult)
+                    .addStepPct(this.addStepPct)
+                    .atrTrailMult(this.atrTrailMult)
+                    .trailPct(this.trailPct)
+                    .stopPrice(this.stopPrice)
+                    .targetSellPrice(override)
+                    .takeProfitDone(this.takeProfitDone)
+                    .build();
+        }
     }
 
-    public static PoolView from(InvestStockPool p) {
+    /**
+     * 从统一持仓状态表构建 PoolView（三池共用）。
+     */
+    public static PoolView from(InvestPositionCommon pos) {
         return PoolView.builder()
-                .positionLots(p.getPositionLots())
-                .avgCost(p.getAvgCost())
-                .useAtr(p.getUseAtr())
-                .entryPrice(p.getEntryPrice())
-                .lastAddPrice(p.getLastAddPrice())
-                .peakPrice(p.getPeakPrice())
-                .addSizeSchedule(p.getAddSizeSchedule())
-                .addCount(p.getAddCount())
-                .maxLots(p.getMaxLots())
-                .atrAddMult(p.getAtrAddMult())
-                .addStepPct(p.getAddStepPct())
-                .atrTrailMult(p.getAtrTrailMult())
-                .trailPct(p.getTrailPct())
-                .stopPrice(p.getStopPrice())
-                .targetSellPrice(p.getTargetSellPrice())
-                .takeProfitDone(p.getTakeProfitDone())
-                .build();
-    }
-
-    public static PoolView from(PotentialPool p) {
-        return PoolView.builder()
-                .positionLots(p.getPositionLots())
-                .avgCost(p.getAvgCost())
-                .useAtr(p.getUseAtr())
-                .entryPrice(p.getEntryPrice())
-                .lastAddPrice(p.getLastAddPrice())
-                .peakPrice(p.getPeakPrice())
-                .addSizeSchedule(p.getAddSizeSchedule())
-                .addCount(p.getAddCount())
-                .maxLots(p.getMaxLots())
-                .atrAddMult(p.getAtrAddMult())
-                .addStepPct(p.getAddStepPct())
-                .atrTrailMult(p.getAtrTrailMult())
-                .trailPct(p.getTrailPct())
-                .stopPrice(p.getStopPrice())
-                .targetSellPrice(p.getTargetSellPrice())
-                .takeProfitDone(p.getTakeProfitDone())
-                .build();
-    }
-
-    public static PoolView from(TechAiPool p) {
-        return PoolView.builder()
-                .positionLots(p.getPositionLots())
-                .avgCost(p.getAvgCost())
-                .useAtr(p.getUseAtr())
-                .entryPrice(p.getEntryPrice())
-                .lastAddPrice(p.getLastAddPrice())
-                .peakPrice(p.getPeakPrice())
-                .addSizeSchedule(p.getAddSizeSchedule())
-                .addCount(p.getAddCount())
-                .maxLots(p.getMaxLots())
-                .atrAddMult(p.getAtrAddMult())
-                .addStepPct(p.getAddStepPct())
-                .atrTrailMult(p.getAtrTrailMult())
-                .trailPct(p.getTrailPct())
-                .stopPrice(p.getStopPrice())
-                .targetSellPrice(p.getTargetSellPrice())
-                .takeProfitDone(p.getTakeProfitDone())
+                .positionLots(pos.getPositionLots())
+                .avgCost(pos.getAvgCost())
+                .useAtr(pos.getUseAtr())
+                .entryPrice(pos.getEntryPrice())
+                .lastAddPrice(pos.getLastAddPrice())
+                .peakPrice(pos.getPeakPrice())
+                .addSizeSchedule(pos.getAddSizeSchedule())
+                .addCount(pos.getAddCount())
+                .maxLots(pos.getMaxLots())
+                .atrAddMult(pos.getAtrAddMult())
+                .addStepPct(pos.getAddStepPct())
+                .atrTrailMult(pos.getAtrTrailMult())
+                .trailPct(pos.getTrailPct())
+                .stopPrice(pos.getStopPrice())
+                .targetSellPrice(pos.getTargetSellPrice())
+                .takeProfitDone(pos.getTakeProfitDone())
                 .build();
     }
 
@@ -126,19 +107,9 @@ public class TechAiPositionEngine {
         private String pendingSignal;
     }
 
-    /** 兼容旧调用（InvestStockPool），内部转 PoolView。 */
-    public PositionPlan evaluate(InvestStockPool p, BigDecimal price, BigDecimal atr) {
-        return evaluate(from(p), price, atr);
-    }
-
-    /** 兼容 PotentialPool 调用。 */
-    public PositionPlan evaluate(PotentialPool p, BigDecimal price, BigDecimal atr) {
-        return evaluate(from(p), price, atr);
-    }
-
-    /** 兼容 TechAiPool 调用。 */
-    public PositionPlan evaluate(TechAiPool p, BigDecimal price, BigDecimal atr) {
-        return evaluate(from(p), price, atr);
+    /** 从 InvestPositionCommon 计算（推荐入口）。 */
+    public PositionPlan evaluate(InvestPositionCommon pos, BigDecimal price, BigDecimal atr) {
+        return evaluate(from(pos), price, atr);
     }
 
     /** 核心计算方法，仅依赖 PoolView。 */

@@ -3,6 +3,7 @@ package com.quant.controller;
 import com.quant.dto.invest.ProsperityPickRecentDTO;
 import com.quant.dto.invest.ProsperityPickResultDTO;
 import com.quant.service.ProsperityPickService;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -48,6 +49,7 @@ public class ProsperityPickController {
 
     /** 异步生成信息图（懒生成） */
     @PostMapping("/{id}/infographic")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public Map<String, String> infographic(@PathVariable Long id) {
         String url = service.generateInfographic(id);
         return Map.of("imageUrl", url);
