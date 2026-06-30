@@ -70,6 +70,8 @@ public class TechAiService {
     private final AStockDataQuoteService aStockDataQuoteService;
     private final NotificationService notificationService;
     private final NotificationProperties notificationProperties;
+    /** 2026-06-30 Monitor Fusion — 用于在每次 schedule 中追加评估固定价/ATR/止盈止损 */
+    private final com.quant.service.monitor.MonitorService monitorService;
 
     public TechAiService(TechAiPoolRepository poolRepository,
                          TechAiPositionFillRepository fillRepository,
@@ -83,7 +85,8 @@ public class TechAiService {
                          TechAiAtrCalculator atrCalculator,
                          AStockDataQuoteService aStockDataQuoteService,
                          NotificationService notificationService,
-                         NotificationProperties notificationProperties) {
+                         NotificationProperties notificationProperties,
+                         com.quant.service.monitor.MonitorService monitorService) {
         this.poolRepository = poolRepository;
         this.fillRepository = fillRepository;
         this.basicRepository = basicRepository;
@@ -97,6 +100,7 @@ public class TechAiService {
         this.aStockDataQuoteService = aStockDataQuoteService;
         this.notificationService = notificationService;
         this.notificationProperties = notificationProperties;
+        this.monitorService = monitorService;
     }
 
     /**
@@ -329,6 +333,12 @@ public class TechAiService {
         }
         if (triggered > 0) {
             log.info("短线AI行情监控触发 {} 条告警", triggered);
+        }
+        // 2026-06-30 Monitor Fusion: 追加评估固定价/ATR/止盈止损 (不同 signal type，与既有 % 提醒并存)
+        try {
+            triggered += monitorService.scan(POOL_TYPE_TECH_AI);
+        } catch (Exception e) {
+            log.warn("MonitorService.scan 异常（忽略）: {}", e.getMessage());
         }
         return triggered;
     }

@@ -75,6 +75,8 @@ public class PotentialService {
     private final BaostockMinuteQuoteService baostockMinuteQuoteService;
     private final NotificationService notificationService;
     private final NotificationProperties notificationProperties;
+    /** 2026-06-30 Monitor Fusion — 用于在每次 schedule 中追加评估固定价/ATR/止盈止损 */
+    private final com.quant.service.monitor.MonitorService monitorService;
 
     public PotentialService(PotentialPoolRepository poolRepository,
                             PotentialPositionFillRepository fillRepository,
@@ -93,7 +95,8 @@ public class PotentialService {
                             EastMoneyRealtimeQuoteService eastMoneyRealtimeQuoteService,
                             BaostockMinuteQuoteService baostockMinuteQuoteService,
                             NotificationService notificationService,
-                            NotificationProperties notificationProperties) {
+                            NotificationProperties notificationProperties,
+                            com.quant.service.monitor.MonitorService monitorService) {
         this.poolRepository = poolRepository;
         this.fillRepository = fillRepository;
         this.positionRepository = positionRepository;
@@ -112,6 +115,7 @@ public class PotentialService {
         this.baostockMinuteQuoteService = baostockMinuteQuoteService;
         this.notificationService = notificationService;
         this.notificationProperties = notificationProperties;
+        this.monitorService = monitorService;
     }
 
     @Transactional(readOnly = true)
@@ -354,6 +358,12 @@ public class PotentialService {
         }
         if (triggered > 0) {
             log.info("潜力监控行情监控触发 {} 条告警", triggered);
+        }
+        // 2026-06-30 Monitor Fusion: 追加评估固定价/ATR/止盈止损 (与既有 % 提醒并存，signal type 不同)
+        try {
+            triggered += monitorService.scan(POOL_TYPE_POTENTIAL);
+        } catch (Exception e) {
+            log.warn("MonitorService.scan 异常（忽略）: {}", e.getMessage());
         }
         return triggered;
     }
