@@ -48,17 +48,15 @@ class JournalTradeMappingTest {
     @Test
     @DisplayName("isOpen 默认值为 1")
     void isOpenHasDefaultOne() throws Exception {
-        Field field = JournalTrade.class.getDeclaredField("isOpen");
-        Column col = field.getAnnotation(Column.class);
-        // Default value is set in-field, not via Column annotation
-        assertThat(field.getType()).isEqualTo(Integer.class);
+        var t = new JournalTrade();
+        assertThat(t.getIsOpen()).isEqualTo(Integer.valueOf(1));
     }
 
     @Test
     @DisplayName("isDeleted 默认值为 0")
     void isDeletedHasDefaultZero() throws Exception {
-        Field field = JournalTrade.class.getDeclaredField("isDeleted");
-        assertThat(field.getType()).isEqualTo(Integer.class);
+        var t = new JournalTrade();
+        assertThat(t.getIsDeleted()).isEqualTo(Integer.valueOf(0));
     }
 
     @Test
