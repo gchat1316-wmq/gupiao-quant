@@ -61,6 +61,8 @@ public class SchemaInitializer implements CommandLineRunner {
         ensureXieboWeeklyOpportunitySlotTable();
         ensureInvestPositionCommon();
         ensureMonitorFusionColumns();
+        ensureInvestQuoteTable();
+        ensureJournalTables();
     }
 
     // ── 认证相关表 ───────────────────────────────────────
@@ -838,7 +840,7 @@ public class SchemaInitializer implements CommandLineRunner {
                 INSERT INTO invest_pool_meta
                   (pool_type, display_name, cover_image_url, valuation_method_md, weekly_opportunity_md, display_order)
                 VALUES
-                  ('tech_vc', '科技AI', 'images/pool-covers/tech_ai.svg', '### 10 倍 PS 市值法\n\n合理市值 = 预测营收 × 10\n\n- 当前市值 ≤ Y1 × 10：低估\n- 当前市值介于 Y1×10 ~ Y2×10：合理\n- 当前市值 ≥ Y2 × 10：泡沫\n\n适用于净利率接近 25% 的高科技成长股。', '本周暂无更新', 1),
+                  ('tech_vc', '科技AI', 'images/pool-covers/tech-ai.png', '### 10 倍 PS 市值法\n\n合理市值 = 预测营收 × 10\n\n- 当前市值 ≤ Y1 × 10：低估\n- 当前市值介于 Y1×10 ~ Y2×10：合理\n- 当前市值 ≥ Y2 × 10：泡沫\n\n适用于净利率接近 25% 的高科技成长股。', '本周暂无更新', 1),
                   ('innovative_drug', '创新药', 'images/pool-covers/innovative_drug.svg', '### 创新药估值方法\n\n按 III 期管线 NPV 加总。\n\n待补充：\n- 风险调整成功率 (POS)\n- 上市峰值销售 (Peak Sales)\n- 净利率假设\n- 折现率与管线分摊', '本周暂无更新', 2),
                   ('quality', '质量优选', 'images/pool-covers/quality.svg', '### 质量优选 · 巴菲特式估值\n\n**核心**：自由现金流优异、赚取真金白银、分红稳定。\n\n**简易模型**：现金流折现 + PE 匹配法\n\n合理 PE ≈ 预期未来 10 年净利润复合增长率 × 2\n\n**判断口诀**：若股票 PE 为 30 倍，需确认其未来十年能否实现 15% 复合增长。达标则考虑，不达标则放弃。\n\n代表企业：片仔癀、海天味业。', '本周暂无更新', 3)
                 ON DUPLICATE KEY UPDATE display_name = VALUES(display_name)
@@ -1097,6 +1099,72 @@ public class SchemaInitializer implements CommandLineRunner {
      * 固定买入/卖出价 + ATR 振幅 + %-based 止损 + Server酱模板。
      * 每个新列默认禁用（固定列可空，启用列默认 0），不影响现有行行为。
      */
+    // ── 投资金句表 ───────────────────────────────────────
+
+    private void ensureInvestQuoteTable() {
+        try {
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS invest_quote (
+                    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                    content TEXT NOT NULL,
+                    author VARCHAR(100) DEFAULT NULL,
+                    source VARCHAR(200) DEFAULT NULL,
+                    tags VARCHAR(500) DEFAULT NULL,
+                    likes INT NOT NULL DEFAULT 0,
+                    imported_node_id BIGINT DEFAULT NULL,
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_invest_quote_created (created_at),
+                    INDEX idx_invest_quote_author (author)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """);
+            log.info("invest_quote table ready");
+        } catch (Exception e) {
+            log.warn("检查 invest_quote 表失败 (可忽略): {}", e.getMessage());
+        }
+    }
+
+    // ── 交易日志表 ───────────────────────────────────────
+
+    private void ensureJournalTables() {
+        try {
+            jdbc.execute("CREATE TABLE IF NOT EXISTS journal_trade ("
+                    + "id BIGINT AUTO_INCREMENT PRIMARY KEY,"
+                    + "mode VARCHAR(10) NOT NULL,"
+                    + "stock_code VARCHAR(20) NOT NULL,"
+                    + "stock_name VARCHAR(50),"
+                    + "entry_price DECIMAL(10,2) NOT NULL,"
+                    + "entry_date DATETIME NOT NULL,"
+                    + "entry_shares INT NOT NULL,"
+                    + "account_at_entry DECIMAL(14,2),"
+                    + "risk_percent DECIMAL(5,4),"
+                    + "stop_price DECIMAL(10,2) NOT NULL,"
+                    + "target_price DECIMAL(10,2),"
+                    + "exit_price DECIMAL(10,2),"
+                    + "exit_date DATETIME,"
+                    + "exit_reason VARCHAR(30),"
+                    + "initial_risk DECIMAL(10,2) NOT NULL,"
+                    + "pnl_amount DECIMAL(14,2),"
+                    + "r_multiple DECIMAL(8,4),"
+                    + "is_open TINYINT DEFAULT 1,"
+                    + "tags VARCHAR(200),"
+                    + "setup_notes TEXT,"
+                    + "review_notes TEXT,"
+                    + "source VARCHAR(20),"
+                    + "source_ref_id BIGINT,"
+                    + "is_deleted TINYINT DEFAULT 0,"
+                    + "created_at DATETIME DEFAULT CURRENT_TIMESTAMP,"
+                    + "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,"
+                    + "INDEX idx_mode_open (mode, is_open),"
+                    + "INDEX idx_stock (stock_code),"
+                    + "INDEX idx_exit_date (exit_date),"
+                    + "UNIQUE KEY uk_source_ref (source, source_ref_id)"
+                    + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            log.info("journal_trade 表已就绪");
+        } catch (Exception e) {
+            log.warn("检查 journal_trade 表失败 (可忽略): {}", e.getMessage());
+        }
+    }
+
     private void ensureMonitorFusionColumns() {
         String[][] columns = {
             {"monitor_mode",         "VARCHAR(20) NOT NULL DEFAULT 'standard'",                    "三态模式 standard|atr_strict|fixed_only"},
