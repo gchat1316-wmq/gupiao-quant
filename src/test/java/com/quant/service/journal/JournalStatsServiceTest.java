@@ -26,7 +26,39 @@ class JournalStatsServiceTest {
         j.setMode(JournalTrade.Mode.REAL);
         j.setRMultiple(r);
         j.setExitDate(LocalDateTime.of(2026, 6, 30, 15, 0));
+        j.setId(1L);
         return j;
+    }
+
+    @Test
+    void equityCurve_cumulativeR() {
+        when(repo.findAllClosedOrdered()).thenReturn(List.of(
+                trade(new BigDecimal("1")),
+                trade(new BigDecimal("-0.5")),
+                trade(new BigDecimal("2"))));
+        var pts = service.equityCurve(null);
+        assertEquals(3, pts.size());
+        assertEquals(0, pts.get(0).getCumulativeR().compareTo(new BigDecimal("1.0000")));
+        assertEquals(0, pts.get(1).getCumulativeR().compareTo(new BigDecimal("0.5000")));
+        assertEquals(0, pts.get(2).getCumulativeR().compareTo(new BigDecimal("2.5000")));
+    }
+
+    @Test
+    void rDistribution_sevenBuckets() {
+        when(repo.findAllClosedOrdered()).thenReturn(List.of(
+                trade(new BigDecimal("-3")),     // <-2
+                trade(new BigDecimal("-1.5")),   // -2~-1
+                trade(new BigDecimal("-0.3")),   // -1~0
+                trade(new BigDecimal("0.5")),    // 0~1
+                trade(new BigDecimal("1.5")),    // 1~2
+                trade(new BigDecimal("2.5")),    // 2~3
+                trade(new BigDecimal("4"))       // >3
+        ));
+        var bk = service.rDistribution(null);
+        assertEquals(7, bk.size());
+        assertEquals(1L, bk.stream().filter(b -> b.getLabel().equals("<-2R")).findFirst().get().getCount());
+        assertEquals(1L, bk.stream().filter(b -> b.getLabel().equals("-2~-1R")).findFirst().get().getCount());
+        assertEquals(1L, bk.stream().filter(b -> b.getLabel().equals(">3R")).findFirst().get().getCount());
     }
 
     @Test
