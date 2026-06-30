@@ -157,8 +157,7 @@ public class JournalService {
         var since = LocalDateTime.now().minusDays(30);
         var fills = fillRepo.findRecentSince(since);
         return fills.stream()
-                .filter(f -> "clear".equalsIgnoreCase(f.getAction())
-                          || "reduce".equalsIgnoreCase(f.getAction()))
+                .filter(f -> "clear".equalsIgnoreCase(f.getAction()))
                 .filter(f -> repo.findBySourceRef(f.getId()).isEmpty())
                 .map(f -> PendingFillDTO.builder()
                         .fillId(f.getId())
