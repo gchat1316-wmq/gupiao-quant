@@ -135,6 +135,35 @@ public class InvestPositionCommon {
     @Column(name = "atr_trail_mult", precision = 6, scale = 2)
     private BigDecimal atrTrailMult;
 
+    // ===== Monitor Fusion 新增字段 (2026-06-30) =====
+
+    @Column(name = "monitor_mode", length = 20)
+    private String monitorMode = "standard";
+
+    @Column(name = "fixed_buy_price", precision = 10, scale = 2)
+    private BigDecimal fixedBuyPrice;
+
+    @Column(name = "fixed_sell_price", precision = 10, scale = 2)
+    private BigDecimal fixedSellPrice;
+
+    @Column(name = "fixed_buy_enabled")
+    private Integer fixedBuyEnabled = 0;
+
+    @Column(name = "fixed_sell_enabled")
+    private Integer fixedSellEnabled = 0;
+
+    @Column(name = "atr_alert_amplitude", precision = 8, scale = 3)
+    private BigDecimal atrAlertAmplitude;
+
+    @Column(name = "atr_alert_enabled")
+    private Integer atrAlertEnabled = 0;
+
+    @Column(name = "stop_loss_pct", precision = 8, scale = 2)
+    private BigDecimal stopLossPct;
+
+    @Column(name = "serverchan_template", length = 50)
+    private String serverchanTemplate = "standard";
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 

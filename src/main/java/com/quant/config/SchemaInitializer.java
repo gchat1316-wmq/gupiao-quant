@@ -60,6 +60,7 @@ public class SchemaInitializer implements CommandLineRunner {
         ensureWeeklyOpportunitySlotTable();
         ensureXieboWeeklyOpportunitySlotTable();
         ensureInvestPositionCommon();
+        ensureMonitorFusionColumns();
     }
 
     // ── 认证相关表 ───────────────────────────────────────
@@ -1087,6 +1088,38 @@ public class SchemaInitializer implements CommandLineRunner {
                 }
             } catch (Exception e) {
                 log.debug("{}.{} 列删除跳过: {}", tableName, col, e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Monitor Fusion (2026-06-30) — 给 invest_position_common 加 9 列：
+     * 固定买入/卖出价 + ATR 振幅 + %-based 止损 + Server酱模板。
+     * 每个新列默认禁用（固定列可空，启用列默认 0），不影响现有行行为。
+     */
+    private void ensureMonitorFusionColumns() {
+        String[][] columns = {
+            {"monitor_mode",         "VARCHAR(20) NOT NULL DEFAULT 'standard'",                    "三态模式 standard|atr_strict|fixed_only"},
+            {"fixed_buy_price",      "DECIMAL(10,2) DEFAULT NULL",                                "固定买入价"},
+            {"fixed_sell_price",     "DECIMAL(10,2) DEFAULT NULL",                                "固定卖出价"},
+            {"fixed_buy_enabled",    "TINYINT(1) NOT NULL DEFAULT 0",                              "启用固定买入触发"},
+            {"fixed_sell_enabled",   "TINYINT(1) NOT NULL DEFAULT 0",                              "启用固定卖出触发"},
+            {"atr_alert_amplitude",  "DECIMAL(8,3) DEFAULT NULL",                                 "ATR 振幅倍数(例如 1.500 表示 1.5x ATR)"},
+            {"atr_alert_enabled",    "TINYINT(1) NOT NULL DEFAULT 0",                              "启用 ATR 振幅触发"},
+            {"stop_loss_pct",        "DECIMAL(8,2) DEFAULT NULL",                                  "%-based 止损(存负数, -8.00 = -8%)"},
+            {"serverchan_template",  "VARCHAR(50) NOT NULL DEFAULT 'standard'",                   "Server酱模板 standard|compact|verbose"}
+        };
+        for (String[] col : columns) {
+            try {
+                Integer count = jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'invest_position_common' AND column_name = '" + col[0] + "'",
+                    Integer.class);
+                if (count == null || count == 0) {
+                    jdbc.execute("ALTER TABLE invest_position_common ADD COLUMN " + col[0] + " " + col[1] + " COMMENT '" + col[2] + "'");
+                    log.info("invest_position_common.{} 列已添加", col[0]);
+                }
+            } catch (Exception e) {
+                log.warn("检查 invest_position_common.{} 列失败 (可忽略): {}", col[0], e.getMessage());
             }
         }
     }
