@@ -39,6 +39,7 @@ class PriceMonitorServiceTest {
     @Mock private TradeStockBasicRepository basicRepository;
     @Mock private AStockDataQuoteService aStockDataQuoteService;
     @Mock private NotificationDispatcher notificationDispatcher;
+    @Mock private com.quant.service.monitor.MonitorService monitorService;
 
     private NotificationProperties notifProps;
     private PriceMonitorService service;
@@ -50,7 +51,7 @@ class PriceMonitorServiceTest {
         notifProps.getPriceMonitor().setRequireTradingTime(false); // 单测里绕过交易时段
         notifProps.getPriceMonitor().setCooldownMinutes(30);
         service = new PriceMonitorService(poolRepository, positionRepository, basicRepository,
-                aStockDataQuoteService, notifProps, notificationDispatcher);
+                aStockDataQuoteService, notifProps, notificationDispatcher, monitorService);
     }
 
     @Test
