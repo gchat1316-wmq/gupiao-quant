@@ -101,6 +101,9 @@ public class JournalTrade {
     @Column(name = "source_ref_id")
     private Long sourceRefId;
 
+    @Column(name = "created_by", length = 50)
+    private String createdBy;
+
     @Column(name = "is_deleted")
     private Integer isDeleted = 0;
 

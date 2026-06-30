@@ -44,6 +44,7 @@ public class SchemaInitializer implements CommandLineRunner {
         ensureStockAnalysisUnifiedColumns();
         ensureProsperityPickNewColumns();
         ensureInvestStockPoolSnapshotColumns();
+        ensureInvestStockPoolEnum();
         ensureProsperityHotSectorAStockColumns();
         ensureProsperityLeaderMainlineReason();
         ensureProsperityLeaderFinanceColumns();
@@ -577,6 +578,38 @@ public class SchemaInitializer implements CommandLineRunner {
             } catch (Exception e) {
                 log.warn("检查 invest_stock_pool.{} 列失败 (可忽略): {}", col[0], e.getMessage());
             }
+        }
+    }
+
+    /**
+     * 2026-06-30 schema drift 兜底：invest_stock_pool.pool_type 历史 ENUM 是
+     * ('quality','tech_vc','tech_ai','potential')，但前端已有 innovative_drug 池
+     * （见 invest_pool_meta），InvestService.addToPool / poolTypeLabelOf 都按
+     * 'innovative_drug' 处理。canonical sql/wucai_trade.sql 也漏写了。
+     * 这里 idempotent 地把 ENUM 扩到包含 'innovative_drug'。
+     */
+    private void ensureInvestStockPoolEnum() {
+        try {
+            String colType = jdbc.queryForObject("""
+                SELECT COLUMN_TYPE FROM information_schema.columns
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'invest_stock_pool'
+                  AND column_name = 'pool_type'
+                """, String.class);
+            if (colType == null) return;
+            if (colType.contains("'innovative_drug'")) {
+                log.debug("invest_stock_pool.pool_type 已包含 innovative_drug");
+                return;
+            }
+            jdbc.execute("""
+                ALTER TABLE invest_stock_pool
+                  MODIFY COLUMN pool_type
+                  ENUM('quality','tech_vc','tech_ai','potential','innovative_drug')
+                  NOT NULL COMMENT '质量优选/科技风投/科技AI/潜力监控/创新药'
+                """);
+            log.info("invest_stock_pool.pool_type ENUM 已扩至含 innovative_drug");
+        } catch (Exception e) {
+            log.warn("检查 invest_stock_pool.pool_type ENUM 失败 (可忽略): {}", e.getMessage());
         }
     }
 
@@ -1162,6 +1195,11 @@ public class SchemaInitializer implements CommandLineRunner {
             log.info("journal_trade 表已就绪");
         } catch (Exception e) {
             log.warn("检查 journal_trade 表失败 (可忽略): {}", e.getMessage());
+        }
+        try {
+            jdbc.execute("ALTER TABLE journal_trade ADD COLUMN IF NOT EXISTS created_by VARCHAR(50)");
+        } catch (Exception e) {
+            log.warn("添加 journal_trade.created_by 列失败 (可忽略): {}", e.getMessage());
         }
     }
 

@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS journal_trade (
 
   source VARCHAR(20),
   source_ref_id BIGINT,
+  created_by VARCHAR(50),
 
   is_deleted TINYINT DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
