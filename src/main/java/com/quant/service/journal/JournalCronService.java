@@ -40,11 +40,10 @@ public class JournalCronService {
     }
 
     /**
-     * Test-friendly overload — refresh only trades matching stockCode, with given currentPrice.
+     * Test-friendly overload — refresh only the trade matching stockCode, with given currentPrice.
      */
     public void refreshOpenTrades(String stockCode, BigDecimal currentPrice) {
-        for (JournalTrade t : repo.findAllOpen()) {
-            if (!t.getStockCode().equals(stockCode)) continue;
+        for (JournalTrade t : repo.findAllOpenByStockCode(stockCode)) {
             refreshOpenTrade(t, currentPrice);
         }
     }
@@ -70,7 +69,8 @@ public class JournalCronService {
                     String.format("[自动平仓] %s (%s)", t.getStockCode(),
                             t.getStockName() != null ? t.getStockName() : ""),
                     String.format("入场 %.2f → 目标 %.2f\nR 倍数 %s",
-                            t.getEntryPrice(), t.getTargetPrice(), t.getRMultiple()));
+                            t.getEntryPrice(), t.getTargetPrice(),
+                            t.getRMultiple() != null ? t.getRMultiple().toString() : "N/A"));
         }
     }
 
@@ -79,7 +79,6 @@ public class JournalCronService {
             var rest = new org.springframework.web.client.RestTemplate();
             String url = "http://localhost:8080/gp/api/xiebo-invest/quote?keyword="
                     + java.net.URLEncoder.encode(stockCode, java.nio.charset.StandardCharsets.UTF_8);
-            @SuppressWarnings("unchecked")
             var body = rest.getForObject(url, java.util.Map.class);
             if (body == null) return null;
             Object p = body.get("price");

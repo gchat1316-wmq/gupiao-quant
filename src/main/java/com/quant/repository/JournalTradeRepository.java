@@ -25,6 +25,9 @@ public interface JournalTradeRepository extends JpaRepository<JournalTrade, Long
     @Query("SELECT j FROM JournalTrade j WHERE j.isDeleted = 0 AND j.isOpen = 1 ORDER BY j.entryDate DESC")
     List<JournalTrade> findAllOpen();
 
+    @Query("SELECT j FROM JournalTrade j WHERE j.isDeleted = 0 AND j.isOpen = 1 AND j.stockCode = :stockCode ORDER BY j.entryDate DESC")
+    List<JournalTrade> findAllOpenByStockCode(@Param("stockCode") String stockCode);
+
     @Query("SELECT j FROM JournalTrade j WHERE j.isDeleted = 0 AND j.isOpen = 0 ORDER BY j.exitDate DESC")
     List<JournalTrade> findAllClosed();
 

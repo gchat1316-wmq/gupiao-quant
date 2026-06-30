@@ -38,7 +38,7 @@ class JournalCronServiceTest {
         open.setEntryShares(100);
         open.setIsOpen(1);
 
-        when(repo.findAllOpen()).thenReturn(List.of(open));
+        when(repo.findAllOpenByStockCode("600519")).thenReturn(List.of(open));
         when(repo.save(any(JournalTrade.class))).thenAnswer(inv -> inv.getArgument(0));
 
         // current price 120 > target 115 -> should auto-close
@@ -69,7 +69,7 @@ class JournalCronServiceTest {
         open.setEntryShares(100);
         open.setIsOpen(1);
 
-        when(repo.findAllOpen()).thenReturn(List.of(open));
+        when(repo.findAllOpenByStockCode("600519")).thenReturn(List.of(open));
 
         // current price 110 < target 115 -> should NOT close
         cron.refreshOpenTrades("600519", new BigDecimal("110"));
