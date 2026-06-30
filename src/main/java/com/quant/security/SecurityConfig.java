@@ -75,6 +75,9 @@ public class SecurityConfig {
                 // SOP 体检 + 大阳线战法读公开（只放查询，不放写）
                 .requestMatchers(HttpMethod.GET, "/api/invest/sop/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/invest/big-yang/**").permitAll()
+                // 2026-06-30 Monitor Fusion — GET 监控池/告警读公开，写操作需登录
+                .requestMatchers(HttpMethod.GET, "/api/monitor/pool", "/api/monitor/pool/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/monitor/health").permitAll()
                 // 认证接口
                 .requestMatchers("/api/auth/**").permitAll()
                 // 统计上报（前端静默调用，无需认证）
