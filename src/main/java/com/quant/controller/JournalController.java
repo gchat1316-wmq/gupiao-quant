@@ -2,6 +2,7 @@ package com.quant.controller;
 
 import com.quant.dto.journal.*;
 import com.quant.entity.JournalTrade;
+import com.quant.security.UserPrincipal;
 import com.quant.service.journal.JournalService;
 import com.quant.service.journal.JournalStatsService;
 import lombok.RequiredArgsConstructor;
@@ -9,7 +10,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -26,8 +26,9 @@ public class JournalController {
 
     @PostMapping("/trades")
     public JournalTradeDTO create(@RequestBody JournalTradeCreateRequest req,
-                                  @AuthenticationPrincipal UserDetails user) {
-        return service.create(req, user != null ? user.getUsername() : "anonymous");
+                                  @AuthenticationPrincipal UserPrincipal principal) {
+        String createdBy = principal != null ? String.valueOf(principal.getId()) : "anonymous";
+        return service.create(req, createdBy);
     }
 
     @PutMapping("/trades/{id}")
