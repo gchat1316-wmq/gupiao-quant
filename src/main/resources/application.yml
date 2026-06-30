@@ -197,6 +197,17 @@ notification:
     cooldown-minutes: 10
     daily-dedupe: true
     cron: "0 */1 9-15 * * MON-FRI"
+  monitor:
+    enabled: true
+    require-trading-time: true
+    cooldown-minutes: 10
+    cron: "0 */1 9-15 * * MON-FRI"
+    confirm-cron: "0 5 15 * * MON-FRI"
+    default-template: standard
+    pool-types:
+      - stock
+      - tech_ai
+      - potential
   wish-pool:
     enabled: true
     webhook-url: ${WISH_POOL_FEISHU_WEBHOOK_URL:https://open.feishu.cn/open-apis/bot/v2/hook/a4c6882a-b4f9-438f-ad58-5f150b2730e3}
