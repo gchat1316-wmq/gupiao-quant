@@ -8,9 +8,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import jakarta.persistence.criteria.Predicate;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -107,6 +114,39 @@ public class JournalService {
         return JournalTradeDTO.from(
                 repo.findActiveById(id)
                         .orElseThrow(() -> new IllegalArgumentException("trade 不存在: " + id)));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<JournalTradeDTO> list(String mode, Boolean isOpen, String tag,
+                                      java.time.LocalDate from, java.time.LocalDate to,
+                                      Pageable pageable) {
+        Specification<JournalTrade> spec = (root, q, cb) -> {
+            List<Predicate> ps = new ArrayList<>();
+            ps.add(cb.equal(root.get("isDeleted"), 0));
+            if (mode != null && !mode.isBlank()) {
+                ps.add(cb.equal(root.get("mode"),
+                        JournalTrade.Mode.valueOf(mode)));
+            }
+            if (isOpen != null) {
+                ps.add(cb.equal(root.get("isOpen"), isOpen ? 1 : 0));
+            }
+            if (from != null) {
+                ps.add(cb.greaterThanOrEqualTo(root.get("entryDate"), from.atStartOfDay()));
+            }
+            if (to != null) {
+                ps.add(cb.lessThan(root.get("entryDate"), to.plusDays(1).atStartOfDay()));
+            }
+            if (tag != null && !tag.isBlank()) {
+                ps.add(cb.like(root.get("tags"), "%" + tag + "%"));
+            }
+            return cb.and(ps.toArray(new Predicate[0]));
+        };
+        return repo.findAll(spec, pageable).map(JournalTradeDTO::from);
+    }
+
+    @Transactional(readOnly = true)
+    public List<JournalTradeDTO> listOpen() {
+        return repo.findAllOpen().stream().map(JournalTradeDTO::from).toList();
     }
 
     private void validate(JournalTradeCreateRequest req) {
