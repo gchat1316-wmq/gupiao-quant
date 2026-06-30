@@ -144,6 +144,13 @@ class JournalServiceListTest {
 
         var dto = service.syncFromFill(30L, "user-1");
 
+        // verify returned DTO reflects the auto-close
+        assertNotNull(dto);
+        assertEquals(99L, dto.getId());
+        assertEquals("POOL_SYNC", dto.getSource());
+        assertEquals(30L, dto.getSourceRefId());
+        assertFalse(dto.getIsOpen());
+
         ArgumentCaptor<JournalTrade> cap = ArgumentCaptor.forClass(JournalTrade.class);
         verify(repo).save(cap.capture());
         var saved = cap.getValue();
