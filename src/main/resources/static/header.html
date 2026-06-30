@@ -14,11 +14,23 @@
       <a href="prosperity-pick.html" class="nav-link" data-match="prosperity-pick.html,stock-analysis.html">个股研究</a>
       <a href="prosperity-strong.html" class="nav-link" data-match="prosperity-strong.html">热点强势选股</a>
       <a href="industry-research.html" class="nav-link" data-match="industry-research.html">产业投研</a>
-      <a href="tech-ai.html" class="nav-link" data-match="tech-ai.html">AI监控</a>
       <a href="monitor.html" class="nav-link" data-match="monitor.html">📊 统一监控</a>
-      <a href="xiebo-invest.html" class="nav-link" data-match="xiebo-invest.html">林奇投资</a>
-      <a href="position-management.html" class="nav-link" data-match="position-management.html">仓位管理</a>
-      <a href="study.html" class="nav-link" data-match="study.html,course.html,node.html,card.html,quiz.html">学习搭子</a>
+      <div class="nav-dropdown" id="navMoreDropdown">
+        <button type="button" class="nav-link nav-dropdown-toggle"
+                aria-haspopup="menu" aria-expanded="false" aria-controls="navMoreMenu"
+                title="林奇投资 / 仓位管理 / 学习搭子">
+          更多
+          <svg class="caret" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
+            <path d="M2 4 L6 8 L10 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <ul id="navMoreMenu" class="nav-dropdown-menu" role="menu" hidden>
+          <li role="none"><a href="xiebo-invest.html" role="menuitem" class="nav-dropdown-item" data-match="xiebo-invest.html">林奇投资</a></li>
+          <li role="none"><a href="position-management.html" role="menuitem" class="nav-dropdown-item" data-match="position-management.html">仓位管理</a></li>
+          <li role="none"><a href="journal.html" role="menuitem" class="nav-dropdown-item" data-match="journal.html">复盘</a></li>
+          <li role="none"><a href="study.html" role="menuitem" class="nav-dropdown-item" data-match="study.html">学习搭子</a></li>
+        </ul>
+      </div>
     </nav>
     <div class="skin-switch" id="skinSwitch" data-skin="tech">
       <button type="button" class="skin-toggle" aria-haspopup="listbox" aria-expanded="false" aria-controls="skinMenu" title="切换皮肤">
