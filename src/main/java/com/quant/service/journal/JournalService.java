@@ -43,6 +43,72 @@ public class JournalService {
         return JournalTradeDTO.from(repo.save(j));
     }
 
+    @Transactional
+    public JournalTradeDTO update(Long id, JournalTradeUpdateRequest req) {
+        JournalTrade j = repo.findActiveById(id)
+                .orElseThrow(() -> new IllegalArgumentException("trade 不存在或已删除: " + id));
+
+        if (req.getStopPrice() != null) {
+            if (req.getStopPrice().compareTo(j.getStopPrice()) < 0) {
+                throw new IllegalArgumentException(
+                        "止损只能收紧,不能放松(纪律红线) — 当前 "
+                                + j.getStopPrice() + ",新值 " + req.getStopPrice());
+            }
+            j.setStopPrice(req.getStopPrice());
+            // Recompute initial_risk if entry is unchanged
+            j.setInitialRisk(j.getEntryPrice().subtract(req.getStopPrice())
+                    .setScale(2, RoundingMode.HALF_UP));
+        }
+        if (req.getTargetPrice() != null) j.setTargetPrice(req.getTargetPrice());
+        if (req.getTags() != null) j.setTags(req.getTags());
+        if (req.getSetupNotes() != null) j.setSetupNotes(req.getSetupNotes());
+        if (req.getReviewNotes() != null) j.setReviewNotes(req.getReviewNotes());
+
+        // Closing the trade
+        if (req.getExitPrice() != null) {
+            if (j.getIsOpen() != 1) {
+                throw new IllegalArgumentException("该 trade 已平仓,不能再设 exitPrice");
+            }
+            j.setExitPrice(req.getExitPrice());
+            j.setExitDate(req.getExitDate() != null ? req.getExitDate() : LocalDateTime.now());
+            if (req.getExitReason() != null) {
+                try {
+                    j.setExitReason(JournalTrade.ExitReason.valueOf(req.getExitReason()));
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException("exitReason 非法: " + req.getExitReason());
+                }
+            } else {
+                j.setExitReason(JournalTrade.ExitReason.manual);
+            }
+            BigDecimal pnl = req.getExitPrice().subtract(j.getEntryPrice())
+                    .multiply(new BigDecimal(j.getEntryShares()))
+                    .setScale(2, RoundingMode.HALF_UP);
+            j.setPnlAmount(pnl);
+            BigDecimal totalRisk = j.getInitialRisk()
+                    .multiply(new BigDecimal(j.getEntryShares()));
+            if (totalRisk.signum() == 0) {
+                throw new IllegalArgumentException("initialRisk * shares = 0,无法算 R");
+            }
+            j.setRMultiple(pnl.divide(totalRisk, 4, RoundingMode.HALF_UP));
+            j.setIsOpen(0);
+        }
+        return JournalTradeDTO.from(repo.save(j));
+    }
+
+    @Transactional
+    public void softDelete(Long id) {
+        JournalTrade j = repo.findActiveById(id)
+                .orElseThrow(() -> new IllegalArgumentException("trade 不存在: " + id));
+        j.setIsDeleted(1);
+        repo.save(j);
+    }
+
+    public JournalTradeDTO findOne(Long id) {
+        return JournalTradeDTO.from(
+                repo.findActiveById(id)
+                        .orElseThrow(() -> new IllegalArgumentException("trade 不存在: " + id)));
+    }
+
     private void validate(JournalTradeCreateRequest req) {
         if (req.getMode() == null
                 || (!req.getMode().equals("REAL") && !req.getMode().equals("PAPER"))) {
