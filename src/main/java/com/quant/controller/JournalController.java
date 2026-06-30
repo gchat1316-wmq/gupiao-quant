@@ -89,4 +89,16 @@ public class JournalController {
                 ? null : JournalTrade.Mode.valueOf(mode);
         return stats.rDistribution(m);
     }
+
+    @GetMapping("/pending-fills")
+    public List<PendingFillDTO> pendingFills() {
+        return service.pendingFills();
+    }
+
+    @PostMapping("/sync-from-fill/{fillId}")
+    public JournalTradeDTO syncFromFill(@PathVariable Long fillId,
+                                         @AuthenticationPrincipal UserPrincipal principal) {
+        String username = principal != null ? String.valueOf(principal.getId()) : "anonymous";
+        return service.syncFromFill(fillId, username);
+    }
 }

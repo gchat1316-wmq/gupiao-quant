@@ -1,7 +1,9 @@
 package com.quant.service.journal;
 
 import com.quant.dto.journal.*;
+import com.quant.entity.InvestPositionFill;
 import com.quant.entity.JournalTrade;
+import com.quant.repository.InvestPositionFillRepository;
 import com.quant.repository.JournalTradeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +27,7 @@ import java.util.List;
 public class JournalService {
 
     private final JournalTradeRepository repo;
+    private final InvestPositionFillRepository fillRepo;
 
     @Transactional
     public JournalTradeDTO create(JournalTradeCreateRequest req, String username) {
@@ -147,6 +150,83 @@ public class JournalService {
     @Transactional(readOnly = true)
     public List<JournalTradeDTO> listOpen() {
         return repo.findAllOpen().stream().map(JournalTradeDTO::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<PendingFillDTO> pendingFills() {
+        var since = LocalDateTime.now().minusDays(30);
+        var fills = fillRepo.findRecentSince(since);
+        return fills.stream()
+                .filter(f -> "clear".equalsIgnoreCase(f.getAction())
+                          || "reduce".equalsIgnoreCase(f.getAction()))
+                .filter(f -> repo.findBySourceRef(f.getId()).isEmpty())
+                .map(f -> PendingFillDTO.builder()
+                        .fillId(f.getId())
+                        .stockCode(f.getStockCode())
+                        // poolType not on entity; derive from poolId via lookup if needed
+                        .action(f.getAction())
+                        .price(f.getPrice())
+                        .lots(f.getLots())
+                        .filledAt(f.getFilledAt())
+                        .note(f.getNote())
+                        .build())
+                .toList();
+    }
+
+    /**
+     * Sync a single fill from invest_position_fill into journal_trade.
+     *
+     * Direct entity manipulation (not service.create + service.update) because:
+     *  - We're recording history, not enforcing new-trade discipline
+     *  - The entry price/stop are derived from existing pool data
+     *  - Avoids any double-transaction bookkeeping
+     */
+    @Transactional
+    public JournalTradeDTO syncFromFill(Long fillId, String username) {
+        InvestPositionFill fill = fillRepo.findById(fillId)
+                .orElseThrow(() -> new IllegalArgumentException("fill 不存在: " + fillId));
+        if (repo.findBySourceRef(fillId).isPresent()) {
+            throw new IllegalStateException("该 fill 已同步过(重复同步)");
+        }
+        // avgCost not on entity; use price as entry
+        BigDecimal entry = fill.getPrice();
+        BigDecimal stop = entry.multiply(new BigDecimal("0.95"))
+                .setScale(2, RoundingMode.HALF_UP);
+
+        JournalTrade j = new JournalTrade();
+        j.setMode(JournalTrade.Mode.REAL);
+        j.setSource("POOL_SYNC");
+        j.setSourceRefId(fillId);
+        j.setStockCode(fill.getStockCode());
+        // stockName not on entity; leave null
+        j.setEntryPrice(entry);
+        j.setStopPrice(stop);
+        j.setTargetPrice(null);
+        j.setEntryShares(fill.getLots() != null
+                ? fill.getLots().multiply(new BigDecimal("100")).intValue() : 0);
+        j.setEntryDate(fill.getFilledAt());
+        j.setInitialRisk(entry.subtract(stop).setScale(2, RoundingMode.HALF_UP));
+        j.setIsOpen(1);
+        j.setSetupNotes("POOL_SYNC from fillId=" + fillId);
+        j.setCreatedBy(username);
+
+        if ("clear".equalsIgnoreCase(fill.getAction())) {
+            BigDecimal pnl = fill.getPrice().subtract(entry)
+                    .multiply(new BigDecimal(j.getEntryShares()))
+                    .setScale(2, RoundingMode.HALF_UP);
+            j.setExitPrice(fill.getPrice());
+            j.setExitDate(fill.getFilledAt());
+            j.setExitReason(JournalTrade.ExitReason.manual);
+            j.setPnlAmount(pnl);
+            BigDecimal totalRisk = j.getInitialRisk()
+                    .multiply(new BigDecimal(j.getEntryShares()));
+            if (totalRisk.signum() > 0) {
+                j.setRMultiple(pnl.divide(totalRisk, 4, RoundingMode.HALF_UP));
+            }
+            j.setIsOpen(0);
+            j.setReviewNotes("从投资池同步的清仓记录(fillId=" + fillId + ")");
+        }
+        return JournalTradeDTO.from(repo.save(j));
     }
 
     private void validate(JournalTradeCreateRequest req) {
