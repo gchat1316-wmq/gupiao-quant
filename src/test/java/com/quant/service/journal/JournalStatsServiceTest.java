@@ -1,6 +1,5 @@
 package com.quant.service.journal;
 
-import com.quant.dto.journal.JournalStatsDTO;
 import com.quant.entity.JournalTrade;
 import com.quant.repository.JournalTradeRepository;
 import org.junit.jupiter.api.Test;
