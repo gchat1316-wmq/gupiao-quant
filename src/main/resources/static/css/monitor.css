@@ -1,0 +1,110 @@
+:root {
+    --monitor-accent: #b48a3a;
+    --monitor-bg:     #1c2733;
+    --monitor-fg:     #d6e2ee;
+}
+
+.monitor-banner {
+    padding: 12px 18px;
+    background: var(--monitor-bg);
+    color: var(--monitor-fg);
+    border-radius: 6px;
+    margin: 12px 0;
+    line-height: 1.7;
+}
+.monitor-banner code {
+    background: rgba(255, 255, 255, 0.12);
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 0.85em;
+}
+
+.monitor-pool-picker {
+    display: flex;
+    gap: 8px;
+    margin: 16px 0;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.monitor-pool-picker button {
+    padding: 6px 14px;
+    border: 1px solid #ccc;
+    background: #f6f6f6;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.monitor-pool-picker button.active {
+    background: var(--monitor-accent);
+    color: #fff;
+    border-color: var(--monitor-accent);
+}
+.btn-primary {
+    background: var(--monitor-accent);
+    color: #fff;
+    border-color: var(--monitor-accent);
+}
+
+.monitor-add {
+    background: #fafafa;
+    padding: 12px 18px;
+    margin: 12px 0;
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+}
+.add-form {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.add-form input,
+.add-form select {
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+}
+
+#monitor-table {
+    width: 100%;
+    margin-top: 12px;
+    border-collapse: collapse;
+}
+#monitor-table th,
+#monitor-table td {
+    padding: 8px 6px;
+    border-bottom: 1px solid #eaeaea;
+    font-size: 0.92em;
+    text-align: left;
+}
+#monitor-table tr:hover {
+    background: rgba(180, 138, 58, 0.06);
+}
+#monitor-table input,
+#monitor-table select {
+    padding: 4px 6px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+#monitor-table input[type="number"] {
+    width: 80px;
+}
+#monitor-table input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+}
+
+.monitor-panel {
+    margin-top: 24px;
+    padding: 14px 18px;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    background: #fdfdfd;
+}
+.monitor-panel ul {
+    padding-left: 18px;
+}
+.monitor-panel li {
+    margin-bottom: 6px;
+}
+
+.muted { color: #777; font-size: 0.88em; }
