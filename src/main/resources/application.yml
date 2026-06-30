@@ -94,10 +94,9 @@ baostock-sync:
   timeout-seconds: 1800
 
 # 个股分析模块 (紫苏叶/高景气九维)
-# 多个 API Key 以逗号分隔。生成随机 Key: openssl rand -hex 16
+# 鉴权已统一走 Spring Security：GET 公开，写操作（submit / DELETE）需 MANAGER/ADMIN 角色
 stock-analysis:
   enabled: true
-  api-keys: ${STOCK_ANALYSIS_API_KEYS:wmq-gp-secret-2026,wmq-local-debug}
   # 优先用环境变量覆盖，默认走项目内 scripts/baostock_client.py (相对路径以项目根为 CWD)
   python-script: ${BAOSTOCK_CLIENT_SCRIPT:scripts/baostock_client.py}
   python-command: ${BAOSTOCK_CLIENT_PYTHON:python3}
@@ -212,6 +211,10 @@ notification:
     enabled: true
     webhook-url: ${WISH_POOL_FEISHU_WEBHOOK_URL:https://open.feishu.cn/open-apis/bot/v2/hook/a4c6882a-b4f9-438f-ad58-5f150b2730e3}
     timeout-seconds: 10
+
+journal:
+  refresh-cron: "0 30 15 * * MON-FRI"
+  refresh-enabled: true
 
 ai:
   fallback-to-mock: true            # AI 调用失败时是否回退到 mock 数据
