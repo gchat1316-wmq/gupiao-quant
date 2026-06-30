@@ -1,0 +1,81 @@
+.jl-page { padding: 16px; }
+.jl-hero { padding: 16px 0; }
+.jl-hero h1 { font-size: 22px; margin: 0 0 4px; }
+.jl-hero p { color: #888; font-size: 13px; margin: 0; }
+
+.jl-grid {
+  display: grid;
+  grid-template-columns: 320px 1fr 360px;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.jl-card, .jl-col-left, .jl-col-center, .jl-col-right {
+  background: var(--card-bg, #1e1e1e);
+  border: 1px solid var(--border, #2a2a2a);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.jl-col-left h2, .jl-col-right h3 { font-size: 14px; margin: 0 0 12px; }
+
+.jl-mode-toggle { display: flex; gap: 12px; margin-bottom: 12px; }
+
+#jlNewForm label {
+  display: block; margin-bottom: 8px; font-size: 12px; color: #aaa;
+}
+#jlNewForm input, #jlNewForm textarea {
+  width: 100%; box-sizing: border-box;
+  background: #121212; color: #eaeaea;
+  border: 1px solid #333; border-radius: 4px;
+  padding: 6px 8px; font-size: 13px;
+}
+
+.jl-redlines {
+  border: 1px solid #444; border-radius: 4px;
+  padding: 8px 10px; margin: 12px 0;
+}
+.jl-redlines legend { font-size: 12px; color: #f5a623; padding: 0 4px; }
+.jl-redlines label { display: block; font-size: 12px; color: #ccc; margin-bottom: 4px; }
+
+.jl-btn-primary {
+  width: 100%; padding: 8px;
+  background: #1e88ff; color: #fff; border: none; border-radius: 4px;
+  cursor: pointer; font-size: 13px;
+}
+.jl-btn-primary[disabled] { background: #444; cursor: not-allowed; }
+
+.jl-btn-ghost {
+  background: transparent; color: #aaa;
+  border: 1px solid #555; border-radius: 4px;
+  padding: 4px 10px; cursor: pointer; font-size: 12px;
+}
+
+.jl-error { color: #ff6b6b; font-size: 12px; margin: 8px 0; min-height: 16px; }
+
+.jl-tabs { display: flex; gap: 4px; margin-bottom: 12px; align-items: center; }
+.jl-tabs button {
+  background: transparent; color: #aaa;
+  border: 1px solid #444; border-radius: 4px;
+  padding: 6px 12px; cursor: pointer; font-size: 12px;
+}
+.jl-tabs button.jl-tab-active { background: #1e88ff; color: #fff; border-color: #1e88ff; }
+
+.jl-list { display: flex; flex-direction: column; gap: 8px; }
+.jl-trade-card {
+  border: 1px solid #333; border-radius: 6px; padding: 12px;
+  background: #181818; font-size: 13px;
+}
+.jl-trade-card .jl-meta { color: #888; font-size: 11px; }
+.jl-trade-card .jl-r-pos { color: #4caf50; font-weight: bold; }
+.jl-trade-card .jl-r-neg { color: #ff5252; font-weight: bold; }
+.jl-trade-card .jl-mode-real { background: #ff9800; color: #000; padding: 1px 6px; border-radius: 3px; font-size: 10px; }
+.jl-trade-card .jl-mode-paper { background: #9c27b0; color: #fff; padding: 1px 6px; border-radius: 3px; font-size: 10px; }
+
+.jl-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.jl-stat-card { background: #181818; border: 1px solid #333; border-radius: 6px; padding: 10px; }
+.jl-stat-card .label { font-size: 11px; color: #888; }
+.jl-stat-card .value { font-size: 18px; font-weight: bold; margin-top: 4px; }
+
+.jl-mode-filter { margin-bottom: 12px; font-size: 12px; }
+.jl-mode-filter select { background: #121212; color: #eaeaea; border: 1px solid #333; border-radius: 4px; padding: 4px 8px; }

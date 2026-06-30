@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1e88ff" />
+  <base href="/gp/" />
+  <title>交易日志 · 投资助手</title>
+  <link rel="stylesheet" href="css/skin.css?v=20260630-journal-v1" />
+  <link rel="stylesheet" href="css/style.css?v=20260630-journal-v1" />
+  <link rel="stylesheet" href="css/position-management.css?v=20260630-journal-v1" />
+  <link rel="stylesheet" href="css/journal.css?v=20260630-journal-v1" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="js/layout.js?v=20260630-journal-v1" defer></script>
+  <script src="js/journal.js?v=20260630-journal-v1" defer></script>
+</head>
+<body>
+  <div id="siteHeader"></div>
+
+  <main class="container jl-page">
+    <section class="jl-hero">
+      <h1>交易日志 · 复盘台</h1>
+      <p>学习 → 实践 → 复盘的闭环。每笔记一笔交易,系统自动算 R 倍数、胜率、EV、最大回撤。</p>
+    </section>
+
+    <div class="jl-grid">
+      <!-- LEFT: 新建交易 -->
+      <aside class="jl-card jl-col-left">
+        <h2>新建一笔交易</h2>
+        <form id="jlNewForm" autocomplete="off">
+          <div class="jl-mode-toggle">
+            <label><input type="radio" name="mode" value="REAL" checked /> 实盘</label>
+            <label><input type="radio" name="mode" value="PAPER" /> 模拟盘</label>
+          </div>
+
+          <label>股票代码
+            <input id="jlStockCode" type="text" placeholder="600519" required />
+          </label>
+          <label>股票名称(可选)
+            <input id="jlStockName" type="text" placeholder="贵州茅台" />
+          </label>
+
+          <label>入场价
+            <input id="jlEntryPrice" type="number" step="0.01" required />
+          </label>
+          <label>止损价
+            <input id="jlStopPrice" type="number" step="0.01" required />
+          </label>
+          <label>目标价(可选)
+            <input id="jlTargetPrice" type="number" step="0.01" />
+          </label>
+          <label>股数(向下取整到 100)
+            <input id="jlEntryShares" type="number" step="100" value="100" required />
+          </label>
+          <label>账户余额(可选)
+            <input id="jlAccount" type="number" step="0.01" />
+          </label>
+          <label>单笔风险 %(可选)
+            <input id="jlRiskPct" type="number" step="0.01" placeholder="1.00" />
+          </label>
+          <label>标签(逗号分隔,可选)
+            <input id="jlTags" type="text" placeholder="海龟,练习1" />
+          </label>
+          <label>开仓前思考(可选)
+            <textarea id="jlSetupNotes" rows="3"></textarea>
+          </label>
+
+          <fieldset class="jl-redlines">
+            <legend>5 条纪律红线(全部勾选才能提交)</legend>
+            <label><input type="checkbox" id="rl1" /> ① R:R ≥ 1:3</label>
+            <label><input type="checkbox" id="rl2" /> ② 单笔风险 ≤ 2%</label>
+            <label><input type="checkbox" id="rl3" /> ③ 止损已明确设好</label>
+            <label><input type="checkbox" id="rl4" /> ④ 本笔不加仓摊低成本</label>
+            <label><input type="checkbox" id="rl5" /> ⑤ 这是一笔计划内的交易</label>
+          </fieldset>
+
+          <div id="jlFormError" class="jl-error"></div>
+          <button type="submit" id="jlSubmit" class="jl-btn-primary" disabled>保存交易</button>
+        </form>
+      </aside>
+
+      <!-- CENTER: 交易列表 -->
+      <section class="jl-col-center">
+        <div class="jl-tabs">
+          <button data-tab="open" class="jl-tab-active">进行中</button>
+          <button data-tab="closed">已平仓</button>
+          <button data-tab="all">全部</button>
+          <button id="jlSyncBtn" class="jl-btn-ghost" style="margin-left:auto;">从三池同步</button>
+        </div>
+        <div id="jlTradeList" class="jl-list"></div>
+      </section>
+
+      <!-- RIGHT: 统计 -->
+      <aside class="jl-col-right">
+        <div class="jl-mode-filter">
+          <label>Mode:
+            <select id="jlStatsMode">
+              <option value="">ALL</option>
+              <option value="REAL">REAL</option>
+              <option value="PAPER">PAPER</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="jl-stats-grid">
+          <div class="jl-stat-card"><div class="label">胜率</div><div class="value" id="jlWinRate">-</div></div>
+          <div class="jl-stat-card"><div class="label">平均 R</div><div class="value" id="jlAvgR">-</div></div>
+          <div class="jl-stat-card"><div class="label">EV</div><div class="value" id="jlEV">-</div></div>
+          <div class="jl-stat-card"><div class="label">最大回撤</div><div class="value" id="jlMaxDD">-</div></div>
+        </div>
+
+        <h3>权益曲线</h3>
+        <canvas id="jlEquityCanvas" height="160"></canvas>
+
+        <h3>R 倍数分布</h3>
+        <canvas id="jlDistCanvas" height="160"></canvas>
+      </aside>
+    </div>
+  </main>
+</body>
+</html>
