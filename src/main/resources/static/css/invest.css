@@ -761,7 +761,7 @@
 
 .pool-table {
   width: 100%;
-  min-width: 1120px;
+  min-width: 794px;  /* 2026-07-01：缩 30%（1120 → 794），更紧凑 */
   table-layout: fixed;
   border-collapse: collapse;
   font-size: 11.5px;
@@ -791,9 +791,9 @@
   background: #fff;
   border-right: 1px solid var(--border);
   z-index: 4;
-  width: 72px;
-  min-width: 72px;
-  max-width: 72px;
+  width: 60px;     /* 2026-07-01：72 → 60（保留公司名 4 字不截断） */
+  min-width: 60px;
+  max-width: 60px;
 }
 
 /* 2026-07-01 改：股票池表格横向滚动 + 公司列固定。
@@ -807,32 +807,32 @@
   max-width: 100%;
 }
 #poolListWrap .pool-table {
-  min-width: 1400px;  /* 强制触发横向滚动；总列宽 ≈ 72 + 13×85 + 操作 100 = 1277，+余量 */
+  min-width: 990px;  /* 2026-07-01：缩 30%（1400 → 990） */
 }
 
 .pool-table th.pool-col-num,
 .pool-table td.pool-col-num {
-  width: 62px;
+  width: 43px;   /* 2026-07-01：62 → 43（缩 30%） */
 }
 
 .pool-table th.pool-col-rate,
 .pool-table td.pool-col-rate {
-  width: 66px;
+  width: 46px;   /* 2026-07-01：66 → 46（缩 30%） */
 }
 
 .pool-table th.pool-col-ps,
 .pool-table td.pool-col-ps {
-  width: 58px;
+  width: 41px;   /* 2026-07-01：58 → 41（缩 30%） */
 }
 
 .pool-table th.pool-col-tag,
 .pool-table td.pool-col-tag {
-  width: 76px;
+  width: 53px;   /* 2026-07-01：76 → 53（缩 30%） */
 }
 
 .pool-table th.pool-col-actions,
 .pool-table td.pool-col-actions {
-  width: 82px;
+  width: 57px;   /* 2026-07-01：82 → 57（缩 30%） */
 }
 
 .pool-table thead th.pool-col-stock {
