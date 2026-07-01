@@ -28,13 +28,19 @@ public class CacheConfig {
                 .maximumSize(500)
                 .expireAfterWrite(60, TimeUnit.MINUTES));
         // 大阳线专用短 TTL
-        manager.setCacheNames(Set.of("big-yang-signals", "big-yang-summary", "poolMeta", "weeklyOpportunity"));
+        manager.setCacheNames(Set.of("big-yang-signals", "big-yang-summary", "poolMeta", "weeklyOpportunity", "stockPool"));
         manager.registerCustomCache("big-yang-signals",
                 Caffeine.newBuilder()
                         .maximumSize(10)
                         .expireAfterWrite(10, TimeUnit.SECONDS)
                         .build());
         manager.registerCustomCache("big-yang-summary",
+                Caffeine.newBuilder()
+                        .maximumSize(20)
+                        .expireAfterWrite(30, TimeUnit.SECONDS)
+                        .build());
+        // stockPool（股票池 + 实时行情）30s：行情 30s 内基本不变，反复切换 tab / 刷新页面秒开
+        manager.registerCustomCache("stockPool",
                 Caffeine.newBuilder()
                         .maximumSize(20)
                         .expireAfterWrite(30, TimeUnit.SECONDS)

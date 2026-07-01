@@ -5,6 +5,7 @@ import com.quant.entity.InvestStockPool;
 import com.quant.repository.InvestPositionCommonRepository;
 import com.quant.repository.InvestStockPoolRepository;
 import com.quant.repository.TradeStockBasicRepository;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +31,7 @@ public class InvestPoolSeedService {
         this.stockBasicRepository = stockBasicRepository;
     }
 
+    @CacheEvict(value = "stockPool", allEntries = true)
     @Transactional
     public int replaceTechVcWithScreenshotPool() {
         List<SeedRow> seedRows = screenshotRows();

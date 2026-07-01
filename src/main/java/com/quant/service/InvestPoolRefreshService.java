@@ -3,6 +3,7 @@ package com.quant.service;
 import com.quant.entity.InvestStockPool;
 import com.quant.repository.InvestStockPoolRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,6 +63,7 @@ public class InvestPoolRefreshService {
      * 主要修复 trade_stock_financial 已有但 invest_stock_pool 留空的字段。
      */
     @Scheduled(cron = "${invest-pool.backfill-cron:0 30 16 * * ?}")
+    @CacheEvict(value = "stockPool", allEntries = true)
     public void backfillMissingFields() {
         try {
             List<InvestStockPool> all = poolRepository.findAll();
@@ -85,6 +87,7 @@ public class InvestPoolRefreshService {
         }
     }
 
+    @CacheEvict(value = "stockPool", allEntries = true)
     @Transactional
     public int refreshTechVcSnapshots() {
         List<InvestStockPool> pools = poolRepository.findByPoolTypeOrderByCreatedAtDesc(POOL_TYPE);
@@ -101,6 +104,7 @@ public class InvestPoolRefreshService {
      * 扫描所有股票池条目（不限 pool_type），仅补 NULL 字段。
      * 用于"修复所有缺失数据"的运维入口，定期巡检也用这个逻辑。
      */
+    @CacheEvict(value = "stockPool", allEntries = true)
     @Transactional
     public int refreshAllPoolSnapshots() {
         List<InvestStockPool> pools = poolRepository.findAll();

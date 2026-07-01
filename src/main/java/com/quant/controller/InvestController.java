@@ -74,15 +74,11 @@ public class InvestController {
         return investService.sopCheckup(keyword);
     }
 
-    /** 获取股票池列表（可选按 poolType 过滤） */
+    /** 获取股票池列表（可选按 poolType 过滤）。poolType 由 service 层在 DB 端过滤，
+     *  避免拉全部池子的行情 / K 线后再内存过滤。 */
     @GetMapping("/pool")
     public List<PoolItemDTO> listPool(@RequestParam(value = "poolType", required = false) String poolType) {
-        if (poolType == null || poolType.isBlank()) {
-            return investService.listPool();
-        }
-        return investService.listPool().stream()
-                .filter(p -> poolType.equals(p.getPoolType()))
-                .toList();
+        return investService.listPool(poolType);
     }
 
     // ===== 股票池元信息（估值方法、周度机会、封面图） =====

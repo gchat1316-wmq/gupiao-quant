@@ -381,8 +381,11 @@
         poolTypeLoaded = poolType;
         loadPool();
       }
-      loadPoolMeta(currentPoolType);
-      loadWeeklyOpportunity(currentPoolType);
+      // 元信息 + 每周机会相互独立，并发请求避免串行 RTT
+      Promise.allSettled([
+        loadPoolMeta(currentPoolType),
+        loadWeeklyOpportunity(currentPoolType)
+      ]);
     }
     // 4. 决定激活哪个 sub-tab：优先用 preferredSub；否则用 HTML 默认 active
     const wrap = document.querySelector(`.invest-sub-tabs-wrap[data-main-section="${sec}"]`);
@@ -837,19 +840,45 @@
     });
   }
 
+  // 客户端股票池缓存：poolType -> 股票列表。切回已访问过的 tab 直接复用，不再发请求。
+  // 后端 stockPool cache 已经做了 30s 缓存，前端再叠一层 session 内复用，避免来回切 tab 仍要走网络。
+  const poolDataCache = new Map();
+  let poolInFlight = null; // 同 poolType 并发请求合并：避免快速来回切换触发多个 fetch
+
   async function loadPool() {
     const wrap = document.getElementById('poolListWrap');
     if (!wrap) return;
+    const cacheKey = currentPoolType || '__all__';
+    // 命中缓存：直接复用并重渲染
+    if (poolDataCache.has(cacheKey)) {
+      poolData = poolDataCache.get(cacheKey);
+      ensurePoolSearchCache();
+      renderPool();
+      return;
+    }
+    // 合并并发请求：同一 poolType 已有 in-flight 请求则复用其 Promise
+    if (poolInFlight && poolInFlight.key === cacheKey) {
+      await poolInFlight.promise;
+      return;
+    }
     try {
       const url = currentPoolType
         ? `api/invest/pool?poolType=${encodeURIComponent(currentPoolType)}`
         : 'api/invest/pool';
-      const res = await fetch(url);
-      poolData = await res.json();
+      const promise = (async () => {
+        const res = await fetch(url);
+        return res.json();
+      })();
+      poolInFlight = { key: cacheKey, promise };
+      const data = await promise;
+      poolData = data;
+      poolDataCache.set(cacheKey, data);
       ensurePoolSearchCache();
       renderPool();
     } catch (e) {
       wrap.innerHTML = `<div class="pool-empty">加载失败：${e.message}</div>`;
+    } finally {
+      poolInFlight = null;
     }
   }
 

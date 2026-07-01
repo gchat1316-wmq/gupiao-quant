@@ -12,6 +12,7 @@ import com.quant.repository.InvestPositionCommonRepository;
 import com.quant.repository.InvestStockPoolRepository;
 import com.quant.repository.TradeStockBasicRepository;
 import com.quant.repository.TradeStockFinancialRepository;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -159,9 +160,20 @@ public class InvestService {
 
     // ===== 股票池管理 =====
 
+    /**
+     * 列出股票池条目。poolType 为 null/blank 表示全部；否则按 poolType 在 DB 层过滤，
+     * 只为该 poolType 的代码拉实时行情 / 年初收盘价，避免一次切换 tab 时把所有池子的
+     * 行情和 K 线都拉一遍（外部 HTTP 调用是主要瓶颈）。
+     *
+     * <p>30s 缓存：行情 30s 内基本不变，反复切换 tab / 刷新页面直接走 cache。
+     */
+    @Cacheable(value = "stockPool", key = "#poolType == null ? 'all' : #poolType")
     @Transactional(readOnly = true)
-    public List<PoolItemDTO> listPool() {
-        List<InvestStockPool> items = poolRepository.findAllByOrderByCreatedAtDesc();
+    public List<PoolItemDTO> listPool(String poolType) {
+        boolean all = (poolType == null || poolType.isBlank());
+        List<InvestStockPool> items = all
+                ? poolRepository.findAllByOrderByCreatedAtDesc()
+                : poolRepository.findByPoolTypeOrderByCreatedAtDesc(poolType);
         if (items.isEmpty()) return List.of();
 
         List<String> codes = items.stream().map(InvestStockPool::getStockCode).collect(Collectors.toList());
@@ -182,6 +194,11 @@ public class InvestService {
                 .sorted(poolDisplayComparator())
                 .map(p -> toPoolItemDTO(p, ctx))
                 .collect(Collectors.toList());
+    }
+
+    /** 兼容入口：列出全部股票池。 */
+    public List<PoolItemDTO> listPool() {
+        return listPool(null);
     }
 
     private Comparator<InvestStockPool> poolDisplayComparator() {
@@ -227,6 +244,7 @@ public class InvestService {
         return code == null ? "" : code.toUpperCase(Locale.ROOT);
     }
 
+    @CacheEvict(value = "stockPool", allEntries = true)
     @Transactional
     public PoolItemDTO addToPool(PoolSaveRequest req) {
         String kw = req.getKeyword() == null ? "" : req.getKeyword().trim();
@@ -257,6 +275,7 @@ public class InvestService {
         return toPoolItemDTO(saved);
     }
 
+    @CacheEvict(value = "stockPool", allEntries = true)
     @Transactional
     public PoolItemDTO updatePool(Integer id, PoolSaveRequest req) {
         InvestStockPool pool = poolRepository.findById(id)
@@ -323,6 +342,7 @@ public class InvestService {
     /**
      * 单字段更新（内联编辑）。空字符串视为清空（设为 null），允许撤销字段值。
      */
+    @CacheEvict(value = "stockPool", allEntries = true)
     @Transactional
     public PoolItemDTO updateField(Integer id, PoolFieldUpdateRequest req) {
         if (req == null || req.getField() == null || req.getField().isBlank()) {
@@ -388,6 +408,7 @@ public class InvestService {
         }
     }
 
+    @CacheEvict(value = "stockPool", allEntries = true)
     @Transactional
     public void removeFromPool(Integer id) {
         poolRepository.deleteById(id);
