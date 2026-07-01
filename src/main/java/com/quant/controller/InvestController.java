@@ -145,6 +145,18 @@ public class InvestController {
         return ResponseEntity.ok(Map.of("message", "已移除"));
     }
 
+    /**
+     * 拖拽排序：批量更新 displayOrder。
+     * Body: [{"id": 12, "displayOrder": 10}, ...]
+     * 返回: {"updated": N, "message": "reordered"}
+     */
+    @PostMapping("/pool/reorder")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
+    public Map<String, Object> reorderPool(@RequestBody List<InvestService.ReorderItem> items) {
+        int updated = investService.reorder(items);
+        return Map.of("updated", updated, "message", "reordered");
+    }
+
     /** 截图批量导入：仅解析图片，返回识别结果（不入库），由前端预览后再调用 batch-import */
     @PostMapping("/pool/import-image")
     @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")

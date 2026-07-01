@@ -4,6 +4,7 @@ import com.quant.dto.invest.PoolItemDTO;
 import com.quant.dto.invest.PoolSaveRequest;
 import com.quant.dto.invest.SopCheckupDTO;
 import com.quant.dto.invest.PoolFieldUpdateRequest;
+import lombok.extern.slf4j.Slf4j;
 import com.quant.entity.InvestPositionCommon;
 import com.quant.entity.InvestStockPool;
 import com.quant.entity.TradeStockBasic;
@@ -34,6 +35,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class InvestService {
 
@@ -412,6 +414,54 @@ public class InvestService {
     @Transactional
     public void removeFromPool(Integer id) {
         poolRepository.deleteById(id);
+    }
+
+    /**
+     * 批量更新股票池条目的 displayOrder（拖拽排序）。
+     * 入参每项至少要有 id 与 displayOrder；id 必须存在，displayOrder 必须 ≥ 0。
+     * 事务内串行执行 N 条 UPDATE，N 通常 ≤ 50，耗时可忽略。
+     */
+    @CacheEvict(value = "stockPool", allEntries = true)
+    @Transactional
+    public int reorder(List<ReorderItem> items) {
+        if (items == null || items.isEmpty()) {
+            throw new IllegalArgumentException("排序项不能为空");
+        }
+        int updated = 0;
+        for (ReorderItem item : items) {
+            if (item == null || item.getId() == null) {
+                throw new IllegalArgumentException("排序项 id 不能为空");
+            }
+            if (item.getDisplayOrder() == null || item.getDisplayOrder() < 0) {
+                throw new IllegalArgumentException("displayOrder 必须 ≥ 0：" + item.getId());
+            }
+            // 跳过不存在的 id（防御：前端可能传了已删除的条目），但要警告
+            if (!poolRepository.existsById(item.getId())) {
+                log.warn("reorder 跳过不存在的 id: {}", item.getId());
+                continue;
+            }
+            poolRepository.updateDisplayOrder(item.getId(), item.getDisplayOrder());
+            updated++;
+        }
+        return updated;
+    }
+
+    /** 拖拽排序的单条请求项。 */
+    public static class ReorderItem {
+        private Integer id;
+        private Integer displayOrder;
+
+        public ReorderItem() {}
+
+        public ReorderItem(Integer id, Integer displayOrder) {
+            this.id = id;
+            this.displayOrder = displayOrder;
+        }
+
+        public Integer getId() { return id; }
+        public void setId(Integer id) { this.id = id; }
+        public Integer getDisplayOrder() { return displayOrder; }
+        public void setDisplayOrder(Integer displayOrder) { this.displayOrder = displayOrder; }
     }
 
     /** 单条转换，供 addToPool / updatePool / updateField 使用。 */

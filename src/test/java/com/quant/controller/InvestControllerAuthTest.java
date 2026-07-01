@@ -52,6 +52,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -304,6 +305,71 @@ class InvestControllerAuthTest {
                     .andExpect(status().isOk());
 
             verify(investService).removeFromPool(anyInt());
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/invest/pool/reorder")
+    class ReorderPool {
+
+        @Test
+        @DisplayName("无 token → 403（Spring Security 默认行为，未认证用户的 @PreAuthorize 失败）")
+        void unauthenticated() throws Exception {
+            mvc.perform(post("/api/invest/pool/reorder")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("[{\"id\":1,\"displayOrder\":10}]"))
+                    .andExpect(status().isForbidden());
+
+            verify(investService, never()).reorder(any());
+        }
+
+        @Test
+        @DisplayName("USER → 403")
+        void userForbidden() throws Exception {
+            mvc.perform(post("/api/invest/pool/reorder")
+                            .header("Authorization", "Bearer " + userToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("[{\"id\":1,\"displayOrder\":10}]"))
+                    .andExpect(status().isForbidden());
+
+            verify(investService, never()).reorder(any());
+        }
+
+        @Test
+        @DisplayName("MANAGER + 合法 body → 200，service.reorder 被调用")
+        void managerAllowed() throws Exception {
+            when(investService.reorder(any())).thenReturn(3);
+
+            mvc.perform(post("/api/invest/pool/reorder")
+                            .header("Authorization", "Bearer " + managerToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("[{\"id\":1,\"displayOrder\":10},"
+                                    + "{\"id\":2,\"displayOrder\":20},"
+                                    + "{\"id\":3,\"displayOrder\":30}]"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.updated").value(3))
+                    .andExpect(jsonPath("$.message").value("reordered"));
+
+            @SuppressWarnings("unchecked")
+            org.mockito.ArgumentCaptor<List<InvestService.ReorderItem>> captor =
+                    org.mockito.ArgumentCaptor.forClass(List.class);
+            verify(investService).reorder(captor.capture());
+            org.assertj.core.api.Assertions.assertThat(captor.getValue()).hasSize(3);
+            org.assertj.core.api.Assertions.assertThat(captor.getValue().get(0).getId()).isEqualTo(1);
+            org.assertj.core.api.Assertions.assertThat(captor.getValue().get(0).getDisplayOrder()).isEqualTo(10);
+        }
+
+        @Test
+        @DisplayName("ADMIN + 空 body → service 仍被调用（参数校验在 service 抛 IllegalArgumentException）")
+        void adminEmptyBody() throws Exception {
+            when(investService.reorder(any()))
+                    .thenThrow(new IllegalArgumentException("排序项不能为空"));
+
+            mvc.perform(post("/api/invest/pool/reorder")
+                            .header("Authorization", "Bearer " + adminToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("[]"))
+                    .andExpect(status().is4xxClientError());
         }
     }
 

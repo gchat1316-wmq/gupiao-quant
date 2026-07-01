@@ -323,6 +323,141 @@
     .poolmeta-img-modal.open { display: flex; }
     .poolmeta-img-modal img { max-width: 95vw; max-height: 95vh; border-radius: 6px; }
 
+    /* ===== 股票池管理面板 ===== */
+    .poolcrud-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 12px; }
+    .poolcrud-tab {
+      padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text); font-size: 13px; font-weight: 500;
+      cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .poolcrud-tab:hover { border-color: var(--primary); color: var(--primary); }
+    .poolcrud-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .poolcrud-tab .poolcrud-count { font-size: 11px; opacity: 0.8; }
+
+    .poolcrud-toolbar {
+      display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px;
+      padding: 10px 12px; background: var(--surface); border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .poolcrud-search {
+      flex: 0 0 240px; padding: 6px 10px; font-size: 13px;
+      border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text);
+    }
+    .poolcrud-count-label { margin-left: auto; font-size: 12px; color: var(--text-muted); }
+
+    .poolcrud-table-wrap {
+      overflow-x: auto; border: 1px solid var(--border); border-radius: 8px;
+      background: var(--surface);
+    }
+    .poolcrud-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .poolcrud-table thead th {
+      background: var(--bg); padding: 8px 10px; text-align: left; font-weight: 600;
+      color: var(--text); border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    .poolcrud-table tbody td {
+      padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--text);
+      vertical-align: middle;
+    }
+    .poolcrud-table tbody tr:last-child td { border-bottom: none; }
+    .poolcrud-table tbody tr.poolcrud-dragging { opacity: 0.4; }
+    .poolcrud-table tbody tr.poolcrud-drop-before { box-shadow: inset 0 2px 0 0 var(--primary); }
+    .poolcrud-table tbody tr.poolcrud-drop-after { box-shadow: inset 0 -2px 0 0 var(--primary); }
+
+    .poolcrud-drag { cursor: grab; color: var(--text-muted); user-select: none; font-size: 16px; width: 28px; text-align: center; }
+    .poolcrud-drag:active { cursor: grabbing; }
+    .poolcrud-order { font-family: ui-monospace, monospace; font-size: 12px; color: var(--text-muted); width: 40px; text-align: center; }
+    .poolcrud-code { font-family: ui-monospace, monospace; font-weight: 600; white-space: nowrap; }
+    .poolcrud-name { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .poolcrud-valuation { white-space: nowrap; font-size: 12px; }
+    .poolcrud-valuation .val-low { color: #34d399; margin-right: 6px; }
+    .poolcrud-valuation .val-mid { color: var(--text); margin-right: 6px; }
+    .poolcrud-valuation .val-high { color: #f87171; }
+    .poolcrud-target { font-family: ui-monospace, monospace; }
+    .poolcrud-memo { max-width: 220px; cursor: text; }
+    .poolcrud-memo:hover { background: var(--hover-bg); }
+    .poolcrud-memo-input {
+      width: 100%; min-height: 36px; padding: 4px 6px; font-size: 12px; line-height: 1.4;
+      border: 1px solid var(--primary); border-radius: 4px; resize: vertical; font-family: inherit;
+    }
+    .poolcrud-status { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+    .poolcrud-actions { white-space: nowrap; }
+    .poolcrud-actions .btn-sm { margin-right: 4px; }
+    .poolcrud-empty { padding: 36px 12px; text-align: center; color: var(--text-muted); font-size: 13px; }
+
+    .poolcrud-help {
+      margin-top: 10px; padding: 8px 12px; font-size: 12px; color: var(--text-muted);
+      background: var(--surface); border-radius: 6px; border: 1px dashed var(--border);
+    }
+
+    /* OCR 预览表 */
+    .poolcrud-ocr-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .poolcrud-ocr-table th, .poolcrud-ocr-table td {
+      padding: 6px 8px; border: 1px solid var(--border); text-align: left;
+    }
+    .poolcrud-ocr-table th { background: var(--bg); font-weight: 600; }
+    .poolcrud-ocr-table input.form-input,
+    .poolcrud-ocr-table select.form-input {
+      padding: 4px 6px; font-size: 12px; width: 100%;
+    }
+
+    .ocr-upload-area {
+      padding: 36px; text-align: center; border: 2px dashed var(--border);
+      border-radius: 8px; cursor: pointer; transition: all 0.15s; color: var(--text-muted);
+    }
+    .ocr-upload-area:hover, .ocr-upload-area.dragover {
+      border-color: var(--primary); background: var(--hover-bg); color: var(--primary);
+    }
+    .ocr-upload-hint { font-size: 14px; line-height: 1.8; }
+
+    /* 编辑 modal 内部布局 */
+    .modal-section-title {
+      font-size: 12px; font-weight: 600; color: var(--text-muted);
+      margin: 14px 0 6px; padding-bottom: 4px; border-bottom: 1px dashed var(--border);
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .modal-row { display: flex; gap: 12px; margin-bottom: 4px; flex-wrap: wrap; }
+    .modal-field { flex: 1; min-width: 140px; display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+    .modal-field label { font-size: 12px; color: var(--text-muted); }
+    .modal-field input.form-input,
+    .modal-field select.form-input,
+    .modal-field textarea.form-input {
+      padding: 6px 8px; font-size: 13px; line-height: 1.4;
+      border: 1px solid var(--border); border-radius: 6px;
+      background: var(--bg); color: var(--text);
+    }
+    .modal-hint { font-size: 11px; color: var(--text-muted); }
+
+    /* 通用 modal */
+    .modal-mask {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+      display: flex; align-items: center; justify-content: center; z-index: 9998;
+      padding: 20px;
+    }
+    .modal-mask.hidden { display: none; }
+    .modal {
+      background: var(--surface); border-radius: 12px; max-width: 720px;
+      width: 100%; max-height: 90vh; display: flex; flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .modal.modal-wide { max-width: 880px; }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 18px; border-bottom: 1px solid var(--border);
+    }
+    .modal-title { font-size: 16px; font-weight: 600; }
+    .modal-close {
+      background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted);
+      padding: 0; line-height: 1;
+    }
+    .modal-close:hover { color: var(--text); }
+    .modal-body {
+      padding: 16px 18px; overflow-y: auto; flex: 1;
+    }
+    .modal-footer {
+      display: flex; gap: 10px; justify-content: flex-end;
+      padding: 12px 18px; border-top: 1px solid var(--border);
+    }
+
     @media (max-width: 768px) {
       .poolmeta-9grid { grid-template-columns: repeat(2, 1fr); }
       .poolmeta-cover-preview { width: 180px; height: 100px; }
@@ -333,6 +468,9 @@
       .sidebar { transform: translateX(-100%); transition: transform 0.2s; }
       .sidebar.open { transform: translateX(0); }
       .admin-main { margin-left: 0; padding: 16px; }
+      .poolcrud-toolbar { flex-direction: column; align-items: stretch; }
+      .poolcrud-search { flex: 1 1 auto; }
+      .modal-row { flex-direction: column; gap: 0; }
       .stats-row { grid-template-columns: 1fr; }
     }
   </style>
@@ -340,6 +478,7 @@
 <body>
   <div id="adminApp"></div>
   <script src="js/layout.js?v=20260630-pm-v2" defer></script>
+  <script src="js/admin-poolcrud.js?v=20260701-poolcrud-v1" defer></script>
   <script>
   document.addEventListener('DOMContentLoaded', async function () {
     await new Promise(r => setTimeout(r, 100));
@@ -381,6 +520,9 @@
           </div>
 
           <div class="sidebar-section-label">投资管理</div>
+          <div class="sidebar-item" data-panel="poolcrud">
+            📋 股票池管理
+          </div>
           <div class="sidebar-item" data-panel="poolmeta">
             📚 投资池说明
           </div>
@@ -566,6 +708,203 @@
           <div id="poolMetaPanelMsg" class="msg"></div>
         </div>
 
+        <!-- 面板：股票池管理（增删改/排序/OCR 批量导入） -->
+        <div id="panel-poolcrud" class="panel">
+          <div class="page-title">股票池管理</div>
+          <div class="page-subtitle">统一管理 3 个股票池的条目：增删改、拖拽排序、OCR 截图批量导入。</div>
+
+          <div class="poolcrud-tabs" id="poolcrudTabs">
+            <button class="poolcrud-tab active" data-pool="tech_vc">科技AI <span class="poolcrud-count" id="poolcrudTabCurrent">—</span></button>
+            <button class="poolcrud-tab" data-pool="innovative_drug">创新药</button>
+            <button class="poolcrud-tab" data-pool="quality">质量优选</button>
+          </div>
+
+          <div class="poolcrud-toolbar">
+            <button type="button" class="primary-btn" id="poolcrudAddBtn">+ 新增股票</button>
+            <button type="button" class="btn-sm" id="poolcrudImportBtn">📷 截图批量导入</button>
+            <button type="button" class="btn-sm" id="poolcrudRefreshBtn">🔄 刷新</button>
+            <input type="text" id="poolcrudSearch" class="poolcrud-search" placeholder="搜索代码 / 名称 / 状态" />
+            <span class="poolcrud-count-label" id="poolcrudCount">共 — 只</span>
+          </div>
+
+          <div class="poolcrud-table-wrap">
+            <table class="poolcrud-table">
+              <thead>
+                <tr>
+                  <th>≡</th>
+                  <th>#</th>
+                  <th>代码</th>
+                  <th>名称</th>
+                  <th>低估 / 合理 / 高估</th>
+                  <th>目标价</th>
+                  <th>备注</th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="poolcrudTbody"></tbody>
+            </table>
+          </div>
+
+          <div id="poolcrudPanelMsg" class="msg"></div>
+
+          <div class="poolcrud-help">
+            💡 拖拽行（≡ 列）调整排序，松手自动保存；点备注 cell 直接内联编辑；点 ✎ 编辑弹完整字段。
+          </div>
+        </div>
+
+        <!-- 股票池管理：编辑 modal -->
+        <div id="poolcrudEditModal" class="modal-mask hidden">
+          <div class="modal modal-wide">
+            <div class="modal-header">
+              <span class="modal-title" id="poolcrudEditTitle">编辑股票</span>
+              <button class="modal-close" id="poolcrudEditClose" type="button">×</button>
+            </div>
+            <div class="modal-body">
+              <div class="modal-row">
+                <div class="modal-field">
+                  <label>股票代码 / 名称</label>
+                  <input id="poolcrudKeyword" type="text" placeholder="如 002371 或 北方华创" />
+                  <div class="modal-hint">编辑时锁定。新增时输入代码或名称，后端自动匹配。</div>
+                </div>
+                <div class="modal-field">
+                  <label>分类</label>
+                  <select id="poolcrudPoolType">
+                    <option value="tech_vc">科技AI</option>
+                    <option value="innovative_drug">创新药</option>
+                    <option value="quality">质量优选</option>
+                  </select>
+                </div>
+                <div class="modal-field">
+                  <label>排序</label>
+                  <input id="poolcrudDisplayOrder" type="number" min="0" step="1" placeholder="拖拽后系统自动重排为 10/20/30..." />
+                </div>
+              </div>
+
+              <div class="modal-section-title">估值三档（元）</div>
+              <div class="modal-row">
+                <div class="modal-field">
+                  <label>低估价</label>
+                  <input id="poolcrudUndervalued" type="number" min="0" step="0.01" />
+                </div>
+                <div class="modal-field">
+                  <label>合理价</label>
+                  <input id="poolcrudFair" type="number" min="0" step="0.01" />
+                </div>
+                <div class="modal-field">
+                  <label>高估价</label>
+                  <input id="poolcrudOvervalued" type="number" min="0" step="0.01" />
+                </div>
+              </div>
+
+              <div class="modal-section-title">目标价（元）</div>
+              <div class="modal-row">
+                <div class="modal-field">
+                  <label>希望买入价</label>
+                  <input id="poolcrudTargetBuy" type="number" min="0" step="0.01" />
+                </div>
+                <div class="modal-field">
+                  <label>希望卖出价</label>
+                  <input id="poolcrudTargetSell" type="number" min="0" step="0.01" />
+                </div>
+              </div>
+
+              <div class="modal-section-title">营收预测（亿）</div>
+              <div class="modal-row">
+                <div class="modal-field">
+                  <label>今年 (Y0)</label>
+                  <input id="poolcrudRevY0" type="number" min="0" step="0.01" />
+                </div>
+                <div class="modal-field">
+                  <label>明年 (Y1)</label>
+                  <input id="poolcrudRevY1" type="number" min="0" step="0.01" />
+                </div>
+                <div class="modal-field">
+                  <label>后年 (Y2)</label>
+                  <input id="poolcrudRevY2" type="number" min="0" step="0.01" />
+                </div>
+              </div>
+
+              <div class="modal-section-title">历史营收（亿）</div>
+              <div class="modal-row">
+                <div class="modal-field">
+                  <label>2023</label>
+                  <input id="poolcrudRev2023" type="number" min="0" step="0.01" />
+                </div>
+                <div class="modal-field">
+                  <label>2024</label>
+                  <input id="poolcrudRev2024" type="number" min="0" step="0.01" />
+                </div>
+                <div class="modal-field">
+                  <label>2025</label>
+                  <input id="poolcrudRev2025" type="number" min="0" step="0.01" />
+                </div>
+              </div>
+
+              <div class="modal-section-title">Q1 财务（%）</div>
+              <div class="modal-row">
+                <div class="modal-field">
+                  <label>毛利率</label>
+                  <input id="poolcrudQ1GM" type="number" step="0.01" />
+                </div>
+                <div class="modal-field">
+                  <label>净利率</label>
+                  <input id="poolcrudQ1NM" type="number" step="0.01" />
+                </div>
+                <div class="modal-field">
+                  <label>营收增速</label>
+                  <input id="poolcrudQ1RG" type="number" step="0.01" />
+                </div>
+              </div>
+
+              <div class="modal-section-title">估值参考</div>
+              <div class="modal-row">
+                <div class="modal-field">
+                  <label>近 5 年最低 PS</label>
+                  <input id="poolcrudMinPs5y" type="number" step="0.01" />
+                </div>
+                <div class="modal-field">
+                  <label>目标市值（亿）</label>
+                  <input id="poolcrudTargetMC" type="number" step="0.01" />
+                </div>
+              </div>
+
+              <div class="modal-field">
+                <label>投资逻辑备注</label>
+                <textarea id="poolcrudMemo" rows="3" placeholder="记录入池理由、稀缺卡位分析等..."></textarea>
+              </div>
+
+              <div id="poolcrudEditMsg" class="msg"></div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-ghost" id="poolcrudEditCancel" type="button">取消</button>
+              <button class="primary-btn" id="poolcrudEditSave" type="button">保存</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 股票池管理：OCR 批量导入 modal -->
+        <div id="poolcrudOcrModal" class="modal-mask hidden">
+          <div class="modal modal-wide">
+            <div class="modal-header">
+              <span class="modal-title">📷 截图批量导入</span>
+              <button class="modal-close" id="poolcrudOcrClose" type="button">×</button>
+            </div>
+            <div class="modal-body">
+              <div id="poolcrudOcrUploadArea" class="ocr-upload-area">
+                <input type="file" id="poolcrudOcrFile" accept="image/png,image/jpeg,image/webp" hidden />
+                <div class="ocr-upload-hint">📷 点击或拖拽截图到这里<br /><span style="font-size:11px;color:var(--text-muted)">支持 PNG / JPG / WebP，自动识别股票代码、名称、分类</span></div>
+              </div>
+              <div id="poolcrudOcrPreview" class="hidden"></div>
+              <div id="poolcrudOcrMsg" class="msg">请上传截图</div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-ghost" id="poolcrudOcrCancel" type="button">取消</button>
+              <button class="primary-btn" id="poolcrudOcrImportBtn" type="button" disabled>批量入库</button>
+            </div>
+          </div>
+        </div>
+
         <!-- 用户管理面板 -->
         <div id="panel-users" class="panel">
           <div class="page-header">
@@ -739,6 +1078,10 @@
         if (item.dataset.panel === 'quotes' && !window._quoteAdminLoaded) {
           window._quoteAdminLoaded = true;
           initQuoteAdminPanel();
+        }
+        if (item.dataset.panel === 'poolcrud' && !window._poolCrudLoaded) {
+          window._poolCrudLoaded = true;
+          initPoolCrudPanel();
         }
       });
     });

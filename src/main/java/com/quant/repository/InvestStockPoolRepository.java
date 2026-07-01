@@ -28,4 +28,13 @@ public interface InvestStockPoolRepository extends JpaRepository<InvestStockPool
     @Query("DELETE FROM InvestStockPool p WHERE p.poolType = :poolType OR UPPER(p.stockCode) IN :upperCodes")
     int deleteByPoolTypeOrUpperStockCodeIn(@Param("poolType") String poolType,
                                            @Param("upperCodes") Collection<String> upperCodes);
+
+    /**
+     * 单条更新 displayOrder。批量调用由 service 在事务内循环,简单可靠。
+     * 用 JPQL 显式赋值而不是 dirty checking,可避免 Hibernate 多次 select 后的额外开销。
+     */
+    @Modifying
+    @Query("UPDATE InvestStockPool p SET p.displayOrder = :displayOrder WHERE p.id = :id")
+    int updateDisplayOrder(@Param("id") Integer id,
+                           @Param("displayOrder") Integer displayOrder);
 }
