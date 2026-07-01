@@ -36,6 +36,19 @@ import java.util.stream.Collectors;
 @Service
 public class InvestService {
 
+    /**
+     * 10×PS 估值三档的判定结果：
+     * <ul>
+     *   <li>level — 低估 / 合理 / 泡沫 三档标签，或 null（无任何 Y 数据）</li>
+     *   <li>degree — 偏离参考年 10×PS 的百分比（−100~+∞），仅低估/泡沫给出</li>
+     *   <li>refYear — 参考年（2027=forecastY1 用作低估对照，2028=forecastY2 用作泡沫对照）</li>
+     * </ul>
+     * 同一个函数同时返回三段，避免前端/后端各算一份导致算法漂移。
+     */
+    public record ValuationVerdict(String level, BigDecimal degree, Integer refYear) {
+        public static final ValuationVerdict EMPTY = new ValuationVerdict(null, null, null);
+    }
+
     private final TradeStockBasicRepository stockBasicRepository;
     private final TradeStockFinancialRepository financialRepository;
     private final InvestStockPoolRepository poolRepository;
@@ -256,6 +269,29 @@ public class InvestService {
         if (req.getTargetSellPrice() != null) {
             pos.setTargetSellPrice(req.getTargetSellPrice());
         }
+
+        // 2026-07-01 弹窗"消息监控" checkbox：勾选时把目标价同步成 fixed_buy/sell_price，
+        // MonitorService 扫描 InvestPositionCommon 触发 server 酱推送。
+        // null = 用户没动开关 → 保持现状；true = 开启并同步价格；false = 关闭并清空价格。
+        if (req.getAlertBuyEnabled() != null) {
+            if (req.getAlertBuyEnabled()) {
+                pos.setFixedBuyEnabled(1);
+                pos.setFixedBuyPrice(pool.getTargetBuyPrice());
+            } else {
+                pos.setFixedBuyEnabled(0);
+                pos.setFixedBuyPrice(null);
+            }
+        }
+        if (req.getAlertSellEnabled() != null) {
+            if (req.getAlertSellEnabled()) {
+                pos.setFixedSellEnabled(1);
+                pos.setFixedSellPrice(pos.getTargetSellPrice());
+            } else {
+                pos.setFixedSellEnabled(0);
+                pos.setFixedSellPrice(null);
+            }
+        }
+
         positionRepository.save(pos);
         applyPoolFields(pool, req);
         return toPoolItemDTO(poolRepository.save(pool));
@@ -389,7 +425,8 @@ public class InvestService {
         BigDecimal computedMarketCap = quote != null && quote.totalMarketCapYi() != null
                 ? quote.totalMarketCapYi()
                 : computeMarketCap(latestPrice, basic);
-        String valuationRange = inferValuationRange(computedMarketCap, pool.getRevenueForecastY1(), pool.getRevenueForecastY2());
+        ValuationVerdict valuationVerdict = inferValuationRange(
+                computedMarketCap, pool.getRevenueForecastY1(), pool.getRevenueForecastY2());
 
         BigDecimal latestRevenueYoy = fin != null ? fin.getRevenueYoy() : null;
         BigDecimal latestProfitYoy = fin != null ? fin.getDeductedNetProfitYoy() : null;
@@ -428,7 +465,9 @@ public class InvestService {
                 .displayOrder(pool.getDisplayOrder())
                 .poolUpdateError(pool.getPoolUpdateError())
                 .profitLevel(pool.getProfitLevel())
-                .valuationRange(valuationRange)
+                .valuationRange(valuationVerdict.level())
+                .valuationDegree(valuationVerdict.degree())
+                .valuationRefYear(valuationVerdict.refYear())
                 .status(position != null ? position.getStatus() : null)
                 .statusLabel(statusLabel(position != null ? position.getStatus() : null))
                 .alertState(position != null ? position.getAlertState() : null)
@@ -483,20 +522,65 @@ public class InvestService {
         return totalCap.divide(BigDecimal.valueOf(100_000_000L), 2, RoundingMode.HALF_UP);
     }
 
-    private String inferValuationRange(BigDecimal marketCap, BigDecimal revenueForecastY1, BigDecimal revenueForecastY2) {
-        if (marketCap == null) return null;
+    /**
+     * 10×PS 估值三档 + 偏离百分比。
+     * <pre>
+     *   合理市值   = 未来第 N 年预测营收 × 10
+     *   低估       marketCap < Y1 × 10            → 27 -X%（X = mc/(Y1×10) - 1）
+     *   泡沫       marketCap > Y2 × 10            → 28 +X%
+     *   合理       Y1×10 ≤ mc ≤ Y2×10            → refYear=距 Y1/Y2 更近那年，degree=mc/ref-1
+     * </pre>
+     * 短差用 Y1 拉得紧，长差用 Y2 给发展空间 —— 两套参照年分开避免单一指标拍脑袋。
+     * <p>2026-07-01 改：合理时也输出偏离，让用户知道是"刚过 Y1"（接近低估）
+     * 还是"快到 Y2"（接近泡沫）。思泰克 mc=113.7 vs Y2=118 只差 3.6%，
+     * 显示"合理 28年 -3.64%"比裸"合理"直观得多。
+     */
+    static ValuationVerdict inferValuationRange(BigDecimal marketCap,
+                                                BigDecimal revenueForecastY1,
+                                                BigDecimal revenueForecastY2) {
+        if (marketCap == null) return ValuationVerdict.EMPTY;
         BigDecimal fairCapY1 = revenueForecastY1 == null ? null : revenueForecastY1.multiply(BigDecimal.TEN);
         BigDecimal fairCapY2 = revenueForecastY2 == null ? null : revenueForecastY2.multiply(BigDecimal.TEN);
+
         if (fairCapY1 != null && marketCap.compareTo(fairCapY1) < 0) {
-            return "低估";
+            return new ValuationVerdict("低估", degreeAgainst(marketCap, fairCapY1), 2027);
         }
         if (fairCapY2 != null && marketCap.compareTo(fairCapY2) > 0) {
-            return "泡沫";
+            return new ValuationVerdict("泡沫", degreeAgainst(marketCap, fairCapY2), 2028);
         }
         if (fairCapY1 == null && fairCapY2 == null) {
-            return null;
+            return ValuationVerdict.EMPTY;
         }
-        return "合理";
+
+        // 合理区间：refYear = 相对距离 Y1/Y2 更近的那年（除以 fairCap 归一化）。
+        // 思泰克: 相对距 Y1=22.9/90.8=25.2%, 相对距 Y2=4.3/118=3.6% → 选 Y2 → degree=-3.64%
+        // 中点 mc=250, fairCapY1=200, fairCapY2=300: 相对距 Y1=50/200=25%, 相对距 Y2=50/300=16.7% → 选 Y2
+        // 完全相等时默认选 Y1。
+        BigDecimal distY1 = fairCapY1 == null ? null
+                : marketCap.subtract(fairCapY1).abs().divide(fairCapY1, 6, java.math.RoundingMode.HALF_UP);
+        BigDecimal distY2 = fairCapY2 == null ? null
+                : marketCap.subtract(fairCapY2).abs().divide(fairCapY2, 6, java.math.RoundingMode.HALF_UP);
+
+        if (fairCapY1 == null) {
+            return new ValuationVerdict("合理", degreeAgainst(marketCap, fairCapY2), 2028);
+        }
+        if (fairCapY2 == null) {
+            return new ValuationVerdict("合理", degreeAgainst(marketCap, fairCapY1), 2027);
+        }
+        if (distY1.compareTo(distY2) <= 0) {
+            return new ValuationVerdict("合理", degreeAgainst(marketCap, fairCapY1), 2027);
+        }
+        return new ValuationVerdict("合理", degreeAgainst(marketCap, fairCapY2), 2028);
+    }
+
+    /**
+     * 当前市值相对 fairCap 偏离百分比 = mc / fairCap - 1，结果乘 100 取两位小数。
+     * 例：mc=150, fairCap=100 → +50.00；mc=50, fairCap=100 → -50.00。
+     */
+    private static BigDecimal degreeAgainst(BigDecimal marketCap, BigDecimal fairCap) {
+        BigDecimal ratio = marketCap.divide(fairCap, 6, RoundingMode.HALF_UP);
+        BigDecimal percent = ratio.multiply(BigDecimal.valueOf(100)).subtract(BigDecimal.valueOf(100));
+        return percent.setScale(2, RoundingMode.HALF_UP);
     }
 
     private String statusLabel(String status) {

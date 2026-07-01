@@ -30,7 +30,12 @@ public class WeeklyOpportunitySlotDTO {
     private String poolType;
     private Integer slotIndex;
     private String stockCode;
+    /** 股票名（自动从 invest_stock_pool 联动；用户填的 userStockName 不影响此字段）。 */
     private String stockName;
+    /** 用户在 9 格编辑页手工填的股票名，代码不在池中时的兜底名称。 */
+    private String userStockName;
     private String reason;
+    /** 该格对应的参考截图 URL（由 admin 上传，用于记录候选股截图），可空。 */
+    private String imageUrl;
     private LocalDateTime updatedAt;
 }

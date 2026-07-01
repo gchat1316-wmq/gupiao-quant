@@ -248,7 +248,6 @@ public class StatsService {
                 case "/gp/study.html" -> "📚 学习搭子";
                 case "/gp/potential.html" -> "🎯 潜力选股";
                 case "/gp/wish-pool.html" -> "🌟 许愿池";
-                case "/gp/industry-research.html" -> "🔍 产业投研";
                 case "/gp/admin-users.html" -> "⚙️ 管理后台";
                 case "/gp/profile.html" -> "👤 个人中心";
                 default -> path.replace("/gp/", "").replace(".html", "");

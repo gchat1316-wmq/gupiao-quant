@@ -8,29 +8,37 @@
   <title>财务分析 · 投资助手</title>
   <link rel="stylesheet" href="css/skin.css?v=20260618-skin-system" />
   <link rel="stylesheet" href="css/style.css?v=20260618-skin-system" />
-  <link rel="stylesheet" href="css/study.css?v=20260618-skin-system" />
-  <script src="js/layout.js?v=20260629-profile-link" defer></script>
+  <link rel="stylesheet" href="css/study.css?v=20260701-feed-merge" />
+  <script src="js/layout.js?v=20260701-feed-merge" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <div id="siteHeader"></div>
 
   <main class="container">
-    <!-- 通知轮播条 (始终固定在顶部) -->
-    <section class="notif-bar" id="notifBar" aria-label="系统通知">
-      <div class="notif-bar-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+    <!-- 通知 + 金句 混合轮播 -->
+    <section class="feed-carousel" id="feedCarousel" aria-label="通知与金句">
+      <button type="button" class="feed-arrow" id="feedPrev" aria-label="上一条">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"></polyline>
         </svg>
+      </button>
+      <div class="feed-viewport">
+        <div class="feed-track" id="feedTrack">
+          <div class="feed-slide">
+            <span class="feed-tag type-quote">金句</span>
+            <div class="feed-body">
+              <div class="feed-content">内容加载中…</div>
+            </div>
+          </div>
+        </div>
+        <div class="feed-dots" id="feedDots" role="tablist" aria-label="分页"></div>
       </div>
-      <span class="notif-bar-label">通知</span>
-      <div class="notif-bar-viewport">
-        <ul class="notif-bar-list" id="notifList">
-          <!-- 运行时由 js/notif-bar.js 从 API 拉取填充 -->
-        </ul>
-      </div>
-      <div class="notif-bar-dots" id="notifDots" role="tablist" aria-label="通知分页"></div>
+      <button type="button" class="feed-arrow" id="feedNext" aria-label="下一条">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </button>
     </section>
 
     <div class="search-stage is-centered" id="searchStage">
@@ -92,7 +100,8 @@
   </main>
   <div id="siteFooter"></div>
 
-  <script src="js/notif-bar.js?v=20260618-name-dedup"></script>
+  <script src="js/feed-carousel.js?v=20260701-feed-merge"></script>
+  <script src="js/search-stage-center.js?v=20260701-feed-merge"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

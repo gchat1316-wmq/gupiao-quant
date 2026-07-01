@@ -12,6 +12,7 @@ import com.quant.service.AStockDataQuoteService;
 import com.quant.service.monitor.MonitorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -89,6 +90,7 @@ public class MonitorController {
     }
 
     @PostMapping("/pool")
+    @PreAuthorize("isAuthenticated()")
     @Transactional
     public Map<String, Object> add(@RequestBody MonitorAddRequest req) {
         if (req.getStockCode() == null || req.getPoolType() == null) {
@@ -116,6 +118,7 @@ public class MonitorController {
     }
 
     @PatchMapping("/pool/{stockCode}/{poolType}/field")
+    @PreAuthorize("isAuthenticated()")
     @Transactional
     public Map<String, Object> updateField(@PathVariable String stockCode,
                                            @PathVariable String poolType,
@@ -132,6 +135,7 @@ public class MonitorController {
     }
 
     @DeleteMapping("/pool/{stockCode}/{poolType}")
+    @PreAuthorize("isAuthenticated()")
     @Transactional
     public Map<String, Object> remove(@PathVariable String stockCode, @PathVariable String poolType) {
         posRepo.findByStockCodeAndPoolType(stockCode, poolType)
@@ -140,6 +144,7 @@ public class MonitorController {
     }
 
     @PostMapping("/run")
+    @PreAuthorize("isAuthenticated()")
     public MonitorRunResponse run(@RequestParam(required = false) String poolType) {
         int triggered = switch (poolType == null ? "" : poolType) {
             case "" -> monitorService.scan("stock") + monitorService.scan("tech_ai") + monitorService.scan("potential");

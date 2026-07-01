@@ -11,8 +11,6 @@ import com.quant.entity.TradeStockFinancial;
 import com.quant.repository.StockAnalysisRecordRepository;
 import com.quant.repository.TradeStockBasicRepository;
 import com.quant.repository.TradeStockFinancialRepository;
-import com.quant.repository.IndustryResearchArticleRepository;
-import com.quant.repository.IndustryResearchSectionRepository;
 import com.quant.service.ai.MiniMaxClient;
 import com.quant.service.ai.SenseNovaClient;
 import com.quant.service.prosperitystrong.WindAifinMarketClient;
@@ -51,8 +49,6 @@ public class StockAnalysisService {
     private final StockQueryService stockQueryService;
     private final TradeStockBasicRepository stockBasicRepository;
     private final TradeStockFinancialRepository financialRepository;
-    private final IndustryResearchArticleRepository industryResearchArticleRepository;
-    private final IndustryResearchSectionRepository industryResearchSectionRepository;
     private final MiniMaxClient miniMaxClient;
     private final SenseNovaClient senseNovaClient;
     private final WebSearchClient webSearchClient;
@@ -430,10 +426,7 @@ public class StockAnalysisService {
             sb.append("\n（未启用联网检索，请仅基于已知信息分析）\n");
         }
 
-        // 接入产业研报：拉取 industry_research_article 中与本股/行业相关的研报，
-        // 把关键章节摘要塞进 prompt，让 AI 能拿到产业链深度数据（HBM/封装/设备玩家份额等）。
         if (isFiveDim) {
-            appendIndustryResearchContext(sb, basic.getStockName(), basic.getSectorNames());
             // 数据源 1：Wind financial_docs（公告 + 财经新闻 + 投资者互动 RAG）
             appendWindFinancialDocs(sb, basic.getStockName());
             // 数据源 2：通达信 MCP 财务数据（NL 查询,补充 Wind 拿不到的结构化财务/行业数据）
@@ -511,103 +504,6 @@ public class StockAnalysisService {
         sb.append("\n⚠️ 上面是从 Wind 卖方研报/财经媒体抓到的片段, 优先级高于普通联网检索。\n");
         sb.append("  - 卖方对景气度/产业链/竞争格局/估值锚点的判断 → 写入对应维度\n");
         sb.append("  - 与现有数据冲突时, 以研报为准, 但需在 reasoning 说明\n");
-    }
-
-    /**
-     * 拉取与本股/行业相关的产业研报，提取关键章节摘要塞进 prompt。
-     * 策略：
-     *   1. 取所有 published 文章
-     *   2. 用 stockName + sectorNames 关键词匹配 title/subtitle/tags/sections.content
-     *   3. 优先选 tags 包含 HBM/AI 算力/半导体 等高景气关键词的
-     *   4. 限制前 3 篇，每篇取关键 section 摘要
-     */
-    private void appendIndustryResearchContext(StringBuilder sb, String stockName, String sectorNames) {
-        try {
-            var articles = industryResearchArticleRepository.findAllPublished();
-            if (articles == null || articles.isEmpty()) {
-                sb.append("\n（暂无产业研报数据）\n");
-                return;
-            }
-            // 关键词集：股票名 + 行业 tag 拆分
-            List<String> keywords = new ArrayList<>();
-            if (stockName != null) keywords.add(stockName.trim());
-            if (sectorNames != null) {
-                for (String t : sectorNames.split("[,，;；\\s]+")) {
-                    if (t != null && !t.isBlank()) keywords.add(t.trim());
-                }
-            }
-            // 行业强信号关键词：HBM/AI 算力/半导体 设备
-            List<String> strongTags = List.of("HBM", "GB200", "光模块", "PCB", "AI 算力", "半导体设备", "封装", "TSV", "光刻", "存储");
-
-            // 评分匹配
-            record Scored(com.quant.entity.IndustryResearchArticle article, int score) {}
-            List<Scored> scored = new ArrayList<>();
-            for (com.quant.entity.IndustryResearchArticle a : articles) {
-                int score = 0;
-                String hay = ((a.getTitle() == null ? "" : a.getTitle()) + " " +
-                        (a.getSubtitle() == null ? "" : a.getSubtitle()) + " " +
-                        (a.getTags() == null ? "" : a.getTags())).toLowerCase();
-                for (String k : keywords) {
-                    if (k.length() >= 2 && hay.contains(k.toLowerCase())) score += 5;
-                }
-                for (String t : strongTags) {
-                    if (hay.contains(t.toLowerCase())) score += 3;
-                }
-                if (score > 0) scored.add(new Scored(a, score));
-            }
-            if (scored.isEmpty()) {
-                sb.append("\n（暂无匹配本股的产业研报）\n");
-                return;
-            }
-            scored.sort((x, y) -> Integer.compare(y.score(), x.score()));
-            int picked = Math.min(3, scored.size());
-
-            sb.append("\n【产业研报上下文（来自 industry_research 模块，最新已发布的产业链深度分析）】\n");
-            int charCount = 0;
-            int maxChars = 6000;
-            for (int i = 0; i < picked; i++) {
-                if (charCount >= maxChars) break;
-                com.quant.entity.IndustryResearchArticle a = scored.get(i).article();
-                sb.append("\n▍研报 #").append(i + 1).append(": ").append(safe(a.getTitle())).append("\n");
-                if (a.getSubtitle() != null) sb.append("  副标题: ").append(safe(a.getSubtitle())).append("\n");
-                if (a.getSourceSummary() != null) sb.append("  数据来源: ").append(safe(a.getSourceSummary())).append("\n");
-                if (a.getTags() != null) sb.append("  标签: ").append(safe(a.getTags())).append("\n");
-                List<com.quant.entity.IndustryResearchSection> sections = industryResearchSectionRepository.findByArticleIdOrderBySectionOrderAsc(a.getId());
-                // 关键章节优先：overview / chain / competition / hbm / optical / pcb / valuation / leaders / core-stock
-                List<String> priorityKeys = List.of("overview", "chain", "competition", "hbm", "optical",
-                        "pcb", "valuation", "leaders", "core-stock", "financial", "downstream");
-                List<com.quant.entity.IndustryResearchSection> ordered = new ArrayList<>();
-                for (String k : priorityKeys) {
-                    for (com.quant.entity.IndustryResearchSection s : sections) {
-                        if (k.equalsIgnoreCase(s.getSectionKey())) ordered.add(s);
-                    }
-                }
-                // 补齐其他 section
-                for (com.quant.entity.IndustryResearchSection s : sections) {
-                    if (!ordered.contains(s)) ordered.add(s);
-                }
-                for (com.quant.entity.IndustryResearchSection s : ordered) {
-                    if (charCount >= maxChars) break;
-                    String body = s.getContentJson();
-                    if (body == null || body.isBlank()) continue;
-                    // 截断过长的 JSON（每 section 限 1500 字符）
-                    String clipped = body.length() > 1500 ? body.substring(0, 1500) + "..." : body;
-                    String block = "  [" + safe(s.getSectionTitle()) + "] " + clipped + "\n";
-                    sb.append(block);
-                    charCount += block.length();
-                }
-            }
-            sb.append("\n⚠️ 上面是从本系统 industry_research 库拉的研报内容（已基于关键词匹配）。");
-            sb.append("请把这些数据当作高优先级证据：\n");
-            sb.append("  - 产业链地位/卡位/玩家份额 → 写入稀缺卡位维度\n");
-            sb.append("  - 行业增速/技术演进/代际升级 → 写入成长动力维度\n");
-            sb.append("  - 标的财务质量/订单/产能 → 写入业绩兑现度/瓶颈壁垒维度\n");
-            sb.append("  - 估值宽表/PEG/PE 分位 → 写入估值阶梯维度\n");
-            sb.append("如果本股不在研报 A 股核心标的里，研报中的间接受益环节也能用于推断。\n");
-        } catch (Exception e) {
-            log.warn("拉取产业研报失败: {}", e.getMessage());
-            sb.append("\n（产业研报拉取出错：").append(e.getMessage()).append("）\n");
-        }
     }
 
     /**

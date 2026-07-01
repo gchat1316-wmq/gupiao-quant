@@ -127,12 +127,66 @@
     });
   }
 
+  // 下拉菜单（更多 ▾）：点击展开 + 当前项高亮 + 外部点击 / ESC 关闭
+  function bindNavDropdown(scope) {
+    var dropdown = (scope || document).querySelector('.nav-dropdown');
+    if (!dropdown) return;
+    var toggle = dropdown.querySelector('.nav-dropdown-toggle');
+    var menu = dropdown.querySelector('.nav-dropdown-menu');
+    if (!toggle || !menu) return;
+
+    function setOpen(open) {
+      menu.hidden = !open;
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      dropdown.classList.toggle('open', open);
+    }
+
+    // 当前页对应的下拉项高亮
+    var currentPath = window.location.pathname;
+    var activeItem = null;
+    menu.querySelectorAll('.nav-dropdown-item').forEach(function (a) {
+      var matches = (a.dataset.match || '').split(',').filter(Boolean);
+      if (isActive(matches)) {
+        a.classList.add('active');
+        activeItem = a;
+      }
+    });
+    // 只要下拉里任何一项处于当前页面，就给 toggle 一个 active 状态
+    if (activeItem) toggle.classList.add('active');
+
+    toggle.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      setOpen(menu.hidden);
+    });
+
+    // 点击下拉项后让浏览器正常跳转，无需手动关闭
+    menu.querySelectorAll('.nav-dropdown-item').forEach(function (a) {
+      a.addEventListener('click', function () {
+        setOpen(false);
+      });
+    });
+
+    // 点击页面其它位置 → 关闭
+    if (!document.body.dataset.navDropdownOutsideBound) {
+      document.body.dataset.navDropdownOutsideBound = '1';
+      document.addEventListener('click', function (event) {
+        if (!dropdown.contains(event.target)) {
+          setOpen(false);
+        }
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') setOpen(false);
+      });
+    }
+  }
+
   async function renderHeader() {
     const mount = document.getElementById('siteHeader');
     if (!mount) return;
 
     try {
-      const response = await fetch('header.html?v=20260630-profile-fix', { cache: 'no-cache' });
+      const response = await fetch('header.html?v=20260630-pm-v2', { cache: 'no-cache' });
       if (!response.ok) throw new Error('header load failed');
       mount.innerHTML = await response.text();
     }           catch (e) {
@@ -142,16 +196,27 @@
             '<a href="./" class="brand"><span class="brand-mark">↗</span><span class="brand-name">投资助手</span></a>' +
             '<nav class="nav-links">' +
               '<a href="./" class="nav-link" data-match="/,/index.html,/gp,/gp/,/gp/index.html">财务分析</a>' +
-              '<a href="xiebo-invest.html" class="nav-link" data-match="xiebo-invest.html">林奇投资</a>' +
-              '<a href="invest.html" class="nav-link" data-match="invest.html">谢博投资</a>' +
               '<a href="market-recap.html" class="nav-link nav-link-recap" data-match="market-recap.html">' +
                 '<span class="nav-link-recap-label">每日复盘</span>' +
                 '<span class="nav-recap-count" id="navRecapCount" hidden></span>' +
               '</a>' +
-              '<a href="tech-ai.html" class="nav-link" data-match="tech-ai.html">AI监控</a>' +
+              '<a href="invest.html" class="nav-link" data-match="invest.html">谢博投资</a>' +
               '<a href="prosperity-pick.html" class="nav-link" data-match="prosperity-pick.html,stock-analysis.html">个股研究</a>' +
               '<a href="prosperity-strong.html" class="nav-link" data-match="prosperity-strong.html">热点强势选股</a>' +
-              '<a href="study.html" class="nav-link" data-match="study.html,course.html,node.html,card.html,quiz.html">学习搭子</a>' +
+              '<a href="monitor.html" class="nav-link" data-match="monitor.html">📊 统一监控</a>' +
+              '<div class="nav-dropdown" id="navMoreDropdown">' +
+                '<button type="button" class="nav-link nav-dropdown-toggle" aria-haspopup="menu" aria-expanded="false" aria-controls="navMoreMenu">' +
+                  '更多' +
+                  '<svg class="caret" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">' +
+                    '<path d="M2 4 L6 8 L10 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' +
+                  '</svg>' +
+                '</button>' +
+                '<ul id="navMoreMenu" class="nav-dropdown-menu" role="menu" hidden>' +
+                  '<li role="none"><a href="xiebo-invest.html" role="menuitem" class="nav-dropdown-item" data-match="xiebo-invest.html">林奇投资</a></li>' +
+                  '<li role="none"><a href="position-management.html" role="menuitem" class="nav-dropdown-item" data-match="position-management.html">仓位管理</a></li>' +
+                  '<li role="none"><a href="study.html" role="menuitem" class="nav-dropdown-item" data-match="study.html">学习搭子</a></li>' +
+                '</ul>' +
+              '</div>' +
             '</nav>' +
             '<div class="skin-switch" id="skinSwitch" data-skin="tech">' +
               '<button type="button" class="skin-toggle" aria-haspopup="listbox" aria-expanded="false" aria-controls="skinMenu" title="切换皮肤">' +
@@ -197,9 +262,12 @@
     }
 
     mount.querySelectorAll('.nav-link').forEach(function (link) {
-      const matches = (link.dataset.match || '').split(',').filter(Boolean);
-      link.classList.toggle('active', isActive(matches));
-    });
+     const matches = (link.dataset.match || '').split(',').filter(Boolean);
+     link.classList.toggle('active', isActive(matches));
+   });
+
+    // 下拉菜单（更多 ▾）：标记当前项 + 绑定展开/收起
+    bindNavDropdown(mount);
 
     // 关键修复：#authModal 必须挂在 body 直接子元素上。
     // 否则 .modal-overlay 的 position:fixed 在多层 flex container 中失效，
@@ -250,15 +318,17 @@
         const total = today + yesterday;
         if (total <= 0) {
           badge.hidden = true;
-          badge.textContent = '';
+          badge.removeAttribute('title');
           return;
         }
         badge.hidden = false;
-        // 紧凑显示: 今 1 · 昨 2
-        badge.textContent = '今 ' + today + ' · 昨 ' + yesterday;
-        badge.title = data.latestTradeDate
-          ? ('最近一篇复盘：' + data.latestTradeDate + '（点击查看完整复盘页）')
-          : '点击查看完整复盘页';
+        // 文字不再渲染,仅靠 CSS 小红点提示;悬停时给出详情
+        badge.textContent = '';
+        badge.title = (today > 0 ? ('今日新增 ' + today + ' 篇复盘') : '今日无新增') +
+          ' · ' +
+          (yesterday > 0 ? ('昨日 ' + yesterday + ' 篇') : '昨日无') +
+          (data.latestTradeDate ? '\n最近一篇复盘：' + data.latestTradeDate : '') +
+          '\n点击查看完整复盘页';
         if (data.latestId) {
           recapLink.setAttribute('href', 'market-recap.html?id=' + encodeURIComponent(String(data.latestId)));
         }

@@ -24,7 +24,7 @@ class JournalTradeMappingTest {
                 "entryShares", "accountAtEntry", "riskPercent", "stopPrice", "targetPrice",
                 "exitPrice", "exitDate", "exitReason", "initialRisk", "pnlAmount",
                 "rMultiple", "isOpen", "tags", "setupNotes", "reviewNotes", "source",
-                "sourceRefId", "isDeleted", "createdAt", "updatedAt");
+                "sourceRefId", "isDeleted", "createdBy", "createdAt", "updatedAt");
 
         Set<String> actual = java.util.stream.Stream.of(JournalTrade.class.getDeclaredFields())
                 .map(Field::getName)

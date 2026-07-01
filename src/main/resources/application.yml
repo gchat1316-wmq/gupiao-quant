@@ -102,43 +102,6 @@ stock-analysis:
   python-command: ${BAOSTOCK_CLIENT_PYTHON:python3}
   timeout-seconds: 90
 
-# 产业投研模块 (A-Stock-Data + LLM 读研报 + News Radar 流水线)
-industry-research:
-  enabled: true
-  python-command: python3
-  kimi-cli:
-    # 兼容旧字段：流水线已不再依赖 kimi CLI；此 enabled 仍作为 "是否启用 LLM" 总开关
-    # （控制是否调 MiniMaxClient / minimax CLI 调 LLM 读研报）
-    enabled: true
-    command: ${KIMI_CLI_COMMAND:kimi}
-    max-reports: 1500
-    timeout-seconds: 900
-    max-report-chars: 50000
-    prompt-template: prompts/industry-research-v1.txt
-  news-radar:
-    enabled: true
-    hours: 24
-    max-results: 20
-  data-fetch:
-    timeout-seconds: 30
-    fallback-local: true
-  pdf-fetch:
-    # 自动爬取 + 解析研报 PDF，把真实文本喂给 LLM
-    enabled: true
-    max-reports: 4
-    max-results: 8
-    per-report-max-chars: 8000
-    max-report-chars: 24000
-    download-timeout-seconds: 20
-  cli-mode:
-    # true=走子进程调 minimax CLI (llm_call.py)；false=走 MiniMaxClient 直连 API
-    enabled: false
-    script-path: ${user.home}/.mavis/.builtin-skills/llm-call/scripts/llm_call.py
-    python-command: python3
-    model: minimax-test/MiniMax-M2.7-highspeed
-    max-tokens: 8192
-    timeout-seconds: 600
-
 prosperity-strong:
   enabled: true
   cron: "0 30 15 * * MON-FRI"

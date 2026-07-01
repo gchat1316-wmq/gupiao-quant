@@ -117,7 +117,6 @@ class SecurityConfigStaticResourceTest {
     @DisplayName("/uploads/** 用户上传文件必须不被 Security 拦截")
     void uploadsArePublic() throws Exception {
         mvc.perform(get("/uploads/foo.pdf")).andExpect(NOT_SECURITY_BLOCKED);
-        mvc.perform(get("/uploads/industry-research/report.html")).andExpect(NOT_SECURITY_BLOCKED);
     }
 
     @Test
@@ -137,7 +136,8 @@ class SecurityConfigStaticResourceTest {
                 "/api/stock/search",
                 "/api/stock/info/600000",
                 "/api/news/list",
-                "/api/analysis/foo"
+                "/api/prosperity-strong/status",
+                "/api/stock-analysis/health"
         }) {
             mvc.perform(get(path)).andExpect(NOT_SECURITY_BLOCKED);
         }

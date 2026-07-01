@@ -74,6 +74,13 @@ public class QuoteService {
         quoteRepo.incrementLikes(id);
     }
 
+    public void delete(Long id) {
+        if (!quoteRepo.existsById(id)) {
+            throw new IllegalArgumentException("金句不存在: " + id);
+        }
+        quoteRepo.deleteById(id);
+    }
+
     /**
      * 将金句导入为知识节点，并 AI 生成测验题。
      * 返回新建的 nodeId。

@@ -28,6 +28,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
@@ -190,7 +191,7 @@ class InvestBigYangSignalServiceTest {
                 .thenReturn(Optional.empty());
         when(signalRepository.findByStockCodeAndFirstLimitUpDate("000001.SZ", LocalDate.of(2026, 6, 11)))
                 .thenReturn(Optional.empty());
-        when(dailyRepository.findTop30ByStockCodeOrderByTradeDateDesc("000001.SZ")).thenReturn(List.of(
+        when(dailyRepository.findRecentKlineBatch(any(), any(), anyInt())).thenReturn(List.of(
                 daily("000001.SZ", "2026-06-12", "11.20", "11.30", "11.05", "11.20"),
                 daily("000001.SZ", "2026-06-11", "10.10", "10.98", "10.10", "10.98"),
                 daily("000001.SZ", "2026-06-10", "10.00", "10.20", "9.95", "10.00")
@@ -220,7 +221,7 @@ class InvestBigYangSignalServiceTest {
         when(poolRepository.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(pool));
         when(signalRepository.findByStockCodeAndSignalStatus("000001.SZ", InvestBigYangSignalService.SIGNAL_STATUS_WATCHING))
                 .thenReturn(Optional.of(existing));
-        when(dailyRepository.findTop30ByStockCodeOrderByTradeDateDesc("000001.SZ")).thenReturn(List.of(
+        when(dailyRepository.findRecentKlineBatch(any(), any(), anyInt())).thenReturn(List.of(
                 daily("000001.SZ", "2026-05-27", "50.99", "57.83", "50.14", "55.02"),
                 daily("000001.SZ", "2026-05-26", "53.83", "55.29", "49.60", "52.58"),
                 daily("000001.SZ", "2026-05-25", "46.36", "50.80", "46.36", "50.80"),

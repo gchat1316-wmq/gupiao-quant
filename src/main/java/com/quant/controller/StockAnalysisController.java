@@ -21,22 +21,16 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class StockAnalysisController {
 
-    /** 固定 API Key - 写死在后端, 前端不传 */
-    private static final String API_KEY = "wmq-gp-secret-2026";
-
     private final StockAnalysisService service;
     private final StockAnalysisPdfService pdfService;
 
     /**
      * 提交分析任务 (立即返回 recordId)
-     * 鉴权: ?api_key=wmq-gp-secret-2026
+     * 鉴权: MANAGER 或 ADMIN 角色（前端从 localStorage 读 JWT 放 Authorization 头）
      */
     @PostMapping("/submit")
-    public Map<String, Object> submit(@RequestParam(value = "api_key", required = false) String apiKey,
-                                      @RequestBody StockAnalysisRequest req) {
-        if (!API_KEY.equals(apiKey)) {
-            return error(401, "无效的 API Key");
-        }
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
+    public Map<String, Object> submit(@RequestBody StockAnalysisRequest req) {
         try {
             Long id = service.submit(req);
             // 异步执行 (Spring 任务池)

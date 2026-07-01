@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="css/skin.css?v=20260622-ps-v2" />
   <link rel="stylesheet" href="css/style.css?v=20260622-ps-v2" />
   <link rel="stylesheet" href="css/study.css?v=20260622-ps-v2" />
-  <link rel="stylesheet" href="css/invest.css?v=20260629-pool-meta-v1" />
+  <link rel="stylesheet" href="css/invest.css?v=20260701-shrink-stock-col-88-v1" />
   <script src="js/layout.js?v=20260629-profile-link" defer></script>
 </head>
 <body>
@@ -230,7 +230,6 @@
         <div class="pool-meta-body">
           <div class="pool-meta-head">
             <h3 class="pool-meta-title" id="poolMetaTitle">加载中...</h3>
-            <button class="pool-meta-edit-btn hidden" id="poolMetaEditBtn" type="button">✎ 编辑</button>
           </div>
           <div class="pool-meta-block">
             <h4>估值方法</h4>
@@ -240,7 +239,7 @@
           </div>
           <div class="pool-meta-block">
             <h4>
-              每周机会点
+最新关注
               <span class="pool-meta-head-actions">
                 <span id="weeklyOppCount" class="pool-meta-badge">0/9</span>
                 <button class="pool-meta-edit-btn hidden" id="weeklyOppEditBtn" type="button">✎ 管理 9 格</button>
@@ -333,7 +332,7 @@
         <!-- 10倍PS法 -->
         <div class="valuation-card">
           <div class="valuation-card-title">科技风投 · 10倍 PS 法</div>
-          <div class="valuation-card-subtitle">合理市值 = 预测营收 × 10（适用于净利率接近25%的高科技公司）</div>
+          <div class="valuation-card-subtitle">合理市值 = 预测营收 × 10（净利率接近 25% 的成长型公司最适用，"接近"即可不强制）</div>
           <div style="font-size:12px;color:#92400e;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:8px 12px;margin-bottom:4px;line-height:1.6">
             当前市值对应<b>明年</b> 10 倍 PS，或被低估；对应 <b>2-3 年后</b> 10 倍 PS，或存泡沫，需警惕。
           </div>
@@ -353,6 +352,11 @@
             <div class="valuation-field">
               <label>后年预测营收（亿元，选填）</label>
               <input id="psRevY2" type="number" min="0" step="0.1" placeholder="如：100" />
+            </div>
+            <div class="valuation-field">
+              <label>最新净利率（%，选填）</label>
+              <input id="psNetMargin" type="number" min="0" step="0.1" placeholder="如：23.5" />
+              <span class="hint">低于 10% 时计算结果会标注"适用性有限"</span>
             </div>
             <button id="psCalcBtn" class="invest-btn" style="align-self:flex-start">计算</button>
           </div>
@@ -472,12 +476,21 @@
         <div class="invest-modal-row">
           <div class="invest-modal-field">
             <label>希望买入价（元）</label>
-            <input id="modalTargetBuyPrice" type="number" min="0" step="0.01" />
+            <div class="invest-modal-input-row">
+              <input id="modalTargetBuyPrice" type="number" min="0" step="0.01" />
+              <label class="invest-modal-check"><input type="checkbox" id="modalAlertBuyEnabled" /> 消息监控</label>
+            </div>
           </div>
           <div class="invest-modal-field">
             <label>希望卖出价（元）</label>
-            <input id="modalTargetSellPrice" type="number" min="0" step="0.01" />
+            <div class="invest-modal-input-row">
+              <input id="modalTargetSellPrice" type="number" min="0" step="0.01" />
+              <label class="invest-modal-check"><input type="checkbox" id="modalAlertSellEnabled" /> 消息监控</label>
+            </div>
           </div>
+        </div>
+        <div class="invest-modal-hint" id="modalAutoValHint" style="display:none">
+          <span style="color:#047857">✓</span> 已根据当前市值 + 营收自动算出低估/合理/高价（基于 10×PS 法）
         </div>
         <div class="invest-modal-row">
           <div class="invest-modal-field">
@@ -565,40 +578,7 @@
     </div>
   </div>
 
-  <!-- 股票池元信息编辑弹窗（封面图 + 估值方法 + 每周机会点）-->
-  <div class="invest-modal-mask hidden" id="poolMetaModalMask">
-    <div class="invest-modal invest-modal-wide">
-      <div class="invest-modal-header">
-        <span class="invest-modal-title" id="poolMetaModalTitle">编辑股票池说明</span>
-        <button class="invest-modal-close" id="poolMetaModalClose">×</button>
-      </div>
-      <div class="invest-modal-form">
-        <div class="invest-modal-field">
-          <label>封面图</label>
-          <div class="pool-meta-cover-edit">
-            <img id="poolMetaModalCoverPreview" alt="封面图预览" />
-            <div class="pool-meta-cover-actions">
-              <input type="file" id="poolMetaModalCoverFile" accept="image/*" hidden />
-              <button type="button" class="invest-btn-outline" id="poolMetaModalCoverBtn" style="height:32px;font-size:12px;padding:0 12px">📷 上传新图</button>
-              <span id="poolMetaModalCoverStatus" class="pool-meta-cover-status"></span>
-            </div>
-          </div>
-        </div>
-        <div class="invest-modal-field">
-          <label>估值方法（Markdown）</label>
-          <textarea id="poolMetaModalValuationMd" rows="8" placeholder="如：### 10 倍 PS 市值法&#10;&#10;合理市值 = 预测营收 × 10..."></textarea>
-        </div>
-        <div class="invest-modal-field">
-          <label>每周机会点（Markdown）</label>
-          <textarea id="poolMetaModalWeeklyMd" rows="6" placeholder="如：本周关注 XXX 行业..."></textarea>
-        </div>
-      </div>
-      <div class="invest-modal-footer">
-        <button class="btn-ghost" id="poolMetaModalCancel">取消</button>
-        <button class="btn-primary-dark" id="poolMetaModalSave">保存</button>
-      </div>
-    </div>
-  </div>
+  <!-- 估值方法编辑入口已迁移至管理后台（前端 invest.html 仅展示） -->
 
   <!-- 每周机会点 9 格管理弹窗 -->
   <div class="invest-modal-mask hidden" id="weeklyOppModalMask">
@@ -619,6 +599,6 @@
 
   <script src="lib/pinyin-pro.js"></script>
   <script src="js/practical-select.js?v=20260622-ps-v1"></script>
-  <script src="js/invest.js?v=20260629-pool-meta-v1"></script>
+  <script src="js/invest.js?v=20260701-valuation-degree-v1"></script>
 </body>
 </html>

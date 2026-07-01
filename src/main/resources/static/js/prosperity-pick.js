@@ -2,8 +2,8 @@
   'use strict';
 
   const API_BASE = '/gp/api/stock-analysis';
-  const API_KEY = 'wmq-gp-secret-2026';
   const PAGE_SIZE = 12;
+  const authHeaders = () => (window.GPAuth && window.GPAuth.headers) ? window.GPAuth.headers() : {};
 
   const $ = (id) => document.getElementById(id);
   const els = {
@@ -247,9 +247,9 @@
     showLoading();
     els.analyzeBtn.disabled = true;
     try {
-      const response = await fetch(`${API_BASE}/submit?api_key=${encodeURIComponent(API_KEY)}`, {
+      const response = await fetch(`${API_BASE}/submit`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({
           code,
           method: getSelectedMethod(),
@@ -358,8 +358,9 @@
       btn.textContent = '删除中…';
     }
     try {
-      const response = await fetch(`${API_BASE}/record/${id}?api_key=${encodeURIComponent(API_KEY)}`, {
-        method: 'DELETE'
+      const response = await fetch(`${API_BASE}/record/${id}`, {
+        method: 'DELETE',
+        headers: { ...authHeaders() }
       });
       const json = await response.json().catch(() => ({}));
       if (!response.ok || json.ok === false) {

@@ -35,9 +35,12 @@ class Ps10ValuationServiceTest {
     }
 
     // ── 适用性判断 ─────────────────────────────────────
+    // 2026-07-01 改：净利率"接近"即可，不强制 ≥ 25%。
+    // 截图里的 6.29%（长盈通）/14.51%（东威科技）都已纳入 PS 估值。
+    // 适用性只受"是否有财务数据"约束。
 
     @Nested
-    @DisplayName("适用性判断")
+    @DisplayName("适用性判断（净利率接近即可，无硬门槛）")
     class Applicability {
 
         @Test
@@ -53,16 +56,49 @@ class Ps10ValuationServiceTest {
         }
 
         @Test
-        @DisplayName("净利率 < 25% → 不适用")
-        void netMarginBelow25pct() {
+        @DisplayName("净利率 14.5%（东威科技）→ 仍适用，verdict=低估（mc<Y1×10）")
+        void netMarginAround15pct() {
+            // 营收 10 亿/单季 × 4 = TTM 40 亿；YoY 20% → Y1=48, Y2=57.6, fairCapY2=576
+            // mc=250 < Y1×10=480 → 低估
             Ps10ValuationService.Ps10Result result = service.evaluateFromMarketCap(
-                    new BigDecimal("15"),
+                    new BigDecimal("250"),
+                    new BigDecimal("10.0"),
+                    "688700.SH",
+                    List.of(makeFinancial(14.51, 10.0, 20.0))
+            );
+            assertThat(result.applicable()).isTrue();
+            assertThat(result.verdict()).isEqualTo("低估");
+            assertThat(result.netMarginPct()).isEqualByComparingTo(new BigDecimal("14.51"));
+        }
+
+        @Test
+        @DisplayName("净利率 6.29%（长盈通）→ 仍适用，远低于 25% 也照样套公式，verdict=泡沫")
+        void netMarginWayBelow25pct() {
+            // 营收 5 亿/单季 × 4 = TTM 20 亿；YoY 30% → Y1=26, Y2=33.8, fairCapY2=338
+            // mc=400 > Y2×10=338 → 泡沫
+            Ps10ValuationService.Ps10Result result = service.evaluateFromMarketCap(
+                    new BigDecimal("400"),
+                    new BigDecimal("10.0"),
+                    "688143.SH",
+                    List.of(makeFinancial(6.29, 5.0, 30.0))
+            );
+            assertThat(result.applicable()).isTrue();
+            assertThat(result.verdict()).isEqualTo("泡沫");
+            assertThat(result.netMarginPct()).isEqualByComparingTo(new BigDecimal("6.29"));
+        }
+
+        @Test
+        @DisplayName("净利率为 NULL → commentary 提示，但 verdict 仍可给出")
+        void netMarginNull() {
+            Ps10ValuationService.Ps10Result result = service.evaluateFromMarketCap(
+                    new BigDecimal("100"),
                     new BigDecimal("10.0"),
                     "688401.SH",
-                    List.of(makeFinancial(20.0, 10.0, 20.0))
+                    List.of(makeFinancial(null, 10.0, 20.0))
             );
-            assertThat(result.applicable()).isFalse();
-            assertThat(result.verdict()).isEqualTo("—");
+            assertThat(result.applicable()).isTrue();
+            // commentary 应明确说明缺净利率数据
+            assertThat(result.commentary()).contains("净利率");
         }
 
         @Test
@@ -252,12 +288,16 @@ class Ps10ValuationServiceTest {
 
     // revenue 单位是元（不是亿），netMargin 是 %，revenueYoy 数据库存小数(如 0.20)或百分比(如 20)
     private TradeStockFinancial makeFinancial(double netMarginPct, double annualRevenueYi, double revYoyPct) {
+        return makeFinancial((Double) netMarginPct, annualRevenueYi, revYoyPct);
+    }
+
+    /** 允许 netMargin 为 null 的重载，覆盖"缺净利率数据"场景 */
+    private TradeStockFinancial makeFinancial(Double netMarginPct, double annualRevenueYi, double revYoyPct) {
         TradeStockFinancial f = new TradeStockFinancial();
-        f.setNetMargin(BigDecimal.valueOf(netMarginPct));
+        f.setNetMargin(netMarginPct == null ? null : BigDecimal.valueOf(netMarginPct));
         // 数据库存元 → 转为亿元：annualRevenueYi 亿 = annualRevenueYi × 1亿 元
         f.setRevenue(BigDecimal.valueOf(annualRevenueYi * 1_0000_0000));
         // 数据库存小数(如 0.20=20%) 或百分比(如 20=20%)
-        // PracticalSelectService 第 735 行用 yoy/100 判断，说明存的是小数形式
         f.setRevenueYoy(BigDecimal.valueOf(revYoyPct / 100.0));
         f.setReportDate(LocalDate.of(2026, 3, 31));
         return f;

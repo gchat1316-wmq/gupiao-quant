@@ -48,6 +48,10 @@ public class PoolItemDTO {
     private String poolUpdateError;
     private String profitLevel;
     private String valuationRange;
+    /** 偏离 10×PS 估值参考年的百分比（−100~+∞），仅当 level=低估/泡沫 时有值；合理或缺数据为 null */
+    private BigDecimal valuationDegree;
+    /** degree 的参照年（2027 / 2028），便于前端展示「27 -45%」「28 +85%」 */
+    private Integer valuationRefYear;
 
     /** 持仓状态 */
     private String status;

@@ -21,6 +21,10 @@ public class PoolSaveRequest {
     private BigDecimal overvaluedPrice;
     private BigDecimal targetBuyPrice;
     private BigDecimal targetSellPrice;
+    /** 2026-07-01 弹窗"消息监控" checkbox：勾选后把 target_buy_price 同步到 fixed_buy_price，价格触达发 server 酱 */
+    private Boolean alertBuyEnabled;
+    /** 2026-07-01 弹窗"消息监控" checkbox：勾选后把 target_sell_price 同步到 fixed_sell_price */
+    private Boolean alertSellEnabled;
     private BigDecimal revenueForecastY0;
     private BigDecimal revenueForecastY1;
     private BigDecimal revenueForecastY2;

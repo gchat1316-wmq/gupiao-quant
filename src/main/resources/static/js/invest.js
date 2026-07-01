@@ -41,23 +41,7 @@
   function applyReadOnlyMode() {
     const manage = canManageInvest();
 
-    // 顶部横幅：只读时插入，已有则保留
-    let banner = document.getElementById('readonlyBanner');
-    if (!manage) {
-      if (!banner) {
-        // 锚点：插到一级 tab 上方（hero 已删，改用 main-tabs 作为锚点）
-        const anchor = document.getElementById('investMainTabs');
-        if (anchor) {
-          banner = document.createElement('div');
-          banner.id = 'readonlyBanner';
-          banner.className = 'invest-readonly-banner';
-          banner.innerHTML = '🔒 当前角色为只读模式（修改股票池需要 <b>MANAGER</b> 或 <b>ADMIN</b> 角色）';
-          anchor.parentNode.insertBefore(banner, anchor);
-        }
-      }
-    } else if (banner) {
-      banner.remove();
-    }
+    // 顶部只读横幅已移除（按 2026-07-01 产品决定）
 
     // 加入股票池 / 截图批量导入 / 立即扫描
     const hideIfReadonly = (id) => {
@@ -68,7 +52,7 @@
     hideIfReadonly('addPoolBtn');
     hideIfReadonly('importPoolBtn');
     hideIfReadonly('bigYangRunBtn');
-    hideIfReadonly('poolMetaEditBtn');
+    // 池元信息已迁至 /gp/admin-users.html（前端 invest.html 不再提供估值方法编辑入口）
 
     // SOP 5A "加入股票池"：只读时禁用按钮 + 改文案
     const sop5aBtn = document.getElementById('sop5aSaveBtn');
@@ -80,9 +64,16 @@
   }
 
   // 每次重渲染股票池行后，根据当前角色决定是否锁定 row 内控件
+  // 2026-07-01 改：「详情」按钮永远可点（只读查看入口），其余按钮按角色锁
   function lockPoolRowControls() {
     const manage = canManageInvest();
     document.querySelectorAll('.pool-row-btn').forEach(b => {
+      if (b.dataset.action === 'edit') {
+        // 详情按钮：只读查看入口，所有人（含未登录）都可点
+        b.disabled = false;
+        b.title = '';
+        return;
+      }
       b.disabled = !manage;
       b.title = manage ? '' : '需要 MANAGER 权限';
     });
@@ -110,7 +101,6 @@
     initPool();
     initValuation();
     initPoolModal();
-    initPoolMetaModal();
     initWeeklyOpportunity();
     applyReadOnlyMode();
 
@@ -980,104 +970,7 @@
     if (weekEl) weekEl.innerHTML = '';
   }
 
-  // ===== 股票池元信息编辑弹窗 =====
-  let poolMetaUploadInFlight = false;
-
-  function initPoolMetaModal() {
-    const editBtn = document.getElementById('poolMetaEditBtn');
-    if (editBtn) editBtn.addEventListener('click', openPoolMetaModal);
-
-    document.getElementById('poolMetaModalClose')?.addEventListener('click', closePoolMetaModal);
-    document.getElementById('poolMetaModalCancel')?.addEventListener('click', closePoolMetaModal);
-    document.getElementById('poolMetaModalSave')?.addEventListener('click', savePoolMetaModal);
-    document.getElementById('poolMetaModalMask')?.addEventListener('click', e => {
-      if (e.target === e.currentTarget) closePoolMetaModal();
-    });
-
-    const coverBtn = document.getElementById('poolMetaModalCoverBtn');
-    const coverFile = document.getElementById('poolMetaModalCoverFile');
-    if (coverBtn && coverFile) {
-      coverBtn.addEventListener('click', () => coverFile.click());
-      coverFile.addEventListener('change', e => {
-        const f = e.target.files && e.target.files[0];
-        if (f) uploadPoolMetaCover(f);
-      });
-    }
-  }
-
-  function openPoolMetaModal() {
-    if (!canManageInvest()) {
-      alert('需要 MANAGER/ADMIN 权限');
-      return;
-    }
-    const titleEl = document.getElementById('poolMetaModalTitle');
-    if (titleEl) titleEl.textContent = `编辑「${POOL_TYPE_LABELS[currentPoolType] || currentPoolType}」说明`;
-
-    // 优先用当前缓存；没有则用占位
-    const meta = currentPoolMeta || {};
-    document.getElementById('poolMetaModalValuationMd').value = meta.valuationMethodMd || '';
-    document.getElementById('poolMetaModalWeeklyMd').value = meta.weeklyOpportunityMd || '';
-    const preview = document.getElementById('poolMetaModalCoverPreview');
-    const url = meta.coverImageUrl || `images/pool-covers/${currentPoolType}.svg`;
-    if (preview) preview.src = url;
-    const status = document.getElementById('poolMetaModalCoverStatus');
-    if (status) { status.textContent = ''; status.className = 'pool-meta-cover-status'; }
-    document.getElementById('poolMetaModalCoverFile').value = '';
-
-    document.getElementById('poolMetaModalMask').classList.remove('hidden');
-  }
-
-  function closePoolMetaModal() {
-    document.getElementById('poolMetaModalMask').classList.add('hidden');
-  }
-
-  async function uploadPoolMetaCover(file) {
-    if (!canManageInvest()) return;
-    if (file.size > 10 * 1024 * 1024) {
-      setPoolMetaCoverStatus('图片大小不能超过 10MB', 'error');
-      return;
-    }
-    if (!file.type.startsWith('image/')) {
-      setPoolMetaCoverStatus('请选择图片文件', 'error');
-      return;
-    }
-    setPoolMetaCoverStatus('上传中...', '');
-    poolMetaUploadInFlight = true;
-    const formData = new FormData();
-    formData.append('file', file);
-    try {
-      const res = await fetch(`api/invest/pool-meta/${encodeURIComponent(currentPoolType)}/cover-image`, {
-        method: 'POST',
-        headers: (GPAuth.headers && GPAuth.headers()) || {},
-        body: formData,
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || `HTTP ${res.status}`);
-      }
-      const data = await res.json();
-      const url = data.coverImageUrl || data.cover_image_url;
-      if (!url) throw new Error('服务端未返回 coverImageUrl');
-      const preview = document.getElementById('poolMetaModalCoverPreview');
-      if (preview) preview.src = url;
-      // 同步更新缓存
-      currentPoolMeta = currentPoolMeta || {};
-      currentPoolMeta.coverImageUrl = url;
-      setPoolMetaCoverStatus('✓ 上传成功', 'success');
-    } catch (e) {
-      setPoolMetaCoverStatus('✗ ' + e.message, 'error');
-    } finally {
-      poolMetaUploadInFlight = false;
-    }
-  }
-
-  function setPoolMetaCoverStatus(text, tone) {
-    const el = document.getElementById('poolMetaModalCoverStatus');
-    if (!el) return;
-    el.textContent = text || '';
-    el.className = 'pool-meta-cover-status' + (tone ? ' ' + tone : '');
-  }
-
+  // 估值方法编辑弹窗已迁移至 /gp/admin-users.html，前端 invest.html 不再提供入口
   // ===== 每周机会点（3×3 卡片） =====
   let weeklyOppCache = new Map(); // poolType -> SlotDTO[9]
 
@@ -1128,7 +1021,8 @@
         return `<div class="weekly-opp-cell is-empty" data-idx="${i}">·</div>`;
       }
       const stock = poolData.find(p => p.stockCode === s.stockCode);
-      const level = stock ? inferValuationRange(stock) : '';
+      // level 直接读后端给的 valuationRange，不再前端再算 10×PS
+      const level = stock ? (stock.valuationRange || '') : '';
       const levelLabel = level === '低估' ? '低估' : level === '泡沫' ? '高估' : level === '合理' ? '合理' : '';
       const lvlClass = level === '低估' ? 'low' : level === '泡沫' ? 'high' : level === '合理' ? 'fair' : '';
       const ts = s.updatedAt;
@@ -1263,43 +1157,6 @@
     if (mask) mask.addEventListener('click', e => { if (e.target === mask) closeWeeklyOpportunityModal(); });
   }
 
-  async function savePoolMetaModal() {
-    if (!canManageInvest()) { alert('需要 MANAGER/ADMIN 权限'); return; }
-    if (poolMetaUploadInFlight) {
-      alert('封面图正在上传中，请稍候再点保存');
-      return;
-    }
-    const valuationMd = document.getElementById('poolMetaModalValuationMd').value;
-    const weeklyMd = document.getElementById('poolMetaModalWeeklyMd').value;
-    const btn = document.getElementById('poolMetaModalSave');
-    btn.disabled = true;
-    btn.textContent = '保存中...';
-    try {
-      const res = await fetch(`api/invest/pool-meta/${encodeURIComponent(currentPoolType)}`, {
-        method: 'PUT',
-        headers: authJsonHeaders(),
-        body: JSON.stringify({
-          displayName: POOL_TYPE_LABELS[currentPoolType] || currentPoolType,
-          valuationMethodMd: valuationMd,
-          weeklyOpportunityMd: weeklyMd,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || `HTTP ${res.status}`);
-      }
-      const data = await res.json();
-      currentPoolMeta = data;
-      renderPoolMeta(data);
-      closePoolMetaModal();
-    } catch (e) {
-      alert('保存失败：' + e.message);
-    } finally {
-      btn.disabled = false;
-      btn.textContent = '保存';
-    }
-  }
-
   function renderPool() {
     const wrap = document.getElementById('poolListWrap');
     if (!wrap) return;
@@ -1350,7 +1207,6 @@
       </div>
       <div class="pool-list-foot">
         <span>共 ${poolData.length} 只，当前显示 ${items.length} 只</span>
-        <span>数据来源：invest_stock_pool + a-stock-data（腾讯行情 / 复权日K）+ trade_stock_basic</span>
       </div>
       ${renderPoolCharts(items)}`;
 
@@ -1395,7 +1251,7 @@
     const n = parseFloat(v);
     const cls = n > 0 ? 'up' : (n < 0 ? 'down' : '');
     const sign = n >= 0 ? '+' : '';
-    return `<span class="pool-cell-pct ${cls}">${sign}${n.toFixed(2)}</span>`;
+    return `<span class="pool-cell-pct ${cls}">${sign}${n.toFixed(2)}%</span>`;
   }
 
   function renderGrowthEditCell(item, col) {
@@ -1416,11 +1272,25 @@
     </label>`;
   }
 
+  /**
+   * 渲染「估值情况」单元格：后端已用 10×PS 算好三档 (valuationRange) + 偏离百分比
+   * (valuationDegree) + 参照年 (valuationRefYear)。前端只负责套样式和拼接文本。
+   * 单格紧凑展示：「低估 27年 -45%」「泡沫 28年 +85%」「合理」「—」
+   */
   function renderValuationRangeCell(item, col) {
-    const val = inferValuationRange(item);
-    const cls = val === '低估' ? 'low' : (val === '泡沫' ? 'bubble' : (val === '合理' ? 'fair' : 'empty'));
-    if (!val) return '<span style="color:#d1d5db">—</span>';
-    return `<span class="pool-tag-input valuation-${cls}">${escHtml(val)}</span>`;
+    const level = item.valuationRange;
+    if (!level) return '<span style="color:#d1d5db">—</span>';
+    const cls = level === '低估' ? 'low' : (level === '泡沫' ? 'bubble' : (level === '合理' ? 'fair' : 'empty'));
+    const degree = item.valuationDegree;
+    const refYear = item.valuationRefYear;
+    let degreeHtml = '';
+    if (degree != null && refYear != null) {
+      const yearShort = String(refYear).slice(-2);  // 2027 → 27
+      const sign = degree > 0 ? '+' : '';             // 负数自带 - 号
+      const numStr = `${sign}${Number(degree).toFixed(2)}%`;
+      degreeHtml = `<span class="valuation-degree" title="相比 ${refYear} 年 10×PS 合理市值的偏离">${yearShort}年 ${numStr}</span>`;
+    }
+    return `<span class="pool-tag-input valuation-${cls}">${escHtml(level)}</span>${degreeHtml}`;
   }
 
   function renderPoolBoardSummary(items) {
@@ -1515,28 +1385,18 @@
     return asNum(item.marketCap != null ? item.marketCap : item.currentMarketCap);
   }
 
-  // 合理市值 = 未来一年预测营收 × 10
-  // 当前市值 < Y1×10 → 低估；当前市值 > Y2×10 → 泡沫；其余 → 合理
-  function inferValuationRange(item) {
-    const marketCap = getCurrentMarketCap(item);
-    if (!Number.isFinite(marketCap)) return '';
-    const y1 = asNum(item.revenueForecastY1);
-    const y2 = asNum(item.revenueForecastY2);
-    if (!Number.isFinite(y1) && !Number.isFinite(y2)) return '';
-    if (Number.isFinite(y1) && marketCap < y1 * 10) return '低估';
-    if (Number.isFinite(y2) && marketCap > y2 * 10) return '泡沫';
-    return '合理';
-  }
-
-  function isFairZone(item) { return inferValuationRange(item) === '合理'; }
-  function isLowZone(item)  { return inferValuationRange(item) === '低估'; }
-  function isBubbleZone(item){ return inferValuationRange(item) === '泡沫'; }
+  // 估值三档 + 偏离百分比 都由后端 InvestService.inferValuationRange 计算，
+  // 通过 /api/invest/pool 响应的 valuationRange / valuationDegree / valuationRefYear
+  // 三个字段带到前端。前端不再重复 10×PS 计算，避免后端/前端算法漂移。
+  function isFairZone(item) { return item.valuationRange === '合理'; }
+  function isLowZone(item)  { return item.valuationRange === '低估'; }
+  function isBubbleZone(item){ return item.valuationRange === '泡沫'; }
 
   function bindPoolEvents() {
     const wrap = document.getElementById('poolListWrap');
     if (!wrap) return;
 
-    // 内联输入框：blur 时保存
+    // 内联输入框：blur 时保存（input 节点是 innerHTML 重建出来的，重绑安全）
     wrap.querySelectorAll('.pool-cell-input').forEach(inp => {
       inp.addEventListener('blur', () => onCellEdit(inp));
       inp.addEventListener('keydown', e => {
@@ -1553,19 +1413,27 @@
       sel.addEventListener('change', () => onCellEdit(sel));
     });
 
-    // 操作按钮（编辑、删除、备注）使用事件委托
+    // 操作按钮（编辑、删除、备注）使用事件委托。
+    // 重要：wrap 自身每次 renderPool 不会被替换（只 innerHTML），所以它的 click
+    // listener 不能每渲染都 addEventListener —— 不然会线性叠加，导致点一次
+    // 「移除」触发 N 次 confirm()。这里加个 flag，第二次起直接返回。
+    if (wrap._poolActionBound) return;
+    wrap._poolActionBound = true;
     wrap.addEventListener('click', e => {
       const btn = e.target.closest('[data-action]');
       if (!btn) return;
       const action = btn.dataset.action;
       const id = parseInt(btn.dataset.id, 10);
-      // 只读模式下统一拦截，UI 已禁用，这里再防一手
+      // 2026-07-01 改：「详情」按钮对所有人开放（只读查看）；其余操作需要 MANAGER/ADMIN
+      if (action === 'edit') {
+        openEditModal(id);
+        return;
+      }
       if (!canManageInvest()) {
         alert('当前角色无修改权限（需 MANAGER/ADMIN）');
         return;
       }
-      if (action === 'edit') openEditModal(id);
-      else if (action === 'delete') {
+      if (action === 'delete') {
         const item = poolData.find(i => i.id === id);
         if (item) removePool(id, item.stockName);
       } else if (action === 'memo') {
@@ -1685,16 +1553,120 @@
     const item = poolData.find(i => i.id === id);
     if (!item) return;
     editingPoolId = id;
-    document.getElementById('investModalTitle').textContent = '编辑股票池条目';
+    const canEdit = canManageInvest();
+    // 标题随角色变：管理员看「编辑」，非管理员看「查看」（只读）
+    document.getElementById('investModalTitle').textContent = canEdit
+      ? '编辑股票池条目'
+      : '查看股票池条目';
     document.getElementById('modalKeyword').value = item.stockName;
     document.getElementById('modalKeyword').disabled = true;
     document.getElementById('modalPoolType').value = item.poolType;
+    document.getElementById('modalPoolType').disabled = !canEdit;
     document.getElementById('modalStatus').value = item.status;
+    document.getElementById('modalStatus').disabled = !canEdit;
     document.getElementById('modalMemo').value = item.memo || '';
+    document.getElementById('modalMemo').readOnly = !canEdit;
     MODAL_FIELDS.forEach(([id, key]) => {
-      document.getElementById(id).value = item[key] != null ? item[key] : '';
+      const el = document.getElementById(id);
+      el.value = item[key] != null ? item[key] : '';
+      el.readOnly = !canEdit;
+      el.disabled = !canEdit;
     });
+    // 2026-07-01 加：消息监控 checkbox + 加载当前监控状态
+    const alertBuyEl = document.getElementById('modalAlertBuyEnabled');
+    const alertSellEl = document.getElementById('modalAlertSellEnabled');
+    alertBuyEl.checked = false;
+    alertSellEl.checked = false;
+    alertBuyEl.disabled = !canEdit;
+    alertSellEl.disabled = !canEdit;
+    // 已登录才加载监控状态（接口虽公开，但未登录用户拿到空数据无意义）
+    if (GPAuth && GPAuth.token && GPAuth.token()) {
+      loadAlertState(item.stockCode).then(state => {
+        if (state) {
+          alertBuyEl.checked = state.fixedBuyEnabled === 1;
+          alertSellEl.checked = state.fixedSellEnabled === 1;
+        }
+      });
+    }
+    // 2026-07-01 加：自动算低估/合理/高价（基于市值+营收 → 10×PS 公式）
+    autoFillValuationPrices(item);
+
+    // 保存按钮：仅 MANAGER/ADMIN 启用；其他人显示为「只读」不可点
+    const saveBtn = document.getElementById('investModalSave');
+    saveBtn.disabled = !canEdit;
+    saveBtn.textContent = canEdit ? '保存' : '只读';
+
     document.getElementById('investModalMask').classList.remove('hidden');
+  }
+
+  /**
+   * 拉取某只股票在 invest_position_common 表的 fixed_buy/sell 监控状态。
+   * MonitorController 没暴露公开查询端点，这里直接 fetch /api/monitor/pool/{type}。
+   * 失败时静默返回 null，弹窗 checkbox 保持未勾选。
+   */
+  async function loadAlertState(stockCode) {
+    try {
+      const res = await fetch(`api/monitor/pool?poolType=invest`, { credentials: 'include' });
+      if (!res.ok) return null;
+      const data = await res.json();
+      // 接口直接返回数组，不是 {items: [...]} 包裹
+      const arr = Array.isArray(data) ? data : (data.items || []);
+      const item = arr.find(it => it.stockCode === stockCode);
+      if (!item) return null;
+      return { fixedBuyEnabled: item.fixedBuyEnabled, fixedSellEnabled: item.fixedSellEnabled };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /**
+   * 2026-07-01 加：根据当前市值 + Y0/Y1/Y2 预测营收，自动算出低估价/合理价/高估价（元/股）。
+   * 公式：股价 = 市值 / 总股本（亿股 = currentMarketCap/亿 ÷ latestPrice/元）
+   *       低估价 = fairCapY1(亿) × latestPrice / currentMarketCap
+   *       合理价 = (fairCapY1 + fairCapY2) / 2 × latestPrice / currentMarketCap
+   *       高估价 = fairCapY2 × latestPrice / currentMarketCap
+   * 已存在用户手动填的低估/合理/高价时不动（避免覆盖用户意图）。
+   */
+  function autoFillValuationPrices(item) {
+    const mc = item.currentMarketCap;
+    const price = item.latestPrice;
+    const y0 = item.revenueForecastY0;
+    const y1 = item.revenueForecastY1;
+    const y2 = item.revenueForecastY2;
+    const nm = item.q1NetMargin;
+    const hint = document.getElementById('modalAutoValHint');
+
+    if (!mc || !price || price <= 0 || !y1 || !y2) {
+      if (hint) hint.style.display = 'none';
+      return;
+    }
+    fetch('/api/valuation/ps10', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ marketCap: mc, revenueY0: y0, revenueY1: y1, revenueY2: y2, netMarginPct: nm }),
+    })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (!data) return;
+        const fy1 = data.fairCapY1Yi;
+        const fy2 = data.fairCapY2Yi;
+        if (!fy1 || !fy2) return;
+        // 总股本(亿股) = 市值(亿) / 股价(元)
+        const sharesYiYi = mc / price;  // 亿股
+        // 股价(元) = fairCapYi(亿) / 总股本(亿股) = fairCapYi * 股价 / 市值
+        const underPrice = fy1 * price / mc;
+        const fairPrice = (fy1 + fy2) / 2 * price / mc;
+        const overPrice = fy2 * price / mc;
+        // 只在字段为空时填（保留用户手动填的值）
+        const underEl = document.getElementById('modalUndervaluedPrice');
+        const fairEl = document.getElementById('modalFairPrice');
+        const overEl = document.getElementById('modalOvervaluedPrice');
+        if (!underEl.value) underEl.value = underPrice.toFixed(2);
+        if (!fairEl.value) fairEl.value = fairPrice.toFixed(2);
+        if (!overEl.value) overEl.value = overPrice.toFixed(2);
+        if (hint) hint.style.display = 'block';
+      })
+      .catch(() => { if (hint) hint.style.display = 'none'; });
   }
 
   function closeModal() {
@@ -1702,6 +1674,7 @@
   }
 
   async function savePool() {
+    if (!canManageInvest()) { alert('当前角色无修改权限（需 MANAGER/ADMIN）'); return; }
     const keyword = document.getElementById('modalKeyword').value.trim();
     const poolType = document.getElementById('modalPoolType').value;
     const status = document.getElementById('modalStatus').value;
@@ -1717,6 +1690,9 @@
       const v = document.getElementById(id).value.trim();
       body[key] = v ? parseFloat(v) : null;
     });
+    // 2026-07-01 加：消息监控 checkbox 状态
+    body.alertBuyEnabled = document.getElementById('modalAlertBuyEnabled').checked;
+    body.alertSellEnabled = document.getElementById('modalAlertSellEnabled').checked;
 
     const saveBtn = document.getElementById('investModalSave');
     saveBtn.disabled = true;
@@ -2038,7 +2014,7 @@
     const psBtn = document.getElementById('psCalcBtn');
     if (psBtn) {
       psBtn.addEventListener('click', calcPS);
-      ['psMarketCap', 'psRevY0', 'psRevY1', 'psRevY2'].forEach(id => {
+      ['psMarketCap', 'psRevY0', 'psRevY1', 'psRevY2', 'psNetMargin'].forEach(id => {
         document.getElementById(id)?.addEventListener('input', calcPS);
       });
     }
@@ -2072,6 +2048,7 @@
     const r0 = parseFloat(document.getElementById('psRevY0')?.value);
     const r1 = parseFloat(document.getElementById('psRevY1')?.value);
     const r2 = parseFloat(document.getElementById('psRevY2')?.value);
+    const nm = parseFloat(document.getElementById('psNetMargin')?.value);
     const result = document.getElementById('psResult');
     if (!result) return;
 
@@ -2080,30 +2057,72 @@
       return;
     }
 
-    const rows = [
-      { label: '今年', rev: r0 },
-      ...(isNaN(r1) || r1 <= 0 ? [] : [{ label: '明年', rev: r1 }]),
-      ...(isNaN(r2) || r2 <= 0 ? [] : [{ label: '后年', rev: r2 }]),
-    ];
+    // 2026-07-01 改：前端只负责收集表单 + 渲染后端返回的表格，不再自己算 PS。
+    // 估值逻辑（Y1×10 vs Y2×10、净利率提示）统一在 Ps10ValuationService。
+    const payload = {
+      marketCap: mc,
+      revenueY0: r0,
+      revenueY1: isNaN(r1) || r1 <= 0 ? null : r1,
+      revenueY2: isNaN(r2) || r2 <= 0 ? null : r2,
+      netMarginPct: isNaN(nm) || nm <= 0 ? null : nm,
+    };
 
-    let html = '<table class="ps-table"><thead><tr><th>对应营收年份</th><th>营收（亿）</th><th>对应PS倍数</th><th>合理市值（亿）</th><th>判断</th></tr></thead><tbody>';
-    rows.forEach(row => {
-      const ps = mc / row.rev;
-      const fairMc = row.rev * 10;
-      let cls, label;
-      if (ps < 5) { cls = 'ps-ok'; label = '✓ 低估'; }
-      else if (ps <= 10) { cls = 'ps-warn'; label = '⚠ 合理'; }
-      else { cls = 'ps-bad'; label = '✗ 高估'; }
-      html += `<tr>
-        <td>${row.label}</td>
-        <td>${row.rev.toFixed(2)}</td>
-        <td class="${cls}" style="font-weight:700">${ps.toFixed(1)} 倍</td>
-        <td>${fairMc.toFixed(1)}</td>
-        <td class="${cls}" style="font-weight:700">${label}</td>
-      </tr>`;
-    });
-    html += '</tbody></table>';
-    result.innerHTML = html;
+    result.innerHTML = '<div style="color:#9ca3af;font-size:13px;padding:8px 0">计算中…</div>';
+
+    fetch('/api/valuation/ps10', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then(res => {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(data => renderPsResult(result, data))
+      .catch(err => {
+        result.innerHTML = `<div style="color:#dc2626;font-size:13px;padding:8px 0">计算失败：${escHtml(err.message)}</div>`;
+      });
+  }
+
+  /**
+   * 渲染后端返回的 PS 表格 + 总体结论 verdict。
+   * 样式类复用原有 ps-ok / ps-warn / ps-bad，颜色规则沿用旧前端：< 5 低估，5-10 合理，> 10 高估。
+   */
+  function renderPsResult(container, data) {
+    const verdict = data.verdict || '—';
+    const commentary = data.commentary || '';
+    const rows = data.rows || [];
+
+    const verdictCls = verdict === '低估' ? 'low'
+        : verdict === '泡沫' ? 'high'
+        : verdict === '合理' ? 'fair' : 'empty';
+
+    let html = `<div class="valuation-verdict-banner valuation-${verdictCls}" style="margin-bottom:8px">
+        <b>结论：${escHtml(verdict)}</b>
+        <span class="valuation-verdict-commentary">${escHtml(commentary)}</span>
+      </div>`;
+    if (rows.length > 0) {
+      html += '<table class="ps-table"><thead><tr><th>对应营收年份</th><th>营收（亿）</th><th>对应PS倍数</th><th>合理市值（亿）</th><th>判断</th></tr></thead><tbody>';
+      rows.forEach(row => {
+        const sub = row.subVerdict || '—';
+        const cls = sub === '低估' ? 'ps-ok'
+            : sub === '高估' ? 'ps-bad'
+            : sub === '合理' ? 'ps-warn' : '';
+        const label = sub === '低估' ? '✓ 低估'
+            : sub === '高估' ? '✗ 高估'
+            : sub === '合理' ? '⚠ 合理' : sub;
+        const psStr = row.psMultiple != null ? row.psMultiple.toFixed(1) + ' 倍' : '—';
+        html += `<tr>
+          <td>${escHtml(row.label)}</td>
+          <td>${(row.revenue != null ? Number(row.revenue) : 0).toFixed(2)}</td>
+          <td class="${cls}" style="font-weight:700">${psStr}</td>
+          <td>${(row.fairCap != null ? Number(row.fairCap) : 0).toFixed(1)}</td>
+          <td class="${cls}" style="font-weight:700">${label}</td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+    }
+    container.innerHTML = html;
   }
 
   // ===== 工具函数 =====

@@ -169,7 +169,7 @@
             kind: 'ai',
             text: (a.stockCode || '股票') + ' ' + (a.title || a.signalType || '监控告警'),
             time: fmtTime(a.triggerAt),
-            href: 'tech-ai.html',
+            href: 'monitor.html',
             ts: a.triggerAt || '',
           };
         });

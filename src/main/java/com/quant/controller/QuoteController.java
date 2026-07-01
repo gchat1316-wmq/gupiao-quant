@@ -50,4 +50,11 @@ public class QuoteController {
         Long nodeId = quoteService.importToStudy(id);
         return Map.of("nodeId", nodeId);
     }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Map<String, Boolean> delete(@PathVariable Long id) {
+        quoteService.delete(id);
+        return Map.of("ok", true);
+    }
 }

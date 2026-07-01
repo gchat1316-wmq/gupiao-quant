@@ -40,9 +40,9 @@ public class InvestPoolSeedService {
         poolRepository.deleteByPoolTypeOrUpperStockCodeIn(POOL_TYPE, seedRows.stream()
                 .map(row -> row.code().toUpperCase(Locale.ROOT))
                 .toList());
-        List<InvestStockPool> saved = poolRepository.saveAll(entities);
+        poolRepository.saveAll(entities);
         // 为每个池子创建对应的持仓记录
-        List<InvestPositionCommon> positions = saved.stream().map(pool -> {
+        List<InvestPositionCommon> positions = entities.stream().map(pool -> {
             InvestPositionCommon pos = new InvestPositionCommon();
             pos.setStockCode(pool.getStockCode());
             pos.setPoolType(POOL_TYPE);
@@ -56,7 +56,7 @@ public class InvestPoolSeedService {
             return pos;
         }).toList();
         positionRepository.saveAll(positions);
-        return saved.size();
+        return entities.size();
     }
 
     private InvestStockPool toEntity(SeedRow row, int displayOrder) {

@@ -7,6 +7,7 @@
   <base href="/gp/" />
   <link rel="stylesheet" href="css/skin.css" />
   <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/study.css?v=20260701-feed-merge" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     :root {
@@ -249,6 +250,84 @@
     .date-range input, .date-range select { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font-size: 13px; }
     .section-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: var(--bg); border: 1px solid var(--border); color: var(--text-muted); }
 
+    /* ── 投资池说明面板 ──────────────────────────── */
+    .poolmeta-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+    .poolmeta-tab { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+    .poolmeta-tab:hover { border-color: var(--primary); color: var(--primary); }
+    .poolmeta-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    .poolmeta-field { display: flex; flex-direction: column; gap: 6px; padding: 14px 0; border-top: 1px dashed var(--border); }
+    .poolmeta-field:first-of-type { border-top: none; padding-top: 4px; }
+    .poolmeta-md-hint { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+    .poolmeta-md-textarea { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; line-height: 1.55; width: 100%; max-width: 100%; min-height: 160px; padding: 10px 12px; resize: vertical; }
+    .poolmeta-actions { display: flex; gap: 10px; align-items: center; margin-top: 4px; }
+
+    .poolmeta-cover-row { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
+    .poolmeta-cover-preview { width: 240px; height: 135px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); }
+    .poolmeta-cover-meta { font-size: 12px; color: var(--text-muted); margin-top: 6px; word-break: break-all; }
+
+    /* ── 投资金句面板 ──────────────────────────────────────── */
+    .quote-admin-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+    .quote-admin-tab { padding: 8px 16px; border: none; background: transparent; color: var(--text-muted); font-size: 13px; font-weight: 500; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
+    .quote-admin-tab:hover { color: var(--text); }
+    .quote-admin-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .quote-admin-pane { padding-top: 8px; }
+    .quote-admin-form { display: flex; flex-wrap: wrap; gap: 14px; }
+    .quote-admin-form .form-field { flex: 1 1 calc(50% - 7px); min-width: 220px; }
+    .quote-admin-actions { flex: 1 1 100%; display: flex; gap: 12px; align-items: center; margin-top: 4px; }
+    .form-hint-inline { font-weight: 400; color: var(--text-muted); font-size: 12px; margin-left: 6px; }
+    .quote-admin-tag-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 0; }
+    .quote-admin-tag-custom-row { margin-top: 6px; }
+    .quote-admin-tag-custom-row .form-input { max-width: 280px; }
+    .quote-admin-toolbar { display: flex; gap: 8px; margin-bottom: 12px; }
+    .quote-admin-toolbar .form-input { max-width: 360px; }
+    .quote-admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .quote-admin-table th { text-align: left; color: var(--text-muted); padding: 8px 10px; border-bottom: 2px solid var(--border); font-weight: 500; white-space: nowrap; }
+    .quote-admin-table td { padding: 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .quote-admin-table tr:last-child td { border-bottom: none; }
+    .quote-admin-cell-content { line-height: 1.5; color: var(--text); }
+    .quote-admin-cell-tags { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; }
+    .quote-tag-mini { display: inline-block; padding: 1px 7px; border-radius: 3px; background: rgba(59,130,246,0.15); color: #60a5fa; font-size: 11px; }
+    .quote-admin-pager { display: flex; align-items: center; gap: 12px; margin-top: 12px; justify-content: flex-end; }
+    .quote-admin-page-info { font-size: 12px; color: var(--text-muted); }
+
+    .quote-tag-chip { display: inline-block; padding: 4px 10px; border-radius: 999px; background: var(--border); color: var(--text); font-size: 12px; cursor: pointer; user-select: none; transition: all 0.12s; }
+    .quote-tag-chip:hover { background: var(--hover-bg); }
+    .quote-tag-chip.selected { background: rgba(59,130,246,0.2); color: #60a5fa; border: 1px solid rgba(59,130,246,0.4); }
+    .quote-tag-chip.custom.selected { background: rgba(245,158,11,0.2); color: #f59e0b; border-color: rgba(245,158,11,0.4); }
+
+    .poolmeta-9grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 4px; }
+    .poolmeta-slot-card { border: 1px solid var(--border); border-radius: 8px; padding: 10px; background: var(--bg); }
+    .poolmeta-slot-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+    .poolmeta-slot-no { font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.05em; }
+    .poolmeta-slot-card select { width: 100%; font-size: 12px; margin-bottom: 6px; }
+    .poolmeta-slot-card input { width: 100%; font-size: 12px; }
+    .poolmeta-slot-empty { color: var(--text-muted); font-size: 12px; padding: 14px 4px; text-align: center; }
+
+    .poolmeta-slot-row { display: flex; gap: 4px; margin-bottom: 4px; }
+    .poolmeta-slot-row input { font-size: 12px; }
+    .poolmeta-slot-row .poolmeta-slot-code { flex: 0 0 110px; }
+    .poolmeta-slot-row .poolmeta-slot-name { flex: 1; }
+    .poolmeta-slot-img { margin-top: 6px; padding: 6px; border: 1px dashed var(--border); border-radius: 6px; background: rgba(255,255,255,0.02); }
+    .poolmeta-slot-img-preview { display: none; margin-bottom: 6px; }
+    .poolmeta-slot-img-preview.has-image { display: block; }
+    .poolmeta-slot-img-preview img { max-width: 100%; max-height: 140px; border-radius: 4px; cursor: zoom-in; display: block; }
+    .poolmeta-slot-img-actions { display: flex; gap: 6px; align-items: center; }
+    .poolmeta-slot-img-btn { font-size: 11px; padding: 3px 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text); cursor: pointer; }
+    .poolmeta-slot-img-btn:hover { background: var(--hover-bg); }
+    .poolmeta-slot-img-btn.danger { color: #f87171; border-color: rgba(248,113,113,0.3); }
+    .poolmeta-slot-img-msg { font-size: 11px; color: var(--text-muted); margin-left: auto; }
+    .poolmeta-slot-img-msg.err { color: #f87171; }
+    .poolmeta-slot-img-msg.ok { color: #34d399; }
+    .poolmeta-img-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 9999; cursor: zoom-out; }
+    .poolmeta-img-modal.open { display: flex; }
+    .poolmeta-img-modal img { max-width: 95vw; max-height: 95vh; border-radius: 6px; }
+
+    @media (max-width: 768px) {
+      .poolmeta-9grid { grid-template-columns: repeat(2, 1fr); }
+      .poolmeta-cover-preview { width: 180px; height: 100px; }
+    }
+
     /* ── 响应式 ────────────────────────────────── */
     @media (max-width: 768px) {
       .sidebar { transform: translateX(-100%); transition: transform 0.2s; }
@@ -260,7 +339,7 @@
 </head>
 <body>
   <div id="adminApp"></div>
-  <script src="js/layout.js" defer></script>
+  <script src="js/layout.js?v=20260630-pm-v2" defer></script>
   <script>
   document.addEventListener('DOMContentLoaded', async function () {
     await new Promise(r => setTimeout(r, 100));
@@ -299,6 +378,14 @@
           <div class="sidebar-section-label">用户管理</div>
           <div class="sidebar-item" data-panel="users">
             👥 用户管理
+          </div>
+
+          <div class="sidebar-section-label">投资管理</div>
+          <div class="sidebar-item" data-panel="poolmeta">
+            📚 投资池说明
+          </div>
+          <div class="sidebar-item" data-panel="quotes">
+            💬 投资金句
           </div>
         </nav>
 
@@ -404,6 +491,81 @@
           </div>
         </div>
 
+        <!-- 投资池说明面板 -->
+        <div id="panel-poolmeta" class="panel">
+          <div class="page-header">
+            <div class="page-title">📚 投资池说明</div>
+            <div class="page-subtitle">统一管理 3 个股票池的封面图、估值方法与 9 格推荐（前台 invest.html 只展示，不再提供编辑入口）</div>
+          </div>
+
+          <div class="admin-section">
+            <div class="admin-section-title">
+              🎯 股票池分类
+              <span class="section-tag" id="poolMetaActiveTag">—</span>
+            </div>
+            <div class="poolmeta-tabs" id="poolMetaTabs">
+              <button class="poolmeta-tab" data-pool="tech_vc">科技AI · tech_vc</button>
+              <button class="poolmeta-tab" data-pool="innovative_drug">创新药 · innovative_drug</button>
+              <button class="poolmeta-tab" data-pool="quality">质量优选 · quality</button>
+            </div>
+          </div>
+
+          <!-- 当前池元信息 -->
+          <div class="admin-section" id="poolMetaCurrent">
+            <div class="admin-section-title">
+              <span id="poolMetaCurrentTitle">加载中…</span>
+              <span class="section-tag" id="poolMetaUpdatedAt">—</span>
+            </div>
+
+            <!-- 封面图 -->
+            <div class="poolmeta-field">
+              <label class="form-label">封面图</label>
+              <div class="poolmeta-cover-row">
+                <img id="poolMetaCoverPreview" alt="封面图预览" class="poolmeta-cover-preview" />
+                <div>
+                  <input type="file" id="poolMetaCoverFile" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
+                  <button type="button" class="btn-sm" id="poolMetaCoverBtn">📷 更换封面图</button>
+                  <div class="poolmeta-cover-meta" id="poolMetaCoverMeta">未上传</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 显示名称 -->
+            <div class="poolmeta-field">
+              <label class="form-label">显示名称</label>
+              <input id="poolMetaDisplayName" class="form-input" type="text" style="max-width:320px" />
+            </div>
+
+            <!-- 估值方法 -->
+            <div class="poolmeta-field">
+              <label class="form-label">估值方法（Markdown）</label>
+              <div class="poolmeta-md-hint">支持 Markdown（### 标题、表格、列表、<code>**强调**</code>）。保存后会自动渲染成 HTML 显示在 invest.html。</div>
+              <textarea id="poolMetaValuationMd" class="form-input poolmeta-md-textarea" rows="8"></textarea>
+              <div class="poolmeta-actions">
+                <button type="button" class="primary-btn" id="poolMetaSaveValuationBtn">💾 保存估值方法</button>
+                <span class="msg" id="poolMetaValuationMsg"></span>
+              </div>
+            </div>
+
+            <!-- 9 格管理 -->
+            <div class="poolmeta-field">
+              <label class="form-label">
+                9 格推荐（3×3）· 股票下拉来自当前池
+                <span class="section-tag" id="poolMetaWeeklySlotCount">0/9</span>
+              </label>
+              <div class="poolmeta-9grid" id="poolMetaWeeklySlots">
+                <div style="color:var(--text-muted);padding:12px">加载中…</div>
+              </div>
+              <div class="poolmeta-actions">
+                <button type="button" class="primary-btn" id="poolMetaSaveSlotsBtn">💾 保存 9 格</button>
+                <span class="msg" id="poolMetaSlotsMsg"></span>
+              </div>
+            </div>
+          </div>
+
+          <div id="poolMetaPanelMsg" class="msg"></div>
+        </div>
+
         <!-- 用户管理面板 -->
         <div id="panel-users" class="panel">
           <div class="page-header">
@@ -467,6 +629,93 @@
           </div>
         </div>
 
+        <!-- 投资金句面板 -->
+        <div id="panel-quotes" class="panel">
+          <div class="page-header">
+            <div class="page-title">💬 投资金句</div>
+            <div class="page-subtitle">维护首页轮播的金句内容，支持单条录入 / 批量粘贴 / 标签管理</div>
+          </div>
+
+          <div class="admin-section">
+            <div class="admin-section-title">📝 添加金句</div>
+            <div class="quote-admin-tabs" id="quoteAdminTabs">
+              <button class="quote-admin-tab active" data-tab="single">单条录入</button>
+              <button class="quote-admin-tab" data-tab="batch">批量粘贴</button>
+            </div>
+
+            <!-- 单条录入 -->
+            <div id="quoteAdminSinglePane" class="quote-admin-pane">
+              <div class="quote-admin-form">
+                <div class="form-field" style="flex:1 1 100%">
+                  <label class="form-label">金句内容 *</label>
+                  <textarea id="quoteAdminContent" class="form-input" rows="3" placeholder="输入投资金句…"></textarea>
+                </div>
+                <div class="form-field">
+                  <label class="form-label">作者 / 出处人名</label>
+                  <input id="quoteAdminAuthor" class="form-input" type="text" placeholder="如：芒格、段永平" />
+                </div>
+                <div class="form-field">
+                  <label class="form-label">来源书籍 / 场合</label>
+                  <input id="quoteAdminSource" class="form-input" type="text" placeholder="如：穷查理宝典、致股东信" />
+                </div>
+                <div class="form-field" style="flex:1 1 100%">
+                  <label class="form-label">标签 <span class="form-hint-inline">点击选择，或输入自定义（多个用逗号分隔）</span></label>
+                  <div class="quote-admin-tag-chips" id="quoteAdminTagChips"></div>
+                  <div class="quote-admin-tag-custom-row">
+                    <input id="quoteAdminTagCustomInput" class="form-input" type="text" placeholder="自定义标签，回车添加" autocomplete="off" />
+                  </div>
+                </div>
+                <div class="quote-admin-actions">
+                  <button type="button" class="primary-btn" id="quoteAdminAddBtn">＋ 添加金句</button>
+                  <span class="msg" id="quoteAdminAddMsg"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 批量粘贴 -->
+            <div id="quoteAdminBatchPane" class="quote-admin-pane" style="display:none">
+              <div class="form-field">
+                <label class="form-label">批量粘贴金句（每行一条）</label>
+                <textarea id="quoteAdminBatch" class="form-input" rows="8" placeholder="每行一条金句，粘贴后点击保存&#10;&#10;示例：&#10;人生中最重要的是找到你的能力圈，并一直待在里面。&#10;宁可错过，不可做错。"></textarea>
+              </div>
+              <div class="quote-admin-actions">
+                <button type="button" class="primary-btn" id="quoteAdminBatchBtn">💾 批量保存</button>
+                <span class="msg" id="quoteAdminBatchMsg"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="admin-section">
+            <div class="admin-section-title">
+              📚 金句列表
+              <span class="section-tag" id="quoteAdminTotalTag">—</span>
+            </div>
+            <div class="quote-admin-toolbar">
+              <input id="quoteAdminSearchInput" type="text" class="form-input" placeholder="搜索金句、作者、标签…" autocomplete="off" />
+              <button type="button" class="btn-sm" id="quoteAdminSearchBtn">🔍 搜索</button>
+            </div>
+            <table class="quote-admin-table">
+              <thead>
+                <tr>
+                  <th style="width:50%">内容</th>
+                  <th style="width:14%">作者</th>
+                  <th style="width:14%">来源</th>
+                  <th style="width:8%">点赞</th>
+                  <th style="width:14%">操作</th>
+                </tr>
+              </thead>
+              <tbody id="quoteAdminTableBody">
+                <tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px">加载中…</td></tr>
+              </tbody>
+            </table>
+            <div class="quote-admin-pager">
+              <button type="button" class="btn-sm" id="quoteAdminPrevPageBtn">‹ 上一页</button>
+              <span id="quoteAdminPageInfo" class="quote-admin-page-info">第 1 / 1 页</span>
+              <button type="button" class="btn-sm" id="quoteAdminNextPageBtn">下一页 ›</button>
+            </div>
+          </div>
+        </div>
+
       </main>
     </div>`;
 
@@ -482,6 +731,14 @@
         if (item.dataset.panel === 'stats' && !window._statsLoaded) {
           window._statsLoaded = true;
           initStats();
+        }
+        if (item.dataset.panel === 'poolmeta' && !window._poolMetaLoaded) {
+          window._poolMetaLoaded = true;
+          initPoolMetaPanel();
+        }
+        if (item.dataset.panel === 'quotes' && !window._quoteAdminLoaded) {
+          window._quoteAdminLoaded = true;
+          initQuoteAdminPanel();
         }
       });
     });
@@ -774,6 +1031,636 @@
           }
         }
       });
+    }
+
+    // ── 投资池说明面板 ─────────────────────────────────────
+    var POOL_META_TYPES = ['tech_vc', 'innovative_drug', 'quality'];
+    var POOL_META_LABELS = { tech_vc: '科技AI', innovative_drug: '创新药', quality: '质量优选' };
+    var poolMetaCurrentPool = 'tech_vc';
+    var poolMetaCache = {};   // poolType -> {meta, slots, stocks[]}
+
+    function setPoolMetaMsg(id, text, isErr) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = text || '';
+      el.className = 'msg ' + (isErr ? 'err' : 'ok');
+      if (text) setTimeout(function () { el.textContent = ''; el.className = 'msg'; }, 4000);
+    }
+
+    function activePoolMetaTab(pool) {
+      poolMetaCurrentPool = pool;
+      document.querySelectorAll('.poolmeta-tab').forEach(function (b) {
+        b.classList.toggle('active', b.dataset.pool === pool);
+      });
+      var tag = document.getElementById('poolMetaActiveTag');
+      if (tag) tag.textContent = POOL_META_LABELS[pool] + ' · ' + pool;
+      renderPoolMetaPanel();
+    }
+
+    function initPoolMetaPanel() {
+      // 三个 sub-tab 绑定
+      document.querySelectorAll('.poolmeta-tab').forEach(function (b) {
+        b.addEventListener('click', function () { activePoolMetaTab(b.dataset.pool); });
+      });
+      // 封面图上传
+      var coverBtn = document.getElementById('poolMetaCoverBtn');
+      var coverFile = document.getElementById('poolMetaCoverFile');
+      if (coverBtn && coverFile) {
+        coverBtn.addEventListener('click', function () { coverFile.click(); });
+        coverFile.addEventListener('change', function () {
+          if (coverFile.files && coverFile.files[0]) uploadPoolMetaCover();
+        });
+      }
+      // 三个保存按钮
+      var saveValBtn = document.getElementById('poolMetaSaveValuationBtn');
+      if (saveValBtn) saveValBtn.addEventListener('click', function () { savePoolMetaField('valuation'); });
+      var saveSlotsBtn = document.getElementById('poolMetaSaveSlotsBtn');
+      if (saveSlotsBtn) saveSlotsBtn.addEventListener('click', savePoolMetaSlots);
+      // 显示名称也走 valuation 那条保存（视为元信息的一部分）
+      var disp = document.getElementById('poolMetaDisplayName');
+      if (disp) disp.addEventListener('blur', function () { savePoolMetaField('display'); });
+
+      activePoolMetaTab('tech_vc');   // 默认切到科技AI
+    }
+
+    async function fetchPoolMeta(poolType) {
+      if (poolMetaCache[poolType]) return poolMetaCache[poolType];
+      var metaRes = await fetch('/gp/api/invest/pool-meta/' + encodeURIComponent(poolType), {
+        headers: { 'Authorization': 'Bearer ' + token }
+      }).then(function (r) { return r.ok ? r.json() : null; });
+      var slotsRes = await fetch('/gp/api/invest/weekly-opportunity/' + encodeURIComponent(poolType), {
+        headers: { 'Authorization': 'Bearer ' + token }
+      }).then(function (r) { return r.ok ? r.json() : []; });
+      var stocksRes = await fetch('/gp/api/invest/pool?poolType=' + encodeURIComponent(poolType), {
+        headers: { 'Authorization': 'Bearer ' + token }
+      }).then(function (r) { return r.ok ? r.json() : []; });
+      poolMetaCache[poolType] = { meta: metaRes, slots: slotsRes, stocks: stocksRes };
+      return poolMetaCache[poolType];
+    }
+
+    async function renderPoolMetaPanel() {
+      var pool = poolMetaCurrentPool;
+      var panelMsg = document.getElementById('poolMetaPanelMsg');
+      if (panelMsg) { panelMsg.textContent = ''; panelMsg.className = 'msg'; }
+      var data = await fetchPoolMeta(pool);
+      if (!data || !data.meta) {
+        if (panelMsg) { panelMsg.textContent = '加载失败：' + pool + ' 数据为空'; panelMsg.className = 'msg err'; }
+        return;
+      }
+      var meta = data.meta;
+      var slots = data.slots || [];
+      var stocks = data.stocks || [];
+
+      document.getElementById('poolMetaCurrentTitle').textContent =
+        (POOL_META_LABELS[pool] || pool) + ' · ' + pool;
+      document.getElementById('poolMetaUpdatedAt').textContent =
+        meta.updatedAt ? ('更新于 ' + String(meta.updatedAt).replace('T', ' ').slice(0, 16)) : '尚未编辑';
+
+      var coverImg = document.getElementById('poolMetaCoverPreview');
+      var coverMeta = document.getElementById('poolMetaCoverMeta');
+      if (meta.coverImageUrl) {
+        coverImg.src = meta.coverImageUrl;
+        coverMeta.textContent = meta.coverImageUrl;
+      } else {
+        coverImg.removeAttribute('src');
+        coverMeta.textContent = '未上传（默认图仅在 invest.html 兜底）';
+      }
+
+      var disp = document.getElementById('poolMetaDisplayName');
+      if (document.activeElement !== disp) disp.value = meta.displayName || '';
+      document.getElementById('poolMetaValuationMd').value = meta.valuationMethodMd || '';
+
+      renderPoolMetaSlots(slots, stocks);
+    }
+
+    function renderPoolMetaSlots(slots, stocks) {
+      var grid = document.getElementById('poolMetaWeeklySlots');
+      var count = document.getElementById('poolMetaWeeklySlotCount');
+      if (!grid) return;
+      // 构建该池的 datalist：value=stockCode, label=stockName (stockCode)
+      var dlId = 'pool-stocks-' + poolMetaCurrentPool;
+      var dlHtml = '<datalist id="' + dlId + '">' + stocks.map(function (s) {
+        return '<option value="' + esc(s.stockCode) + '">' + esc(s.stockName || s.stockCode) + ' (' + esc(s.stockCode) + ')</option>';
+      }).join('') + '</datalist>';
+      // 旧的同名 datalist 先清掉，避免堆积
+      var oldDl = document.getElementById(dlId);
+      if (oldDl) oldDl.remove();
+      // 挂到 grid 容器下（不参与布局）
+      grid.insertAdjacentHTML('beforebegin', dlHtml);
+      // 名称 map：code -> name（用于代码 → 名称自动联动）
+      var nameByCode = {};
+      stocks.forEach(function (s) { if (s.stockCode) nameByCode[s.stockCode] = s.stockName || ''; });
+
+      var html = '';
+      var filled = 0;
+      for (var i = 0; i < 9; i++) {
+        var slot = slots.find(function (s) { return s.slotIndex === i; }) || { slotIndex: i, stockCode: '', stockName: '', userStockName: '', reason: '', imageUrl: '' };
+        if (slot.stockCode) filled++;
+        // 名称：用户手工填的优先；没填就用联动的 stockName
+        var displayName = slot.userStockName || slot.stockName || '';
+        var imgUrl = slot.imageUrl || '';
+        var hasImg = !!imgUrl;
+        html += '<div class="poolmeta-slot-card" data-slot="' + i + '">' +
+          '<div class="poolmeta-slot-head"><span class="poolmeta-slot-no">#' + (i + 1) + '</span></div>' +
+          '<div class="poolmeta-slot-row">' +
+            '<input class="form-input poolmeta-slot-code" type="text" data-slot-code="' + i + '" list="' + dlId + '" placeholder="代码（可输入任意）" value="' + esc(slot.stockCode || '') + '" autocomplete="off" />' +
+            '<input class="form-input poolmeta-slot-name" type="text" data-slot-name="' + i + '" placeholder="名称（可手工填）" value="' + esc(displayName) + '" />' +
+          '</div>' +
+          '<input class="form-input" type="text" data-slot-reason="' + i + '" maxlength="80" placeholder="推荐理由（1-2 句话）" value="' + esc(slot.reason || '') + '" />' +
+          '<input type="hidden" data-slot-image="' + i + '" value="' + esc(imgUrl) + '" />' +
+          '<div class="poolmeta-slot-img">' +
+            '<div class="poolmeta-slot-img-preview' + (hasImg ? ' has-image' : '') + '" data-slot-image-preview="' + i + '">' +
+              (hasImg ? '<img src="' + esc(imgUrl) + '" alt="slot 截图" data-slot-image-img="' + i + '" />' : '') +
+            '</div>' +
+            '<div class="poolmeta-slot-img-actions">' +
+              '<label class="poolmeta-slot-img-btn" style="cursor:pointer">📷 上传截图' +
+                '<input type="file" accept="image/*" data-slot-image-file="' + i + '" hidden />' +
+              '</label>' +
+              '<button type="button" class="poolmeta-slot-img-btn danger" data-slot-image-clear="' + i + '" style="' + (hasImg ? '' : 'display:none') + '">🗑️ 清除</button>' +
+              '<span class="poolmeta-slot-img-msg" data-slot-image-msg="' + i + '"></span>' +
+            '</div>' +
+          '</div>' +
+          '</div>';
+      }
+      grid.innerHTML = html;
+      bindPoolMetaSlotEvents(stocks, nameByCode);
+      if (count) count.textContent = filled + '/9';
+    }
+
+    /**
+     * 绑定单格交互：
+     * - 代码 input：datalist 选完后，若名称框为空则用 nameByCode 自动填
+     * - 上传文件：POST /api/invest/weekly-opportunity/{poolType}/{slotIndex}/image
+     * - 清除：DELETE 同 URL
+     */
+    function bindPoolMetaSlotEvents(stocks, nameByCode) {
+      var grid = document.getElementById('poolMetaWeeklySlots');
+      if (!grid) return;
+      grid.querySelectorAll('input[data-slot-code]').forEach(function (inp) {
+        inp.addEventListener('change', function () {
+          var i = parseInt(inp.dataset.slotCode, 10);
+          var nameInp = grid.querySelector('input[data-slot-name="' + i + '"]');
+          if (!nameInp) return;
+          // datalist 选完，且名称框为空 → 自动填名称
+          var code = (inp.value || '').trim();
+          if (code && !nameInp.value.trim() && nameByCode[code]) {
+            nameInp.value = nameByCode[code];
+          }
+        });
+      });
+      grid.querySelectorAll('input[data-slot-image-file]').forEach(function (file) {
+        file.addEventListener('change', function () {
+          if (file.files && file.files[0]) uploadSlotImage(file);
+        });
+      });
+      grid.querySelectorAll('button[data-slot-image-clear]').forEach(function (btn) {
+        btn.addEventListener('click', function () { clearSlotImage(btn); });
+      });
+    }
+
+    function setSlotImgMsg(i, text, isErr) {
+      var el = document.querySelector('[data-slot-image-msg="' + i + '"]');
+      if (!el) return;
+      el.textContent = text || '';
+      el.className = 'poolmeta-slot-img-msg' + (isErr ? ' err' : (text ? ' ok' : ''));
+    }
+
+    function applySlotImage(i, url) {
+      var grid = document.getElementById('poolMetaWeeklySlots');
+      if (!grid) return;
+      var hidden = grid.querySelector('input[data-slot-image="' + i + '"]');
+      var preview = grid.querySelector('[data-slot-image-preview="' + i + '"]');
+      var img = grid.querySelector('img[data-slot-image-img="' + i + '"]');
+      var clearBtn = grid.querySelector('button[data-slot-image-clear="' + i + '"]');
+      if (hidden) hidden.value = url || '';
+      if (url) {
+        if (!img) {
+          img = document.createElement('img');
+          img.setAttribute('data-slot-image-img', i);
+          img.alt = 'slot 截图';
+          img.style.maxWidth = '100%';
+          img.style.maxHeight = '140px';
+          img.style.borderRadius = '4px';
+          img.style.cursor = 'zoom-in';
+          img.style.display = 'block';
+          img.addEventListener('click', function () { openImgModal(url); });
+          preview.appendChild(img);
+        }
+        img.src = url;
+        preview.classList.add('has-image');
+        if (clearBtn) clearBtn.style.display = '';
+      } else {
+        if (img) img.remove();
+        preview.classList.remove('has-image');
+        if (clearBtn) clearBtn.style.display = 'none';
+      }
+    }
+
+    async function uploadSlotImage(fileInput) {
+      var i = parseInt(fileInput.dataset.slotImageFile, 10);
+      var pool = poolMetaCurrentPool;
+      if (!fileInput.files || !fileInput.files[0]) return;
+      setSlotImgMsg(i, '上传中…', false);
+      var fd = new FormData();
+      fd.append('file', fileInput.files[0]);
+      try {
+        var r = await fetch('/gp/api/invest/weekly-opportunity/' + encodeURIComponent(pool) + '/' + i + '/image', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token },
+          body: fd
+        });
+        var res = await r.json().catch(function () { return {}; });
+        if (!r.ok) throw new Error(res.message || res.error || ('HTTP ' + r.status));
+        applySlotImage(i, res.imageUrl);
+        setSlotImgMsg(i, '✓ 已上传', false);
+        setTimeout(function () { setSlotImgMsg(i, '', false); }, 2500);
+      } catch (e) {
+        setSlotImgMsg(i, '上传失败：' + e.message, true);
+      } finally {
+        fileInput.value = '';
+      }
+    }
+
+    async function clearSlotImage(btn) {
+      var i = parseInt(btn.dataset.slotImageClear, 10);
+      var pool = poolMetaCurrentPool;
+      if (!confirm('确定要清除该格的截图吗？')) return;
+      setSlotImgMsg(i, '清除中…', false);
+      try {
+        var r = await fetch('/gp/api/invest/weekly-opportunity/' + encodeURIComponent(pool) + '/' + i + '/image', {
+          method: 'DELETE',
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        var res = await r.json().catch(function () { return {}; });
+        if (!r.ok) throw new Error(res.message || res.error || ('HTTP ' + r.status));
+        applySlotImage(i, '');
+        setSlotImgMsg(i, '✓ 已清除', false);
+        setTimeout(function () { setSlotImgMsg(i, '', false); }, 2500);
+      } catch (e) {
+        setSlotImgMsg(i, '清除失败：' + e.message, true);
+      }
+    }
+
+    function openImgModal(url) {
+      var modal = document.getElementById('poolmetaImgModal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'poolmetaImgModal';
+        modal.className = 'poolmeta-img-modal';
+        modal.innerHTML = '<img />';
+        modal.addEventListener('click', function () { modal.classList.remove('open'); });
+        document.body.appendChild(modal);
+      }
+      modal.querySelector('img').src = url;
+      modal.classList.add('open');
+    }
+
+    async function savePoolMetaField(which) {
+      var pool = poolMetaCurrentPool;
+      var payload = { displayName: document.getElementById('poolMetaDisplayName').value || '' };
+      if (which === 'valuation') {
+        payload.valuationMethodMd = document.getElementById('poolMetaValuationMd').value;
+      } else if (which === 'display') {
+        // 仅更新 displayName + 已有 markdown
+        var cached = poolMetaCache[pool];
+        payload.valuationMethodMd = cached && cached.meta ? (cached.meta.valuationMethodMd || '') : '';
+      } else {
+        return;
+      }
+      var btnId = which === 'valuation' ? 'poolMetaSaveValuationBtn' : null;
+      var msgId = which === 'valuation' ? 'poolMetaValuationMsg' : 'poolMetaPanelMsg';
+      var btn = btnId ? document.getElementById(btnId) : null;
+      if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
+      try {
+        var r = await fetch('/gp/api/invest/pool-meta/' + encodeURIComponent(pool), {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify(payload)
+        });
+        var res = await r.json().catch(function () { return {}; });
+        if (!r.ok) throw new Error(res.message || res.error || ('HTTP ' + r.status));
+        // 刷新缓存 + UI
+        delete poolMetaCache[pool];
+        if (msgId === 'poolMetaPanelMsg') {
+          var pm = document.getElementById(msgId);
+          if (pm) { pm.textContent = '显示名称已更新'; pm.className = 'msg ok'; setTimeout(function () { pm.textContent = ''; pm.className = 'msg'; }, 4000); }
+        } else {
+          setPoolMetaMsg(msgId, '✓ 已保存', false);
+        }
+        renderPoolMetaPanel();
+      } catch (e) {
+        if (msgId === 'poolMetaPanelMsg') {
+          var pm = document.getElementById(msgId);
+          if (pm) { pm.textContent = '保存失败：' + e.message; pm.className = 'msg err'; }
+        } else {
+          setPoolMetaMsg(msgId, '保存失败：' + e.message, true);
+        }
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '💾 保存估值方法'; }
+      }
+    }
+
+    async function savePoolMetaSlots() {
+      var pool = poolMetaCurrentPool;
+      var grid = document.getElementById('poolMetaWeeklySlots');
+      var items = [];
+      grid.querySelectorAll('input[data-slot-code]').forEach(function (codeInp) {
+        var i = parseInt(codeInp.dataset.slotCode, 10);
+        var nameEl = grid.querySelector('input[data-slot-name="' + i + '"]');
+        var reasonEl = grid.querySelector('input[data-slot-reason="' + i + '"]');
+        var imageEl = grid.querySelector('input[data-slot-image="' + i + '"]');
+        items.push({
+          slotIndex: i,
+          stockCode: (codeInp.value || '').trim() || null,
+          userStockName: nameEl ? (nameEl.value || '').trim() || null : null,
+          reason: reasonEl ? (reasonEl.value || '').trim() || null : null,
+          imageUrl: imageEl ? (imageEl.value || '').trim() || null : null
+        });
+      });
+      if (items.length !== 9) {
+        setPoolMetaMsg('poolMetaSlotsMsg', '9 格不完整：' + items.length + '/9', true);
+        return;
+      }
+      var btn = document.getElementById('poolMetaSaveSlotsBtn');
+      btn.disabled = true; btn.textContent = '保存中…';
+      try {
+        var r = await fetch('/gp/api/invest/weekly-opportunity/' + encodeURIComponent(pool), {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ slots: items })
+        });
+        var res = await r.json().catch(function () { return {}; });
+        if (!r.ok) throw new Error(res.message || res.error || ('HTTP ' + r.status));
+        setPoolMetaMsg('poolMetaSlotsMsg', '✓ 9 格已保存', false);
+        // 清理缓存后渲染
+        delete poolMetaCache[pool];
+        renderPoolMetaPanel();
+      } catch (e) {
+        setPoolMetaMsg('poolMetaSlotsMsg', '保存失败：' + e.message, true);
+      } finally {
+        btn.disabled = false; btn.textContent = '💾 保存 9 格';
+      }
+    }
+
+    async function uploadPoolMetaCover() {
+      var pool = poolMetaCurrentPool;
+      var fileInput = document.getElementById('poolMetaCoverFile');
+      if (!fileInput.files || !fileInput.files[0]) return;
+      var fd = new FormData();
+      fd.append('file', fileInput.files[0]);
+      var btn = document.getElementById('poolMetaCoverBtn');
+      btn.disabled = true; btn.textContent = '上传中…';
+      try {
+        var r = await fetch('/gp/api/invest/pool-meta/' + encodeURIComponent(pool) + '/cover-image', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token },
+          body: fd
+        });
+        var res = await r.json().catch(function () { return {}; });
+        if (!r.ok) throw new Error(res.message || res.error || ('HTTP ' + r.status));
+        var pm = document.getElementById('poolMetaPanelMsg');
+        if (pm) { pm.textContent = '✓ 封面图已更新'; pm.className = 'msg ok'; setTimeout(function () { pm.textContent = ''; pm.className = 'msg'; }, 3000); }
+        delete poolMetaCache[pool];
+        renderPoolMetaPanel();
+      } catch (e) {
+        var pm = document.getElementById('poolMetaPanelMsg');
+        if (pm) { pm.textContent = '上传失败：' + e.message; pm.className = 'msg err'; }
+      } finally {
+        btn.disabled = false; btn.textContent = '📷 更换封面图';
+        fileInput.value = '';
+      }
+    }
+
+    // ── 投资金句面板 ────────────────────────────────────────
+    var QUOTE_PRESET_TAGS = ['价值投资','成长股','护城河','复利','风险','仓位','逆向','长期','赛道','估值','人性','趋势'];
+    var quoteAdminKw = '';
+    var quoteAdminPage = 0;
+    const QUOTE_PAGE_SIZE = 20;
+    let quoteAdminSelectedTags = new Set();
+
+    function setQuoteAdminMsg(id, text, isErr) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = text || '';
+      el.className = 'msg' + (isErr ? ' err' : (text ? ' ok' : ''));
+    }
+
+    function renderQuoteAdminTagChips() {
+      var box = document.getElementById('quoteAdminTagChips');
+      if (!box) return;
+      box.innerHTML = '';
+      QUOTE_PRESET_TAGS.forEach(function(tag) {
+        var chip = document.createElement('span');
+        chip.className = 'quote-tag-chip' + (quoteAdminSelectedTags.has(tag) ? ' selected' : '');
+        chip.textContent = tag;
+        chip.addEventListener('click', function() {
+          if (quoteAdminSelectedTags.has(tag)) {
+            quoteAdminSelectedTags.delete(tag);
+            chip.classList.remove('selected');
+          } else {
+            quoteAdminSelectedTags.add(tag);
+            chip.classList.add('selected');
+          }
+        });
+        box.appendChild(chip);
+      });
+    }
+
+    function addQuoteAdminCustomTag(tag) {
+      tag = (tag || '').trim();
+      if (!tag) return;
+      if (!QUOTE_PRESET_TAGS.includes(tag)) {
+        var box = document.getElementById('quoteAdminTagChips');
+        var chip = document.createElement('span');
+        chip.className = 'quote-tag-chip selected custom';
+        chip.textContent = tag;
+        chip.addEventListener('click', function() {
+          if (quoteAdminSelectedTags.has(tag)) {
+            quoteAdminSelectedTags.delete(tag);
+            chip.classList.remove('selected');
+          } else {
+            quoteAdminSelectedTags.add(tag);
+            chip.classList.add('selected');
+          }
+        });
+        box.appendChild(chip);
+      }
+      quoteAdminSelectedTags.add(tag);
+      var input = document.getElementById('quoteAdminTagCustomInput');
+      if (input) input.value = '';
+    }
+
+    async function loadQuoteAdminPage() {
+      var tbody = document.getElementById('quoteAdminTableBody');
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px">加载中…</td></tr>';
+      try {
+        var params = new URLSearchParams({ kw: quoteAdminKw, page: quoteAdminPage, size: QUOTE_PAGE_SIZE });
+        var r = await fetch('/gp/api/quotes?' + params, { headers: { 'Authorization': 'Bearer ' + token } });
+        if (r.status === 403 || r.status === 401) {
+          tbody.innerHTML = '<tr><td colspan="5" style="color:#e53;text-align:center;padding:20px">权限不足，仅管理员可访问</td></tr>';
+          return;
+        }
+        var data = await r.json();
+        var list = data.list || [];
+        var total = data.total || 0;
+        var totalPages = Math.max(1, Math.ceil(total / QUOTE_PAGE_SIZE));
+        document.getElementById('quoteAdminTotalTag').textContent = '共 ' + total + ' 条';
+        document.getElementById('quoteAdminPageInfo').textContent = '第 ' + (quoteAdminPage + 1) + ' / ' + totalPages + ' 页';
+        document.getElementById('quoteAdminPrevPageBtn').disabled = quoteAdminPage <= 0;
+        document.getElementById('quoteAdminNextPageBtn').disabled = quoteAdminPage >= totalPages - 1;
+        if (list.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px">暂无金句，点击上方添加</td></tr>';
+          return;
+        }
+        tbody.innerHTML = '';
+        list.forEach(function(q) {
+          var tr = document.createElement('tr');
+          tr.innerHTML =
+            '<td><div class="quote-admin-cell-content">' + esc(q.content) + '</div>' +
+              (q.tags ? '<div class="quote-admin-cell-tags">' + q.tags.split(',').map(function(t){return '<span class="quote-tag-mini">'+esc(t.trim())+'</span>';}).join('') + '</div>' : '') +
+            '</td>' +
+            '<td>' + esc(q.author || '—') + '</td>' +
+            '<td>' + esc(q.source || '—') + '</td>' +
+            '<td>❤️ ' + (q.likes || 0) + '</td>' +
+            '<td><button class="btn-sm danger" data-del="' + q.id + '">删除</button></td>';
+          tbody.appendChild(tr);
+        });
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="5" style="color:#e53;text-align:center;padding:20px">加载失败：' + e.message + '</td></tr>';
+      }
+    }
+
+    async function initQuoteAdminPanel() {
+      renderQuoteAdminTagChips();
+
+      // Tab 切换
+      document.querySelectorAll('#quoteAdminTabs .quote-admin-tab').forEach(function(tab) {
+        tab.addEventListener('click', function() {
+          document.querySelectorAll('#quoteAdminTabs .quote-admin-tab').forEach(function(t){ t.classList.remove('active'); });
+          tab.classList.add('active');
+          var name = tab.dataset.tab;
+          document.getElementById('quoteAdminSinglePane').style.display = name === 'single' ? '' : 'none';
+          document.getElementById('quoteAdminBatchPane').style.display = name === 'batch' ? '' : 'none';
+        });
+      });
+
+      // 自定义标签
+      var customInput = document.getElementById('quoteAdminTagCustomInput');
+      if (customInput) {
+        customInput.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') { e.preventDefault(); addQuoteAdminCustomTag(customInput.value); }
+        });
+      }
+
+      // 单条添加
+      document.getElementById('quoteAdminAddBtn').addEventListener('click', async function() {
+        var btn = this;
+        var content = document.getElementById('quoteAdminContent').value.trim();
+        if (!content) { setQuoteAdminMsg('quoteAdminAddMsg', '请输入金句内容', true); return; }
+        btn.disabled = true; btn.textContent = '保存中…';
+        setQuoteAdminMsg('quoteAdminAddMsg', '');
+        try {
+          var r = await fetch('/gp/api/quotes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({
+              content: content,
+              author: document.getElementById('quoteAdminAuthor').value.trim() || null,
+              source: document.getElementById('quoteAdminSource').value.trim() || null,
+              tags: quoteAdminSelectedTags.size > 0 ? [...quoteAdminSelectedTags].join(',') : null
+            })
+          });
+          if (!r.ok) {
+            var data = await r.json().catch(function(){return {};});
+            throw new Error(data.message || data.error || ('HTTP ' + r.status));
+          }
+          document.getElementById('quoteAdminContent').value = '';
+          document.getElementById('quoteAdminAuthor').value = '';
+          document.getElementById('quoteAdminSource').value = '';
+          quoteAdminSelectedTags.clear();
+          renderQuoteAdminTagChips();
+          setQuoteAdminMsg('quoteAdminAddMsg', '✅ 已添加');
+          quoteAdminPage = 0;
+          await loadQuoteAdminPage();
+        } catch (e) {
+          setQuoteAdminMsg('quoteAdminAddMsg', '保存失败：' + e.message, true);
+        } finally {
+          btn.disabled = false; btn.textContent = '＋ 添加金句';
+        }
+      });
+
+      // 批量添加
+      document.getElementById('quoteAdminBatchBtn').addEventListener('click', async function() {
+        var btn = this;
+        var raw = document.getElementById('quoteAdminBatch').value;
+        var lines = raw.split('\n').map(function(l){return l.trim();}).filter(Boolean);
+        if (lines.length === 0) { setQuoteAdminMsg('quoteAdminBatchMsg', '请输入至少一条金句', true); return; }
+        btn.disabled = true; btn.textContent = '批量保存中…';
+        setQuoteAdminMsg('quoteAdminBatchMsg', '');
+        try {
+          var r = await fetch('/gp/api/quotes/batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify(lines)
+          });
+          if (!r.ok) {
+            var data = await r.json().catch(function(){return {};});
+            throw new Error(data.message || data.error || ('HTTP ' + r.status));
+          }
+          var saved = await r.json();
+          document.getElementById('quoteAdminBatch').value = '';
+          setQuoteAdminMsg('quoteAdminBatchMsg', '✅ 已添加 ' + (saved.length || lines.length) + ' 条');
+          quoteAdminPage = 0;
+          await loadQuoteAdminPage();
+        } catch (e) {
+          setQuoteAdminMsg('quoteAdminBatchMsg', '保存失败：' + e.message, true);
+        } finally {
+          btn.disabled = false; btn.textContent = '💾 批量保存';
+        }
+      });
+
+      // 搜索
+      var searchInput = document.getElementById('quoteAdminSearchInput');
+      var searchBtn = document.getElementById('quoteAdminSearchBtn');
+      var doSearch = function() {
+        quoteAdminKw = searchInput.value.trim();
+        quoteAdminPage = 0;
+        loadQuoteAdminPage();
+      };
+      searchBtn.addEventListener('click', doSearch);
+      searchInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') doSearch(); });
+
+      // 分页
+      document.getElementById('quoteAdminPrevPageBtn').addEventListener('click', function() {
+        if (quoteAdminPage > 0) { quoteAdminPage--; loadQuoteAdminPage(); }
+      });
+      document.getElementById('quoteAdminNextPageBtn').addEventListener('click', function() {
+        quoteAdminPage++;
+        loadQuoteAdminPage();
+      });
+
+      // 删除
+      document.getElementById('quoteAdminTableBody').addEventListener('click', async function(e) {
+        var btn = e.target.closest('button[data-del]');
+        if (!btn) return;
+        var id = btn.dataset.del;
+        if (!confirm('确定删除这条金句吗？')) return;
+        try {
+          var r = await fetch('/gp/api/quotes/' + id, {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer ' + token }
+          });
+          if (!r.ok) {
+            var data = await r.json().catch(function(){return {};});
+            throw new Error(data.message || data.error || ('HTTP ' + r.status));
+          }
+          await loadQuoteAdminPage();
+        } catch (err) {
+          alert('删除失败：' + err.message);
+        }
+      });
+
+      await loadQuoteAdminPage();
     }
 
     // 默认加载

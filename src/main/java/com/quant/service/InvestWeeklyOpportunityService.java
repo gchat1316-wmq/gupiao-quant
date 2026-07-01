@@ -7,11 +7,19 @@ import com.quant.entity.InvestWeeklyOpportunitySlot;
 import com.quant.repository.InvestStockPoolRepository;
 import com.quant.repository.InvestWeeklyOpportunitySlotRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -19,6 +27,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * 每周机会点（3×3 卡片）服务。
@@ -28,6 +37,7 @@ import java.util.Set;
  * 2. slot 顺序按 slotIndex 升序
  * 3. update() 是「全量替换」语义（事务内先删后插）
  * 4. stockName 实时联动 invest_stock_pool 补全（股票不在池中时为 null）
+ * 5. imageUrl 是该格参考截图（admin 手工上传），与 stockCode 无强绑定——stockCode 留空时仍可单独存图
  *
  * 注意：估值水平 (level) 不由本服务计算，前端从 /api/invest/pool 拿快照后用 inferValuationRange() 算。
  */
@@ -38,8 +48,14 @@ public class InvestWeeklyOpportunityService {
     public static final List<String> ALLOWED_POOL_TYPES = List.of("tech_vc", "innovative_drug", "quality");
     public static final int SLOTS_PER_POOL = 9;
 
+    private static final Set<String> ALLOWED_IMAGE_EXT =
+            Set.of("jpg", "jpeg", "png", "webp", "gif", "svg");
+
     private final InvestWeeklyOpportunitySlotRepository slotRepo;
     private final InvestStockPoolRepository stockPoolRepo;
+
+    @Value("${app.upload-dir:uploads}")
+    private String uploadDir;
 
     public InvestWeeklyOpportunityService(InvestWeeklyOpportunitySlotRepository slotRepo,
                                           InvestStockPoolRepository stockPoolRepo) {
@@ -88,7 +104,12 @@ public class InvestWeeklyOpportunityService {
             s.setPoolType(poolType);
             s.setSlotIndex(item.getSlotIndex());
             s.setStockCode(blankToNull(item.getStockCode()));
+            s.setUserStockName(blankToNull(item.getUserStockName()));
             s.setReason(blankToNull(item.getReason()));
+            // imageUrl 字段缺失（== null）则保留 DB 原值；显式传了空串视作清空
+            if (item.getImageUrl() != null) {
+                s.setImageUrl(blankToNull(item.getImageUrl()));
+            }
             rows.add(s);
         }
         slotRepo.saveAll(rows);
@@ -98,6 +119,61 @@ public class InvestWeeklyOpportunityService {
 
         Map<String, InvestStockPool> poolMap = loadStockMap(poolType);
         return buildSlots(poolType, rows, poolMap);
+    }
+
+    // ══════════════════════════════════════════════════
+    // 单 slot 截图：上传 / 清除
+    // ══════════════════════════════════════════════════
+
+    @CacheEvict(value = "weeklyOpportunity", allEntries = true)
+    @Transactional
+    public String setSlotImage(String poolType, int slotIndex, MultipartFile file) throws IOException {
+        validatePoolType(poolType);
+        validateSlotIndex(slotIndex);
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("截图文件不能为空");
+        }
+        String originalName = file.getOriginalFilename() == null ? "shot" : file.getOriginalFilename();
+        String ext = extOf(originalName);
+        if (!ALLOWED_IMAGE_EXT.contains(ext)) {
+            throw new IllegalArgumentException("仅支持 JPG/PNG/WebP/GIF/SVG 格式，当前：" + ext);
+        }
+
+        Path dir = Paths.get(uploadDir, "weekly-opportunity", poolType, String.valueOf(slotIndex))
+                .toAbsolutePath().normalize();
+        Files.createDirectories(dir);
+        String safeName = UUID.randomUUID() + "_" + originalName.replaceAll("[\\\\/:*?\"<>|]", "_");
+        Path target = dir.resolve(safeName);
+        try (InputStream in = file.getInputStream()) {
+            Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+        }
+        log.info("slot 截图已保存: {}", target);
+
+        String publicUrl = "/uploads/weekly-opportunity/" + poolType + "/" + slotIndex + "/" + safeName;
+        InvestWeeklyOpportunitySlot row = slotRepo.findByPoolTypeAndSlotIndex(poolType, slotIndex)
+                .orElseGet(() -> {
+                    InvestWeeklyOpportunitySlot s = new InvestWeeklyOpportunitySlot();
+                    s.setPoolType(poolType);
+                    s.setSlotIndex(slotIndex);
+                    return s;
+                });
+        row.setImageUrl(publicUrl);
+        slotRepo.save(row);
+        return publicUrl;
+    }
+
+    @CacheEvict(value = "weeklyOpportunity", allEntries = true)
+    @Transactional
+    public void clearSlotImage(String poolType, int slotIndex) {
+        validatePoolType(poolType);
+        validateSlotIndex(slotIndex);
+        slotRepo.findByPoolTypeAndSlotIndex(poolType, slotIndex).ifPresent(row -> {
+            if (row.getImageUrl() != null) {
+                row.setImageUrl(null);
+                slotRepo.save(row);
+                log.info("slot 截图已清除: poolType={}, slotIndex={}", poolType, slotIndex);
+            }
+        });
     }
 
     // ══════════════════════════════════════════════════
@@ -130,6 +206,8 @@ public class InvestWeeklyOpportunityService {
                 out.add(WeeklyOpportunitySlotDTO.builder()
                         .poolType(poolType)
                         .slotIndex(i)
+                        .userStockName(s == null ? null : s.getUserStockName())
+                        .imageUrl(s == null ? null : s.getImageUrl())
                         .build());
             } else {
                 InvestStockPool stock = poolMap.get(s.getStockCode());
@@ -138,7 +216,9 @@ public class InvestWeeklyOpportunityService {
                         .slotIndex(i)
                         .stockCode(s.getStockCode())
                         .stockName(stock != null ? stock.getStockName() : null)
+                        .userStockName(s.getUserStockName())
                         .reason(s.getReason())
+                        .imageUrl(s.getImageUrl())
                         .updatedAt(s.getUpdatedAt())
                         .build());
             }
@@ -150,6 +230,11 @@ public class InvestWeeklyOpportunityService {
         return (s == null || s.isBlank()) ? null : s.trim();
     }
 
+    private static String extOf(String name) {
+        int dot = name.lastIndexOf('.');
+        return dot >= 0 ? name.substring(dot + 1).toLowerCase() : "";
+    }
+
     private static final Set<String> ALLOWED_SET = new LinkedHashSet<>(ALLOWED_POOL_TYPES);
 
     private static void validatePoolType(String poolType) {
@@ -158,6 +243,12 @@ public class InvestWeeklyOpportunityService {
         }
         if (!ALLOWED_SET.contains(poolType)) {
             throw new IllegalArgumentException("不支持的 poolType：" + poolType + "（允许：tech_vc / innovative_drug / quality）");
+        }
+    }
+
+    private static void validateSlotIndex(Integer slotIndex) {
+        if (slotIndex == null || slotIndex < 0 || slotIndex >= SLOTS_PER_POOL) {
+            throw new IllegalArgumentException("slotIndex 越界（必须在 0~" + (SLOTS_PER_POOL - 1) + "），实际 " + slotIndex);
         }
     }
 

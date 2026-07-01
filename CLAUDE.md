@@ -90,7 +90,6 @@ com.quant
 ├── security/                      # SecurityConfig, JwtAuthFilter, JwtTokenProvider, UserPrincipal
 └── service/                       # Business logic
     ├── ai/                        # MiniMaxClient / SenseNovaClient / TavilyClient wrappers
-    ├── industryresearch/          # 产业投研 pipeline (LLM + PDF + news radar)
     ├── prosperitystrong/          # 热点选股 algorithm
     ├── stockanalysis/             # 个股分析 Python bridge + PDF render
     ├── techai/                    # QMT real-time quotes, TechAiSchemaGuard
@@ -103,7 +102,7 @@ Frontend: `src/main/resources/static/{*.html, css/, js/, lib/, images/}`. There 
 
 ### Auth model
 
-Stateless JWT (`security/JwtAuthFilter` runs before `UsernamePasswordAuthenticationFilter`). Login paths: password (BCrypt) or SMS code (`SmsService`) or WeChat (`WechatMpService` — supports both 开放平台 OAuth and 公众号带参数二维码). Token secret comes from `app.jwt.secret` (`JWT_SECRET` env var). `SecurityConfig` permitAll list includes static resources, GETs on `/api/quote/**`, `/api/stock/search`, `/api/invest/pool`, `/api/invest/sop/**`, `/api/invest/big-yang/**`, `/api/analysis/**`, `/api/news/**`, all `/api/auth/**`, and `POST /api/stats/page-view`. Everything else requires `.authenticated()`.
+Stateless JWT (`security/JwtAuthFilter` runs before `UsernamePasswordAuthenticationFilter`). Login paths: password (BCrypt) or SMS code (`SmsService`) or WeChat (`WechatMpService` — supports both 开放平台 OAuth and 公众号带参数二维码). Token secret comes from `app.jwt.secret` (`JWT_SECRET` env var). `SecurityConfig` permitAll list includes static resources, GETs on `/api/quote/**`, `/api/stock/search`, `/api/invest/pool`, `/api/invest/sop/**`, `/api/invest/big-yang/**`, `/api/prosperity-strong/**`, `/api/stock-analysis/**`, `/api/market-recaps/**`, `/api/monitor/pool/**`, `/api/news/**`, all `/api/auth/**`, and `POST /api/stats/page-view`. Everything else requires `.authenticated()`.
 
 Roles: `USER` (default) / `ADMIN` (`auth_user.role`). Admin checks use `@PreAuthorize("hasRole('ADMIN')")` (method security enabled).
 

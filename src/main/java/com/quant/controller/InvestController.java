@@ -208,4 +208,23 @@ public class InvestController {
                                                                    @RequestBody WeeklyOpportunityUpdateRequest req) {
         return weeklyOpportunityService.update(poolType, req);
     }
+
+    /** 上传单个 slot 的参考截图（MANAGER + ADMIN）。stockCode 可空，纯佐证。 */
+    @PostMapping(value = "/weekly-opportunity/{poolType}/{slotIndex}/image", consumes = "multipart/form-data")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
+    public Map<String, String> uploadWeeklyOpportunitySlotImage(@PathVariable String poolType,
+                                                                @PathVariable int slotIndex,
+                                                                @RequestPart("file") MultipartFile file) throws IOException {
+        String url = weeklyOpportunityService.setSlotImage(poolType, slotIndex, file);
+        return Map.of("imageUrl", url);
+    }
+
+    /** 清除单个 slot 的参考截图（MANAGER + ADMIN） */
+    @DeleteMapping("/weekly-opportunity/{poolType}/{slotIndex}/image")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
+    public Map<String, String> deleteWeeklyOpportunitySlotImage(@PathVariable String poolType,
+                                                                @PathVariable int slotIndex) {
+        weeklyOpportunityService.clearSlotImage(poolType, slotIndex);
+        return Map.of("message", "slot 截图已清除");
+    }
 }

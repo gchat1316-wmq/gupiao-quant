@@ -5,209 +5,36 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#1e88ff" />
   <base href="/gp/" />
-  <title>学习搭子 · 投资助手</title>
+  <title>投资金句 · 投资助手</title>
   <link rel="stylesheet" href="css/skin.css?v=20260618-skin-system" />
   <link rel="stylesheet" href="css/style.css?v=20260618-skin-system" />
-  <link rel="stylesheet" href="css/study.css?v=20260618-skin-system" />
+  <link rel="stylesheet" href="css/study.css?v=20260630-quote-page" />
   <link rel="stylesheet" href="css/quote.css?v=20260618-skin-system" />
-  <script src="js/layout.js?v=20260629-profile-link" defer></script>
+  <script src="js/layout.js?v=20260630-quote-page" defer></script>
 </head>
 <body>
   <div id="siteHeader"></div>
 
   <main class="container">
 
-    <!-- 顶部分栏卡片 -->
-    <div class="study-split-hero">
-      <!-- 左：学习搭子 -->
-      <div class="study-split-left active" id="splitStudy" data-panel="tab-panel-study">
-        <div class="mascot-circle" aria-hidden="true">🐱</div>
-        <div class="study-hero-text">
-          <h2 class="study-hero-title">好好学习,搭搭向上</h2>
-          <button class="study-cta" id="openUploadBtn">
-            导入学习资料
-            <span class="arrow">›</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- 分隔线 -->
-      <div class="study-split-vline"></div>
-
-      <!-- 右：金句 -->
-      <div class="study-split-right" id="splitQuote" data-panel="tab-panel-quote">
-        <div class="split-quote-icon">💬</div>
-        <div class="split-quote-label">投资金句</div>
-        <div class="split-quote-action" id="splitNewQuoteBtn">＋ 新建金句</div>
-      </div>
-    </div>
-
-    <!-- Tab 面板：学习搭子 -->
-    <div id="tab-panel-study" class="study-top-panel">
-      <div class="study-block">
-        <h3 class="study-block-title">我的项目</h3>
-        <div class="study-tabs" id="studyMyTabs">
-          <button class="study-tab active" data-tab="all">全部<span class="cnt" id="cntAll">(0)</span></button>
-          <button class="study-tab" data-tab="created">由我创建<span class="cnt" id="cntCreated">(0)</span></button>
-          <button class="study-tab" data-tab="learning">学习中<span class="cnt" id="cntLearning">(0)</span></button>
-          <button class="study-tab" data-tab="pending">待开始<span class="cnt" id="cntPending">(0)</span></button>
-          <button class="study-tab" data-tab="done">已学完<span class="cnt" id="cntDone">(0)</span></button>
-        </div>
-        <div class="course-grid" id="myCourseGrid"></div>
-      </div>
-
-      <div class="study-block">
-        <h3 class="study-block-title">公开项目</h3>
-        <div class="study-tabs" id="studyPublicTabs"></div>
-        <div class="course-grid" id="publicCourseGrid"></div>
-      </div>
-    </div><!-- /tab-panel-study -->
-
-    <!-- Tab 面板：金句 -->
-    <div id="tab-panel-quote" class="study-top-panel" style="display:none">
-      <div class="study-block quote-block" id="quoteBlock">
-        <div class="quote-block-header">
-          <h3 class="quote-block-title">💬 投资金句知识库</h3>
-          <div class="quote-search-row">
-            <div class="quote-search-wrap">
-              <input id="quoteSearchInput" type="text" placeholder="搜索金句、作者、标签…" autocomplete="off" />
-            </div>
-            <button class="quote-add-btn" id="quoteAddBtn">＋ 添加金句</button>
+    <div class="study-block quote-block" id="quoteBlock">
+      <div class="quote-block-header">
+        <h3 class="quote-block-title">💬 投资金句知识库</h3>
+        <div class="quote-search-row">
+          <div class="quote-search-wrap">
+            <input id="quoteSearchInput" type="text" placeholder="搜索金句、作者、标签…" autocomplete="off" />
           </div>
         </div>
-        <div class="quote-feed" id="quoteFeed"></div>
-        <div class="quote-load-more" id="quoteLoadMore" style="display:none">
-          <button class="quote-load-more-btn" id="quoteLoadMoreBtn">加载更多</button>
-        </div>
       </div>
-    </div><!-- /tab-panel-quote -->
+      <div class="quote-feed" id="quoteFeed"></div>
+      <div class="quote-load-more" id="quoteLoadMore" style="display:none">
+        <button class="quote-load-more-btn" id="quoteLoadMoreBtn">加载更多</button>
+      </div>
+    </div>
 
   </main>
   <div id="siteFooter"></div>
 
-  <!-- 上传项目资料 弹窗 -->
-  <div class="modal-mask hidden" id="uploadModal">
-    <div class="modal study-modal">
-      <div class="modal-header">
-        <span class="modal-title">上传项目资料</span>
-        <button class="modal-close" id="closeUploadBtn" aria-label="关闭">×</button>
-      </div>
-      <div class="upload-drop" id="uploadDrop">
-        <div class="upload-illust">📚</div>
-        <div class="upload-tip-main">拖放或点击此处上传本地文件</div>
-        <div class="upload-tip-sub">支持 docx、PDF、PPT、epub、JPG、png、txt 等,单个文件不超过100M</div>
-        <div class="upload-actions">
-          <label class="upload-pill" for="uploadFile">
-            <span class="pill-ico">⬆️</span> 本地上传
-          </label>
-          <button class="upload-pill" type="button" disabled title="MVP 暂不支持">
-            <span class="pill-ico">☁️</span> 云知识库
-          </button>
-          <button class="upload-pill" type="button" disabled title="MVP 暂不支持">
-            <span class="pill-ico">🔗</span> 网页链接
-          </button>
-          <input id="uploadFile" type="file" hidden
-                 accept=".docx,.pdf,.ppt,.pptx,.epub,.jpg,.jpeg,.png,.txt,.md" />
-        </div>
-      </div>
-      <div class="upload-list-title">已上传文件 (<span id="uploadCount">0</span>)</div>
-      <div id="uploadList" class="upload-list"></div>
-      <div class="modal-footer">
-        <span class="modal-hint">⚠️ 上传即代表您已获文件合法有效的知识产权或授权,并同意分享给学习搭子。</span>
-        <div class="modal-actions">
-          <button class="btn-ghost" id="cancelUploadBtn">取消</button>
-          <button class="btn-primary-dark" id="createCourseBtn" disabled>创建项目</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 添加金句 弹窗 -->
-  <div class="modal-mask hidden" id="quoteModal">
-    <div class="modal study-modal quote-modal">
-      <div class="modal-header">
-        <span class="modal-title">添加金句</span>
-        <button class="modal-close" id="quoteModalClose" aria-label="关闭">×</button>
-      </div>
-      <div class="quote-modal-tabs">
-        <button class="quote-modal-tab active" data-tab="single">单条录入</button>
-        <button class="quote-modal-tab" data-tab="batch">批量粘贴</button>
-      </div>
-
-      <!-- 单条录入 -->
-      <div id="quoteSinglePane">
-        <div class="quote-form-group">
-          <label class="quote-form-label">金句内容 *</label>
-          <textarea id="quoteContent" class="quote-form-textarea" placeholder="输入投资金句…"></textarea>
-        </div>
-        <div class="quote-form-group">
-          <label class="quote-form-label">作者 / 出处人名</label>
-          <input id="quoteAuthor" class="quote-form-input" type="text" placeholder="如：芒格、段永平" />
-        </div>
-        <div class="quote-form-group">
-          <label class="quote-form-label">来源书籍 / 场合</label>
-          <input id="quoteSource" class="quote-form-input" type="text" placeholder="如：穷查理宝典、致股东信" />
-        </div>
-        <div class="quote-form-group">
-          <label class="quote-form-label">标签 <span class="quote-form-hint-inline">点击选择，或输入自定义</span></label>
-          <div class="quote-tag-chips" id="quoteTagChips"></div>
-          <div class="quote-tag-custom-row">
-            <input id="quoteTagCustomInput" class="quote-form-input" type="text" placeholder="自定义标签，回车添加" autocomplete="off" />
-          </div>
-        </div>
-      </div>
-
-      <!-- 批量粘贴 -->
-      <div id="quoteBatchPane" style="display:none">
-        <div class="quote-form-group">
-          <label class="quote-form-label">批量粘贴金句（每行一条）</label>
-          <textarea id="quoteBatch" class="quote-form-textarea quote-batch-textarea"
-                    placeholder="每行一条金句，粘贴后点击保存&#10;&#10;示例：&#10;人生中最重要的是找到你的能力圈，并一直待在里面。&#10;宁可错过，不可做错。"></textarea>
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <span class="modal-hint"></span>
-        <div class="modal-actions">
-          <button class="btn-ghost" id="quoteModalCancel">取消</button>
-          <button class="btn-primary-dark" id="quoteModalSave">保存</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    (function() {
-      function switchPanel(panelId) {
-        document.querySelectorAll('.study-split-left, .study-split-right').forEach(function(el) {
-          el.classList.toggle('active', el.getAttribute('data-panel') === panelId);
-        });
-        document.querySelectorAll('.study-top-panel').forEach(function(p) {
-          p.style.display = p.id === panelId ? '' : 'none';
-        });
-      }
-
-      document.getElementById('splitStudy').addEventListener('click', function() {
-        switchPanel('tab-panel-study');
-      });
-
-      document.getElementById('splitQuote').addEventListener('click', function(e) {
-        if (e.target.id === 'splitNewQuoteBtn') return; // handled below
-        switchPanel('tab-panel-quote');
-      });
-
-      document.getElementById('splitNewQuoteBtn').addEventListener('click', function(e) {
-        e.stopPropagation();
-        switchPanel('tab-panel-quote');
-        // open add-quote modal after panel is visible
-        setTimeout(function() {
-          var btn = document.getElementById('quoteAddBtn');
-          if (btn) btn.click();
-        }, 50);
-      });
-    })();
-  </script>
-  <script src="js/study-home.js"></script>
-  <script src="js/quote.js"></script>
+  <script src="js/quote.js?v=20260630-quote-page"></script>
 </body>
 </html>

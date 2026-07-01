@@ -288,7 +288,8 @@
 
   function valuationTag(v) {
     if (!v || !v.verdict) return '';
-    const cls = v.verdict === '低估' ? 'low' : (v.verdict === '高估' ? 'high' : 'fair');
+    // 2026-07-01 改：后端 verdict 用"泡沫"（跟投资池一致），不是"高估"
+    const cls = v.verdict === '低估' ? 'low' : (v.verdict === '泡沫' ? 'high' : 'fair');
     return `<span class="ps-tag ps-tag-${cls}">估值：${escHtml(v.verdict)}</span>`;
   }
 
@@ -624,7 +625,8 @@
   // ====== 估值卡片 ======
   function renderValuationCard(v) {
     const verdict = v.verdict || '—';
-    const verdictClass = verdict === '低估' ? 'low' : (verdict === '高估' ? 'high' : (verdict === '合理' ? 'fair' : ''));
+    // 2026-07-01 改：后端 verdict 用"泡沫"（跟投资池一致），不是"高估"
+    const verdictClass = verdict === '低估' ? 'low' : (verdict === '泡沫' ? 'high' : (verdict === '合理' ? 'fair' : ''));
     return `
       <div class="ps-card ps-card-valuation">
         <div class="ps-card-head">
@@ -776,7 +778,8 @@
 
   function verdictClass(v) {
     if (v === '低估') return 'low';
-    if (v === '高估') return 'high';
+    // 2026-07-01 改：后端 verdict 用"泡沫"（跟投资池一致），不是"高估"
+    if (v === '泡沫') return 'high';
     if (v === '合理') return 'fair';
     return '';
   }

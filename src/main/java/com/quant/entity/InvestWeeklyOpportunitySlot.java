@@ -38,8 +38,19 @@ public class InvestWeeklyOpportunitySlot {
     @Column(name = "stock_code", length = 16)
     private String stockCode;
 
+    /**
+     * 用户在 9 格编辑页手工填的股票名（与 stockPool 联动的 stockName 独立）。
+     * 用途：stockCode 不在池中时，buildSlots 联动不到名称，此时用 userStockName 兜底显示。
+     */
+    @Column(name = "user_stock_name", length = 100)
+    private String userStockName;
+
     @Column(name = "reason", length = 500)
     private String reason;
+
+    /** 名称/候选股截图（佐证用），由 admin 在 9 格编辑页面上传；与 stockCode 无强绑定。 */
+    @Column(name = "image_url", length = 500)
+    private String imageUrl;
 
     @Column(name = "updated_at", insertable = false, updatable = false)
     private LocalDateTime updatedAt;

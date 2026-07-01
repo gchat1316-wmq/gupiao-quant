@@ -7,11 +7,14 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface InvestWeeklyOpportunitySlotRepository
         extends JpaRepository<InvestWeeklyOpportunitySlot, Long> {
 
     List<InvestWeeklyOpportunitySlot> findByPoolTypeOrderBySlotIndexAsc(String poolType);
+
+    Optional<InvestWeeklyOpportunitySlot> findByPoolTypeAndSlotIndex(String poolType, Integer slotIndex);
 
     @Modifying
     @Query("DELETE FROM InvestWeeklyOpportunitySlot s WHERE s.poolType = :poolType")

@@ -126,7 +126,7 @@ CREATE TABLE `invest_stock_pool` (
   `id` int NOT NULL AUTO_INCREMENT,
   `stock_code` varchar(20) NOT NULL COMMENT '股票代码',
   `stock_name` varchar(255) DEFAULT NULL,
-  `pool_type` enum('quality','tech_vc','tech_ai') NOT NULL COMMENT '质量优选/科技风投/科技AI',
+  `pool_type` enum('quality','tech_vc','tech_ai','potential','innovative_drug') NOT NULL COMMENT '质量优选/科技风投/科技AI/潜力监控/创新药',
   `undervalued_price` decimal(10,2) DEFAULT NULL COMMENT '低估价',
   `fair_price` decimal(10,2) DEFAULT NULL COMMENT '合理价',
   `overvalued_price` decimal(10,2) DEFAULT NULL COMMENT '高估价',

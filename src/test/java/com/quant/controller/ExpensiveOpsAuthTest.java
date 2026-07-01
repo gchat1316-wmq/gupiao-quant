@@ -2,15 +2,11 @@ package com.quant.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.quant.entity.User;
-import com.quant.repository.IndustryResearchArticleRepository;
-import com.quant.repository.IndustryResearchCategoryRepository;
 import com.quant.repository.UserRepository;
 import com.quant.security.JwtAuthFilter;
 import com.quant.security.JwtTokenProvider;
 import com.quant.security.SecurityConfig;
 import com.quant.service.ProsperityPickService;
-import com.quant.service.industryresearch.IndustryResearchPipeline;
-import com.quant.service.industryresearch.IndustryResearchService;
 import com.quant.service.prosperitystrong.ProsperityDataProviderService;
 import com.quant.service.prosperitystrong.ProsperityPoolService;
 import com.quant.service.prosperitystrong.ProsperityStrongPipelineService;
@@ -38,11 +34,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * 4 个高成本 AI / 外部集成的写端点权限收敛测试。
+ * 3 个高成本 AI / 外部集成的写端点权限收敛测试。
  *
  * 规则：
  * - ProsperityStrong POST /run / DELETE /runs/{date}: MANAGER 或 ADMIN
- * - IndustryResearch POST /pipeline/run: MANAGER 或 ADMIN（异步 AI 流水线，耗时耗 token）
  * - ProsperityPick POST /{id}/infographic: MANAGER 或 ADMIN（懒生图片，AI 调用）
  * - TdxAuth GET /start / GET /logout: MANAGER 或 ADMIN（外部 OAuth 集成）
  *
@@ -50,7 +45,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(controllers = {
         ProsperityStrongController.class,
-        IndustryResearchController.class,
         ProsperityPickController.class,
         TdxAuthController.class
     },
@@ -69,11 +63,6 @@ class ExpensiveOpsAuthTest {
     @MockBean private ProsperityDataProviderService prosperityProviders;
     @MockBean private WindAifinMarketClient windClient;
     @MockBean private ProsperityPoolService prosperityPoolService;
-
-    @MockBean private IndustryResearchService researchService;
-    @MockBean private IndustryResearchPipeline researchPipeline;
-    @MockBean private IndustryResearchCategoryRepository categoryRepo;
-    @MockBean private IndustryResearchArticleRepository articleRepo;
 
     @MockBean private ProsperityPickService prosperityPickService;
 
@@ -136,18 +125,6 @@ class ExpensiveOpsAuthTest {
     void userCannotDeleteRun() throws Exception {
         mvc.perform(delete("/api/prosperity-strong/runs/2026-06-30")
                         .header("Authorization", "Bearer " + userToken))
-                .andExpect(status().isForbidden());
-    }
-
-    // ===== IndustryResearchController =====
-
-    @Test
-    @DisplayName("POST /api/industry-research/pipeline/run - USER 拒绝 403")
-    void userCannotTriggerResearchPipeline() throws Exception {
-        mvc.perform(post("/api/industry-research/pipeline/run")
-                        .header("Authorization", "Bearer " + userToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"categoryCode\":\"ai\",\"keyword\":\"test\",\"taskName\":\"调研\"}"))
                 .andExpect(status().isForbidden());
     }
 

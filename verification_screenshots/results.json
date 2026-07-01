@@ -1,0 +1,48 @@
+[
+  {
+    "name": "00_main",
+    "error": "Page.goto: Timeout 12000ms exceeded.\nCall log:\n  - navigating to \"http://localhost:8080/gp/\", waiting until \"networkidle\"\n"
+  },
+  {
+    "name": "01_invest_pool",
+    "http": 403,
+    "title": "",
+    "errors": 2,
+    "path": "/Users/wangmingqiang/Documents/quant-new/gupiao-quant/verification_screenshots/01_invest_pool.png"
+  },
+  {
+    "name": "02_tech_ai",
+    "http": 403,
+    "title": "",
+    "errors": 3,
+    "path": "/Users/wangmingqiang/Documents/quant-new/gupiao-quant/verification_screenshots/02_tech_ai.png"
+  },
+  {
+    "name": "03_potential",
+    "http": 403,
+    "title": "",
+    "errors": 4,
+    "path": "/Users/wangmingqiang/Documents/quant-new/gupiao-quant/verification_screenshots/03_potential.png"
+  },
+  {
+    "name": "04_daily_review",
+    "http": 403,
+    "title": "",
+    "errors": 5,
+    "path": "/Users/wangmingqiang/Documents/quant-new/gupiao-quant/verification_screenshots/04_daily_review.png"
+  },
+  {
+    "name": "05_wish_pool",
+    "http": 403,
+    "title": "",
+    "errors": 6,
+    "path": "/Users/wangmingqiang/Documents/quant-new/gupiao-quant/verification_screenshots/05_wish_pool.png"
+  },
+  {
+    "name": "06_pick_daily",
+    "http": 403,
+    "title": "",
+    "errors": 7,
+    "path": "/Users/wangmingqiang/Documents/quant-new/gupiao-quant/verification_screenshots/06_pick_daily.png"
+  }
+]
