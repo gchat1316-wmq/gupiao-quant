@@ -28,7 +28,7 @@ public class CacheConfig {
                 .maximumSize(500)
                 .expireAfterWrite(60, TimeUnit.MINUTES));
         // 大阳线专用短 TTL
-        manager.setCacheNames(Set.of("big-yang-signals", "big-yang-summary", "poolMeta", "weeklyOpportunity", "stockPool"));
+        manager.setCacheNames(Set.of("big-yang-signals", "big-yang-summary", "poolMeta", "weeklyOpportunity", "stockPool", "financial", "sopCheckup"));
         manager.registerCustomCache("big-yang-signals",
                 Caffeine.newBuilder()
                         .maximumSize(10)
