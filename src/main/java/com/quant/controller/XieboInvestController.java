@@ -21,7 +21,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
 import java.util.Map;
@@ -46,13 +45,11 @@ public class XieboInvestController {
     }
 
     @PostMapping("/watchlist")
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public List<XieboWatchlistItemDTO> addWatchlist(@RequestBody Map<String, String> body) {
         return service.addWatchlist(body.get("keyword"));
     }
 
     @DeleteMapping("/watchlist/{stockCode}")
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public Map<String, String> removeWatchlist(@PathVariable String stockCode) {
         service.removeWatchlist(stockCode);
         return Map.of("message", "removed");
@@ -79,7 +76,6 @@ public class XieboInvestController {
     }
 
     @PostMapping("/analysis")
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public XieboAnalysisDetailDTO createAnalysis(@RequestBody Map<String, String> body) {
         return analysisService.create(body.get("keyword"));
     }
@@ -105,7 +101,6 @@ public class XieboInvestController {
 
     /** 全量替换某个分类的 9 个 slot（MANAGER + ADMIN） */
     @PutMapping("/weekly-opportunity/{poolType}")
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public List<XieboWeeklyOpportunitySlotDTO> updateWeeklyOpportunity(
             @PathVariable String poolType,
             @RequestBody XieboWeeklyOpportunityUpdateRequest req) {

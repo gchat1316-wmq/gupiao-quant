@@ -260,7 +260,6 @@ public class AuthController {
     ) {}
 
     @PutMapping("/profile")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> updateProfile(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestBody ProfileUpdateRequest req,

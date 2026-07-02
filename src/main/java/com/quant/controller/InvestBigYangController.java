@@ -7,7 +7,6 @@ import com.quant.dto.invest.BigYangSignalDTO;
 import com.quant.dto.invest.BigYangSummaryDTO;
 import com.quant.service.InvestBigYangSignalService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -53,14 +52,12 @@ public class InvestBigYangController {
     }
 
     @PostMapping("/alerts/{id}/read")
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public Map<String, String> read(@PathVariable Long id) {
         service.markAlertRead(id);
         return Map.of("message", "ok");
     }
 
     @PostMapping("/run")
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public BigYangRunResultDTO run() {
         return service.runManual();
     }

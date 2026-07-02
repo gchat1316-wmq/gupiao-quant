@@ -20,7 +20,6 @@ import com.quant.service.InvestWeeklyOpportunityService;
 import com.quant.service.OcrPoolImportService;
 import com.quant.service.PriceMonitorService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -101,7 +100,6 @@ public class InvestController {
 
     /** 更新股票池元信息（MANAGER + ADMIN） */
     @PutMapping("/pool-meta/{poolType}")
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public PoolMetaDTO updatePoolMeta(@PathVariable String poolType,
                                       @RequestBody PoolMetaUpdateRequest req) {
         return poolMetaService.update(poolType, req);
@@ -109,7 +107,6 @@ public class InvestController {
 
     /** 上传股票池封面图（MANAGER + ADMIN） */
     @PostMapping(value = "/pool-meta/{poolType}/cover-image", consumes = "multipart/form-data")
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public Map<String, String> uploadPoolMetaCover(@PathVariable String poolType,
                                                    @RequestPart("file") MultipartFile file) throws IOException {
         return poolMetaService.setCoverImage(poolType, file);
@@ -117,21 +114,18 @@ public class InvestController {
 
     /** 加入股票池 */
     @PostMapping("/pool")
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public PoolItemDTO addToPool(@RequestBody PoolSaveRequest req) {
         return investService.addToPool(req);
     }
 
     /** 更新股票池条目（整体更新） */
     @PutMapping("/pool/{id}")
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public PoolItemDTO updatePool(@PathVariable Integer id, @RequestBody PoolSaveRequest req) {
         return investService.updatePool(id, req);
     }
 
     /** 内联编辑：单字段更新 */
     @PatchMapping("/pool/{id}/field")
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public PoolItemDTO updatePoolField(@PathVariable Integer id,
                                        @RequestBody PoolFieldUpdateRequest req) {
         return investService.updateField(id, req);
@@ -139,7 +133,6 @@ public class InvestController {
 
     /** 移除股票池条目 */
     @DeleteMapping("/pool/{id}")
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public ResponseEntity<Map<String, String>> removeFromPool(@PathVariable Integer id) {
         investService.removeFromPool(id);
         return ResponseEntity.ok(Map.of("message", "已移除"));
@@ -151,7 +144,6 @@ public class InvestController {
      * 返回: {"updated": N, "message": "reordered"}
      */
     @PostMapping("/pool/reorder")
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public Map<String, Object> reorderPool(@RequestBody List<InvestService.ReorderItem> items) {
         int updated = investService.reorder(items);
         return Map.of("updated", updated, "message", "reordered");
@@ -159,37 +151,32 @@ public class InvestController {
 
     /** 截图批量导入：仅解析图片，返回识别结果（不入库），由前端预览后再调用 batch-import */
     @PostMapping("/pool/import-image")
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public OcrParseResultDTO importFromImage(@RequestBody OcrImportRequest req) {
         return ocrService.parseImage(req);
     }
 
     /** 截图批量导入：将前端确认后的列表批量入库 */
     @PostMapping("/pool/batch-import")
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public BatchImportResultDTO batchImport(@RequestBody BatchImportRequest req) {
         return ocrService.batchImport(req);
     }
 
     /** 手动触发价格监控（调试用）。 */
     @PostMapping("/pool/monitor/run")
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public Map<String, String> runPriceMonitor() {
         priceMonitorService.monitorPrices();
         return Map.of("message", "monitor triggered");
     }
 
     /** 按截图顺序重建科技风投股票池。 */
-    @PostMapping("/pool/seed/tech-vc-screenshot")
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
-    public Map<String, Object> seedTechVcScreenshotPool() {
-        int inserted = poolSeedService.replaceTechVcWithScreenshotPool();
-        return Map.of("message", "tech_vc pool rebuilt", "inserted", inserted);
+    @PostMapping("/pool/seed/tech-ai-screenshot")
+    public Map<String, Object> seedTechAiScreenshotPool() {
+        int inserted = poolSeedService.replaceTechAiWithScreenshotPool();
+        return Map.of("message", "tech_ai pool rebuilt", "inserted", inserted);
     }
 
-    /** 手动触发股票池周末刷新逻辑。补齐所有池类型（quality + tech_vc）的缺失字段。 */
+    /** 手动触发股票池周末刷新逻辑。补齐所有池类型（quality + tech_ai）的缺失字段。 */
     @PostMapping("/pool/refresh")
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public Map<String, Object> refreshPool() {
         int refreshed = poolRefreshService.refreshAllPoolSnapshots();
         return Map.of("message", "pool refreshed", "refreshed", refreshed);
@@ -211,7 +198,6 @@ public class InvestController {
 
     /** 全量替换某个分类的 9 个 slot（MANAGER + ADMIN） */
     @PutMapping("/weekly-opportunity/{poolType}")
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public List<WeeklyOpportunitySlotDTO> updateWeeklyOpportunity(@PathVariable String poolType,
                                                                    @RequestBody WeeklyOpportunityUpdateRequest req) {
         return weeklyOpportunityService.update(poolType, req);
@@ -219,7 +205,6 @@ public class InvestController {
 
     /** 上传单个 slot 的参考截图（MANAGER + ADMIN）。stockCode 可空，纯佐证。 */
     @PostMapping(value = "/weekly-opportunity/{poolType}/{slotIndex}/image", consumes = "multipart/form-data")
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public Map<String, String> uploadWeeklyOpportunitySlotImage(@PathVariable String poolType,
                                                                 @PathVariable int slotIndex,
                                                                 @RequestPart("file") MultipartFile file) throws IOException {
@@ -229,7 +214,6 @@ public class InvestController {
 
     /** 清除单个 slot 的参考截图（MANAGER + ADMIN） */
     @DeleteMapping("/weekly-opportunity/{poolType}/{slotIndex}/image")
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public Map<String, String> deleteWeeklyOpportunitySlotImage(@PathVariable String poolType,
                                                                 @PathVariable int slotIndex) {
         weeklyOpportunityService.clearSlotImage(poolType, slotIndex);

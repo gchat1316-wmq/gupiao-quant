@@ -9,7 +9,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
@@ -154,7 +153,6 @@ public class PracticalSelectController {
      * 删除记录。
      */
     @DeleteMapping("/record/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
     public Map<String, Object> delete(@PathVariable Long id) {
         service.deleteRecord(id);
         Map<String, Object> r = new HashMap<>();
@@ -170,7 +168,6 @@ public class PracticalSelectController {
      * 启用分享，返回完整分享 URL。
      */
     @PostMapping("/record/{id}/share")
-    @PreAuthorize("isAuthenticated()")
     public Map<String, Object> enableShare(@PathVariable Long id, HttpServletRequest req) {
         String baseUrl = req.getScheme() + "://" + req.getServerName()
                 + (req.getServerPort() == 80 || req.getServerPort() == 443 ? "" : ":" + req.getServerPort());
@@ -186,7 +183,6 @@ public class PracticalSelectController {
      * 关闭分享。
      */
     @DeleteMapping("/record/{id}/share")
-    @PreAuthorize("isAuthenticated()")
     public Map<String, Object> disableShare(@PathVariable Long id) {
         service.disableShare(id);
         Map<String, Object> r = new HashMap<>();

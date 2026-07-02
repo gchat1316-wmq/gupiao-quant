@@ -16,7 +16,6 @@ import com.quant.service.prosperitystrong.WindAifinMarketClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -44,7 +43,6 @@ public class ProsperityStrongController {
 
     /** 手动触发流水线(同步,可能耗时几十秒) */
     @PostMapping("/run")
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public ResponseEntity<PipelineRunResultDTO> run(
             @RequestParam(value = "date", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
@@ -125,7 +123,6 @@ public class ProsperityStrongController {
 
     /** 一键加入个人热点股票池(需登录，按当前用户隔离) */
     @PostMapping("/promote/{stockCode}")
-    @PreAuthorize("isAuthenticated()")
     public Map<String, Object> promote(
             @PathVariable String stockCode,
             @RequestParam(value = "date", required = false)
@@ -176,7 +173,6 @@ public class ProsperityStrongController {
 
     /** 删除指定日期的流水线执行数据（板块+龙头候选+候选+执行记录） */
     @DeleteMapping("/runs/{snapDate}")
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public Map<String, Object> deleteRun(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate snapDate) {
         pipeline.deleteRun(snapDate);

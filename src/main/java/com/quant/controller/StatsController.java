@@ -8,7 +8,6 @@ import com.quant.service.StatsService.UserStatDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -53,7 +52,6 @@ public class StatsController {
      * GET /api/stats/daily-overview?days=30
      */
     @GetMapping("/daily-overview")
-    @PreAuthorize("hasRole('ADMIN')")
     public List<DailyOverviewDTO> dailyOverview(
             @RequestParam(defaultValue = "30") int days) {
         return statsService.getDailyOverview(Math.min(days, 90));
@@ -64,7 +62,6 @@ public class StatsController {
      * GET /api/stats/daily?date=2026-06-28
      */
     @GetMapping("/daily")
-    @PreAuthorize("hasRole('ADMIN')")
     public StatsPageDTO dailyStats(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return statsService.getStatsPage(date != null ? date : LocalDate.now());
@@ -75,7 +72,6 @@ public class StatsController {
      * GET /api/stats/page-trend?pagePath=/gp/invest.html&days=14
      */
     @GetMapping("/page-trend")
-    @PreAuthorize("hasRole('ADMIN')")
     public List<?> pageTrend(
             @RequestParam String pagePath,
             @RequestParam(defaultValue = "14") int days) {
