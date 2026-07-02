@@ -25,11 +25,9 @@ public class StockAnalysisController {
     private final StockAnalysisPdfService pdfService;
 
     /**
-     * 提交分析任务 (立即返回 recordId)
-     * 鉴权: MANAGER 或 ADMIN 角色（前端从 localStorage 读 JWT 放 Authorization 头）
+    * 提交分析任务 (立即返回 recordId)
      */
     @PostMapping("/submit")
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public Map<String, Object> submit(@RequestBody StockAnalysisRequest req) {
         try {
             Long id = service.submit(req);
