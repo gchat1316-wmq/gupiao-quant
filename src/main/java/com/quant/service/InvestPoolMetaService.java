@@ -32,7 +32,7 @@ import java.util.UUID;
 public class InvestPoolMetaService {
 
     /** 允许的 pool_type 字面量。修改列表时同步更新 ensureInvestPoolMetaSeed 的种子。 */
-    public static final Set<String> ALLOWED_POOL_TYPES = Set.of("tech_vc", "innovative_drug", "quality");
+    public static final Set<String> ALLOWED_POOL_TYPES = Set.of("tech_ai", "innovative_drug", "quality");
 
     private final InvestPoolMetaRepository repository;
     private final Parser markdownParser;

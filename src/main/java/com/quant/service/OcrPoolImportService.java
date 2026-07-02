@@ -96,7 +96,7 @@ public class OcrPoolImportService {
         List<OcrParsedItemDTO> parsed = parseJsonToItems(json);
 
         String defaultPoolType = req.getDefaultPoolType() != null && !req.getDefaultPoolType().isBlank()
-                ? req.getDefaultPoolType() : "tech_vc";
+                ? req.getDefaultPoolType() : "tech_ai";
 
         for (OcrParsedItemDTO it : parsed) {
             if (it.getPoolType() == null || it.getPoolType().isBlank()) {
@@ -264,7 +264,7 @@ public class OcrPoolImportService {
                 }
                 PoolSaveRequest saveReq = new PoolSaveRequest();
                 saveReq.setKeyword(keyword);
-                saveReq.setPoolType(it.getPoolType() != null ? it.getPoolType() : "tech_vc");
+                saveReq.setPoolType(it.getPoolType() != null ? it.getPoolType() : "tech_ai");
                 saveReq.setStatus(it.getStatus() != null ? it.getStatus() : "watching");
                 saveReq.setMemo(it.getMemo());
                 saveReq.setUndervaluedPrice(it.getUndervaluedPrice());

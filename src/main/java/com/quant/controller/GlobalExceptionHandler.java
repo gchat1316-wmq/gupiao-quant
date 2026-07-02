@@ -3,6 +3,7 @@ package com.quant.controller;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -54,6 +55,12 @@ public class GlobalExceptionHandler {
         // 静态资源 404 交由 Spring 默认处理，不拦截
         if (ex instanceof NoResourceFoundException) {
             throw ex;
+        }
+        // 405 Method Not Allowed：保留原状态码（之前被通用 Exception handler 误转 500）
+        if (ex instanceof HttpRequestMethodNotSupportedException notSupported) {
+            return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                    .header("Allow", String.join(", ", notSupported.getSupportedMethods() == null ? new String[0] : notSupported.getSupportedMethods()))
+                    .body(Map.of("code", 405, "message", safe(ex.getMessage())));
         }
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("code", 500, "message", safe(ex.getMessage())));

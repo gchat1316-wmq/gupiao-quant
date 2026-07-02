@@ -486,10 +486,9 @@ public class SchemaInitializer implements CommandLineRunner {
 
     /**
      * 2026-06-30 schema drift 兜底：invest_stock_pool.pool_type 历史 ENUM 是
-     * ('quality','tech_vc','tech_ai','potential')，但前端已有 innovative_drug 池
-     * （见 invest_pool_meta），InvestService.addToPool / poolTypeLabelOf 都按
-     * 'innovative_drug' 处理。canonical sql/wucai_trade.sql 也漏写了。
-     * 这里 idempotent 地把 ENUM 扩到包含 'innovative_drug'。
+     * ('quality','tech_vc','tech_ai','potential')，前端已统一成
+     * 质量优选 / 科技AI / 创新药 三档，潜在池（potential）独立成 potential_pool 表。
+     * 这里 idempotent 地把 ENUM 收紧到 3 个合法值。
      */
     private void ensureInvestStockPoolEnum() {
         try {
@@ -500,17 +499,22 @@ public class SchemaInitializer implements CommandLineRunner {
                   AND column_name = 'pool_type'
                 """, String.class);
             if (colType == null) return;
-            if (colType.contains("'innovative_drug'")) {
-                log.debug("invest_stock_pool.pool_type 已包含 innovative_drug");
+            // 目标 ENUM：只含 3 个合法值
+            if (colType.contains("'quality'")
+                    && colType.contains("'tech_ai'")
+                    && colType.contains("'innovative_drug'")
+                    && !colType.contains("'tech_vc'")
+                    && !colType.contains("'potential'")) {
+                log.debug("invest_stock_pool.pool_type ENUM 已是 3 档目标格式");
                 return;
             }
             jdbc.execute("""
                 ALTER TABLE invest_stock_pool
                   MODIFY COLUMN pool_type
-                  ENUM('quality','tech_vc','tech_ai','potential','innovative_drug')
-                  NOT NULL COMMENT '质量优选/科技风投/科技AI/潜力监控/创新药'
+                  ENUM('quality','tech_ai','innovative_drug')
+                  NOT NULL COMMENT '质量优选/科技AI/创新药'
                 """);
-            log.info("invest_stock_pool.pool_type ENUM 已扩至含 innovative_drug");
+            log.info("invest_stock_pool.pool_type ENUM 已收紧至 3 档：quality/tech_ai/innovative_drug");
         } catch (Exception e) {
             log.warn("检查 invest_stock_pool.pool_type ENUM 失败 (可忽略): {}", e.getMessage());
         }
@@ -776,7 +780,7 @@ public class SchemaInitializer implements CommandLineRunner {
                 INSERT INTO invest_pool_meta
                   (pool_type, display_name, cover_image_url, valuation_method_md, weekly_opportunity_md, display_order)
                 VALUES
-                  ('tech_vc', '科技AI', 'images/pool-covers/tech-ai.png', '### 10 倍 PS 市值法\n\n合理市值 = 预测营收 × 10\n\n- 当前市值 ≤ Y1 × 10：低估\n- 当前市值介于 Y1×10 ~ Y2×10：合理\n- 当前市值 ≥ Y2 × 10：泡沫\n\n适用于净利率接近 25% 的高科技成长股。', '本周暂无更新', 1),
+                  ('tech_ai', '科技AI', 'images/pool-covers/tech-ai.png', '### 10 倍 PS 市值法\n\n合理市值 = 预测营收 × 10\n\n- 当前市值 ≤ Y1 × 10：低估\n- 当前市值介于 Y1×10 ~ Y2×10：合理\n- 当前市值 ≥ Y2 × 10：泡沫\n\n适用于净利率接近 25% 的高科技成长股。', '本周暂无更新', 1),
                   ('innovative_drug', '创新药', 'images/pool-covers/innovative_drug.svg', '### 创新药估值方法\n\n按 III 期管线 NPV 加总。\n\n待补充：\n- 风险调整成功率 (POS)\n- 上市峰值销售 (Peak Sales)\n- 净利率假设\n- 折现率与管线分摊', '本周暂无更新', 2),
                   ('quality', '质量优选', 'images/pool-covers/quality.svg', '### 质量优选 · 巴菲特式估值\n\n**核心**：自由现金流优异、赚取真金白银、分红稳定。\n\n**简易模型**：现金流折现 + PE 匹配法\n\n合理 PE ≈ 预期未来 10 年净利润复合增长率 × 2\n\n**判断口诀**：若股票 PE 为 30 倍，需确认其未来十年能否实现 15% 复合增长。达标则考虑，不达标则放弃。\n\n代表企业：片仔癀、海天味业。', '本周暂无更新', 3)
                 ON DUPLICATE KEY UPDATE display_name = VALUES(display_name)

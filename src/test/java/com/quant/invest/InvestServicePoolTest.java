@@ -55,7 +55,7 @@ class InvestServicePoolTest {
         pool.setId(14);
         pool.setStockCode("688296");
         pool.setStockName("金海通");
-        pool.setPoolType("tech_vc");
+        pool.setPoolType("tech_ai");
 
         when(poolRepo.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(pool));
         when(stockBasicRepo.findByStockCodeIn(org.mockito.ArgumentMatchers.argThat(codes ->
@@ -99,10 +99,10 @@ class InvestServicePoolTest {
 
     @Test
     @DisplayName("科技风投股票池按截图 displayOrder 排序且保留其它池")
-    void listPoolOrdersTechVcByDisplayOrder() {
-        InvestStockPool second = pool(2, "688515.SH", "裕太微", "tech_vc", 20);
+    void listPoolOrdersTechAiByDisplayOrder() {
+        InvestStockPool second = pool(2, "688515.SH", "裕太微", "tech_ai", 20);
         InvestStockPool quality = pool(3, "600519.SH", "贵州茅台", "quality", null);
-        InvestStockPool first = pool(1, "688610.SH", "埃科光电", "tech_vc", 10);
+        InvestStockPool first = pool(1, "688610.SH", "埃科光电", "tech_ai", 10);
 
         when(poolRepo.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(second, quality, first));
         when(stockBasicRepo.findByStockCodeIn(any())).thenReturn(Collections.emptyList());
@@ -120,7 +120,7 @@ class InvestServicePoolTest {
     @Test
     @DisplayName("当前市值、今年涨幅和估值情况都按实时数据派生")
     void listPoolPrefersDerivedMarketCapBeforePersistedSnapshot() {
-        InvestStockPool pool = pool(1, "688610.SH", "埃科光电", "tech_vc", 10);
+        InvestStockPool pool = pool(1, "688610.SH", "埃科光电", "tech_ai", 10);
         pool.setCurrentMarketCap(new BigDecimal("144.70"));
         pool.setYtdGainPct(new BigDecimal("244.28"));
         pool.setValuationRange("泡沫");
@@ -161,7 +161,7 @@ class InvestServicePoolTest {
     @Test
     @DisplayName("缺少行情时当前市值和估值情况不再回退旧快照")
     void listPoolNoLongerFallsBackToPersistedDerivedSnapshots() {
-        InvestStockPool pool = pool(1, "688610.SH", "埃科光电", "tech_vc", 10);
+        InvestStockPool pool = pool(1, "688610.SH", "埃科光电", "tech_ai", 10);
         pool.setCurrentMarketCap(new BigDecimal("144.70"));
         pool.setYtdGainPct(new BigDecimal("244.28"));
         pool.setValuationRange("泡沫");
@@ -212,7 +212,7 @@ class InvestServicePoolTest {
         @Test
         @DisplayName("勾选买入监控 → fixed_buy_enabled=1 + fixed_buy_price=targetBuyPrice")
         void alertBuyEnabledSyncsToFixedBuy() {
-            InvestStockPool pool = pool(1, "688525.SH", "佰维存储", "tech_vc", null);
+            InvestStockPool pool = pool(1, "688525.SH", "佰维存储", "tech_ai", null);
             pool.setTargetBuyPrice(new BigDecimal("20.00"));
 
             InvestPositionCommon pos = new InvestPositionCommon();
@@ -221,7 +221,7 @@ class InvestServicePoolTest {
 
             PoolSaveRequest req = new PoolSaveRequest();
             req.setKeyword("688525.SH");
-            req.setPoolType("tech_vc");
+            req.setPoolType("tech_ai");
             req.setTargetBuyPrice(new BigDecimal("20.00"));
             req.setAlertBuyEnabled(true);
 
@@ -242,7 +242,7 @@ class InvestServicePoolTest {
         @Test
         @DisplayName("勾选卖出监控 → fixed_sell_enabled=1 + fixed_sell_price=targetSellPrice")
         void alertSellEnabledSyncsToFixedSell() {
-            InvestStockPool pool = pool(2, "688525.SH", "佰维存储", "tech_vc", null);
+            InvestStockPool pool = pool(2, "688525.SH", "佰维存储", "tech_ai", null);
             InvestPositionCommon pos = new InvestPositionCommon();
             pos.setStockCode("688525.SH");
             pos.setPoolType("invest");
@@ -250,7 +250,7 @@ class InvestServicePoolTest {
 
             PoolSaveRequest req = new PoolSaveRequest();
             req.setKeyword("688525.SH");
-            req.setPoolType("tech_vc");
+            req.setPoolType("tech_ai");
             req.setTargetSellPrice(new BigDecimal("30.00"));
             req.setAlertSellEnabled(true);
 
@@ -271,7 +271,7 @@ class InvestServicePoolTest {
         @Test
         @DisplayName("取消监控 → fixed_buy_enabled=0 + fixed_buy_price=null")
         void disableAlertClearsFixedPrice() {
-            InvestStockPool pool = pool(3, "688525.SH", "佰维存储", "tech_vc", null);
+            InvestStockPool pool = pool(3, "688525.SH", "佰维存储", "tech_ai", null);
             pool.setTargetBuyPrice(new BigDecimal("20.00"));
 
             InvestPositionCommon pos = new InvestPositionCommon();
@@ -282,7 +282,7 @@ class InvestServicePoolTest {
 
             PoolSaveRequest req = new PoolSaveRequest();
             req.setKeyword("688525.SH");
-            req.setPoolType("tech_vc");
+            req.setPoolType("tech_ai");
             req.setTargetBuyPrice(new BigDecimal("20.00"));
             req.setAlertBuyEnabled(false);  // 用户取消勾选
 
@@ -303,7 +303,7 @@ class InvestServicePoolTest {
         @Test
         @DisplayName("不传 alertBuyEnabled → 维持现状（不修改 fixed_buy_enabled）")
         void alertUnchangedWhenNotProvided() {
-            InvestStockPool pool = pool(4, "688525.SH", "佰维存储", "tech_vc", null);
+            InvestStockPool pool = pool(4, "688525.SH", "佰维存储", "tech_ai", null);
             InvestPositionCommon pos = new InvestPositionCommon();
             pos.setStockCode("688525.SH");
             pos.setPoolType("invest");
@@ -312,7 +312,7 @@ class InvestServicePoolTest {
 
             PoolSaveRequest req = new PoolSaveRequest();
             req.setKeyword("688525.SH");
-            req.setPoolType("tech_vc");
+            req.setPoolType("tech_ai");
             req.setTargetBuyPrice(new BigDecimal("18.00"));
             // 故意不设 alertBuyEnabled
 

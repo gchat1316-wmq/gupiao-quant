@@ -45,7 +45,7 @@ import java.util.UUID;
 @Service
 public class InvestWeeklyOpportunityService {
 
-    public static final List<String> ALLOWED_POOL_TYPES = List.of("tech_vc", "innovative_drug", "quality");
+    public static final List<String> ALLOWED_POOL_TYPES = List.of("tech_ai", "innovative_drug", "quality");
     public static final int SLOTS_PER_POOL = 9;
 
     private static final Set<String> ALLOWED_IMAGE_EXT =
@@ -242,7 +242,7 @@ public class InvestWeeklyOpportunityService {
             throw new IllegalArgumentException("poolType 不能为空");
         }
         if (!ALLOWED_SET.contains(poolType)) {
-            throw new IllegalArgumentException("不支持的 poolType：" + poolType + "（允许：tech_vc / innovative_drug / quality）");
+            throw new IllegalArgumentException("不支持的 poolType：" + poolType + "（允许：tech_ai / innovative_drug / quality）");
         }
     }
 

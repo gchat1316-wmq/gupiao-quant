@@ -75,19 +75,19 @@ class InvestWeeklyOpportunityServiceTest {
             item.setSlotIndex(i);
             item.setStockCode(i == 0 ? "688256" : null);
             item.setReason(i == 0 ? "测试" : null);
-            item.setImageUrl(i == 0 ? "/uploads/weekly-opportunity/tech_vc/0/abc.png" : null);
+            item.setImageUrl(i == 0 ? "/uploads/weekly-opportunity/tech_ai/0/abc.png" : null);
             items.add(item);
         }
         req.setSlots(items);
 
         ArgumentCaptor<List<InvestWeeklyOpportunitySlot>> captor = ArgumentCaptor.forClass(List.class);
 
-        service.update("tech_vc", req);
+        service.update("tech_ai", req);
 
         verify(slotRepo).saveAll(captor.capture());
         List<InvestWeeklyOpportunitySlot> saved = captor.getValue();
         assertThat(saved).hasSize(9);
-        assertThat(saved.get(0).getImageUrl()).isEqualTo("/uploads/weekly-opportunity/tech_vc/0/abc.png");
+        assertThat(saved.get(0).getImageUrl()).isEqualTo("/uploads/weekly-opportunity/tech_ai/0/abc.png");
         for (int i = 1; i < 9; i++) {
             assertThat(saved.get(i).getImageUrl()).isNull();
         }
@@ -109,7 +109,7 @@ class InvestWeeklyOpportunityServiceTest {
         req.setSlots(items);
 
         ArgumentCaptor<List<InvestWeeklyOpportunitySlot>> captor = ArgumentCaptor.forClass(List.class);
-        service.update("tech_vc", req);
+        service.update("tech_ai", req);
 
         verify(slotRepo).saveAll(captor.capture());
         assertThat(captor.getValue()).allSatisfy(s -> assertThat(s.getImageUrl()).isNull());
@@ -132,7 +132,7 @@ class InvestWeeklyOpportunityServiceTest {
         req.setSlots(items);
 
         ArgumentCaptor<List<InvestWeeklyOpportunitySlot>> captor = ArgumentCaptor.forClass(List.class);
-        service.update("tech_vc", req);
+        service.update("tech_ai", req);
 
         verify(slotRepo).saveAll(captor.capture());
         List<InvestWeeklyOpportunitySlot> saved = captor.getValue();
@@ -150,41 +150,41 @@ class InvestWeeklyOpportunityServiceTest {
     @DisplayName("get: slot 带 imageUrl 时 DTO 也带")
     void get_returnsImageUrlWhenSet() {
         InvestWeeklyOpportunitySlot row = new InvestWeeklyOpportunitySlot();
-        row.setPoolType("tech_vc");
+        row.setPoolType("tech_ai");
         row.setSlotIndex(3);
         row.setStockCode("688256");
         row.setReason("AI 算力");
-        row.setImageUrl("/uploads/weekly-opportunity/tech_vc/3/x.png");
+        row.setImageUrl("/uploads/weekly-opportunity/tech_ai/3/x.png");
 
         InvestStockPool stock = new InvestStockPool();
         stock.setStockCode("688256");
         stock.setStockName("寒武纪");
 
-        when(slotRepo.findByPoolTypeOrderBySlotIndexAsc("tech_vc")).thenReturn(List.of(row));
-        when(stockPoolRepo.findByPoolTypeOrderByCreatedAtDesc("tech_vc")).thenReturn(List.of(stock));
+        when(slotRepo.findByPoolTypeOrderBySlotIndexAsc("tech_ai")).thenReturn(List.of(row));
+        when(stockPoolRepo.findByPoolTypeOrderByCreatedAtDesc("tech_ai")).thenReturn(List.of(stock));
 
-        List<WeeklyOpportunitySlotDTO> result = service.get("tech_vc");
+        List<WeeklyOpportunitySlotDTO> result = service.get("tech_ai");
 
         assertThat(result).hasSize(9);
         assertThat(result.get(3).getStockCode()).isEqualTo("688256");
         assertThat(result.get(3).getStockName()).isEqualTo("寒武纪");
-        assertThat(result.get(3).getImageUrl()).isEqualTo("/uploads/weekly-opportunity/tech_vc/3/x.png");
+        assertThat(result.get(3).getImageUrl()).isEqualTo("/uploads/weekly-opportunity/tech_ai/3/x.png");
     }
 
     @Test
     @DisplayName("get: userStockName 在 stockCode 不在池中时透传到 DTO")
     void get_returnsUserStockNameWhenNotInPool() {
         InvestWeeklyOpportunitySlot row = new InvestWeeklyOpportunitySlot();
-        row.setPoolType("tech_vc");
+        row.setPoolType("tech_ai");
         row.setSlotIndex(5);
         row.setStockCode("999999");
         row.setUserStockName("某只外部股票");
         row.setReason("外部挖掘");
 
-        when(slotRepo.findByPoolTypeOrderBySlotIndexAsc("tech_vc")).thenReturn(List.of(row));
-        when(stockPoolRepo.findByPoolTypeOrderByCreatedAtDesc("tech_vc")).thenReturn(List.of());
+        when(slotRepo.findByPoolTypeOrderBySlotIndexAsc("tech_ai")).thenReturn(List.of(row));
+        when(stockPoolRepo.findByPoolTypeOrderByCreatedAtDesc("tech_ai")).thenReturn(List.of());
 
-        List<WeeklyOpportunitySlotDTO> result = service.get("tech_vc");
+        List<WeeklyOpportunitySlotDTO> result = service.get("tech_ai");
 
         assertThat(result).hasSize(9);
         assertThat(result.get(5).getStockCode()).isEqualTo("999999");
@@ -200,17 +200,17 @@ class InvestWeeklyOpportunityServiceTest {
     @DisplayName("setSlotImage: 写图到文件系统 + 落库 imageUrl")
     void setSlotImage_writesToExistingSlot() throws Exception {
         InvestWeeklyOpportunitySlot row = new InvestWeeklyOpportunitySlot();
-        row.setPoolType("tech_vc");
+        row.setPoolType("tech_ai");
         row.setSlotIndex(0);
         row.setStockCode("688256");
-        when(slotRepo.findByPoolTypeAndSlotIndex("tech_vc", 0)).thenReturn(Optional.of(row));
+        when(slotRepo.findByPoolTypeAndSlotIndex("tech_ai", 0)).thenReturn(Optional.of(row));
 
         MockMultipartFile file = new MockMultipartFile(
                 "file", "shot.png", "image/png", "fake-png-bytes".getBytes());
 
-        String url = service.setSlotImage("tech_vc", 0, file);
+        String url = service.setSlotImage("tech_ai", 0, file);
 
-        assertThat(url).startsWith("/uploads/weekly-opportunity/tech_vc/0/").endsWith(".png");
+        assertThat(url).startsWith("/uploads/weekly-opportunity/tech_ai/0/").endsWith(".png");
         assertThat(row.getImageUrl()).isEqualTo(url);
     }
 
@@ -238,7 +238,7 @@ class InvestWeeklyOpportunityServiceTest {
         MockMultipartFile file = new MockMultipartFile(
                 "file", "evil.exe", "application/octet-stream", "MZ".getBytes());
 
-        assertThatThrownBy(() -> service.setSlotImage("tech_vc", 0, file))
+        assertThatThrownBy(() -> service.setSlotImage("tech_ai", 0, file))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("JPG/PNG/WebP");
 
@@ -253,12 +253,12 @@ class InvestWeeklyOpportunityServiceTest {
     @DisplayName("clearSlotImage: 清空 imageUrl")
     void clearSlotImage_setsNull() {
         InvestWeeklyOpportunitySlot row = new InvestWeeklyOpportunitySlot();
-        row.setPoolType("tech_vc");
+        row.setPoolType("tech_ai");
         row.setSlotIndex(2);
         row.setImageUrl("/uploads/old.png");
-        when(slotRepo.findByPoolTypeAndSlotIndex("tech_vc", 2)).thenReturn(Optional.of(row));
+        when(slotRepo.findByPoolTypeAndSlotIndex("tech_ai", 2)).thenReturn(Optional.of(row));
 
-        service.clearSlotImage("tech_vc", 2);
+        service.clearSlotImage("tech_ai", 2);
 
         assertThat(row.getImageUrl()).isNull();
     }

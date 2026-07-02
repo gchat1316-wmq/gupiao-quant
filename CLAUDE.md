@@ -18,6 +18,12 @@ A Spring Boot 3 multi-module investment tools monolith, deployed at `https://aid
 | 科技 AI 实时监控 | `controller/TechAiController`, `service/techai/*`, `static/tech-ai.html` | QMT/xtdata real-time quotes, alerts, position advice |
 | 每日复盘 | `controller/MarketRecapController`, `service/MarketRecapService` | Structured daily market recap |
 | 许愿池 | `controller/WishPoolController` | Receives user wishes via Feishu webhook |
+| 统一监控 | `controller/MonitorController`, `static/monitor.html`, `sql/monitor_fusion_v1_init.sql` | Fixed-price/涨跌幅/ATR/止盈止损 fused config (see [[Monitor Fusion delivered 2026-06-30]]) |
+| 持仓管理 | `controller/PositionManagementController`, `static/position-management.html`, `service/position/*` | Buy plan + on-price reminder (Server酱) — see [[Position Management Methodology]] |
+| 复盘笔记 | `controller/JournalController`, `service/journal/*`, `static/journal.html` | Trading journal CRUD |
+| 用户股票池 | `controller/UserPoolController` | User-defined pool (admin-managed via `admin-users.html`) |
+| 估值 | `controller/ValuationController`, `service/Ps10ValuationService` | PS-10 valuation calc |
+| 周报机会 | `service/InvestWeeklyOpportunityService`, `sql/invest_weekly_opportunity_slot.sql` | Weekly opportunity slot |
 
 Additional cross-cutting surfaces: 认证 (`security/` + `controller/AuthController` + `controller/TdxAuthController`), 统计 (`controller/StatsController`, entities `PageViewStat`/`UserDailyStat`), 大阳线战法 (`InvestBigYang*`), 实用选股 (`PracticalSelect*`), 潜力股 (`PotentialController`).
 
@@ -117,13 +123,14 @@ The active DB is `wucai_trade` (configured in `application.yml`, NOT `gupiao_qua
 - `trade_*` — stock basic / daily K-line / financial (legacy from before the rename)
 - `auth_*` — users, login codes, audit log
 - `study_*` — 学习搭子
-- `invest_*` — 投资池 / position / alert / big-yang signal
+- `invest_*` — 投资池 / position / alert / big-yang signal / weekly-opportunity slot
 - `prosperity_*` — 热点选股 (multiple `_alter_v2..v5` deltas exist)
 - `stock_analysis_*` + `stock_analysis_record` — 个股分析
 - `tech_ai_*` — 科技 AI real-time
 - `quote_*` — real-time quote snapshots
+- `journal_*`, `practical_select_*`, `lynch_invest_*` — newer modules (see `sql/*_init.sql`)
 
-`SchemaInitializer` auto-creates the auth/study/invest/prosperity/stock-analysis/tech-ai/page-view/user-daily tables; for the rest, ensure `sql/` scripts have been run.
+`SchemaInitializer` auto-creates a subset of these; the `sql/` directory has one `*_init.sql` per newer module (plus numbered `_alter_v*.sql` deltas for `prosperity_*`). For fresh DBs run `sql/wucai_trade.sql` then any newer `*_init.sql` deltas.
 
 ### Cron jobs
 
@@ -167,6 +174,11 @@ When adding a page, drop the HTML in `src/main/resources/static/`, add a CSS fil
 - Lombok is required at compile time (`<optional>true</optional>` in pom, but the annotation processor path is wired correctly). If IntelliJ shows "lombok cannot be resolved", enable annotation processing.
 - Many modules cache; if a test sees stale data, check the `@Cacheable` annotation on the underlying service.
 - `application.yml` contains real-looking API keys with placeholder-style defaults. Do not commit changed defaults without ensuring they remain non-production values.
+- HikariCP `max-lifetime: 1700000` (~28min) is tuned to dodge MySQL's default `wait_timeout=8h` random RST — don't bump it up without a reason. `keepalive-time: 60000` + `connection-test-query: SELECT 1` are load-bearing for surviving LB-induced silent disconnects.
+
+## User methodology preferences
+
+- **Position management**: 三大公式 (Risk:Reward / Expected Value / Sizing) are personal discipline, **not UI input fields**. The 持仓管理 page should accept "stock + amount" and auto-pull price → compute shares, then persist + fire Server酱 on-price reminders. Do not surface the formulas as configurable inputs.
 
 ## Source-of-truth priority
 

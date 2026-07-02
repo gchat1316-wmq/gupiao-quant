@@ -40,6 +40,7 @@ class BaostockSyncServiceTest {
     void setUp() {
         BaostockSyncProperties props = new BaostockSyncProperties();
         props.setEnabled(true);
+        // 默认 financialEnabled=false，老测试保持原行为
         props.setPythonCommand("python3");
         props.setTimeoutSeconds(120);
 
@@ -49,6 +50,22 @@ class BaostockSyncServiceTest {
         dataSourceProperties.setPassword("secret");
 
         service = new BaostockSyncService(props, dataSourceProperties, jdbcTemplate, commandRunner);
+    }
+
+    private BaostockSyncService buildService(boolean financialEnabled, int startYear) {
+        BaostockSyncProperties props = new BaostockSyncProperties();
+        props.setEnabled(true);
+        props.setFinancialEnabled(financialEnabled);
+        props.setFinancialStartYear(startYear);
+        props.setPythonCommand("python3");
+        props.setTimeoutSeconds(120);
+
+        DataSourceProperties dataSourceProperties = new DataSourceProperties();
+        dataSourceProperties.setUrl("jdbc:mysql://43.140.208.165:3306/wucai_trade?useUnicode=true");
+        dataSourceProperties.setUsername("root");
+        dataSourceProperties.setPassword("secret");
+
+        return new BaostockSyncService(props, dataSourceProperties, jdbcTemplate, commandRunner);
     }
 
     @Test
@@ -76,6 +93,45 @@ class BaostockSyncServiceTest {
         assertThat(env).containsEntry("DB_NAME", "wucai_trade");
         assertThat(env).containsEntry("DB_USERNAME", "root");
         assertThat(env).containsEntry("DB_PASSWORD", "secret");
+    }
+
+    @Test
+    @DisplayName("financial-enabled 时 syncNow 顺次跑 daily/basic/financial 三个 stage")
+    void syncRunsThreeStagesWhenFinancialEnabled() throws Exception {
+        BaostockSyncService svc = buildService(true, 2024);
+        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq("trade_stock_daily"), eq("uk_trade_stock_daily_code_date")))
+                .thenReturn(1);
+        when(commandRunner.run(org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyMap(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new BaostockSyncService.CommandResult(0, "ok", ""));
+
+        svc.syncNow("startup", 30);
+
+        ArgumentCaptor<List<String>> commandCaptor = ArgumentCaptor.forClass(List.class);
+        verify(commandRunner, times(3))
+                .run(commandCaptor.capture(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyMap(), org.mockito.ArgumentMatchers.any());
+
+        List<List<String>> commands = commandCaptor.getAllValues();
+        assertThat(commands.get(0)).containsExactly("python3", "scripts/baostock_daily_sync.py", "--days-back", "30");
+        assertThat(commands.get(1)).containsExactly("python3", "scripts/baostock_basic_sync.py");
+        assertThat(commands.get(2)).containsExactly(
+                "python3", "scripts/baostock_financial_sync.py", "--start-year", "2024");
+    }
+
+    @Test
+    @DisplayName("syncFinancialOnly 只跑 financial stage，注入 start-year 与 properties 一致")
+    void syncFinancialOnlyRunsFinancialScriptWithConfigStartYear() throws Exception {
+        BaostockSyncService svc = buildService(true, 2020);
+        when(commandRunner.run(org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyMap(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new BaostockSyncService.CommandResult(0, "ok", ""));
+
+        svc.syncFinancialOnly("manual-backfill");
+
+        ArgumentCaptor<List<String>> commandCaptor = ArgumentCaptor.forClass(List.class);
+        verify(commandRunner, times(1))
+                .run(commandCaptor.capture(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyMap(), org.mockito.ArgumentMatchers.any());
+
+        assertThat(commandCaptor.getValue()).containsExactly(
+                "python3", "scripts/baostock_financial_sync.py", "--start-year", "2020");
     }
 
     @Test

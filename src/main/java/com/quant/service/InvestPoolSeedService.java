@@ -17,7 +17,7 @@ import java.util.Locale;
 @Service
 public class InvestPoolSeedService {
 
-    public static final String POOL_TYPE = "tech_vc";
+    public static final String POOL_TYPE = "tech_ai";
 
     private final InvestStockPoolRepository poolRepository;
     private final InvestPositionCommonRepository positionRepository;
@@ -33,7 +33,7 @@ public class InvestPoolSeedService {
 
     @CacheEvict(value = "stockPool", allEntries = true)
     @Transactional
-    public int replaceTechVcWithScreenshotPool() {
+    public int replaceTechAiWithScreenshotPool() {
         List<SeedRow> seedRows = screenshotRows();
         List<InvestStockPool> entities = new ArrayList<>();
         for (int i = 0; i < seedRows.size(); i++) {

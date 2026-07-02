@@ -92,6 +92,10 @@ baostock-sync:
   daily-cron: "0 20 18 * * MON-FRI"
   python-command: python3
   timeout-seconds: 1800
+  # BaoStock 财务 → trade_stock_financial（INSERT IGNORE，仅补缺失季度）
+  financial-enabled: true
+  financial-cron: "0 30 19 * * MON-FRI"
+  financial-start-year: 2024
 
 # 个股分析模块 (紫苏叶/高景气九维)
 # 鉴权已统一走 Spring Security：GET 公开，写操作（submit / DELETE）需 MANAGER/ADMIN 角色

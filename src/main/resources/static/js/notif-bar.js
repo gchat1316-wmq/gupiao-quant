@@ -159,22 +159,11 @@
       .catch(function () { return null; });
   }
 
+  // 2026-07-02 池子重构：科技AI 实时监控下线（QMT/Server酱/分钟异动告警），
+  // /api/tech-ai/alerts 端点已删除。监控告警后续会从统一 MonitorService 的
+  // /api/monitor/alerts 输出（待补），这里先返回 null 不阻塞其他数据源。
   function fetchAiAlerts() {
-    return fetch('api/tech-ai/alerts', { headers: { Accept: 'application/json' } })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (data) {
-        if (!Array.isArray(data) || data.length === 0) return null;
-        return data.slice(0, 3).map(function (a) {
-          return {
-            kind: 'ai',
-            text: (a.stockCode || '股票') + ' ' + (a.title || a.signalType || '监控告警'),
-            time: fmtTime(a.triggerAt),
-            href: 'monitor.html',
-            ts: a.triggerAt || '',
-          };
-        });
-      })
-      .catch(function () { return null; });
+    return Promise.resolve(null);
   }
 
   /* ===== 合并 + 渲染 ===== */

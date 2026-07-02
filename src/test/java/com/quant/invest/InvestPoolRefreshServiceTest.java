@@ -30,7 +30,7 @@ class InvestPoolRefreshServiceTest {
         InvestStockPool pool = new InvestStockPool();
         pool.setId(1);
         pool.setStockCode("688610.SH");
-        pool.setPoolType("tech_vc");
+        pool.setPoolType("tech_ai");
         pool.setRevenueForecastY0(new BigDecimal("6.87"));
         pool.setRevenueForecastY1(new BigDecimal("10.15"));
         pool.setRevenueForecastY2(new BigDecimal("14.08"));
@@ -38,13 +38,13 @@ class InvestPoolRefreshServiceTest {
         pool.setYtdGainPct(new BigDecimal("100.00"));
         pool.setValuationRange("合理");
 
-        when(poolRepo.findByPoolTypeOrderByCreatedAtDesc("tech_vc")).thenReturn(List.of(pool));
+        when(poolRepo.findByPoolTypeOrderByCreatedAtDesc("tech_ai")).thenReturn(List.of(pool));
         when(forecastProvider.fetchRevenueForecast(pool)).thenThrow(new IllegalStateException("source unavailable"));
 
         InvestPoolRefreshService service = new InvestPoolRefreshService(
                 poolRepo, syncService, forecastProvider, aStockForecastProvider);
 
-        int refreshed = service.refreshTechVcSnapshots();
+        int refreshed = service.refreshTechAiSnapshots();
 
         assertThat(refreshed).isEqualTo(1);
         assertThat(pool.getCurrentMarketCap()).isNull();

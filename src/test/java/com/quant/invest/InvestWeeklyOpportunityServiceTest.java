@@ -29,7 +29,7 @@ import static org.mockito.Mockito.when;
  * 2. slot 顺序按 slotIndex 升序
  * 3. stockName 从 invest_stock_pool 联动 — 股票已不在股票池时为 null
  * 4. update() 是「全量替换」语义：先删旧 9 行，再插新 9 行（事务内）
- * 5. update() 拒绝 poolType ∉ {tech_vc, innovative_drug, quality}
+ * 5. update() 拒绝 poolType ∉ {tech_ai, innovative_drug, quality}
  * 6. update() 拒绝 slotIndex ∉ [0, 8]
  * 7. update() 拒绝 slotIndex 重复
  * 8. level 字段不由 service 计算（前端用 inferValuationRange 自算）
@@ -54,10 +54,10 @@ class InvestWeeklyOpportunityServiceTest {
     @Test
     @DisplayName("get：表为空时返回 9 个空 slot（按 0~8 顺序）")
     void getReturnsNineEmptySlotsWhenTableEmpty() {
-        when(repo.findByPoolTypeOrderBySlotIndexAsc("tech_vc")).thenReturn(List.of());
-        when(stockPoolRepo.findByPoolTypeOrderByCreatedAtDesc("tech_vc")).thenReturn(List.of());
+        when(repo.findByPoolTypeOrderBySlotIndexAsc("tech_ai")).thenReturn(List.of());
+        when(stockPoolRepo.findByPoolTypeOrderByCreatedAtDesc("tech_ai")).thenReturn(List.of());
 
-        List<WeeklyOpportunitySlotDTO> result = service.get("tech_vc");
+        List<WeeklyOpportunitySlotDTO> result = service.get("tech_ai");
 
         assertThat(result).hasSize(SLOTS_PER_POOL);
         for (int i = 0; i < SLOTS_PER_POOL; i++) {
@@ -116,10 +116,10 @@ class InvestWeeklyOpportunityServiceTest {
     @Test
     @DisplayName("get：DTO 不带 level 字段（前端用 inferValuationRange 自算）")
     void getDtoHasNoLevelField() {
-        when(repo.findByPoolTypeOrderBySlotIndexAsc("tech_vc")).thenReturn(List.of());
-        when(stockPoolRepo.findByPoolTypeOrderByCreatedAtDesc("tech_vc")).thenReturn(List.of());
+        when(repo.findByPoolTypeOrderBySlotIndexAsc("tech_ai")).thenReturn(List.of());
+        when(stockPoolRepo.findByPoolTypeOrderByCreatedAtDesc("tech_ai")).thenReturn(List.of());
 
-        List<WeeklyOpportunitySlotDTO> result = service.get("tech_vc");
+        List<WeeklyOpportunitySlotDTO> result = service.get("tech_ai");
 
         // DTO 不暴露 level
         assertThat(WeeklyOpportunitySlotDTO.class.getDeclaredFields())
@@ -136,7 +136,7 @@ class InvestWeeklyOpportunityServiceTest {
     @Test
     @DisplayName("listAll：按固定顺序返回 3 个分类 × 9 = 27 行")
     void listAllReturnsFixedOrder() {
-        for (String type : new String[]{"tech_vc", "innovative_drug", "quality"}) {
+        for (String type : new String[]{"tech_ai", "innovative_drug", "quality"}) {
             when(repo.findByPoolTypeOrderBySlotIndexAsc(type)).thenReturn(List.of());
             when(stockPoolRepo.findByPoolTypeOrderByCreatedAtDesc(type)).thenReturn(List.of());
         }
@@ -144,9 +144,9 @@ class InvestWeeklyOpportunityServiceTest {
         List<WeeklyOpportunitySlotDTO> result = service.listAll();
 
         assertThat(result).hasSize(27);
-        assertThat(result.get(0).getPoolType()).isEqualTo("tech_vc");
+        assertThat(result.get(0).getPoolType()).isEqualTo("tech_ai");
         assertThat(result.get(0).getSlotIndex()).isEqualTo(0);
-        assertThat(result.get(8).getPoolType()).isEqualTo("tech_vc");
+        assertThat(result.get(8).getPoolType()).isEqualTo("tech_ai");
         assertThat(result.get(8).getSlotIndex()).isEqualTo(8);
         assertThat(result.get(9).getPoolType()).isEqualTo("innovative_drug");
         assertThat(result.get(26).getPoolType()).isEqualTo("quality");
@@ -159,7 +159,7 @@ class InvestWeeklyOpportunityServiceTest {
     @Test
     @DisplayName("update：合法输入 → 全量替换（先删后插，事务内）")
     void updateReplacesAllNineSlots() {
-        when(stockPoolRepo.findByPoolTypeOrderByCreatedAtDesc("tech_vc")).thenReturn(List.of(
+        when(stockPoolRepo.findByPoolTypeOrderByCreatedAtDesc("tech_ai")).thenReturn(List.of(
                 stock("002371", "北方华创"),
                 stock("300750", "宁德时代")
         ));
@@ -177,9 +177,9 @@ class InvestWeeklyOpportunityServiceTest {
                 slotReq(8, null, null)
         ));
 
-        List<WeeklyOpportunitySlotDTO> result = service.update("tech_vc", req);
+        List<WeeklyOpportunitySlotDTO> result = service.update("tech_ai", req);
 
-        verify(repo).deleteByPoolType("tech_vc");
+        verify(repo).deleteByPoolType("tech_ai");
         ArgumentCaptor<List<InvestWeeklyOpportunitySlot>> captor = ArgumentCaptor.forClass(List.class);
         verify(repo).saveAll(captor.capture());
         List<InvestWeeklyOpportunitySlot> saved = captor.getValue();
@@ -187,7 +187,7 @@ class InvestWeeklyOpportunityServiceTest {
         assertThat(saved.get(0).getSlotIndex()).isEqualTo(0);
         assertThat(saved.get(0).getStockCode()).isEqualTo("002371");
         assertThat(saved.get(0).getReason()).isEqualTo("回踩 295");
-        assertThat(saved.get(0).getPoolType()).isEqualTo("tech_vc");
+        assertThat(saved.get(0).getPoolType()).isEqualTo("tech_ai");
         assertThat(saved.get(1).getStockCode()).isEqualTo("300750");
         assertThat(saved.get(2).getStockCode()).isNull();
         assertThat(saved.get(2).getReason()).isNull();
@@ -223,7 +223,7 @@ class InvestWeeklyOpportunityServiceTest {
         req.setSlots(List.of(slotReq(0, "002371", "x")));
 
         try {
-            service.update("tech_vc", req);
+            service.update("tech_ai", req);
             org.junit.jupiter.api.Assertions.fail("应抛 IllegalArgumentException");
         } catch (IllegalArgumentException expected) {
             assertThat(expected.getMessage()).contains("9");
@@ -242,7 +242,7 @@ class InvestWeeklyOpportunityServiceTest {
         req.setSlots(items);
 
         try {
-            service.update("tech_vc", req);
+            service.update("tech_ai", req);
             org.junit.jupiter.api.Assertions.fail("应抛 IllegalArgumentException");
         } catch (IllegalArgumentException expected) {
             assertThat(expected.getMessage()).containsAnyOf("slotIndex", "越界", "9");
@@ -261,7 +261,7 @@ class InvestWeeklyOpportunityServiceTest {
         req.setSlots(items);
 
         try {
-            service.update("tech_vc", req);
+            service.update("tech_ai", req);
             org.junit.jupiter.api.Assertions.fail("应抛 IllegalArgumentException");
         } catch (IllegalArgumentException expected) {
             assertThat(expected.getMessage()).containsAnyOf("重复", "duplicate");
@@ -273,7 +273,7 @@ class InvestWeeklyOpportunityServiceTest {
     @Test
     @DisplayName("update：空字符串 stockCode 视作 null（清空该格）")
     void updateBlankStockCodeTreatedAsNull() {
-        when(stockPoolRepo.findByPoolTypeOrderByCreatedAtDesc("tech_vc")).thenReturn(List.of());
+        when(stockPoolRepo.findByPoolTypeOrderByCreatedAtDesc("tech_ai")).thenReturn(List.of());
 
         WeeklyOpportunityUpdateRequest req = new WeeklyOpportunityUpdateRequest();
         req.setSlots(List.of(
@@ -288,7 +288,7 @@ class InvestWeeklyOpportunityServiceTest {
                 slotReq(8, null, null)
         ));
 
-        service.update("tech_vc", req);
+        service.update("tech_ai", req);
 
         ArgumentCaptor<List<InvestWeeklyOpportunitySlot>> captor = ArgumentCaptor.forClass(List.class);
         verify(repo).saveAll(captor.capture());
@@ -304,7 +304,7 @@ class InvestWeeklyOpportunityServiceTest {
     private InvestWeeklyOpportunitySlot slot(int idx, String code, String reason) {
         InvestWeeklyOpportunitySlot s = new InvestWeeklyOpportunitySlot();
         s.setId((long) (idx + 1));
-        s.setPoolType("tech_vc");
+        s.setPoolType("tech_ai");
         s.setSlotIndex(idx);
         s.setStockCode(code);
         s.setReason(reason);

@@ -204,7 +204,7 @@ public class InvestService {
     }
 
     private Comparator<InvestStockPool> poolDisplayComparator() {
-        // 优先级：tech_vc (0) < innovative_drug (1) < quality (2)；同池内按 displayOrder，再按创建时间倒序
+        // 优先级：tech_ai (0) < innovative_drug (1) < quality (2)；同池内按 displayOrder，再按创建时间倒序
         return Comparator
                 .comparingInt((InvestStockPool p) -> poolTypePriority(p.getPoolType()))
                 .thenComparing(p -> p.getDisplayOrder() == null ? Integer.MAX_VALUE : p.getDisplayOrder())
@@ -213,16 +213,16 @@ public class InvestService {
     }
 
     private static int poolTypePriority(String poolType) {
-        if ("tech_vc".equals(poolType)) return 0;
+        if ("tech_ai".equals(poolType)) return 0;
         if ("innovative_drug".equals(poolType)) return 1;
         if ("quality".equals(poolType)) return 2;
         return 9;
     }
 
-    /** poolType → 中文标签。tech_vc 在 DB 中仍是 "tech_vc"，显示为"科技AI"。 */
+    /** poolType → 中文标签。tech_ai 在 DB 中仍是 "tech_ai"，显示为"科技AI"。 */
     public static String poolTypeLabelOf(String poolType) {
         if ("quality".equals(poolType)) return "质量优选";
-        if ("tech_vc".equals(poolType)) return "科技AI";
+        if ("tech_ai".equals(poolType)) return "科技AI";
         if ("innovative_drug".equals(poolType)) return "创新药";
         return poolType == null ? "" : poolType;
     }

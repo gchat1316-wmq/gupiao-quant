@@ -18,7 +18,7 @@ import java.util.List;
 /**
  * 龙江投资股票池的后台补全任务。
  *
- * 1. {@link #refreshWeekly()} —— 每周六 20:30 拉 BaoStock 日线，再回填所有 tech_vc 池条目。
+ * 1. {@link #refreshWeekly()} —— 每周六 20:30 拉 BaoStock 日线，再回填所有 tech_ai 池条目。
  * 2. {@link #backfillMissingFields()} —— 每天 16:30 扫一次所有池条目，把缺失字段（历史营收、Q1 财务、预测、近5年最低PS）从本地财务表回填。
  *
  * 回填策略：仅当目标字段为 NULL 时才覆盖，避免破坏手工录入（如 OCR 截图导入的数据）。
@@ -27,7 +27,7 @@ import java.util.List;
 @Service
 public class InvestPoolRefreshService {
 
-    static final String POOL_TYPE = "tech_vc";
+    static final String POOL_TYPE = "tech_ai";
     private static final BigDecimal HUNDRED = BigDecimal.valueOf(100L);
     private static final int MIN_PS_LOOKBACK_YEARS = 5;
 
@@ -53,13 +53,13 @@ public class InvestPoolRefreshService {
         } catch (Exception e) {
             log.warn("BaoStock sync failed before invest pool refresh: {}", e.getMessage());
         }
-        // 周末全量刷新，覆盖所有 pool_type 的条目，确保 quality + tech_vc 的 NULL 字段都能补齐
+        // 周末全量刷新，覆盖所有 pool_type 的条目，确保 quality + tech_ai 的 NULL 字段都能补齐
         int count = refreshAllPoolSnapshots();
         log.info("invest pool weekly refresh done, touched={}", count);
     }
 
     /**
-     * 每日检查：扫所有股票池条目（不限于 tech_vc），补齐缺失字段。
+     * 每日检查：扫所有股票池条目（不限于 tech_ai），补齐缺失字段。
      * 主要修复 trade_stock_financial 已有但 invest_stock_pool 留空的字段。
      */
     @Scheduled(cron = "${invest-pool.backfill-cron:0 30 16 * * ?}")
@@ -89,7 +89,7 @@ public class InvestPoolRefreshService {
 
     @CacheEvict(value = "stockPool", allEntries = true)
     @Transactional
-    public int refreshTechVcSnapshots() {
+    public int refreshTechAiSnapshots() {
         List<InvestStockPool> pools = poolRepository.findByPoolTypeOrderByCreatedAtDesc(POOL_TYPE);
         int refreshed = 0;
         for (InvestStockPool pool : pools) {

@@ -646,7 +646,7 @@
               <span class="section-tag" id="poolMetaActiveTag">—</span>
             </div>
             <div class="poolmeta-tabs" id="poolMetaTabs">
-              <button class="poolmeta-tab" data-pool="tech_vc">科技AI · tech_vc</button>
+              <button class="poolmeta-tab" data-pool="tech_ai">科技AI（10×PS）· tech_ai</button>
               <button class="poolmeta-tab" data-pool="innovative_drug">创新药 · innovative_drug</button>
               <button class="poolmeta-tab" data-pool="quality">质量优选 · quality</button>
             </div>
@@ -714,7 +714,7 @@
           <div class="page-subtitle">统一管理 3 个股票池的条目：增删改、拖拽排序、OCR 截图批量导入。</div>
 
           <div class="poolcrud-tabs" id="poolcrudTabs">
-            <button class="poolcrud-tab active" data-pool="tech_vc">科技AI <span class="poolcrud-count" id="poolcrudTabCurrent">—</span></button>
+            <button class="poolcrud-tab active" data-pool="tech_ai">科技AI（10×PS）<span class="poolcrud-count" id="poolcrudTabCurrent">—</span></button>
             <button class="poolcrud-tab" data-pool="innovative_drug">创新药</button>
             <button class="poolcrud-tab" data-pool="quality">质量优选</button>
           </div>
@@ -770,7 +770,7 @@
                 <div class="modal-field">
                   <label>分类</label>
                   <select id="poolcrudPoolType">
-                    <option value="tech_vc">科技AI</option>
+                    <option value="tech_ai">科技AI（10×PS）</option>
                     <option value="innovative_drug">创新药</option>
                     <option value="quality">质量优选</option>
                   </select>
@@ -892,9 +892,10 @@
             </div>
             <div class="modal-body">
               <div id="poolcrudOcrUploadArea" class="ocr-upload-area">
-                <input type="file" id="poolcrudOcrFile" accept="image/png,image/jpeg,image/webp" hidden />
-                <div class="ocr-upload-hint">📷 点击或拖拽截图到这里<br /><span style="font-size:11px;color:var(--text-muted)">支持 PNG / JPG / WebP，自动识别股票代码、名称、分类</span></div>
+                <input type="file" id="poolcrudOcrFile" accept="image/png,image/jpeg,image/webp" multiple hidden />
+                <div class="ocr-upload-hint">📷 点击或拖拽 1～N 张截图到这里<br /><span style="font-size:11px;color:var(--text-muted)">支持 PNG / JPG / WebP。选「科技AI · tech_ai」时可为每张图标注「主选 / 备选」</span></div>
               </div>
+              <div id="poolcrudOcrFiles" class="hidden" style="margin: 12px 0;"></div>
               <div id="poolcrudOcrPreview" class="hidden"></div>
               <div id="poolcrudOcrMsg" class="msg">请上传截图</div>
             </div>
@@ -1377,9 +1378,9 @@
     }
 
     // ── 投资池说明面板 ─────────────────────────────────────
-    var POOL_META_TYPES = ['tech_vc', 'innovative_drug', 'quality'];
-    var POOL_META_LABELS = { tech_vc: '科技AI', innovative_drug: '创新药', quality: '质量优选' };
-    var poolMetaCurrentPool = 'tech_vc';
+    var POOL_META_TYPES = ['tech_ai', 'innovative_drug', 'quality'];
+    var POOL_META_LABELS = { tech_ai: '科技AI（10×PS）', innovative_drug: '创新药', quality: '质量优选' };
+    var poolMetaCurrentPool = 'tech_ai';
     var poolMetaCache = {};   // poolType -> {meta, slots, stocks[]}
 
     function setPoolMetaMsg(id, text, isErr) {
@@ -1423,7 +1424,7 @@
       var disp = document.getElementById('poolMetaDisplayName');
       if (disp) disp.addEventListener('blur', function () { savePoolMetaField('display'); });
 
-      activePoolMetaTab('tech_vc');   // 默认切到科技AI
+      activePoolMetaTab('tech_ai');   // 默认切到科技AI（10×PS）
     }
 
     async function fetchPoolMeta(poolType) {

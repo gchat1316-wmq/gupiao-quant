@@ -23,7 +23,7 @@ import static org.mockito.Mockito.when;
  *    否则编辑弹窗无法回显原始 markdown。这是历史 bug 的回归点：
  *    DTO 起初只输出 HTML 字段，前端拿不到 MD → textarea 一直为空。
  * 3. update() 仅在请求字段非 null 时覆盖（保持其它字段不动），并把 MD → HTML 重渲染
- * 4. update() 拒绝 poolType ∉ {tech_vc, innovative_drug, quality}
+ * 4. update() 拒绝 poolType ∉ {tech_ai, innovative_drug, quality}
  */
 @DisplayName("InvestPoolMetaService")
 class InvestPoolMetaServiceTest {
@@ -40,7 +40,7 @@ class InvestPoolMetaServiceTest {
     @DisplayName("get：DTO 必须携带 MD 原文（编辑弹窗回显用）")
     void getExposesMarkdownSourceFields() {
         InvestPoolMeta meta = new InvestPoolMeta();
-        meta.setPoolType("tech_vc");
+        meta.setPoolType("tech_ai");
         meta.setDisplayName("科技 AI");
         meta.setCoverImageUrl("/uploads/test.png");
         meta.setValuationMethodMd("### 10 倍 PS\n\n合理市值 = 预测营收 × 10");
@@ -48,9 +48,9 @@ class InvestPoolMetaServiceTest {
         meta.setWeeklyOpportunityMd("- 行业：CXO\n  催化：...");
         meta.setWeeklyOpportunityHtml("<ul><li>行业：CXO...</li></ul>");
         meta.setDisplayOrder(1);
-        when(repo.findById("tech_vc")).thenReturn(java.util.Optional.of(meta));
+        when(repo.findById("tech_ai")).thenReturn(java.util.Optional.of(meta));
 
-        PoolMetaDTO dto = service.get("tech_vc");
+        PoolMetaDTO dto = service.get("tech_ai");
 
         assertThat(dto).isNotNull();
         assertThat(dto.getValuationMethodMd())
@@ -87,20 +87,20 @@ class InvestPoolMetaServiceTest {
     @DisplayName("update：只传 valuationMethodMd → 只重渲估值方法，不动每周机会点")
     void updateOnlyTouchesSpecifiedFields() {
         InvestPoolMeta existing = new InvestPoolMeta();
-        existing.setPoolType("tech_vc");
+        existing.setPoolType("tech_ai");
         existing.setDisplayName("科技 AI");
         existing.setValuationMethodMd("old");
         existing.setValuationMethodHtml("<p>old</p>");
         existing.setWeeklyOpportunityMd("keep me");
         existing.setWeeklyOpportunityHtml("<p>keep me</p>");
         existing.setDisplayOrder(1);
-        when(repo.findById("tech_vc")).thenReturn(java.util.Optional.of(existing));
+        when(repo.findById("tech_ai")).thenReturn(java.util.Optional.of(existing));
         when(repo.save(any(InvestPoolMeta.class))).thenAnswer(inv -> inv.getArgument(0));
 
         PoolMetaUpdateRequest req = new PoolMetaUpdateRequest();
         req.setValuationMethodMd("### 12 倍 PS");
 
-        PoolMetaDTO dto = service.update("tech_vc", req);
+        PoolMetaDTO dto = service.update("tech_ai", req);
 
         assertThat(dto.getValuationMethodMd()).isEqualTo("### 12 倍 PS");
         // markdown 渲染成 HTML（带 h3）

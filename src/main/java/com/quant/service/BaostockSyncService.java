@@ -66,6 +66,44 @@ public class BaostockSyncService {
                     List.of(properties.getPythonCommand(), "scripts/baostock_basic_sync.py"),
                     workdir, env, timeout, reason, "basic", errors
             );
+            if (properties.isFinancialEnabled()) {
+                runStage(
+                        List.of(
+                                properties.getPythonCommand(),
+                                "scripts/baostock_financial_sync.py",
+                                "--start-year", String.valueOf(properties.getFinancialStartYear())
+                        ),
+                        workdir, env, timeout, reason, "financial", errors
+                );
+            }
+            if (!errors.isEmpty()) {
+                throw new IllegalStateException(String.join("; ", errors));
+            }
+        } finally {
+            running.set(false);
+        }
+    }
+
+    /** 仅触发财务同步（手动回填用），不跑 daily/basic。 */
+    public void syncFinancialOnly(String reason) {
+        if (!running.compareAndSet(false, true)) {
+            log.info("BaoStock sync already running, skip trigger: {}", reason);
+            return;
+        }
+        try {
+            Map<String, String> env = buildDbEnv();
+            Path workdir = Path.of("").toAbsolutePath();
+            Duration timeout = Duration.ofSeconds(properties.getTimeoutSeconds());
+            List<String> errors = new ArrayList<>();
+
+            runStage(
+                    List.of(
+                            properties.getPythonCommand(),
+                            "scripts/baostock_financial_sync.py",
+                            "--start-year", String.valueOf(properties.getFinancialStartYear())
+                    ),
+                    workdir, env, timeout, reason, "financial", errors
+            );
             if (!errors.isEmpty()) {
                 throw new IllegalStateException(String.join("; ", errors));
             }

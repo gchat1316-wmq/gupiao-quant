@@ -13,6 +13,8 @@ public class OcrParsedItemDTO {
     private String poolType;
     private String status;
     private boolean matched;
+    /** 图片标签：main=主选 / backup=备选 / null=未指定。tech_ai 池入库时决定 memo 前缀。 */
+    private String imageLabel;
 
     private BigDecimal undervaluedPrice;
     private BigDecimal fairPrice;

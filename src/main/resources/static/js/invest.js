@@ -5,21 +5,21 @@
   // ---- 常量 ----
   const POOL_TYPE_LABELS = {
     quality: '质量优选',
-    tech_vc: '科技AI',
+    tech_ai: '科技AI',
     innovative_drug: '创新药',
   };
-  const POOL_TYPE_ORDER = ['tech_vc', 'innovative_drug', 'quality'];
-  const POOL_TYPE_DEFAULT = 'tech_vc';
+  const POOL_TYPE_ORDER = ['tech_ai', 'innovative_drug', 'quality'];
+  const POOL_TYPE_DEFAULT = 'tech_ai';
   const STATUS_LABELS = { watching: '观察中', holding: '持仓中', exited: '已离场' };
 
   // 一级 tab 映射：section id → poolType
   const SECTION_TO_POOL = {
-    techai: 'tech_vc',
+    techai: 'tech_ai',
     biopharma: 'innovative_drug',
     quality: 'quality',
   };
   const POOL_TO_SECTION = {
-    tech_vc: 'techai',
+    tech_ai: 'techai',
     innovative_drug: 'biopharma',
     quality: 'quality',
   };
@@ -160,7 +160,7 @@
         headers: authJsonHeaders(),
         body: JSON.stringify({
           keyword: kw,
-          poolType: total >= 17 ? 'tech_vc' : 'quality',
+          poolType: total >= 17 ? 'tech_ai' : 'quality',
           status: 'watching',
           memo,
           targetPrice: null,
@@ -341,7 +341,7 @@
     if (poolType) {
       currentPoolType = poolType;
       // 首次进入页面（poolTypeLoaded=null）或切换到不同 poolType 时加载股票池。
-      // 修复：原来 `poolType !== currentPoolType` 会让首次直连 #section=techai（默认值即 tech_vc）跳过 loadPool。
+      // 修复：原来 `poolType !== currentPoolType` 会让首次直连 #section=techai（默认值即 tech_ai）跳过 loadPool。
       if (poolType !== poolTypeLoaded) {
         poolTypeLoaded = poolType;
         loadPool();

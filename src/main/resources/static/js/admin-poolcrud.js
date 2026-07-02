@@ -12,7 +12,7 @@
   'use strict';
 
   // ── 状态 ─────────────────────────────────────────
-  var currentPool = 'tech_vc';
+  var currentPool = 'tech_ai';
   var poolData = [];
   var searchKeyword = '';
   // 拖拽源行 id（拖动结束后立刻清空）
@@ -20,7 +20,7 @@
 
   // ── 分类 label ──────────────────────────────────
   var POOL_LABELS = {
-    tech_vc: '科技AI',
+    tech_ai: '科技AI（10×PS）',
     innovative_drug: '创新药',
     quality: '质量优选'
   };
@@ -433,15 +433,21 @@
       });
   }
 
-  // ── OCR 批量导入 ──────────────────────────────
-  var ocrParsedRows = []; // 当前已识别的待入库行
+  // ── OCR 批量导入（多图 + 主选/备选）──────────────────────
+  // 阶段：上传文件（带 label）→ 依次 OCR → 合并预览 → 批量入库
+  var ocrPendingFiles = []; // [{file, label:'main'/'backup'}]
+  var ocrParsedRows = [];   // 识别出的条目，每项带 imageLabel
+  var ocrOcrInFlight = false;
 
   function openOcrModal() {
+    ocrPendingFiles = [];
     ocrParsedRows = [];
     var fileInput = $('poolcrudOcrFile');
     if (fileInput) fileInput.value = '';
     var area = $('poolcrudOcrUploadArea');
     if (area) area.classList.remove('hidden');
+    var filesBox = $('poolcrudOcrFiles');
+    if (filesBox) { filesBox.classList.add('hidden'); filesBox.innerHTML = ''; }
     var table = $('poolcrudOcrPreview');
     if (table) {
       table.classList.add('hidden');
@@ -450,73 +456,184 @@
     var btn = $('poolcrudOcrImportBtn');
     if (btn) { btn.disabled = true; btn.textContent = '批量入库'; }
     var msg = $('poolcrudOcrMsg');
-    if (msg) { msg.textContent = '请上传截图（PNG/JPG/WebP）'; msg.className = 'msg'; }
+    if (msg) { msg.textContent = '请上传截图（PNG/JPG/WebP，可多张）'; msg.className = 'msg'; }
     showModal('poolcrudOcrModal');
   }
 
-  function handleOcrUpload(file) {
-    if (!file) return;
+  /** 文件 input 改变时回调：把 FileList 转成 ocrPendingFiles。 */
+  function handleOcrFileList(fileList) {
+    if (!fileList || fileList.length === 0) return;
+    // 第一张默认主选，其余默认备选
+    var startIndex = ocrPendingFiles.length;
+    Array.prototype.forEach.call(fileList, function (f, i) {
+      if (!f.type || !/^image\//.test(f.type)) return;
+      var defaultLabel = (startIndex + i === 0 && ocrPendingFiles.filter(function (x) { return x.label === 'main'; }).length === 0)
+          ? 'main' : 'backup';
+      ocrPendingFiles.push({ file: f, label: defaultLabel });
+    });
+    renderOcrFiles();
+  }
+
+  /** 渲染"待上传文件 + 主选/备选 + 删除"列表。 */
+  function renderOcrFiles() {
+    var box = $('poolcrudOcrFiles');
+    if (!box) return;
+    if (ocrPendingFiles.length === 0) {
+      box.classList.add('hidden');
+      box.innerHTML = '';
+      return;
+    }
+    box.classList.remove('hidden');
+    var isTechAi = (currentPool === 'tech_ai');
+    box.innerHTML = ''
+      + '<div style="font-size:13px;color:var(--text-muted);margin-bottom:6px;">已选 ' + ocrPendingFiles.length + ' 张：' + (isTechAi ? '可标注「主选/备选」' : '其他池不展示主选/备选') + '</div>'
+      + ocrPendingFiles.map(function (entry, i) {
+          var labelInput = isTechAi
+              ? '<label style="margin-left:12px;"><input type="radio" name="ocr-label-' + i + '" value="main" ' + (entry.label === 'main' ? 'checked' : '') + ' /> 主选</label>'
+              + '<label style="margin-left:6px;"><input type="radio" name="ocr-label-' + i + '" value="backup" ' + (entry.label === 'backup' ? 'checked' : '') + ' /> 备选</label>'
+              : '<span style="margin-left:12px;color:var(--text-muted);font-size:12px;">（非 tech_ai 池）</span>';
+          return '<div style="display:flex;align-items:center;padding:6px 8px;border:1px solid var(--border);border-radius:4px;margin-bottom:6px;background:var(--bg-elev);">'
+            + '<span style="flex:1;font-size:13px;">📷 ' + escHtml(entry.file.name) + ' <span style="color:var(--text-muted);font-size:11px;">(' + Math.round(entry.file.size / 1024) + ' KB)</span></span>'
+            + labelInput
+            + '<button type="button" class="btn-sm ocr-file-remove" data-idx="' + i + '" style="margin-left:8px;">×</button>'
+            + '</div>';
+        }).join('')
+      + '<div style="margin-top:8px;">'
+      +   '<button type="button" class="btn-sm" id="poolcrudOcrAddMore">+ 添加更多</button>'
+      +   '<button type="button" class="primary-btn" id="poolcrudOcrStartBtn" style="margin-left:8px;">🔍 开始识别</button>'
+      + '</div>';
+
+    // 绑定单选按钮 → 更新 label
+    box.querySelectorAll('input[type=radio]').forEach(function (r) {
+      r.addEventListener('change', function () {
+        var name = r.name;
+        var idx = parseInt(name.replace('ocr-label-', ''), 10);
+        if (ocrPendingFiles[idx]) ocrPendingFiles[idx].label = r.value;
+      });
+    });
+    // 删除
+    box.querySelectorAll('.ocr-file-remove').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var idx = parseInt(b.getAttribute('data-idx'), 10);
+        ocrPendingFiles.splice(idx, 1);
+        renderOcrFiles();
+      });
+    });
+    // 添加更多
+    var addMore = $('poolcrudOcrAddMore');
+    if (addMore) addMore.addEventListener('click', function () {
+      var fi = $('poolcrudOcrFile');
+      if (fi) fi.click();
+    });
+    // 开始识别
+    var startBtn = $('poolcrudOcrStartBtn');
+    if (startBtn) startBtn.addEventListener('click', runOcrBatch);
+  }
+
+  /** 串行 OCR 每张图，结果合并到 ocrParsedRows。 */
+  async function runOcrBatch() {
+    if (ocrOcrInFlight) return;
+    if (ocrPendingFiles.length === 0) {
+      setMsg('poolcrudOcrMsg', '请先选择截图', true);
+      return;
+    }
+    ocrOcrInFlight = true;
     var msg = $('poolcrudOcrMsg');
     msg.textContent = '解析中，请稍候...';
     msg.className = 'msg';
-    // 1. POST 图片到 /pool/import-image（base64 走 body）
-    var reader = new FileReader();
-    reader.onload = function () {
-      var dataUrl = reader.result;
-      var b64 = String(dataUrl).split(',')[1] || '';
-      authFetch('/api/invest/pool/import-image', {
-        method: 'POST',
-        body: { imageBase64: b64, fileName: file.name }
-      })
-      .then(function (res) {
-        // res 可能是 { rows: [...] } 或直接 [...]
-        var rows = (res && res.rows) ? res.rows : (Array.isArray(res) ? res : []);
-        if (rows.length === 0) {
-          msg.textContent = '未识别到任何股票，请检查截图';
-          msg.className = 'msg err';
-          return;
-        }
-        ocrParsedRows = rows;
-        renderOcrPreview(rows);
-        msg.textContent = '✓ 识别出 ' + rows.length + ' 条，请确认后入库';
-        msg.className = 'msg ok';
-      })
-      .catch(function (e) {
-        msg.textContent = 'OCR 失败：' + e.message;
-        msg.className = 'msg err';
-      });
-    };
-    reader.onerror = function () {
-      msg.textContent = '读取文件失败';
+    var allRows = [];
+    var failed = 0;
+    var firstErr = null;
+    for (var i = 0; i < ocrPendingFiles.length; i++) {
+      var entry = ocrPendingFiles[i];
+      msg.textContent = '正在解析第 ' + (i + 1) + ' / ' + ocrPendingFiles.length + ' 张：' + entry.file.name;
+      try {
+        var rows = await ocrOneImage(entry.file, entry.label);
+        rows.forEach(function (r) { r.imageLabel = entry.label; });
+        allRows = allRows.concat(rows);
+      } catch (e) {
+        failed++;
+        if (!firstErr) firstErr = e.message || String(e);
+        console.error('OCR fail:', entry.file.name, e);
+      }
+    }
+    ocrOcrInFlight = false;
+    ocrParsedRows = allRows;
+    if (allRows.length === 0) {
+      var errDetail = firstErr ? '：' + firstErr : '';
+      msg.textContent = 'OCR 全部失败（' + failed + ' 张），请检查截图' + errDetail;
       msg.className = 'msg err';
-    };
-    reader.readAsDataURL(file);
+      msg.title = firstErr || '';
+      return;
+    }
+    msg.textContent = '✓ 识别出 ' + allRows.length + ' 条' + (failed > 0 ? '（' + failed + ' 张图失败）' : '') + '，请确认后入库';
+    msg.className = failed > 0 ? 'msg warn' : 'msg ok';
+    renderOcrPreview(allRows);
+  }
+
+  /** 单图 OCR：返回识别条目（不带 imageLabel，由调用方追加）。
+   *  2026-07-02 池子重构：所有池子统一走 /api/invest/pool/import-image（按 defaultPoolType 区分）。
+   */
+  function ocrOneImage(file, label) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        var b64 = String(reader.result).split(',')[1] || '';
+        authFetch('/api/invest/pool/import-image', {
+          method: 'POST',
+          body: { imageBase64: b64, fileName: file.name, defaultPoolType: currentPool }
+        })
+        .then(function (res) {
+          var rows = (res && res.items) ? res.items : (Array.isArray(res) ? res : []);
+          resolve(rows);
+        })
+        .catch(function (e) {
+          // 把后端真实错误抛出去，外层累积到 msg
+          var detail = (e && e.message) ? e.message : String(e);
+          reject(new Error(detail));
+        });
+      };
+      reader.onerror = function () { reject(new Error('读取文件失败')); };
+      reader.readAsDataURL(file);
+    });
   }
 
   function renderOcrPreview(rows) {
     var preview = $('poolcrudOcrPreview');
     var area = $('poolcrudOcrUploadArea');
     if (area) area.classList.add('hidden');
+    var filesBox = $('poolcrudOcrFiles');
+    if (filesBox) filesBox.classList.add('hidden');
     if (!preview) return;
     preview.classList.remove('hidden');
+    var showLabelCol = (currentPool === 'tech_ai');
+    var labelHeader = showLabelCol ? '<th>主选/备选</th>' : '';
     preview.innerHTML = ''
       + '<table class="poolcrud-ocr-table">'
       + '<thead><tr>'
       + '<th><input type="checkbox" id="poolcrudOcrAll" checked /></th>'
       + '<th>代码</th><th>名称</th><th>分类</th>'
+      + labelHeader
       + '</tr></thead>'
       + '<tbody>'
       + rows.map(function (r, i) {
           var poolType = r.poolType || currentPool;
+          var labelCell = showLabelCol
+              ? '<td><select class="form-input poolcrud-ocr-label">'
+              +   '<option value="main"' + (r.imageLabel === 'main' ? ' selected' : '') + '>主选</option>'
+              +   '<option value="backup"' + (r.imageLabel === 'backup' ? ' selected' : '') + '>备选</option>'
+              + '</select></td>'
+              : '';
           return '<tr data-idx="' + i + '">'
             + '<td><input type="checkbox" class="poolcrud-ocr-row" checked /></td>'
             + '<td><input type="text" class="form-input poolcrud-ocr-code" value="' + escHtml(r.stockCode || '') + '" /></td>'
             + '<td><input type="text" class="form-input poolcrud-ocr-name" value="' + escHtml(r.stockName || '') + '" /></td>'
             + '<td><select class="form-input poolcrud-ocr-pool">'
-            +   '<option value="tech_vc"' + (poolType === 'tech_vc' ? ' selected' : '') + '>科技AI</option>'
+            +   '<option value="tech_ai"' + (poolType === 'tech_ai' ? ' selected' : '') + '>科技AI（10×PS）</option>'
             +   '<option value="innovative_drug"' + (poolType === 'innovative_drug' ? ' selected' : '') + '>创新药</option>'
             +   '<option value="quality"' + (poolType === 'quality' ? ' selected' : '') + '>质量优选</option>'
             + '</select></td>'
+            + labelCell
             + '</tr>';
         }).join('')
       + '</tbody></table>';
@@ -528,6 +645,7 @@
     if (importBtn) importBtn.disabled = false;
   }
 
+  /** 2026-07-02 池子重构：所有池子统一走 /api/invest/pool/batch-import，tech_ai 走 invest 默认分支。 */
   function submitOcrImport() {
     var preview = $('poolcrudOcrPreview');
     if (!preview) return;
@@ -536,11 +654,31 @@
     rows.forEach(function (tr) {
       var cb = tr.querySelector('.poolcrud-ocr-row');
       if (!cb || !cb.checked) return;
-      picked.push({
+      var item = {
         stockCode: tr.querySelector('.poolcrud-ocr-code').value.trim(),
         stockName: tr.querySelector('.poolcrud-ocr-name').value.trim(),
         poolType: tr.querySelector('.poolcrud-ocr-pool').value
-      });
+      };
+      var labelEl = tr.querySelector('.poolcrud-ocr-label');
+      if (labelEl) item.imageLabel = labelEl.value;
+      // 携带完整 PS 表字段（如果有）
+      var idx = parseInt(tr.getAttribute('data-idx'), 10);
+      var src = ocrParsedRows[idx];
+      if (src) {
+        item.revenue2023 = src.revenue2023;
+        item.revenue2024 = src.revenue2024;
+        item.revenue2025 = src.revenue2025;
+        item.revenueForecastY0 = src.revenueForecastY0;
+        item.revenueForecastY1 = src.revenueForecastY1;
+        item.revenueForecastY2 = src.revenueForecastY2;
+        item.q1GrossMargin = src.q1GrossMargin;
+        item.q1NetMargin = src.q1NetMargin;
+        item.q1RevenueGrowth = src.q1RevenueGrowth;
+        item.minPs5y = src.minPs5y;
+        item.currentMarketCap = src.currentMarketCap;
+        item.ytdGainPct = src.ytdGainPct;
+      }
+      picked.push(item);
     });
     if (picked.length === 0) {
       setMsg('poolcrudOcrMsg', '请至少勾选一条', true);
@@ -549,9 +687,15 @@
     var btn = $('poolcrudOcrImportBtn');
     btn.disabled = true;
     btn.textContent = '入库中...';
-    authFetch('/api/invest/pool/batch-import', {
+
+    // 2026-07-02 池子重构：所有池子（含 tech_ai）统一走 /api/invest/pool/batch-import。
+    // tech_ai 池仍支持 imageLabel（主选/备选），由 OcrPoolImportService 根据 poolType 分发。
+    var url = '/api/invest/pool/batch-import';
+    var body = { items: picked };
+
+    authFetch(url, {
       method: 'POST',
-      body: { items: picked }
+      body: body
     })
     .then(function (res) {
       var inserted = (res && (res.inserted || res.successCount)) || picked.length;
@@ -641,13 +785,15 @@
       if (e.target === ocrMask) hideModal('poolcrudOcrModal');
     });
 
-    // OCR 上传
+    // OCR 上传（多图）
     var ocrUploadArea = $('poolcrudOcrUploadArea');
     var ocrFile = $('poolcrudOcrFile');
     if (ocrUploadArea && ocrFile) {
       ocrUploadArea.addEventListener('click', function () { ocrFile.click(); });
       ocrFile.addEventListener('change', function () {
-        if (ocrFile.files && ocrFile.files[0]) handleOcrUpload(ocrFile.files[0]);
+        if (ocrFile.files && ocrFile.files.length) handleOcrFileList(ocrFile.files);
+        // 清空 value，否则选同一组文件不会触发 change
+        ocrFile.value = '';
       });
       ocrUploadArea.addEventListener('dragover', function (e) {
         e.preventDefault();
@@ -659,8 +805,8 @@
       ocrUploadArea.addEventListener('drop', function (e) {
         e.preventDefault();
         ocrUploadArea.classList.remove('dragover');
-        var f = e.dataTransfer.files && e.dataTransfer.files[0];
-        if (f) handleOcrUpload(f);
+        var fs = e.dataTransfer.files;
+        if (fs && fs.length) handleOcrFileList(fs);
       });
     }
 

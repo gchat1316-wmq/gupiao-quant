@@ -22,7 +22,7 @@ class InvestPoolSeedServiceTest {
 
     @Test
     @DisplayName("只重建科技风投池并按截图顺序设置 displayOrder")
-    void replaceTechVcKeepsScreenshotOrder() {
+    void replaceTechAiKeepsScreenshotOrder() {
         InvestStockPoolRepository poolRepo = mock(InvestStockPoolRepository.class);
         InvestPositionCommonRepository positionRepo = mock(InvestPositionCommonRepository.class);
         TradeStockBasicRepository basicRepo = mock(TradeStockBasicRepository.class);
@@ -30,11 +30,11 @@ class InvestPoolSeedServiceTest {
 
         InvestPoolSeedService service = new InvestPoolSeedService(poolRepo, positionRepo, basicRepo);
 
-        int inserted = service.replaceTechVcWithScreenshotPool();
+        int inserted = service.replaceTechAiWithScreenshotPool();
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<InvestStockPool>> captor = ArgumentCaptor.forClass(List.class);
-        verify(poolRepo).deleteByPoolTypeOrUpperStockCodeIn(org.mockito.Mockito.eq("tech_vc"),
+        verify(poolRepo).deleteByPoolTypeOrUpperStockCodeIn(org.mockito.Mockito.eq("tech_ai"),
                 org.mockito.ArgumentMatchers.argThat(codes -> codes.contains("301458.SZ")));
         verify(poolRepo).saveAll(captor.capture());
         List<InvestStockPool> rows = captor.getValue();

@@ -51,7 +51,7 @@ public class InvestBigYangSignalService {
     static final String SIGNAL_STATUS_TRIGGERED = "triggered";
     static final String SIGNAL_STATUS_EXPIRED = "expired";
     static final String ALERT_SIGNAL_TYPE = "BIG_YANG_BUY_TRIGGER";
-    private static final Set<String> SOURCE_POOL_TYPES = Set.of("quality", "tech_vc", "innovative_drug");
+    private static final Set<String> SOURCE_POOL_TYPES = Set.of("quality", "tech_ai", "innovative_drug");
 
     private final InvestBigYangSignalRepository signalRepository;
     private final InvestStockPoolRepository poolRepository;
@@ -657,7 +657,7 @@ public class InvestBigYangSignalService {
     }
 
     private String poolTypeLabel(String poolType) {
-        if ("tech_vc".equals(poolType)) {
+        if ("tech_ai".equals(poolType)) {
             return "科技风投";
         }
         if ("quality".equals(poolType)) {

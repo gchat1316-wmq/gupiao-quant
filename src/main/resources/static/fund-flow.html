@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#e1062c" />
+  <base href="/gp/" />
+  <title>板块资金流向 · 实时</title>
+  <link rel="stylesheet" href="css/skin.css?v=20260618-skin-system" />
+  <link rel="stylesheet" href="css/style.css?v=20260618-skin-system" />
+  <link rel="stylesheet" href="css/study.css?v=20260618-skin-system" />
+  <style>
+    :root {
+      --ff-bg: #f7f6f3;
+      --ff-card: #ffffff;
+      --ff-border: #ece8e0;
+      --ff-red: #e53;
+      --ff-red-light: #fff0ee;
+      --ff-green: #1a8;
+      --ff-green-light: #f0fff6;
+      --ff-text: #1a1a2e;
+      --ff-muted: #8a8880;
+      --ff-radius: 14px;
+      --ff-font: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    }
+    /* 用户截图风格：流出红色、流入绿色（数字颜色也对应） */
+    .ff-amount.inflow { color: #1a8 !important; }
+    .ff-amount.outflow { color: #e53 !important; }
+    .ff-change.up { background: #fff0ee !important; color: #e53 !important; }
+    .ff-change.down { background: #f0fff6 !important; color: #1a8 !important; }
+    body {
+      font-family: var(--ff-font);
+      background: var(--ff-bg);
+      color: var(--ff-text);
+      min-height: 100dvh;
+      margin: 0;
+    }
+
+    .ff-page {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 16px 16px 48px;
+    }
+
+    /* ── Header Bar ── */
+    .ff-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      background: var(--ff-card);
+      border: 1px solid var(--ff-border);
+      border-radius: var(--ff-radius);
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .ff-header-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--ff-red);
+    }
+    .ff-header-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--ff-muted);
+    }
+    .ff-live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--ff-green);
+      animation: pulse 2s infinite;
+    }
+    .ff-live-dot.offline { background: var(--ff-red); animation: none; }
+    @keyframes pulse {
+      0%,100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .ff-refresh-btn {
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--ff-border);
+      background: var(--ff-card);
+      font-size: 12px;
+      cursor: pointer;
+      color: var(--ff-text);
+      transition: background 0.15s;
+    }
+    .ff-refresh-btn:hover { background: #f5f3ef; }
+
+    /* ── Two Column Grid ── */
+    .ff-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    /* ── Column Card ── */
+    .ff-col-card {
+      background: var(--ff-card);
+      border: 1px solid var(--ff-border);
+      border-radius: var(--ff-radius);
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .ff-col-header {
+      padding: 12px 16px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .ff-col-header.inflow {
+      background: var(--ff-green-light);
+      color: #0a7;
+      border-bottom: 1px solid #c8f5e3;
+    }
+    .ff-col-header.outflow {
+      background: var(--ff-red-light);
+      color: var(--ff-red);
+      border-bottom: 1px solid #fdd;
+    }
+    .ff-col-header .ff-count {
+      font-size: 11px;
+      font-weight: 500;
+      opacity: 0.7;
+    }
+
+    /* ── Row ── */
+    .ff-row {
+      display: grid;
+      grid-template-columns: 28px 1fr auto auto;
+      gap: 8px;
+      align-items: center;
+      padding: 9px 16px;
+      border-bottom: 1px solid #f5f3ef;
+      font-size: 13px;
+      transition: background 0.1s;
+    }
+    .ff-row:last-child { border-bottom: none; }
+    .ff-row:hover { background: #fafaf8; }
+
+    .ff-rank {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--ff-muted);
+      text-align: center;
+    }
+
+    .ff-name {
+      font-weight: 600;
+      color: var(--ff-text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ff-amount {
+      font-weight: 700;
+      white-space: nowrap;
+      font-size: 12px;
+    }
+    .ff-amount.inflow { color: #0a7; }
+    .ff-amount.outflow { color: var(--ff-red); }
+
+    .ff-change {
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+      font-weight: 600;
+    }
+    .ff-change.up { background: #f0fff6; color: #0a7; }
+    .ff-change.down { background: #fff0ee; color: var(--ff-red); }
+    .ff-change.flat { background: #f5f5f5; color: var(--ff-muted); }
+
+    /* ── Empty / Loading ── */
+    .ff-empty {
+      padding: 32px;
+      text-align: center;
+      color: var(--ff-muted);
+      font-size: 13px;
+    }
+    .ff-loading {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 24px 16px;
+      color: var(--ff-muted);
+      font-size: 13px;
+    }
+    .ff-spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid #e0ddd8;
+      border-top-color: var(--ff-red);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      .ff-grid { grid-template-columns: 1fr; }
+      .ff-row { grid-template-columns: 24px 1fr auto; }
+      .ff-change { display: none; }
+    }
+
+    /* ── Error banner ── */
+    .ff-error {
+      background: var(--ff-red-light);
+      border: 1px solid #fdd;
+      border-radius: var(--ff-radius);
+      padding: 12px 16px;
+      font-size: 13px;
+      color: var(--ff-red);
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div id="siteHeader"></div>
+
+  <div class="ff-page">
+    <!-- Header -->
+    <div class="ff-header">
+      <div class="ff-header-title">板块资金流向</div>
+      <div class="ff-header-meta">
+        <span class="ff-live-dot" id="liveDot"></span>
+        <span id="updateTime">加载中…</span>
+        <button class="ff-refresh-btn" id="refreshBtn">刷新</button>
+      </div>
+    </div>
+
+    <!-- Error -->
+    <div id="errorBanner" class="ff-error hidden"></div>
+
+    <!-- Two columns -->
+    <div class="ff-grid">
+      <!-- 资金流出（标红，左栏） -->
+      <div class="ff-col-card">
+        <div class="ff-col-header outflow">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          资金流出
+          <span class="ff-count" id="outflowCount"></span>
+        </div>
+        <div id="outflowList">
+          <div class="ff-loading"><div class="ff-spinner"></div>加载中…</div>
+        </div>
+      </div>
+
+      <!-- 资金流入（标绿，右栏） -->
+      <div class="ff-col-card">
+        <div class="ff-col-header inflow">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+          资金流入
+          <span class="ff-count" id="inflowCount"></span>
+        </div>
+        <div id="inflowList">
+          <div class="ff-loading"><div class="ff-spinner"></div>加载中…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/layout.js?v=20260630-pm-v2" defer></script>
+  <script>
+    // ── Config ────────────────────────────────────────
+    const MAX_POS = 20;
+    const MAX_NEG = 20;
+    const AUTO_REFRESH_SEC = 15;
+
+    let es = null;
+    let countdownSec = AUTO_REFRESH_SEC;
+    let countdownTimer = null;
+    let isManualRefreshing = false;
+
+    // ── 倒计时显示 & 控制 ──────────────────────────────
+    function updateCountdownDisplay() {
+      const btn = document.getElementById('refreshBtn');
+      if (!btn) return;
+      if (isManualRefreshing) {
+        btn.innerHTML = '<span class="ff-spinner-sm"></span> 刷新中…';
+        btn.disabled = true;
+      } else {
+        btn.textContent = '刷新 ' + countdownSec + 's';
+        btn.disabled = false;
+      }
+    }
+
+    function resetCountdown() {
+      countdownSec = AUTO_REFRESH_SEC;
+      isManualRefreshing = false;
+      updateCountdownDisplay();
+      clearInterval(countdownTimer);
+      countdownTimer = setInterval(() => {
+        countdownSec--;
+        if (countdownSec < 0) countdownSec = AUTO_REFRESH_SEC;
+        updateCountdownDisplay();
+      }, 1000);
+    }
+
+    // ── SSE 实时推送 ─────────────────────────────────
+    function connectSSE() {
+      if (es) { es.close(); es = null; }
+      es = new EventSource('/gp/api/fund-flow/stream');
+      es.onopen = () => {
+        document.getElementById('liveDot').classList.remove('offline');
+      };
+      es.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          render(data);
+          resetCountdown();
+        } catch(err) { console.error('SSE parse error', err); }
+      };
+      es.onerror = () => {
+        document.getElementById('liveDot').classList.add('offline');
+        setTimeout(connectSSE, 5000);
+      };
+    }
+
+    function render(data) {
+      const items = data.items || [];
+      // 左栏=流出（净流入为负），右栏=流入（净流入为正）
+      const neg = items.filter(i => parseYuan(i.mainNet) < 0).slice(0, MAX_NEG); // 流出
+      const pos = items.filter(i => parseYuan(i.mainNet) >= 0).slice(0, MAX_POS); // 流入
+
+      document.getElementById('updateTime').textContent = '更新 ' + (data.updatedAt || '--:--');
+      document.getElementById('outflowCount').textContent = neg.length + ' 个板块';
+      document.getElementById('inflowCount').textContent = pos.length + ' 个板块';
+
+      // 左栏：outflow类型（红色），右栏：inflow类型（绿色）
+      document.getElementById('outflowList').innerHTML = neg.length
+        ? neg.map((item, idx) => buildRow(item, idx + 1, 'outflow')).join('')
+        : '<div class="ff-empty">暂无数据</div>';
+
+      document.getElementById('inflowList').innerHTML = pos.length
+        ? pos.map((item, idx) => buildRow(item, idx + 1, 'inflow')).join('')
+        : '<div class="ff-empty">暂无数据</div>';
+
+      document.getElementById('errorBanner').classList.add('hidden');
+    }
+
+    function buildRow(item, rank, type) {
+      const netClass = type === 'inflow' ? 'inflow' : 'outflow';
+      const pct = parseFloat(item.changePct);
+      const changeClass = pct > 0 ? 'up' : pct < 0 ? 'down' : 'flat';
+      const pctText = pct > 0 ? '+' + pct.toFixed(2) + '%' : pct < 0 ? pct.toFixed(2) + '%' : '0.00%';
+
+      return `<div class="ff-row">
+        <span class="ff-rank">${rank}</span>
+        <span class="ff-name" title="${item.name}">${item.name}</span>
+        <span class="ff-amount ${netClass}">${item.mainNet}</span>
+        <span class="ff-change ${changeClass}">${pctText}</span>
+      </div>`;
+    }
+
+    function parseYuan(str) {
+      if (!str || str === '—') return 0;
+      const s = str.trim();
+      let v = 0;
+      if (s.endsWith('亿')) v = parseFloat(s) * 1e8;
+      else if (s.endsWith('万')) v = parseFloat(s) * 1e4;
+      else v = parseFloat(s) || 0;
+      return v;
+    }
+
+    // 手动刷新
+    document.getElementById('refreshBtn').addEventListener('click', async () => {
+      isManualRefreshing = true;
+      updateCountdownDisplay();
+      try {
+        const resp = await fetch('/gp/api/fund-flow/refresh');
+        if (!resp.ok) throw new Error(resp.status);
+        const data = await resp.json();
+        render(data);
+        resetCountdown();
+      } catch(e) {
+        isManualRefreshing = false;
+        updateCountdownDisplay();
+        const banner = document.getElementById('errorBanner');
+        banner.textContent = '刷新失败: ' + e.message;
+        banner.classList.remove('hidden');
+      }
+    });
+
+    // 首次加载 + 启动 SSE
+    (async () => {
+      try {
+        const resp = await fetch('/gp/api/fund-flow');
+        const data = await resp.json();
+        render(data);
+        connectSSE();
+        resetCountdown();
+      } catch(e) {
+        document.getElementById('errorBanner').textContent = '加载失败，请刷新重试';
+        document.getElementById('errorBanner').classList.remove('hidden');
+        document.getElementById('liveDot').classList.add('offline');
+      }
+    })();
+  </script>
+</body>
+</html>
