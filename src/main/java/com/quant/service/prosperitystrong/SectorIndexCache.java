@@ -12,8 +12,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
@@ -45,8 +47,18 @@ public class SectorIndexCache {
     /** sectorNames 里出现过的"非空"关键词 → 命中股票代码集合。case-insensitive。 */
     private final ConcurrentHashMap<String, Set<String>> invertedIndex = new ConcurrentHashMap<>();
 
-    /** 关键词 → 命中股票 (Basic 完整对象) 的查询结果缓存，TTL 5 分钟。 */
-    private final ConcurrentHashMap<String, CacheEntry<List<TradeStockBasic>>> keywordCache = new ConcurrentHashMap<>();
+    /** 最大缓存条目数，超过后 LRU 淘汰最旧条目（2026-07-07 防内存泄漏）。 */
+    private static final int KEYWORD_CACHE_MAX = 200;
+
+    /** 关键词 → 命中股票 (Basic 完整对象) 的查询结果缓存，容量上限 200 条 + TTL 5 分钟。 */
+    private final Map<String, CacheEntry<List<TradeStockBasic>>> keywordCache =
+            Collections.synchronizedMap(new LinkedHashMap<>(16, 0.75f, true) {
+                private static final long serialVersionUID = 1L;
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, CacheEntry<List<TradeStockBasic>>> eldest) {
+                    return size() > KEYWORD_CACHE_MAX;
+                }
+            });
 
     /** 当前加载状态。 */
     private final AtomicReference<Status> status = new AtomicReference<>(new Status(0, null));
@@ -133,17 +145,26 @@ public class SectorIndexCache {
     /**
      * 关键词缓存查询。命中且未过期 → 直接返回缓存的 Basic 列表。
      */
+    /**
+     * 关键词缓存查询。命中且未过期 → 直接返回缓存的 Basic 列表。
+     * 容量上限 200 条，超出后 LRU 淘汰最旧条目（2026-07-07 防内存泄漏）。
+     */
     public List<TradeStockBasic> getOrLoadByKeywords(List<String> keywords,
                                                       java.util.function.Supplier<List<TradeStockBasic>> loader) {
         if (keywords == null || keywords.isEmpty()) return List.of();
         String key = String.join("|", keywords.stream().sorted().toList());
-        CacheEntry<List<TradeStockBasic>> cached = keywordCache.get(key);
+        CacheEntry<List<TradeStockBasic>> cached;
         long now = System.currentTimeMillis();
+        synchronized (keywordCache) {
+            cached = keywordCache.get(key);
+        }
         if (cached != null && now - cached.timestamp < CACHE_TTL_MS) {
             return cached.value;
         }
         List<TradeStockBasic> loaded = loader.get();
-        keywordCache.put(key, new CacheEntry<>(loaded, now));
+        synchronized (keywordCache) {
+            keywordCache.put(key, new CacheEntry<>(loaded, now));
+        }
         return loaded;
     }
 

@@ -85,7 +85,7 @@ app:
       callback-token: ${WECHAT_MP_CALLBACK_TOKEN:}
 
 baostock-sync:
-  enabled: true
+  enabled: false   # 已禁用（2026-07-07：同步耗时过长且频繁超时，内存压力过大）
   startup-enabled: false
   startup-days-back: 45
   daily-days-back: 30

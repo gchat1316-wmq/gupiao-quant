@@ -153,7 +153,7 @@ fi
 # 5. 启动应用
 # ============================================================
 echo "[5/8] 启动应用, 日志输出到 app.log ..."
-nohup java -jar "$JAR" \
+nohup java -Xmx512m -Xms512m -jar "$JAR" \
     --spring.profiles.active=default \
     > app.log 2>&1 &
 NEW_PID=$!
