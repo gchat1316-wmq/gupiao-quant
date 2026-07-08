@@ -69,7 +69,7 @@
     });
 
     document.getElementById('recapArticle')?.addEventListener('click', function (event) {
-      const btn = event.target.closest('[data-action="share"]');
+      const btn = event.target.closest('[data-action="share"], [data-action="pdf"]');
       if (!btn) return;
       shareCurrentRecap(btn);
     });
@@ -309,6 +309,12 @@
     // info line 只保留市场和情绪标签;日期已在顶部日期列表中展示,这里不再重复。
     const infoItems = [detail.market, detail.sentiment].filter(Boolean);
 
+    // 动态标题：方便浏览器标签页/书签识别；打印时作为默认文件名
+    document.title = (heading || '每日复盘') + ' | 投资助手';
+
+    // 构建复盘永久链接（用于分享/打印）
+    const recapUrl = 'https://aidaily.dpdns.org/gp/market-recap.html?id=' + encodeURIComponent(String(detail.id || ''));
+
     el.innerHTML =
       '<header class="recap-article-head">' +
         '<div class="recap-article-head-main">' +
@@ -322,11 +328,14 @@
               '</div>'
             : '') +
         '</div>' +
-        '<button class="recap-share-btn" type="button" data-action="share" title="分享这篇复盘">' +
-          '<span class="recap-share-icon" aria-hidden="true">↗</span>' +
-          '<span class="recap-share-label">分享</span>' +
+        '<button class="rq-action-btn rq-btn-share" type="button" data-action="share" title="复制链接分享">' +
+          '<span class="rq-btn-icon" aria-hidden="true">&#8599;</span><span class="rq-btn-label">分享</span>' +
+        '</button>' +
+        '<button class="rq-action-btn rq-btn-pdf" type="button" onclick="window.print()" title="导出 PDF">' +
+          '<span class="rq-btn-icon" aria-hidden="true">&#128196;</span><span class="rq-btn-label">PDF</span>' +
         '</button>' +
       '</header>' +
+      '<div class="recap-print-url" aria-hidden="true"><span class="recap-print-url-label">原文链接：</span><a class="recap-print-url-link" href="' + recapUrl + '">' + recapUrl + '</a></div>' +
       '<div class="rq-article-body">' + bodyHtml + '</div>';
   }
 

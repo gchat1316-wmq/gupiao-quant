@@ -967,7 +967,7 @@
 .recap-article-head {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   margin-bottom: 14px;
   padding-bottom: 12px;
   border-bottom: 1px solid #f0f2f5;
@@ -1055,6 +1055,129 @@
   font-weight: 600;
 }
 
+
+/* ── Share + PDF 按钮组 ─────────────────────────────────────────── */
+.recap-article-head {
+  flex-wrap: nowrap;
+}
+
+.rq-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  flex: 0 0 auto;
+  border: none;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* 分享按钮：醒目红色渐变 */
+.rq-btn-share {
+  background: linear-gradient(135deg, #e8315b, #c4183f);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(196, 24, 63, 0.38);
+}
+.rq-btn-share:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(196, 24, 63, 0.48);
+  background: linear-gradient(135deg, #f04068, #d41f4a);
+}
+.rq-btn-share:active {
+  transform: translateY(0);
+}
+.rq-btn-share.is-copied {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.38);
+}
+.rq-btn-share .rq-btn-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+/* PDF 按钮：蓝色系，辨识度高 */
+.rq-btn-pdf {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.38);
+}
+.rq-btn-pdf:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(59, 130, 246, 0.48);
+  background: linear-gradient(135deg, #60a5fa, #2563eb);
+}
+.rq-btn-pdf:active {
+  transform: translateY(0);
+}
+.rq-btn-pdf .rq-btn-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.rq-btn-label {
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .rq-action-btn {
+    height: 30px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+  .recap-article-head {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+}
+
+/* ── Print / PDF 导出样式 ─────────────────────────────────────────── */
+@media print {
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 12px;
+  }
+  #siteHeader, #siteFooter, .recap-timeline-card,
+  .rq-topbar, .rq-btn-share, .rq-btn-pdf,
+  .rq-status-card, .rq-list {
+    display: none !important;
+  }
+  .recap-article-head {
+    border-bottom: 1.5px solid #000;
+    margin-bottom: 16px;
+  }
+  .recap-article-head-title {
+    font-size: 20px;
+    white-space: normal !important;
+    color: #000 !important;
+  }
+  .rq-article-body {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+  .recap-oneliner {
+    border-left-color: #000 !important;
+    background: none !important;
+  }
+  .recap-oneliner-theme,
+  .recap-oneliner-point {
+    color: #000 !important;
+  }
+  a { color: #000 !important; text-decoration: none; }
+  @page {
+    margin: 16mm 14mm;
+    size: A4 portrait;
+  }
+}
+
+/* legacy */
 .recap-share-btn {
   display: inline-flex;
   align-items: center;
@@ -1137,11 +1260,161 @@
 }
 
 @media (max-width: 768px) {
-  .recap-share-btn {
+  
+/* ── Share + PDF 按钮组 ─────────────────────────────────────────── */
+.recap-article-head {
+  flex-wrap: nowrap;
+}
+
+.rq-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  flex: 0 0 auto;
+  border: none;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* 分享按钮：醒目红色渐变 */
+.rq-btn-share {
+  background: linear-gradient(135deg, #e8315b, #c4183f);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(196, 24, 63, 0.38);
+}
+.rq-btn-share:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(196, 24, 63, 0.48);
+  background: linear-gradient(135deg, #f04068, #d41f4a);
+}
+.rq-btn-share:active {
+  transform: translateY(0);
+}
+.rq-btn-share.is-copied {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.38);
+}
+.rq-btn-share .rq-btn-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+/* PDF 按钮：蓝色系，辨识度高 */
+.rq-btn-pdf {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.38);
+}
+.rq-btn-pdf:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(59, 130, 246, 0.48);
+  background: linear-gradient(135deg, #60a5fa, #2563eb);
+}
+.rq-btn-pdf:active {
+  transform: translateY(0);
+}
+.rq-btn-pdf .rq-btn-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.rq-btn-label {
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .rq-action-btn {
+    height: 30px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+  .recap-article-head {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+}
+
+/* ── Print / PDF 导出样式 ─────────────────────────────────────────── */
+@media print {
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 12px;
+  }
+  #siteHeader, #siteFooter, .recap-timeline-card,
+  .rq-topbar, .rq-btn-share, .rq-btn-pdf,
+  .rq-status-card, .rq-list {
+    display: none !important;
+  }
+  .recap-article-head {
+    border-bottom: 1.5px solid #000;
+    margin-bottom: 16px;
+  }
+  .recap-article-head-title {
+    font-size: 20px;
+    white-space: normal !important;
+    color: #000 !important;
+  }
+  .rq-article-body {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+  .recap-oneliner {
+    border-left-color: #000 !important;
+    background: none !important;
+  }
+  .recap-oneliner-theme,
+  .recap-oneliner-point {
+    color: #000 !important;
+  }
+  a { color: #000 !important; text-decoration: none; }
+  @page {
+    margin: 16mm 14mm;
+    size: A4 portrait;
+  }
+}
+
+/* legacy */
+.recap-share-btn {
     height: 30px;
     padding: 0 12px;
   }
   .recap-share-toast {
     bottom: 24px;
   }
+}
+
+/* ── PDF打印：首行原文链接 ───────────────────────────────────────── */
+.recap-print-url {
+  display: none;        /* 屏幕不显示 */
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed #ccc;
+}
+.recap-print-url-link {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+@media print {
+  .recap-print-url {
+    display: block;    /* 打印时显示 */
+  }
+  /* 打印标题：使用复盘真实标题 */
+  @page {
+    margin: 12mm 14mm 16mm;
+    size: A4 portrait;
+  }
+  /* 打印时 document.title 作为 PDF 文件名（浏览器默认行为） */
+  body { font-size: 12px; }
 }
