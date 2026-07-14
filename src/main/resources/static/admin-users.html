@@ -479,6 +479,9 @@
   <div id="adminApp"></div>
   <script src="js/layout.js?v=20260630-pm-v2" defer></script>
   <script src="js/admin-poolcrud.js?v=20260701-poolcrud-v1" defer></script>
+  <script src="js/admin-wishes.js?v=20260707-wishes-v1" defer></script>
+  <script src="https://unpkg.com/@wangeditor/editor@latest/dist/index.js"></script>
+  <script src="js/admin-xiebo-recent.js" defer></script>
   <script>
   document.addEventListener('DOMContentLoaded', async function () {
     await new Promise(r => setTimeout(r, 100));
@@ -528,6 +531,12 @@
           </div>
           <div class="sidebar-item" data-panel="quotes">
             💬 投资金句
+          </div>
+          <div class="sidebar-item" data-panel="wishes">
+            🌠 许愿池
+          </div>
+          <div class="sidebar-item" data-panel="xiebo-recent">
+            📌 近期关注
           </div>
         </nav>
 
@@ -1056,6 +1065,107 @@
           </div>
         </div>
 
+        <!-- 许愿池面板 -->
+        <div id="panel-wishes" class="panel">
+          <div class="page-header">
+            <div class="page-title">🌠 许愿池</div>
+            <div class="page-subtitle">用户在页面右下角留下的愿望 · 可回复并勾选是否在右下角公开轮播</div>
+          </div>
+
+          <div class="admin-section">
+            <div class="admin-section-title">
+              📊 状态概览
+              <span class="section-tag" id="wishAdminCounts">—</span>
+            </div>
+            <div class="quote-admin-toolbar">
+              <label>状态：
+                <select id="wishAdminStatusSel" class="form-input" style="width:auto;display:inline-block">
+                  <option value="">全部</option>
+                  <option value="PENDING">待回复</option>
+                  <option value="REPLIED">已回复</option>
+                  <option value="ARCHIVED">已归档</option>
+                </select>
+              </label>
+              <input id="wishAdminSearchInput" type="text" class="form-input" placeholder="搜索愿望 / 邮箱 / 回复…" />
+              <button type="button" class="btn-sm" id="wishAdminSearchBtn">🔍 搜索</button>
+              <span class="msg" id="wishAdminListMsg"></span>
+            </div>
+            <table class="quote-admin-table">
+              <thead>
+                <tr>
+                  <th style="width:30%">愿望</th>
+                  <th style="width:11%">邮箱 / IP</th>
+                  <th style="width:24%">回复</th>
+                  <th style="width:7%">状态</th>
+                  <th style="width:7%">展示</th>
+                  <th style="width:9%">时间</th>
+                  <th style="width:12%">操作</th>
+                </tr>
+              </thead>
+              <tbody id="wishAdminTableBody">
+                <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:20px">加载中…</td></tr>
+              </tbody>
+            </table>
+            <div class="quote-admin-pager">
+              <button type="button" class="btn-sm" id="wishAdminPrevPageBtn">‹ 上一页</button>
+              <span id="wishAdminPageInfo" class="quote-admin-page-info">第 1 / 1 页</span>
+              <button type="button" class="btn-sm" id="wishAdminNextPageBtn">下一页 ›</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 近期关注股票面板 -->
+        <div id="panel-xiebo-recent" class="panel">
+          <div class="page-header">
+            <div class="page-title">📌 近期关注股票</div>
+            <div class="page-subtitle">谢博近期关注股票列表，支持 CRUD + 笔记编辑</div>
+          </div>
+          <div class="admin-section">
+            <div class="admin-section-title">📋 股票列表</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+              <button id="xiebo-recent-add-btn" class="primary-btn">+ 新增股票</button>
+            </div>
+            <table id="admin-xiebo-recent-table" class="quote-admin-table">
+              <thead>
+                <tr><th>股票代码</th><th>股票名称</th><th>分类</th><th>添加时间</th><th>操作</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 新增/编辑股票 modal -->
+        <div id="xiebo-recent-stock-modal" class="modal" hidden>
+          <div class="modal-content">
+            <h3 id="xiebo-recent-modal-title">新增股票</h3>
+            <label>股票代码: <input type="text" id="xiebo-recent-stock-code" maxlength="16" /></label><br>
+            <label>股票名称: <input type="text" id="xiebo-recent-stock-name" maxlength="64" /></label><br>
+            <label>分类:
+              <select id="xiebo-recent-stock-type">
+                <option value="科技AI">科技AI</option>
+                <option value="创新药">创新药</option>
+                <option value="质量优选">质量优选</option>
+              </select>
+            </label><br><br>
+            <div style="text-align:right;">
+              <button id="xiebo-recent-modal-cancel" class="secondary-btn">取消</button>
+              <button id="xiebo-recent-modal-save" class="primary-btn">保存</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 编辑笔记 modal -->
+        <div id="xiebo-recent-note-modal" class="modal" hidden>
+          <div class="modal-content" style="max-width:800px;">
+            <h3>学习笔记</h3>
+            <div id="xiebo-recent-note-editor" style="min-height:300px;background:#fff;border:1px solid #ccc;padding:8px;"></div>
+            <div style="text-align:right;margin-top:12px;">
+              <button id="xiebo-recent-note-cancel" class="secondary-btn">取消</button>
+              <button id="xiebo-recent-note-save" class="primary-btn">保存</button>
+            </div>
+          </div>
+        </div>
+
       </main>
     </div>`;
 
@@ -1083,6 +1193,14 @@
         if (item.dataset.panel === 'poolcrud' && !window._poolCrudLoaded) {
           window._poolCrudLoaded = true;
           initPoolCrudPanel();
+        }
+        if (item.dataset.panel === 'wishes' && !window._wishesLoaded) {
+          window._wishesLoaded = true;
+          if (typeof initWishAdminPanel === 'function') initWishAdminPanel();
+        }
+        if (item.dataset.panel === 'xiebo-recent' && !window._xieboRecentLoaded) {
+          window._xieboRecentLoaded = true;
+          if (typeof initXieboRecentPanel === 'function') initXieboRecentPanel();
         }
       });
     });
