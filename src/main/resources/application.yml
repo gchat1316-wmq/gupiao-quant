@@ -183,6 +183,13 @@ journal:
   refresh-cron: "0 30 15 * * MON-FRI"
   refresh-enabled: true
 
+daily-recap:
+  enabled: true
+  # A股: 每个交易日下午 16:00
+  a-cron: "0 0 16 * * MON-FRI"
+  # 美股: 每个交易日上午 07:30（北京）
+  us-cron: "0 30 7 * * MON-FRI"
+
 ai:
   fallback-to-mock: true            # AI 调用失败时是否回退到 mock 数据
   minimax:
