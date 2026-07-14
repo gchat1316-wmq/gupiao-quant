@@ -208,6 +208,10 @@ ai:
     timeout-seconds: 30
     max-results: 5
 
+xiebo-recent-alert:
+  enabled: true
+  cron: "0 */5 9-15 * * MON-FRI"
+
 logging:
   level:
     root: INFO

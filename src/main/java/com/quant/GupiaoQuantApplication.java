@@ -10,10 +10,11 @@ import com.quant.config.BaostockSyncProperties;
 import com.quant.config.InvestBigYangProperties;
 import com.quant.config.JournalProperties;
 import com.quant.config.NotificationProperties;
+import com.quant.config.XieboRecentAlertProperties;
 
 @SpringBootApplication
 @EnableScheduling
-@EnableConfigurationProperties({AiProperties.class, NotificationProperties.class, BaostockSyncProperties.class, InvestBigYangProperties.class, JournalProperties.class})
+@EnableConfigurationProperties({AiProperties.class, NotificationProperties.class, BaostockSyncProperties.class, InvestBigYangProperties.class, JournalProperties.class, XieboRecentAlertProperties.class})
 public class GupiaoQuantApplication {
 
     public static void main(String[] args) {
