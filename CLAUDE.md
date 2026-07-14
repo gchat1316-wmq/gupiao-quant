@@ -24,6 +24,7 @@ A Spring Boot 3 multi-module investment tools monolith, deployed at `https://aid
 | 用户股票池 | `controller/UserPoolController` | User-defined pool (admin-managed via `admin-users.html`) |
 | 估值 | `controller/ValuationController`, `service/Ps10ValuationService` | PS-10 valuation calc |
 | 周报机会 | `service/InvestWeeklyOpportunityService`, `sql/invest_weekly_opportunity_slot.sql` | Weekly opportunity slot |
+| 近期关注(谢博) | `controller/XieboRecentController.java`,`static/invest.html` 第 4 tab | 管理员维护股票池 + 用户个性化 5 价格阈值订阅 + Server酱推送 |
 
 Additional cross-cutting surfaces: 认证 (`security/` + `controller/AuthController` + `controller/TdxAuthController`), 统计 (`controller/StatsController`, entities `PageViewStat`/`UserDailyStat`), 大阳线战法 (`InvestBigYang*`), 实用选股 (`PracticalSelect*`), 潜力股 (`PotentialController`).
 
