@@ -30,4 +30,5 @@ public class MarketRecapDetailDTO {
     private List<KeyDataItemDTO> keyData;
     private List<StrategyItemDTO> nextDayStrategy;
     private String contentHtml;
+    private MultiDayEvaluationDTO multiDayEvaluation;
 }

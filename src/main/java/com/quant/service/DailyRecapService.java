@@ -179,35 +179,49 @@ public class DailyRecapService {
     }
 
     private String buildPrompt(String market, Map<String, Object> data) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("请为 ").append(market).append(" 生成今日（")
-                .append(LocalDate.now().format(DateTimeFormatter.ISO_DATE))
-                .append("）每日复盘。\n\n数据如下：\n");
-        sb.append("```json\n");
-        sb.append(toPrettyJson(data));
-        sb.append("\n```\n\n");
-        sb.append("请返回以下格式的纯 JSON（不包含 markdown 代码块包裹）：\n\n");
-        sb.append("{\n");
-        sb.append("  \"title\": \"复盘标题，如：【A股复盘】2026-07-14 强势普涨\",\n");
-        sb.append("  \"content\": \"Markdown 格式的完整复盘正文（可包含表格、加粗等Markdown语法）\",\n");
-        sb.append("  \"indexes_summary\": \"指数涨跌摘要，如：上证 +1.36% | 深证 +2.77% | 创业板 +3.43%\",\n");
-        sb.append("  \"advance_decline\": \"涨跌家数，如：涨2100/跌900\",\n");
-        sb.append("  \"limit_up\": 涨停数（整数），\n");
-        sb.append("  \"limit_down\": 跌停数（整数），\n");
-        sb.append("  \"sentiment\": \"市场情绪定性，如：强势普涨｜创业板领涨\",\n");
-        sb.append("  \"sectors\": \"主线板块（多选，逗号分隔）\",\n");
-        sb.append("  \"risks\": \"风险提示（最多4条，分号分隔）\",\n");
-        sb.append("  \"key_data\": \"关键数字（如：创业板 +3.43% 成交 X 亿），分号分隔\",\n");
-        sb.append("  \"catalysts\": \"催化事件（逗号分隔），如无填「暂无」\",\n");
-        sb.append("  \"next_day_strategy\": \"次日策略建议，50字以内\"\n");
-        sb.append("}\n\n");
-        sb.append("注意：\n");
-        sb.append("- content 为 Markdown 格式，包含九大模块：指数快照、市场温度、板块结构、");
-        sb.append("涨停分析、跌停分析、科技动态、催化事件、风险提示、次日策略\n");
-        sb.append("- 各整数字段（limit_up/down）如实填写，没有则填 0\n");
-        sb.append("- 不要输出除 JSON 以外任何内容");
-        return sb.toString();
+        String prompt = "请为 " + market + " 生成今日（" + LocalDate.now().format(DateTimeFormatter.ISO_DATE) + "）每日复盘。\n\n"
+            + "数据如下：\n```json\n" + toPrettyJson(data) + "\n```\n\n"
+            + "请返回以下格式的纯 JSON（不包含 markdown 代码块包裹）：\n\n"
+            + "{\n"
+            + "  \"title\": \"复盘标题，如：【A股复盘】2026-07-14 强势普涨\",\n"
+            + "  \"content\": \"Markdown 格式的完整复盘正文（可包含表格、加粗等Markdown语法）\",\n"
+            + "  \"indexes_summary\": \"指数涨跌摘要，如：上证 +1.36% | 深证 +2.77% | 创业板 +3.43%\",\n"
+            + "  \"advance_decline\": \"涨跌家数，如：涨2100/跌900\",\n"
+            + "  \"limit_up\": 涨停数（整数），\n"
+            + "  \"limit_down\": 跌停数（整数），\n"
+            + "  \"sentiment\": \"市场情绪定性，如：强势普涨｜创业板领涨\",\n"
+            + "  \"sectors\": \"主线板块（多选，逗号分隔）\",\n"
+            + "  \"risks\": \"风险提示（最多4条，分号分隔）\",\n"
+            + "  \"key_data\": \"关键数字（如：创业板 +3.43% 成交 X 亿），分号分隔\",\n"
+            + "  \"catalysts\": \"催化事件（逗号分隔），如无填「暂无」\",\n"
+            + "  \"next_day_strategy\": \"次日策略建议，50字以内\",\n"
+            + "  \"multi_day_evaluation\": {\n"
+            + "    \"dimensions\": \"涨停持续性(30%)、资金持续性(20%)、连板递进(20%)、抗跌性(15%)、催化持续性(15%)\",\n"
+            + "    \"concepts\": [\n"
+            + "      {\n"
+            + "        \"name\": \"概念名称\",\n"
+            + "        \"total_score\": 3.95,\n"
+            + "        \"label\": \"主线\",\n"
+            + "        \"scores\": {\n"
+            + "          \"limit_up_persistence\": 0.9,\n"
+            + "          \"capital_persistence\": 0.8,\n"
+            + "          \"board_progression\": 0.75,\n"
+            + "          \"resilience\": 0.8,\n"
+            + "          \"catalyst_persistence\": 0.7\n"
+            + "        },\n"
+            + "        \"detail\": [\"7/8 哈药涨停、7/9 立方制药涨停、7/10 宏桥集团涨停\", \"7/11-7/14 哈药持续高位横盘，资金锁仓\"]\n"
+            + "      }\n"
+            + "    ]\n"
+            + "  }\n"
+            + "}\n\n"
+            + "注意：\n"
+            + "- content 为 Markdown 格式，包含九大模块：指数快照、市场温度、板块结构、涨停分析、跌停分析、科技动态、催化事件、风险提示、次日策略\n"
+            + "- 多日强弱评估：对近5个交易日出现过的强势概念（如创新药、算力PCB、中报预增、机器人、商业航天等）逐一评分，判断是否主线（>=3.5）、观察期（2.0-3.5）还是一日游（<2.0）\n"
+            + "- 各整数字段（limit_up/down）如实填写，没有则填 0\n"
+            + "- 不要输出除 JSON 以外任何内容";
+        return prompt;
     }
+
 
     private String toPrettyJson(Object data) {
         try {
@@ -258,6 +272,7 @@ public class DailyRecapService {
             recap.setKeyData(nullSafe(node.path("key_data").asText("")));
             recap.setCatalysts(nullSafe(node.path("catalysts").asText("")));
             recap.setNextDayStrategy(nullSafe(node.path("next_day_strategy").asText("")));
+            recap.setMultiDayEvaluation(toJsonOrNull(node.path("multi_day_evaluation")));
         } catch (Exception e) {
             log.warn("AI 返回 JSON 解析失败，使用骨架 market={} err={}", market, e.getMessage());
             recap.setTitle("【" + market + " 复盘】" + LocalDate.now());
@@ -268,5 +283,14 @@ public class DailyRecapService {
 
     private static String nullSafe(String s) {
         return s == null ? "" : s;
+    }
+
+    private String toJsonOrNull(JsonNode node) {
+        if (node == null || node.isNull() || node.isMissingNode()) return null;
+        try {
+            return objectMapper.writeValueAsString(node);
+        } catch (Exception e) {
+            return null;
+        }
     }
 }
