@@ -59,6 +59,10 @@ public class User {
     @Column(nullable = false)
     private Boolean notifyPhone = false;
 
+    /** 默认 Server酱 SendKey — 给近期关注等模块订阅 fallback 用 */
+    @Column(name = "serverchan_send_key", length = 64)
+    private String serverchanSendKey;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
