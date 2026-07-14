@@ -37,6 +37,8 @@ public class SchemaInitializer implements CommandLineRunner {
         ensureUserNotificationLogTable();
         bootstrapFirstAdmin();
         ensureXieboInvestTables();
+        ensureXieboRecentTables();
+        ensureAuthUserServerchanKeyColumn();
         ensureInvestAlertTable();
         ensureInvestBigYangSignalTable();
         ensureStockAnalysisTable();
@@ -63,6 +65,7 @@ public class SchemaInitializer implements CommandLineRunner {
         ensureMonitorFusionColumns();
         ensureInvestQuoteTable();
         ensureJournalTables();
+        ensureWishPoolTable();
     }
 
     // ── 认证相关表 ───────────────────────────────────────
@@ -432,6 +435,89 @@ public class SchemaInitializer implements CommandLineRunner {
             log.info("xiebo invest tables are ready");
         } catch (Exception e) {
             log.warn("检查 xiebo invest 表失败 (可忽略): {}", e.getMessage());
+        }
+    }
+
+    private void ensureXieboRecentTables() {
+        try {
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS invest_xiebo_recent_watch (
+                    stock_code          VARCHAR(16) PRIMARY KEY,
+                    stock_name          VARCHAR(64) NOT NULL,
+                    type                VARCHAR(16) NOT NULL COMMENT '科技AI|创新药|质量优选',
+                    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    created_by_admin_id BIGINT NULL,
+                    updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_recent_watch_type (type),
+                    INDEX idx_recent_watch_created (created_at DESC)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """);
+            log.info("invest_xiebo_recent_watch 表已就绪");
+        } catch (Exception e) {
+            log.warn("检查 invest_xiebo_recent_watch 表失败 (可忽略): {}", e.getMessage());
+        }
+        try {
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS invest_xiebo_stock_note (
+                    stock_code          VARCHAR(16) PRIMARY KEY,
+                    note_html           LONGTEXT NULL,
+                    updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    updated_by_admin_id BIGINT NULL,
+                    CONSTRAINT fk_stock_note_stock FOREIGN KEY (stock_code)
+                        REFERENCES invest_xiebo_recent_watch(stock_code) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """);
+            log.info("invest_xiebo_stock_note 表已就绪");
+        } catch (Exception e) {
+            log.warn("检查 invest_xiebo_stock_note 表失败 (可忽略): {}", e.getMessage());
+        }
+        try {
+            jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS user_stock_subscription (
+                    id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+                    user_id         BIGINT NOT NULL,
+                    stock_code      VARCHAR(16) NOT NULL,
+                    enabled         TINYINT(1) NOT NULL DEFAULT 0,
+                    status          VARCHAR(16) NOT NULL DEFAULT '关注',
+                    status_updated_at DATETIME NULL,
+                    price_buy           DECIMAL(10,2) NULL,
+                    price_stop_loss     DECIMAL(10,2) NULL,
+                    price_add_position  DECIMAL(10,2) NULL,
+                    price_reduce_position DECIMAL(10,2) NULL,
+                    price_clear_position  DECIMAL(10,2) NULL,
+                    alert_buy_triggered_at           DATETIME NULL,
+                    alert_stop_loss_triggered_at     DATETIME NULL,
+                    alert_add_position_triggered_at  DATETIME NULL,
+                    alert_reduce_position_triggered_at DATETIME NULL,
+                    alert_clear_position_triggered_at  DATETIME NULL,
+                    serverchan_send_key VARCHAR(64) NULL,
+                    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    version         INT NOT NULL DEFAULT 0,
+                    UNIQUE KEY uk_user_stock (user_id, stock_code),
+                    INDEX idx_user (user_id),
+                    INDEX idx_stock (stock_code),
+                    INDEX idx_enabled (enabled, stock_code)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """);
+            log.info("user_stock_subscription 表已就绪");
+        } catch (Exception e) {
+            log.warn("检查 user_stock_subscription 表失败 (可忽略): {}", e.getMessage());
+        }
+    }
+
+    private void ensureAuthUserServerchanKeyColumn() {
+        Integer count = jdbc.queryForObject(
+            "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() " +
+            "AND table_name = 'auth_user' AND column_name = 'serverchan_send_key'",
+            Integer.class);
+        if (count == null || count == 0) {
+            try {
+                jdbc.execute("ALTER TABLE auth_user ADD COLUMN serverchan_send_key VARCHAR(64) NULL COMMENT '默认 Server酱 SendKey'");
+                log.info("auth_user.serverchan_send_key 列已添加");
+            } catch (Exception e) {
+                log.warn("添加 auth_user.serverchan_send_key 列失败: " + e.getMessage());
+            }
         }
     }
 
@@ -1139,6 +1225,40 @@ public class SchemaInitializer implements CommandLineRunner {
             } catch (Exception e) {
                 log.warn("检查 invest_position_common.{} 列失败 (可忽略): {}", col[0], e.getMessage());
             }
+        }
+    }
+
+    // ── 许愿池表 ─────────────────────────────────────────────
+
+    /**
+     * 许愿池留言表。详见 {@link com.quant.entity.WishPool}。
+     * 列名 display_flag 与 Java 字段 displayFlag 对应(避开 DDL 上 display 关键字歧义)。
+     */
+    private void ensureWishPoolTable() {
+        String ddl = """
+            CREATE TABLE IF NOT EXISTS wish_pool (
+                id           BIGINT PRIMARY KEY AUTO_INCREMENT,
+                wish         VARCHAR(500) NOT NULL,
+                page         VARCHAR(120) DEFAULT NULL,
+                email        VARCHAR(120) DEFAULT NULL,
+                ip           VARCHAR(45)  DEFAULT NULL,
+                status       VARCHAR(20)  NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/REPLIED/ARCHIVED',
+                reply        TEXT         DEFAULT NULL,
+                reply_by     VARCHAR(50)  DEFAULT NULL,
+                reply_at     DATETIME     DEFAULT NULL,
+                display_flag TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '右下角公开轮播开关',
+                created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_wp_status_created (status, created_at),
+                INDEX idx_wp_display_reply_at (display_flag, reply_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+              COMMENT='许愿池留言'
+            """;
+        try {
+            jdbc.execute(ddl);
+            log.info("wish_pool 表已就绪");
+        } catch (Exception e) {
+            log.warn("检查 wish_pool 表失败 (可忽略): {}", e.getMessage());
         }
     }
 }
