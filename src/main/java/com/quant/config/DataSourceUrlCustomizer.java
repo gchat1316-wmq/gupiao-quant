@@ -23,16 +23,33 @@ public class DataSourceUrlCustomizer implements EnvironmentPostProcessor {
         if (!sslOn) return;
 
         String currentUrl = env.getProperty("spring.datasource.url");
-        if (currentUrl == null || currentUrl.isBlank() || currentUrl.contains("useSSL=true")) return;
+        if (currentUrl == null || currentUrl.isBlank()) return;
 
-        String rewritten = currentUrl
+        boolean alreadySsl = currentUrl.contains("useSSL=true");
+        if (alreadySsl) return;                  // re-entrant, no-op
+
+        String rewritten;
+        if (!currentUrl.contains("useSSL=")) {
+            // URL has no useSSL= param — inject it
+            rewritten = currentUrl.contains("?")
+                ? currentUrl + "&useSSL=true&requireSSL=true"
+                : currentUrl + "?useSSL=true&requireSSL=true";
+        } else {
+            // URL has useSSL= but not =true — replace
+            rewritten = currentUrl
                 .replace("useSSL=false", "useSSL=true&requireSSL=true")
                 .replace("allowPublicKeyRetrieval=true&", "")
                 .replace("&allowPublicKeyRetrieval=true", "")
                 .replace("?allowPublicKeyRetrieval=true&", "?");
+        }
 
-        Map<String, Object> map = new HashMap<>();
-        map.put("spring.datasource.url", rewritten);
-        env.getPropertySources().addFirst(new MapPropertySource("dbSslCustomizer", map));
+        if (rewritten.equals(currentUrl)) {
+            System.out.println("[DataSourceUrlCustomizer] DB_USE_SSL=true but URL had no recognizable SSL param; passing through unchanged");
+        } else {
+            System.out.println("[DataSourceUrlCustomizer] DB_USE_SSL=true → rewrote spring.datasource.url");
+            Map<String, Object> map = new HashMap<>();
+            map.put("spring.datasource.url", rewritten);
+            env.getPropertySources().addFirst(new MapPropertySource("dbSslCustomizer", map));
+        }
     }
 }
