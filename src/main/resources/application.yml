@@ -12,7 +12,7 @@ spring:
   datasource:
     url: jdbc:mysql://43.140.208.165:3306/wucai_trade?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:wmq534@126.com}
+    password: ${DB_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 20
@@ -58,7 +58,8 @@ app:
   render-pdf-script: ${RENDER_PDF_SCRIPT:scripts/render_pdf.py}
   # JWT 认证
   jwt:
-    secret: ${JWT_SECRET:change-this-secret-key-in-production-please}
+    # IMPORTANT: empty default; runtime fails-fast if profile != local (see StartupConfigValidator)
+    secret: ${JWT_SECRET:}
     expire-hours: 24
   sms:
     code-expire-minutes: 5
@@ -128,7 +129,7 @@ prosperity-strong:
     connector-dir: ${TDX_CONNECTOR_DIR:${user.home}/.workbuddy/connectors-marketplace/connectors/tdx-connector}
     # TDX API Key 直调模式（不走 OAuth, 通过 tdx-api-key header 鉴权）
     mcp-url: https://mcp.tdx.com.cn:3001/mcp
-    api-key: TDX-c62ebd01bf6634d29f6fb84019f81761
+    api-key: ${TDX_API_KEY:}
 
 invest-big-yang:
   enabled: true
@@ -153,7 +154,7 @@ invest-pool:
 notification:
   serverchan:
     enabled: true
-    send-key: ${SERVER_CHAN_SEND_KEY:SCT354970T4GcZL9UbymUFDnOnhn0z4Y8C}
+    send-key: ${SERVER_CHAN_SEND_KEY:}
     base-url: https://sctapi.ftqq.com
     timeout-seconds: 10
   quote-monitor:
@@ -176,7 +177,7 @@ notification:
       - potential
   wish-pool:
     enabled: true
-    webhook-url: ${WISH_POOL_FEISHU_WEBHOOK_URL:https://open.feishu.cn/open-apis/bot/v2/hook/a4c6882a-b4f9-438f-ad58-5f150b2730e3}
+    webhook-url: ${WISH_POOL_FEISHU_WEBHOOK_URL:}
     timeout-seconds: 10
 
 journal:
@@ -195,7 +196,7 @@ ai:
   minimax:
     enabled: true                  # 填入 api-key 后改为 true
     base-url: https://api.minimaxi.com/anthropic/v1
-    api-key: ${AI_MINIMAX_KEY:4SzPnZuXeVOtJayrrdEACoxKWZ6npFsdClX5sAGQp3Rhk}       # 环境变量 AI_MINIMAX_KEY
+    api-key: ${AI_MINIMAX_KEY:}       # 环境变量 AI_MINIMAX_KEY
     group-id: ""                    # 可选: 部分账号需要 group id
     model: MiniMax-M2.7-highspeed       # 可改为 abab6.5s-chat 等其它型号
     timeout-seconds: 90
@@ -203,7 +204,7 @@ ai:
   sensenova:
     enabled: true                  # 填入 api-key 后改为 true
     base-url: https://token.sensenova.cn/v1
-    api-key: ${SENSENOVA_API_KEY:${AI_SENSENOVA_KEY:sk-tNFEPGZZeyZqNDn13ma3BbJzkdFqzJX8}}     # 环境变量 SENSENOVA_API_KEY / AI_SENSENOVA_KEY
+    api-key: ${SENSENOVA_API_KEY:${AI_SENSENOVA_KEY:}}     # 环境变量 SENSENOVA_API_KEY / AI_SENSENOVA_KEY
     image-model: sensenova-u1-fast
     chat-model: deepseek-v4-flash   # 用于 AI 详解文本生成
     image-size: "2752x1536"
@@ -211,7 +212,7 @@ ai:
   tavily:
     enabled: true
     base-url: https://api.tavily.com
-    api-key: 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
+    api-key: ${TAVILY_API_KEY:}
     timeout-seconds: 30
     max-results: 5
 
