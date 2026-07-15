@@ -6,6 +6,7 @@ import com.quant.dto.marketrecap.KeyDataItemDTO;
 import com.quant.dto.marketrecap.MarketRecapDetailDTO;
 import com.quant.dto.marketrecap.MarketRecapPageDTO;
 import com.quant.dto.marketrecap.MarketRecapSummaryDTO;
+import com.quant.dto.marketrecap.MultiDayEvaluationDTO;
 import com.quant.dto.marketrecap.SectorCardDTO;
 import com.quant.dto.marketrecap.StrategyItemDTO;
 import com.quant.dto.marketrecap.MarketRecapBadgeDTO;
@@ -183,6 +184,7 @@ public class MarketRecapService {
                 .keyData(parseKeyData(recap.getKeyData()))
                 .nextDayStrategy(parseStrategy(recap.getNextDayStrategy()))
                 .contentHtml(renderMarkdown(recap.getContent()))
+                .multiDayEvaluation(parseMultiDayEvaluation(recap.getMultiDayEvaluation()))
                 .build();
     }
 
@@ -286,6 +288,16 @@ public class MarketRecapService {
             return List.of(StrategyItemDTO.builder().label("策略").value(raw.trim()).build());
         }
         return List.of();
+    }
+
+    private MultiDayEvaluationDTO parseMultiDayEvaluation(String raw) {
+        JsonNode root = readJsonNode(raw);
+        if (root == null || !root.has("concepts")) return null;
+        try {
+            return objectMapper.treeToValue(root, MultiDayEvaluationDTO.class);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /** 匹配 markdown 渲染后的「一句话定性」blockquote。DOTALL 以容纳跨行内容。 */

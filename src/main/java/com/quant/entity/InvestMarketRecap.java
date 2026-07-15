@@ -70,6 +70,9 @@ public class InvestMarketRecap {
     @Column(name = "next_day_strategy", columnDefinition = "TEXT")
     private String nextDayStrategy;
 
+    @Column(name = "multi_day_evaluation", columnDefinition = "TEXT")
+    private String multiDayEvaluation;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
