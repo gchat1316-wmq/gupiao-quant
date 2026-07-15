@@ -18,6 +18,29 @@
 | 数据库 | MySQL 8.0 (utf8mb4) |
 | 前端 | 原生 HTML5 + CSS3 + 原生 JS + Chart.js 4 (CDN) |
 
+## 安全与密钥
+
+> ⚠️  本项目强制要求：所有真实密钥必须通过环境变量传入，禁止落到仓库。
+
+### 本地开发
+
+```bash
+cp src/main/resources/application-local.yml.example \
+   src/main/resources/application-local.yml
+# 编辑 application-local.yml，填入本地 DB 密码 / dev API key
+mvn spring-boot:run -Dspring-boot.run.profiles=local
+```
+
+### 生产部署
+
+将所有运维密钥放在 `/etc/gupiao-quant/secrets.env`（详见 `deploy/secrets.env.example`）。
+`restart.sh` 会自动 source 该文件，并把 Spring profile 切到 `prod`。
+任何缺失的密钥会让启动直接失败（见 `StartupConfigValidator`），而不是静默降级。
+
+### 已泄漏密钥轮换
+
+参见 `docs/superpowers/plans/2026-07-15-secret-rotation-checklist.md`。
+
 ## 快速开始
 
 ### 1. 初始化数据库
