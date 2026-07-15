@@ -128,6 +128,20 @@ echo "      ✓ 构建成功: $JAR_SIZE"
 # ============================================================
 # 4. 加固 #8: Git 漂移检测 (源码 vs jar)
 # ============================================================
+# ============================================================
+# 4.5 加载运维密钥文件（可选；不存在则不报错，使用 application.yml 中的 ${ENV:} 占位）
+# ============================================================
+SECRETS_FILE="/etc/gupiao-quant/secrets.env"
+if [ -f "$SECRETS_FILE" ]; then
+    set -a
+    # shellcheck disable=SC1090
+    . "$SECRETS_FILE"
+    set +a
+    echo "      ✓ 已加载运维密钥文件: $SECRETS_FILE"
+else
+    echo "      (未找到 $SECRETS_FILE, 沿用 application.yml 占位)"
+fi
+
 echo "[4/8] Git 漂移检测 ..."
 if command -v git >/dev/null 2>&1 && [ -d .git ]; then
     UNCOMMITTED=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' \n')
@@ -154,7 +168,7 @@ fi
 # ============================================================
 echo "[5/8] 启动应用, 日志输出到 app.log ..."
 nohup java -Xmx512m -Xms512m -jar "$JAR" \
-    --spring.profiles.active=default \
+    --spring.profiles.active=prod \
     > app.log 2>&1 &
 NEW_PID=$!
 echo "$NEW_PID" > "$PID_FILE"

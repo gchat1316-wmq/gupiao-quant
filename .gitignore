@@ -86,6 +86,13 @@ application-local.properties
 secrets/
 
 # ======================================
+# deploy/ 目录下的真实密钥文件
+# ======================================
+deploy/.env
+deploy/*.env
+deploy/secrets.env
+
+# ======================================
 # Profile-specific application 配置（绝对不能提交）
 # ======================================
 application-prod.yml
