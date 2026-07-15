@@ -139,13 +139,20 @@ public class DailyRecapService {
                 : new String[]{"python3", "scripts/daily_recap/fetch_data.py", "--market", "美股"};
 
         ProcessBuilder pb = new ProcessBuilder(cmd);
-        pb.redirectErrorStream(true);
+        pb.redirectErrorStream(false);                       // stdout / stderr 解耦,避免 Python warning 污染 JSON 解析
         Process process = pb.start();
+
+        // 立即吞掉 stderr —— 否则子进程可能因 stderr 缓冲区满阻塞
+        String stderrBuf;
+        try (BufferedReader errReader = new BufferedReader(
+                new InputStreamReader(process.getErrorStream(), StandardCharsets.UTF_8))) {
+            stderrBuf = errReader.lines().collect(Collectors.joining("\n"));
+        }
 
         String output;
         try (BufferedReader r = new BufferedReader(
                 new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
-            output = r.lines().collect(Collectors.joining());
+            output = r.lines().collect(Collectors.joining("\n"));
         }
 
         boolean done = process.waitFor(60, java.util.concurrent.TimeUnit.SECONDS);
@@ -154,10 +161,24 @@ public class DailyRecapService {
             throw new RuntimeException("Python 采集超时 (60s)");
         }
         if (process.exitValue() != 0) {
-            throw new RuntimeException("Python 采集失败 exit=" + process.exitValue() + ": " + output);
+            throw new RuntimeException("Python 采集失败 exit=" + process.exitValue()
+                    + " stderr=" + stderrBuf);
+        }
+        if (!stderrBuf.isBlank()) {
+            log.warn("python stderr:\n{}", stderrBuf);
         }
 
-        return objectMapper.readValue(output, LinkedHashMap.class);
+        // JSON 解析失败时把 stdout / stderr 摘要一起抛出,方便排查
+        try {
+            return objectMapper.readValue(output, LinkedHashMap.class);
+        } catch (com.fasterxml.jackson.core.JsonParseException e) {
+            String stderrPreview = stderrBuf.length() > 500
+                    ? stderrBuf.substring(0, 500) + "..." : stderrBuf;
+            String stdoutPreview = output.length() > 200
+                    ? output.substring(0, 200) + "..." : output;
+            throw new RuntimeException("Python stdout 非 JSON. stdoutHead=" + stdoutPreview
+                    + " stderrHead=" + stderrPreview, e);
+        }
     }
 
     // ── AI 生成 ───────────────────────────────────────────────────────────────

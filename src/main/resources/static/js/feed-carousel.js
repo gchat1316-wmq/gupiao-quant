@@ -5,7 +5,7 @@
  * - 启动时并发拉 5 个数据源，按 ts 倒序合并
  * - 5s 自动切换下一条（hover 暂停）
  * - 每个 slide 左侧带类型 tag（金句 / 通知子类型）
- * - 通知类 hover 时右侧滑出「调整」按钮 → 跳对应管理页
+ * - 通知类 hover 时右侧滑出「查看」按钮 → 跳对应管理页
  * - 点击 slide 主体 → 跳对应前台页（金句 → study.html；通知 → 原 href）
  * - 左右箭头、底部小圆点、键盘左右、触屏滑动均支持
  */
@@ -26,7 +26,7 @@
     ai:       { label: 'AI 监控',  cls: 'type-ai'       },
   };
 
-  // 通知类条目：默认跳转 + 「调整」按钮跳转
+  // 通知类条目：默认跳转 + 「查看」按钮跳转
   const NOTIF_HREF = {
     recap:    'market-recap.html',
     analysis: 'prosperity-pick.html',
@@ -98,7 +98,7 @@
           content: q.content || '',
           meta: [q.author, q.source ? '《' + q.source + '》' : ''].filter(Boolean).join(' · '),
           href: 'study.html?kw=' + encodeURIComponent((q.content || '').slice(0, 12)),
-          adminHref: '',   // 金句不显示「调整」按钮（点击主体即跳转 study）
+          adminHref: '',   // 金句不显示「查看」按钮（点击主体即跳转 study）
           ts: q.updatedAt || q.createdAt || '',
           _raw: q,
         }));
@@ -219,7 +219,7 @@
   function buildSlide(it) {
     const t = TYPE[it.type] || { label: '信息', cls: 'type-quote' };
     const actionBtn = it.adminHref
-      ? '<button class="feed-action" type="button" data-admin-href="' + esc(it.adminHref) + '" aria-label="调整' + esc(t.label) + '">调整</button>'
+      ? '<button class="feed-action" type="button" data-admin-href="' + esc(it.adminHref) + '" aria-label="查看' + esc(t.label) + '">查看</button>'
       : '';
     return ''
       + '<div class="feed-slide" data-type="' + esc(it.type) + '"' + (it.href ? ' data-href="' + esc(it.href) + '"' : '') + '>'
@@ -263,7 +263,7 @@
   prev.addEventListener('click', () => go(index - 1, true));
   next.addEventListener('click', () => go(index + 1, true));
 
-  // 点击 slide：调整按钮 → admin；其余 → href
+  // 点击 slide：查看按钮 → admin；其余 → href
   track.addEventListener('click', (e) => {
     const actionBtn = e.target.closest('.feed-action');
     if (actionBtn) {
