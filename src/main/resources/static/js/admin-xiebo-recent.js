@@ -1,17 +1,15 @@
 /**
- * 近期关注股票管理后台 - CRUD + wangEditor笔记编辑器
+ * admin-xiebo-recent.js
  * 暴露 window.initXieboRecentPanel() 由 admin-users.html 第一次进 tab 时调用。
+ * 单行表单 upsert: 填股票代码 + 名称 + 分类 + 笔记,点保存一次性 upsert。
+ * 已存在则自动改为 PUT 更新,不会 400。
  */
 (function () {
   'use strict';
 
-  var API_LIST = '/gp/api/xiebo/recent';
-  var API_ADMIN = '/gp/api/admin/xiebo/recent';
-  var API_UPLOAD = '/gp/api/admin/upload/note-image';
-
-  var wangEditorInstance = null;
-  var editingStockCode = null;
-  var _loaded = false;
+  var API_LIST = '/api/xiebo/recent';
+  var API_ADMIN = '/api/admin/xiebo/recent';
+  var API_ADMIN_NOTE = function (code) { return API_ADMIN + '/' + encodeURIComponent(code) + '/note'; };
 
   function $(id) { return document.getElementById(id); }
 
@@ -22,246 +20,224 @@
     return h;
   }
 
-  function authHeadersNoContentType() {
-    var t = localStorage.getItem('gp_auth_token');
-    var h = {};
-    if (t) h['Authorization'] = 'Bearer ' + t;
-    return h;
-  }
-
   function esc(s) {
-    if (s == null) return '';
-    return String(s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
-  function loadList() {
-    // Load admin list (shows all stocks regardless of public filter)
-    return fetch(API_ADMIN, { headers: authHeaders() })
-      .then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
-      })
-      .then(function (rows) {
-        renderTable(rows || []);
-      })
-      .catch(function (e) {
-        console.error('load list failed', e);
-        renderTable([]);
-      });
-  }
-
-  function renderTable(rows) {
-    var tbody = $('adminXieboRecentTableBody');
-    if (!tbody) return;
-    if (rows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px">暂无数据</td></tr>';
-      return;
+  function setStatus(msg, ok) {
+    var el = $('xieboRecentStatus');
+    if (!el) return;
+    el.textContent = msg || '';
+    el.style.color = ok ? '#16a34a' : '#dc2626';
+    if (msg) {
+      setTimeout(function () { if (el.textContent === msg) { el.textContent = ''; } }, 4000);
     }
-    tbody.innerHTML = rows.map(function (w) {
-      return '<tr data-code="' + esc(w.stockCode) + '">'
-        + '<td><code>' + esc(w.stockCode) + '</code></td>'
-        + '<td>' + esc(w.stockName || '') + '</td>'
-        + '<td>' + esc(w.type || '') + '</td>'
-        + '<td>' + (w.createdAt ? new Date(w.createdAt).toLocaleString() : '') + '</td>'
-        + '<td>'
-          + '<button type="button" class="btn-sm" data-act="edit">编辑</button> '
-          + '<button type="button" class="btn-sm" data-act="note">笔记</button> '
-          + '<button type="button" class="btn-sm" data-act="delete" style="color:#ef4444">删除</button>'
-        + '</td>'
-        + '</tr>';
-    }).join('');
   }
 
-  function showStockModal(stock) {
-    editingStockCode = stock ? stock.stockCode : null;
-    $('xieboRecentModalTitle').textContent = stock ? '编辑股票' : '新增股票';
-    $('xieboRecentStockCode').value = stock ? stock.stockCode : '';
-    $('xieboRecentStockCode').disabled = !!stock;
-    $('xieboRecentStockName').value = stock ? stock.stockName : '';
-    $('xieboRecentStockType').value = stock ? stock.type : '科技AI';
-    $('xieboRecentStockModal').hidden = false;
+  // 解析服务端响应 body,尝试把 {"code":..,"message":".."} 的 message 抽出来
+  function parseErr(text) {
+    if (!text) return '未知错误';
+    try {
+      var j = JSON.parse(text);
+      if (j && j.message) return j.message;
+      if (j && j.errorMessage) return j.errorMessage;
+      if (j && j.error) return j.error;
+    } catch (e) { /* not JSON */ }
+    return text.length > 200 ? text.slice(0, 200) + '…' : text;
   }
 
-  function hideStockModal() {
-    $('xieboRecentStockModal').hidden = true;
-    editingStockCode = null;
-  }
-
-  function saveStock() {
-    var body = {
+  function getFormData() {
+    return {
       stockCode: $('xieboRecentStockCode').value.trim(),
       stockName: $('xieboRecentStockName').value.trim(),
-      type: $('xieboRecentStockType').value
+      type: $('xieboRecentStockType').value,
+      noteHtml: $('xieboRecentNoteHtml').value
     };
-    if (!body.stockCode || !body.stockName) {
-      alert('股票代码和股票名必填');
+  }
+
+  function setFormData(d) {
+    $('xieboRecentStockCode').value = d.stockCode || '';
+    $('xieboRecentStockCode').disabled = !!d.locked;
+    $('xieboRecentStockName').value = d.stockName || '';
+    $('xieboRecentStockType').value = d.type || '科技AI';
+    $('xieboRecentNoteHtml').value = d.noteHtml || '';
+  }
+
+  function clearForm() {
+    setFormData({ locked: false });
+    $('xieboRecentStockCode').focus();
+  }
+
+  // 把股票 + 笔记一起保存;股票已存在则改 PUT 更新
+  async function upsertAll() {
+    var data = getFormData();
+    if (!data.stockCode) { setStatus('请填写股票代码', false); return; }
+    if (!data.stockName) { setStatus('请填写股票名称', false); return; }
+
+    setStatus('保存中…', true);
+
+    // 1. 先 GET 看股票是否存在
+    var exists = false;
+    try {
+      var probe = await fetch(API_LIST, { headers: authHeaders() });
+      if (probe.ok) {
+        var rows = await probe.json();
+        exists = rows.some(function (r) { return r.stockCode === data.stockCode; });
+      }
+    } catch (e) { /* ignore */ }
+
+    // 2. POST 或 PUT 股票
+    var stockResp;
+    try {
+      if (exists) {
+        stockResp = await fetch(API_ADMIN + '/' + encodeURIComponent(data.stockCode), {
+          method: 'PUT', headers: authHeaders(),
+          body: JSON.stringify({ stockCode: data.stockCode, stockName: data.stockName, type: data.type })
+        });
+      } else {
+        stockResp = await fetch(API_ADMIN, {
+          method: 'POST', headers: authHeaders(),
+          body: JSON.stringify({ stockCode: data.stockCode, stockName: data.stockName, type: data.type })
+        });
+      }
+    } catch (e) {
+      setStatus('网络错误: ' + e.message, false);
       return;
     }
-    var url = editingStockCode
-      ? API_ADMIN + '/' + encodeURIComponent(editingStockCode)
-      : API_ADMIN;
-    var method = editingStockCode ? 'PUT' : 'POST';
-    fetch(url, { method: method, headers: authHeaders(), body: JSON.stringify(body) })
-      .then(function (r) {
-        if (!r.ok) throw new Error('保存失败: HTTP ' + r.status);
-        return r.text();
-      })
-      .then(function () {
-        hideStockModal();
-        loadList();
-      })
-      .catch(function (e) {
-        alert('保存失败: ' + e.message);
+
+    if (!stockResp.ok) {
+      var errText = await stockResp.text();
+      setStatus('股票保存失败: ' + parseErr(errText), false);
+      return;
+    }
+
+    // 3. 保存笔记(无论是否为空,都 PUT 一遍确保 DB 反映当前 textarea 内容)
+    try {
+      var noteResp = await fetch(API_ADMIN_NOTE(data.stockCode), {
+        method: 'PUT', headers: authHeaders(),
+        body: JSON.stringify({ noteHtml: data.noteHtml || '' })
       });
-  }
-
-  function deleteStock(code) {
-    if (!confirm('确认删除 ' + code + '？关联的笔记会一并删除。')) return;
-    fetch(API_ADMIN + '/' + encodeURIComponent(code), {
-      method: 'DELETE',
-      headers: authHeaders()
-    })
-      .then(function (r) {
-        if (!r.ok) throw new Error('删除失败: HTTP ' + r.status);
-        return r.text();
-      })
-      .then(function () {
-        loadList();
-      })
-      .catch(function (e) {
-        alert('删除失败: ' + e.message);
-      });
-  }
-
-  function showNoteModal(code) {
-    editingStockCode = code;
-    $('xieboRecentNoteModal').hidden = false;
-
-    // Fetch existing note
-    var existing = '';
-    fetch('/gp/api/xiebo/recent/' + encodeURIComponent(code) + '/note', { headers: authHeaders() })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (dto) { if (dto && dto.noteHtml) existing = dto.noteHtml; initEditor(existing); })
-      .catch(function () { initEditor(''); });
-
-    function initEditor(initialHtml) {
-      if (wangEditorInstance) {
-        try { wangEditorInstance.destroy(); } catch (e) { /* ignore */ }
-        wangEditorInstance = null;
+      if (!noteResp.ok) {
+        var noteErr = await noteResp.text();
+        setStatus('股票已存,但笔记保存失败: ' + parseErr(noteErr), false);
+        return;
       }
-
-      // eslint-disable-next-line no-undef
-      wangEditorInstance = window.wangEditor.createEditor({
-        selector: '#xieboRecentNoteEditor',
-        html: initialHtml || '',
-        config: {
-          placeholder: '写下你的笔记...',
-          onUploadImage: function (files, insertCallback) {
-            var fd = new FormData();
-            fd.append('file', files[0]);
-            fetch(API_UPLOAD, {
-              method: 'POST',
-              body: fd,
-              headers: authHeadersNoContentType()
-            })
-              .then(function (r) { return r.ok ? r.json() : null; })
-              .then(function (j) {
-                if (j && j.url) {
-                  insertCallback({ url: j.url, alt: files[0].name, href: j.url });
-                }
-              })
-              .catch(function () { /* upload failed silently */ });
-          }
-        }
-      });
+    } catch (e) {
+      setStatus('股票已存,但笔记保存失败: ' + e.message, false);
+      return;
     }
+
+    setStatus('已保存 ' + data.stockCode, true);
+    $('xieboRecentStockCode').disabled = true;  // 已存在,锁定代码
+    await loadList();
   }
 
-  function hideNoteModal() {
-    $('xieboRecentNoteModal').hidden = true;
-    if (wangEditorInstance) {
-      try { wangEditorInstance.destroy(); } catch (e) { /* ignore */ }
-      wangEditorInstance = null;
-    }
-    editingStockCode = null;
-  }
-
-  function saveNote() {
-    if (!wangEditorInstance || !editingStockCode) return;
-    var html = wangEditorInstance.getHtml();
-    fetch(API_ADMIN + '/' + encodeURIComponent(editingStockCode) + '/note', {
-      method: 'PUT',
-      headers: authHeaders(),
-      body: JSON.stringify({ noteHtml: html })
-    })
-      .then(function (r) {
-        if (!r.ok) throw new Error('保存失败: HTTP ' + r.status);
-        return r.text();
-      })
-      .then(function () {
-        hideNoteModal();
-        alert('笔记已保存');
-      })
-      .catch(function (e) {
-        alert('保存失败: ' + e.message);
-      });
-  }
-
-  function bindRowActions() {
+  async function loadList() {
     var tbody = $('adminXieboRecentTableBody');
     if (!tbody) return;
-    tbody.addEventListener('click', function (e) {
-      var btn = e.target.closest('button[data-act]');
-      if (!btn) return;
-      var act = btn.dataset.act;
-      var tr = btn.closest('tr');
-      if (!tr) return;
-      var code = tr.dataset.code;
-
-      if (act === 'edit') {
-        // Prefetch full data and open modal
-        fetch(API_ADMIN + '/' + encodeURIComponent(code), { headers: authHeaders() })
-          .then(function (r) { return r.ok ? r.json() : null; })
-          .then(function (data) {
-            showStockModal(data || { stockCode: code, stockName: '', type: '科技AI' });
-          })
-          .catch(function () {
-            showStockModal({ stockCode: code, stockName: '', type: '科技AI' });
-          });
-      } else if (act === 'delete') {
-        deleteStock(code);
-      } else if (act === 'note') {
-        showNoteModal(code);
+    try {
+      var r = await fetch(API_LIST, { headers: authHeaders() });
+      if (!r.ok) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px">加载失败</td></tr>';
+        return;
       }
-    });
+      var rows = await r.json();
+      if (!rows || rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px">暂无数据 — 在上方表单填股票代码即可新增</td></tr>';
+        return;
+      }
+      tbody.innerHTML = rows.map(function (w) {
+        return '<tr data-code="' + esc(w.stockCode) + '">'
+          + '<td><code>' + esc(w.stockCode) + '</code></td>'
+          + '<td>' + esc(w.stockName || '') + '</td>'
+          + '<td>' + esc(w.type || '') + '</td>'
+          + '<td>' + (w.createdAt ? new Date(w.createdAt).toLocaleString() : '') + '</td>'
+          + '<td>'
+            + '<button type="button" class="btn-sm" data-act="load">编辑</button> '
+            + '<button type="button" class="btn-sm" data-act="delete" style="color:#ef4444">删除</button>'
+          + '</td>'
+          + '</tr>';
+      }).join('');
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#dc2626;padding:20px">加载异常: ' + esc(e.message) + '</td></tr>';
+    }
   }
 
-  function bindModalHandlers() {
-    var addBtn = $('xieboRecentAddBtn');
-    if (addBtn) addBtn.addEventListener('click', function () { showStockModal(null); });
+  // 把列表行加载进表单
+  async function loadIntoForm(code) {
+    try {
+      // 股票基本信息
+      var list = await (await fetch(API_LIST, { headers: authHeaders() })).json();
+      var row = (list || []).find(function (r) { return r.stockCode === code; });
+      // 笔记
+      var noteHtml = '';
+      try {
+        var nr = await fetch('/api/xiebo/recent/' + encodeURIComponent(code) + '/note');
+        if (nr.ok) {
+          var nd = await nr.json();
+          noteHtml = (nd && nd.noteHtml) || '';
+        }
+      } catch (e) { /* ignore */ }
 
-    var cancelBtn = $('xieboRecentModalCancel');
-    if (cancelBtn) cancelBtn.addEventListener('click', hideStockModal);
+      setFormData({
+        stockCode: code,
+        stockName: row ? row.stockName : '',
+        type: row ? row.type : '科技AI',
+        noteHtml: noteHtml,
+        locked: true
+      });
+      setStatus('已载入 ' + code + ' — 修改后点保存', true);
+      $('xieboRecentNoteHtml').focus();
+    } catch (e) {
+      setStatus('载入失败: ' + e.message, false);
+    }
+  }
 
-    var saveBtn = $('xieboRecentModalSave');
-    if (saveBtn) saveBtn.addEventListener('click', saveStock);
+  async function deleteStock(code) {
+    if (!confirm('确认删除 ' + code + ' ?\n关联的笔记会一并级联删除。')) return;
+    try {
+      var r = await fetch(API_ADMIN + '/' + encodeURIComponent(code), {
+        method: 'DELETE', headers: authHeaders()
+      });
+      if (!r.ok) {
+        setStatus('删除失败: ' + parseErr(await r.text()), false);
+        return;
+      }
+      setStatus('已删除 ' + code, true);
+      clearForm();
+      await loadList();
+    } catch (e) {
+      setStatus('删除失败: ' + e.message, false);
+    }
+  }
 
-    var noteCancelBtn = $('xieboRecentNoteCancel');
-    if (noteCancelBtn) noteCancelBtn.addEventListener('click', hideNoteModal);
+  function bindHandlers() {
+    var saveBtn = $('xieboRecentSaveBtn');
+    if (saveBtn) saveBtn.addEventListener('click', upsertAll);
 
-    var noteSaveBtn = $('xieboRecentNoteSave');
-    if (noteSaveBtn) noteSaveBtn.addEventListener('click', saveNote);
+    var clearBtn = $('xieboRecentClearBtn');
+    if (clearBtn) clearBtn.addEventListener('click', clearForm);
+
+    var tbody = $('adminXieboRecentTableBody');
+    if (tbody) {
+      tbody.addEventListener('click', function (e) {
+        var btn = e.target.closest('button[data-act]');
+        if (!btn) return;
+        var tr = btn.closest('tr');
+        if (!tr) return;
+        var code = tr.dataset.code;
+        if (btn.dataset.act === 'load') loadIntoForm(code);
+        else if (btn.dataset.act === 'delete') deleteStock(code);
+      });
+    }
   }
 
   window.initXieboRecentPanel = function () {
-    if (_loaded) return;
-    _loaded = true;
-    bindModalHandlers();
-    bindRowActions();
+    if (window._xieboRecentLoaded) return;
+    window._xieboRecentLoaded = true;
+    bindHandlers();
     loadList();
   };
 })();
