@@ -1123,45 +1123,51 @@
           <div class="admin-section">
             <div class="admin-section-title">📋 股票列表</div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-              <button id="xiebo-recent-add-btn" class="primary-btn">+ 新增股票</button>
+              <button id="xieboRecentAddBtn" class="primary-btn">+ 新增股票</button>
             </div>
-            <table id="admin-xiebo-recent-table" class="quote-admin-table">
+            <table id="adminXieboRecentTable" class="quote-admin-table">
               <thead>
                 <tr><th>股票代码</th><th>股票名称</th><th>分类</th><th>添加时间</th><th>操作</th></tr>
               </thead>
-              <tbody></tbody>
+              <tbody id="adminXieboRecentTableBody"></tbody>
             </table>
           </div>
         </div>
 
         <!-- 新增/编辑股票 modal -->
-        <div id="xiebo-recent-stock-modal" class="modal" hidden>
+        <div id="xieboRecentStockModal" class="modal" hidden>
           <div class="modal-content">
-            <h3 id="xiebo-recent-modal-title">新增股票</h3>
-            <label>股票代码: <input type="text" id="xiebo-recent-stock-code" maxlength="16" /></label><br>
-            <label>股票名称: <input type="text" id="xiebo-recent-stock-name" maxlength="64" /></label><br>
-            <label>分类:
-              <select id="xiebo-recent-stock-type">
-                <option value="科技AI">科技AI</option>
-                <option value="创新药">创新药</option>
-                <option value="质量优选">质量优选</option>
-              </select>
-            </label><br><br>
+            <h3 id="xieboRecentModalTitle">新增股票</h3>
+            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:8px 0 16px;">
+              <label style="display:flex;gap:6px;align-items:center;">股票代码:
+                <input type="text" id="xieboRecentStockCode" maxlength="16" style="width:120px;" />
+              </label>
+              <label style="display:flex;gap:6px;align-items:center;">股票名称:
+                <input type="text" id="xieboRecentStockName" maxlength="64" style="width:180px;" />
+              </label>
+              <label style="display:flex;gap:6px;align-items:center;">分类:
+                <select id="xieboRecentStockType">
+                  <option value="科技AI">科技AI</option>
+                  <option value="创新药">创新药</option>
+                  <option value="质量优选">质量优选</option>
+                </select>
+              </label>
+            </div>
             <div style="text-align:right;">
-              <button id="xiebo-recent-modal-cancel" class="secondary-btn">取消</button>
-              <button id="xiebo-recent-modal-save" class="primary-btn">保存</button>
+              <button id="xieboRecentModalCancel" class="secondary-btn">取消</button>
+              <button id="xieboRecentModalSave" class="primary-btn">保存</button>
             </div>
           </div>
         </div>
 
         <!-- 编辑笔记 modal -->
-        <div id="xiebo-recent-note-modal" class="modal" hidden>
+        <div id="xieboRecentNoteModal" class="modal" hidden>
           <div class="modal-content" style="max-width:800px;">
             <h3>学习笔记</h3>
-            <div id="xiebo-recent-note-editor" style="min-height:300px;background:#fff;border:1px solid #ccc;padding:8px;"></div>
+            <div id="xieboRecentNoteEditor" style="min-height:300px;background:#fff;border:1px solid #ccc;padding:8px;"></div>
             <div style="text-align:right;margin-top:12px;">
-              <button id="xiebo-recent-note-cancel" class="secondary-btn">取消</button>
-              <button id="xiebo-recent-note-save" class="primary-btn">保存</button>
+              <button id="xieboRecentNoteCancel" class="secondary-btn">取消</button>
+              <button id="xieboRecentNoteSave" class="primary-btn">保存</button>
             </div>
           </div>
         </div>
