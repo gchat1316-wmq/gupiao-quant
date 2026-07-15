@@ -86,6 +86,23 @@ application-local.properties
 secrets/
 
 # ======================================
+# Profile-specific application 配置（绝对不能提交）
+# ======================================
+application-prod.yml
+application-prod.yaml
+application-staging.yml
+application-staging.yaml
+application-dev.yml
+application-dev.yaml
+
+# ======================================
+# Sprint 1 临时产物（已搬移/迁移完毕）
+# ======================================
+ai-compute-dashboard.html
+verification_report.html
+verification_screenshots/
+
+# ======================================
 # 临时文件
 # ======================================
 *.tmp
