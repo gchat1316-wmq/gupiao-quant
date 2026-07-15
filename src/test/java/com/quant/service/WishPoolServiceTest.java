@@ -2,27 +2,30 @@ package com.quant.service;
 
 import com.quant.config.NotificationProperties;
 import com.quant.dto.wishpool.WishSubmitRequest;
+import com.quant.entity.WishPool;
+import com.quant.repository.WishPoolRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.client.RestTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * WishPoolService 单测：验证入库 + 触发异步通知。
+ * 飞书 webhook 调用已迁移到 {@link WishPoolNotifier} 内部，失败仅日志。
+ */
 @DisplayName("WishPoolService")
 class WishPoolServiceTest {
 
     private NotificationProperties properties;
-    private RestTemplate restTemplate;
+    private WishPoolRepository repository;
+    private WishPoolNotifier notifier;
     private WishPoolService service;
 
     @BeforeEach
@@ -30,56 +33,53 @@ class WishPoolServiceTest {
         properties = new NotificationProperties();
         properties.getWishPool().setEnabled(true);
         properties.getWishPool().setWebhookUrl("https://open.feishu.cn/open-apis/bot/v2/hook/test-hook");
-        restTemplate = mock(RestTemplate.class);
-        service = new WishPoolService(properties, restTemplate);
+        repository = mock(WishPoolRepository.class);
+        notifier   = mock(WishPoolNotifier.class);
+        // save() 回传原 entity
+        when(repository.save(any(WishPool.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service = new WishPoolService(repository, notifier, properties);
     }
 
     @Test
-    @DisplayName("提交许愿时向飞书 webhook 发送文本消息")
-    void submitWishPostsFormattedFeishuMessage() {
+    @DisplayName("提交许愿：入库并触发异步飞书通知（不抛异常）")
+    void submitWishPersistsAndDispatchesAsync() {
         WishSubmitRequest request = new WishSubmitRequest();
         request.setWish("希望增加复盘摘要导出，帮我每天整理晨会材料。");
         request.setPage("/gp/market-recap.html");
         request.setEmail("user@example.com");
 
-        when(restTemplate.postForEntity(eq("https://open.feishu.cn/open-apis/bot/v2/hook/test-hook"),
-                org.mockito.ArgumentMatchers.any(HttpEntity.class), eq(String.class)))
-                .thenReturn(ResponseEntity.ok("ok"));
+        WishPool saved = service.submitWish(request, "203.0.113.7");
 
-        service.submitWish(request);
+        assertThat(saved.getId()).isNull(); // mock save 不自增
+        assertThat(saved.getWish()).isEqualTo(request.getWish());
+        assertThat(saved.getPage()).isEqualTo("/gp/market-recap.html");
+        assertThat(saved.getEmail()).isEqualTo("user@example.com");
+        assertThat(saved.getIp()).isEqualTo("203.0.113.7");
+        assertThat(saved.getStatus()).isEqualTo(WishPool.Status.PENDING);
+        assertThat(saved.getDisplayFlag()).isFalse();
 
-        ArgumentCaptor<HttpEntity> entityCaptor = ArgumentCaptor.forClass(HttpEntity.class);
-        verify(restTemplate).postForEntity(eq("https://open.feishu.cn/open-apis/bot/v2/hook/test-hook"),
-                entityCaptor.capture(), eq(String.class));
+        ArgumentCaptor<WishPool> captor = ArgumentCaptor.forClass(WishPool.class);
+        verify(repository).save(captor.capture());
+        verify(notifier).notifyNewWish(captor.getValue());
 
-        HttpEntity<?> entity = entityCaptor.getValue();
-        assertThat(entity.getHeaders().getContentType().toString()).contains("application/json");
-        assertThat(String.valueOf(entity.getBody())).contains("msg_type=text");
-        assertThat(String.valueOf(entity.getBody())).contains("投资助手·许愿池");
-        assertThat(String.valueOf(entity.getBody())).contains("market-recap.html");
-        assertThat(String.valueOf(entity.getBody())).contains("希望增加复盘摘要导出");
-        assertThat(String.valueOf(entity.getBody())).contains("联系邮箱：user@example.com");
+        WishPool persisted = captor.getValue();
+        assertThat(persisted.getWish()).isEqualTo(request.getWish());
+        assertThat(persisted.getStatus()).isEqualTo(WishPool.Status.PENDING);
     }
 
     @Test
-    @DisplayName("未填写邮箱时飞书消息不带联系邮箱字段")
-    void omitsEmailWhenBlank() {
+    @DisplayName("未填写邮箱时持久化的 email 字段为空字符串")
+    void blankEmailPersistedAsEmpty() {
         WishSubmitRequest request = new WishSubmitRequest();
         request.setWish("希望增加每日复盘导出功能。");
         request.setPage("/gp/index.html");
 
-        when(restTemplate.postForEntity(eq("https://open.feishu.cn/open-apis/bot/v2/hook/test-hook"),
-                org.mockito.ArgumentMatchers.any(HttpEntity.class), eq(String.class)))
-                .thenReturn(ResponseEntity.ok("ok"));
+        WishPool saved = service.submitWish(request, null);
 
-        service.submitWish(request);
-
-        ArgumentCaptor<HttpEntity> entityCaptor = ArgumentCaptor.forClass(HttpEntity.class);
-        verify(restTemplate).postForEntity(eq("https://open.feishu.cn/open-apis/bot/v2/hook/test-hook"),
-                entityCaptor.capture(), eq(String.class));
-
-        HttpEntity<?> entity = entityCaptor.getValue();
-        assertThat(String.valueOf(entity.getBody())).doesNotContain("联系邮箱");
+        assertThat(saved.getEmail()).isEmpty();
+        assertThat(saved.getIp()).isNull();
+        verify(notifier).notifyNewWish(any(WishPool.class));
     }
 
     @Test
@@ -88,24 +88,20 @@ class WishPoolServiceTest {
         WishSubmitRequest request = new WishSubmitRequest();
         request.setWish("   ");
 
-        assertThatThrownBy(() -> service.submitWish(request))
+        assertThatThrownBy(() -> service.submitWish(request, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("请输入");
     }
 
     @Test
-    @DisplayName("飞书 webhook 返回非 2xx 时抛出异常")
-    void throwsWhenWebhookReturnsFailure() {
+    @DisplayName("来源页面为空时入库落 '未知页面'")
+    void unknownPageFallback() {
         WishSubmitRequest request = new WishSubmitRequest();
         request.setWish("希望增加导出能力");
-        request.setPage("/gp/index.html");
+        request.setPage(null);
 
-        when(restTemplate.postForEntity(eq("https://open.feishu.cn/open-apis/bot/v2/hook/test-hook"),
-                org.mockito.ArgumentMatchers.any(HttpEntity.class), eq(String.class)))
-                .thenReturn(new ResponseEntity<>("fail", HttpStatus.BAD_GATEWAY));
+        WishPool saved = service.submitWish(request, null);
 
-        assertThatThrownBy(() -> service.submitWish(request))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("提交失败");
+        assertThat(saved.getPage()).isEqualTo("未知页面");
     }
 }

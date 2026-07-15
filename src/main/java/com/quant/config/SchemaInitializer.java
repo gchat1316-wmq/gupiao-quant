@@ -38,7 +38,6 @@ public class SchemaInitializer implements CommandLineRunner {
         bootstrapFirstAdmin();
         ensureXieboInvestTables();
         ensureXieboRecentTables();
-        ensureAuthUserServerchanKeyColumn();
         ensureInvestAlertTable();
         ensureInvestBigYangSignalTable();
         ensureStockAnalysisTable();
@@ -103,6 +102,8 @@ public class SchemaInitializer implements CommandLineRunner {
             try { jdbc.execute("ALTER TABLE auth_user ADD COLUMN notify_sms BOOLEAN NOT NULL DEFAULT FALSE"); log.info("auth_user notify_sms 列已添加"); } catch (Exception ex) { log.debug("notify_sms 列已存在: {}", ex.getMessage()); }
             try { jdbc.execute("ALTER TABLE auth_user ADD COLUMN notify_phone BOOLEAN NOT NULL DEFAULT FALSE"); log.info("auth_user notify_phone 列已添加"); } catch (Exception ex) { log.debug("notify_phone 列已存在: {}", ex.getMessage()); }
             try { jdbc.execute("ALTER TABLE auth_user ADD COLUMN email VARCHAR(255) UNIQUE"); log.info("auth_user email 列已添加"); } catch (Exception ex) { log.debug("email 列已存在: {}", ex.getMessage()); }
+            // 必须在 bootstrapFirstAdmin() 之前加 — User 实体已加该字段,否则 userRepository.findAll() 会 SQL 报错
+            try { jdbc.execute("ALTER TABLE auth_user ADD COLUMN serverchan_send_key VARCHAR(64) NULL COMMENT '默认 Server酱 SendKey'"); log.info("auth_user serverchan_send_key 列已添加"); } catch (Exception ex) { log.debug("serverchan_send_key 列已存在: {}", ex.getMessage()); }
         }
     }
 
@@ -503,21 +504,6 @@ public class SchemaInitializer implements CommandLineRunner {
             log.info("user_stock_subscription 表已就绪");
         } catch (Exception e) {
             log.warn("检查 user_stock_subscription 表失败 (可忽略): {}", e.getMessage());
-        }
-    }
-
-    private void ensureAuthUserServerchanKeyColumn() {
-        Integer count = jdbc.queryForObject(
-            "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() " +
-            "AND table_name = 'auth_user' AND column_name = 'serverchan_send_key'",
-            Integer.class);
-        if (count == null || count == 0) {
-            try {
-                jdbc.execute("ALTER TABLE auth_user ADD COLUMN serverchan_send_key VARCHAR(64) NULL COMMENT '默认 Server酱 SendKey'");
-                log.info("auth_user.serverchan_send_key 列已添加");
-            } catch (Exception e) {
-                log.warn("添加 auth_user.serverchan_send_key 列失败: " + e.getMessage());
-            }
         }
     }
 

@@ -1,84 +1,164 @@
 package com.quant.service;
 
 import com.quant.config.NotificationProperties;
+import com.quant.dto.wishpool.WishAdminDto;
+import com.quant.dto.wishpool.WishPublicDto;
 import com.quant.dto.wishpool.WishSubmitRequest;
+import com.quant.entity.WishPool;
+import com.quant.repository.WishPoolRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.web.client.RestTemplateBuilder;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
-import java.util.LinkedHashMap;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
 
+/**
+ * 许愿池业务逻辑：
+ *  1) 用户提交 → 先入库(status=PENDING, display=false) → 异步推飞书通知
+ *  2) 管理员后台 → 分页查询、回复、切换展示、删除
+ *  3) 前台公开 → 轮播已 display=true 且有回复的条目
+ */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class WishPoolService {
 
+    private final WishPoolRepository wishPoolRepository;
+    private final WishPoolNotifier wishPoolNotifier;
     private final NotificationProperties properties;
-    private final RestTemplate restTemplate;
 
-    @Autowired
-    public WishPoolService(NotificationProperties properties, RestTemplateBuilder restTemplateBuilder) {
-        this(properties, restTemplateBuilder
-                .setConnectTimeout(Duration.ofSeconds(5))
-                .setReadTimeout(Duration.ofSeconds(properties.getWishPool().getTimeoutSeconds()))
-                .build());
-    }
+    // ============================================================
+    // 公开 / 用户侧
+    // ============================================================
 
-    WishPoolService(NotificationProperties properties, RestTemplate restTemplate) {
-        this.properties = properties;
-        this.restTemplate = restTemplate;
-    }
-
-    public void submitWish(WishSubmitRequest request) {
-        String wish = request == null || request.getWish() == null ? "" : request.getWish().trim();
-        if (wish.isEmpty()) {
+    /** 用户提交许愿：先入库 + 异步推飞书(失败不阻塞) */
+    @Transactional
+    public WishPool submitWish(WishSubmitRequest request, String ip) {
+        if (request == null || request.getWish() == null || request.getWish().trim().isEmpty()) {
             throw new IllegalArgumentException("请输入想要的能力或需求");
         }
 
-        NotificationProperties.WishPool cfg = properties.getWishPool();
-        if (!cfg.isEnabled() || cfg.getWebhookUrl() == null || cfg.getWebhookUrl().isBlank()) {
-            throw new IllegalStateException("许愿池暂未开放");
+        if (!properties.getWishPool().isEnabled()) {
+            // 后台开关关闭 → 仍然接受(只入库),仅不通知到飞书
+            log.debug("wish pool notifier disabled by config, only persist (page={})",
+                    request.getPage());
         }
 
-        String page = request.getPage() == null || request.getPage().isBlank() ? "未知页面" : request.getPage().trim();
-        String email = request.getEmail() == null || request.getEmail().isBlank() ? "" : request.getEmail().trim();
+        String wishText = request.getWish().trim();
+        String page     = request.getPage()  == null || request.getPage().isBlank()  ? "未知页面" : request.getPage().trim();
+        String email    = request.getEmail() == null || request.getEmail().isBlank() ? ""          : request.getEmail().trim();
 
-        StringBuilder text = new StringBuilder("【投资助手·许愿池】\n页面：").append(page).append("\n需求：").append(wish);
-        if (!email.isEmpty()) {
-            text.append("\n联系邮箱：").append(email);
+        WishPool entity = new WishPool();
+        entity.setWish(wishText);
+        entity.setPage(page);
+        entity.setEmail(email);
+        entity.setIp(ip);
+        entity.setStatus(WishPool.Status.PENDING);
+        entity.setDisplayFlag(Boolean.FALSE);
+        wishPoolRepository.save(entity);
+
+        log.info("wish pool submitted: id={} page={} len={}", entity.getId(), page, wishText.length());
+
+        // 异步推飞书（开关 + 实现都在 notifier 内部判）
+        wishPoolNotifier.notifyNewWish(entity);
+
+        return entity;
+    }
+
+    /** 前台右下角轮播：display=true 且有回复的，按回复时间倒序 */
+    @Transactional(readOnly = true)
+    public List<WishPublicDto> listPublic(int size) {
+        if (size <= 0 || size > 50) size = 20;
+        List<WishPool> rows = wishPoolRepository.findPublicDisplay(PageRequest.of(0, size));
+        return rows.stream().map(WishPublicDto::of).collect(Collectors.toList());
+    }
+
+    // ============================================================
+    // 管理员侧
+    // ============================================================
+
+    /** 后台分页 + 状态 + 关键字搜索 */
+    @Transactional(readOnly = true)
+    public Map<String, Object> listForAdmin(WishPool.Status status,
+                                            String keyword,
+                                            int page,
+                                            int size) {
+        if (page < 0) page = 0;
+        if (size <= 0 || size > 100) size = 20;
+        String normalizedKeyword = (keyword == null || keyword.isBlank()) ? null : keyword.trim();
+
+        Pageable pageable = PageRequest.of(page, size);
+        Page<WishPool> pg = wishPoolRepository.adminSearch(status, normalizedKeyword, pageable);
+
+        List<WishAdminDto> rows = pg.getContent().stream()
+                .map(WishAdminDto::of)
+                .collect(Collectors.toList());
+
+        return Map.of(
+                "rows", rows,
+                "total", pg.getTotalElements(),
+                "page", pg.getNumber(),
+                "size", pg.getSize()
+        );
+    }
+
+    /** 回复：自动填 reply_by / reply_at，status 改为 REPLIED */
+    @Transactional
+    public WishAdminDto reply(Long id, String reply, String replyBy) {
+        if (reply == null || reply.isBlank()) {
+            throw new IllegalArgumentException("回复内容不能为空");
         }
+        WishPool w = mustGet(id);
+        w.setReply(reply.trim());
+        w.setReplyBy(replyBy);
+        w.setReplyAt(LocalDateTime.now());
+        w.setStatus(WishPool.Status.REPLIED);
+        return WishAdminDto.of(wishPoolRepository.save(w));
+    }
 
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("msg_type", "text");
-        payload.put("content", Map.of(
-                "text", text.toString()
-        ));
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        try {
-            ResponseEntity<String> response = restTemplate.postForEntity(
-                    cfg.getWebhookUrl(),
-                    new HttpEntity<>(payload, headers),
-                    String.class
-            );
-            if (!response.getStatusCode().is2xxSuccessful()) {
-                throw new IllegalStateException("提交失败，请稍后再试");
-            }
-            log.info("wish pool submitted: page={}, wish={}", page, wish);
-        } catch (IllegalStateException e) {
-            throw e;
-        } catch (Exception e) {
-            log.warn("wish pool submit failed: {}", e.getMessage());
-            throw new IllegalStateException("提交失败，请稍后再试");
+    /** 切换右下角展示 */
+    @Transactional
+    public WishAdminDto setDisplay(Long id, boolean display) {
+        WishPool w = mustGet(id);
+        w.setDisplayFlag(display);
+        // 一旦取消展示,允许管理员改回 PENDING 重新进入待办队列(只是补充场景)
+        if (display && w.getReply() != null && !w.getReply().isBlank()
+                && w.getStatus() != WishPool.Status.REPLIED) {
+            w.setStatus(WishPool.Status.REPLIED);
         }
+        return WishAdminDto.of(wishPoolRepository.save(w));
+    }
+
+    /** 删除 */
+    @Transactional
+    public void delete(Long id) {
+        WishPool w = mustGet(id);
+        wishPoolRepository.delete(w);
+    }
+
+    /** 计数（后台看板可选） */
+    @Transactional(readOnly = true)
+    public Map<String, Long> counts() {
+        return Map.of(
+                "pending", wishPoolRepository.countByStatus(WishPool.Status.PENDING),
+                "replied", wishPoolRepository.countByStatus(WishPool.Status.REPLIED),
+                "archived", wishPoolRepository.countByStatus(WishPool.Status.ARCHIVED),
+                "display", wishPoolRepository.findAll().stream()
+                        .filter(w -> Boolean.TRUE.equals(w.getDisplayFlag()))
+                        .count()
+        );
+    }
+
+    private WishPool mustGet(Long id) {
+        return wishPoolRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("wish not found: " + id));
     }
 }

@@ -2,6 +2,18 @@
   'use strict';
 
   // ============================================================
+  // 样式注入：许愿池浮动卡片
+  // ============================================================
+  (function injectWishMarqueeCss() {
+    if (document.getElementById('wish-marquee-css')) return;
+    var link = document.createElement('link');
+    link.id = 'wish-marquee-css';
+    link.rel = 'stylesheet';
+    link.href = 'css/wish-marquee.css?v=20260707-marquee-v1';
+    document.head.appendChild(link);
+  })();
+
+  // ============================================================
   // 皮肤系统：localStorage 记忆 + 顶栏切换
   // ============================================================
   var SKIN_STORAGE_KEY = 'gp.skin';
@@ -496,6 +508,8 @@
   bindAuth();
   bindForgotAuth();
   initPageViewTracker();
+  // 右下角浮动卡片(异步,失败静默)
+  renderWishMarquee();
 }());
 
 // ============================================================
@@ -1071,6 +1085,135 @@ function bindAuth() {
 
   // 初始化：检查登录状态
   checkAuthStatus();
+}
+
+// ============================================================
+//  许愿池 · 右下角浮动卡片（5s 自动切换，可手动 ←/→，可关闭）
+// ============================================================
+async function renderWishMarquee() {
+  var LS_KEY = 'gp.wish_marquee_closed';
+  if (localStorage.getItem(LS_KEY) === '1') return;
+
+  // 单例：如果已经有 root 就不重复
+  if (document.getElementById('wishMarqueeRoot')) return;
+
+  let rows;
+  try {
+    const r = await fetch('api/wishes/public?size=20', { headers: { Accept: 'application/json' } });
+    if (!r.ok) return;
+    rows = await r.json();
+  } catch (e) {
+    return;
+  }
+  if (!Array.isArray(rows) || rows.length === 0) return;
+
+  const root = document.createElement('div');
+  root.id = 'wishMarqueeRoot';
+  root.innerHTML = `
+    <div class="wish-marquee-card" id="wishMarqueeCard">
+      <div class="wish-marquee-header">
+        <span class="wish-marquee-kicker">✦ 许愿池</span>
+        <button class="wish-marquee-close" type="button" id="wishMarqueeClose" aria-label="关闭">×</button>
+      </div>
+      <div class="wish-marquee-wish" id="wishMarqueeWish"></div>
+      <div class="wish-marquee-reply">
+        <div class="wish-marquee-reply-label">↩ 站长回复</div>
+        <div id="wishMarqueeReply"></div>
+      </div>
+      <div class="wish-marquee-reply-meta">
+        <span id="wishMarqueeMeta"></span>
+      </div>
+      <div class="wish-marquee-nav">
+        <button type="button" id="wishMarqueePrev">‹ 上一条</button>
+        <span class="wish-marquee-nav-count" id="wishMarqueeCount">1 / ${rows.length}</span>
+        <button type="button" id="wishMarqueeNext">下一条 ›</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(root);
+
+  const card    = root.querySelector('#wishMarqueeCard');
+  const wishEl  = root.querySelector('#wishMarqueeWish');
+  const replyEl = root.querySelector('#wishMarqueeReply');
+  const metaEl  = root.querySelector('#wishMarqueeMeta');
+  const countEl = root.querySelector('#wishMarqueeCount');
+  const prevBtn = root.querySelector('#wishMarqueePrev');
+  const nextBtn = root.querySelector('#wishMarqueeNext');
+  const closeBtn = root.querySelector('#wishMarqueeClose');
+
+  function fmtTime(iso) {
+    if (!iso) return '';
+    try {
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return iso;
+      const p = function (n) { return n < 10 ? '0' + n : '' + n; };
+      return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+    } catch (e) { return iso; }
+  }
+
+  function render(idx) {
+    const w = rows[idx];
+    if (!w) return;
+    wishEl.textContent = w.wish || '';
+    replyEl.textContent = w.reply || '';
+    const author = w.replyBy ? '—— ' + w.replyBy : '—— 站长';
+    metaEl.textContent = (w.replyAt ? fmtTime(w.replyAt) : '') +
+      (author ? (metaEl.textContent === '' ? author : ' · ' + author) : '');
+    // 简化: meta 一行展示
+    metaEl.textContent = author + (w.replyAt ? ' · ' + fmtTime(w.replyAt) : '');
+    countEl.textContent = (idx + 1) + ' / ' + rows.length;
+    prevBtn.disabled = idx <= 0;
+    nextBtn.disabled = idx >= rows.length - 1;
+  }
+
+  let cur = 0;
+  let timer = null;
+
+  function show() {
+    card.classList.add('is-visible');
+  }
+  function hideAndNext() {
+    card.classList.remove('is-visible');
+    setTimeout(function () {
+      cur = (cur + 1) % rows.length;
+      render(cur);
+      show();
+    }, 400);
+  }
+
+  function start() {
+    stop();
+    timer = setInterval(hideAndNext, 5000);
+  }
+  function stop() {
+    if (timer) { clearInterval(timer); timer = null; }
+  }
+
+  prevBtn.addEventListener('click', function () {
+    if (cur <= 0) return;
+    stop();
+    card.classList.remove('is-visible');
+    setTimeout(function () {
+      cur -= 1;
+      render(cur);
+      show();
+      start();
+    }, 200);
+  });
+  nextBtn.addEventListener('click', function () {
+    stop();
+    hideAndNext();
+    setTimeout(start, 1000);
+  });
+  closeBtn.addEventListener('click', function () {
+    stop();
+    if (root.parentNode) root.parentNode.removeChild(root);
+    try { localStorage.setItem(LS_KEY, '1'); } catch (e) {}
+  });
+
+  render(cur);
+  setTimeout(show, 80);
+  start();
 }
 
 // ============================================================
