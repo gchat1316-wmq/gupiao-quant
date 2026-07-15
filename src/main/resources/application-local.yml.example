@@ -1,0 +1,31 @@
+# Copy to application-local.yml and fill in real values.
+# application-local.yml is in .gitignore — never commit it.
+#
+# Active under: --spring.profiles.active=local  (default in restart.sh if you switch it)
+
+spring:
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/wucai_trade?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}              # fill in dev DB password
+  jpa:
+    show-sql: true                         # verbose SQL is fine for local
+
+app:
+  jwt:
+    # dev-only HS256 secret — generate with: openssl rand -base64 48
+    secret: ${JWT_SECRET:dev-only-do-not-use-in-prod-replace-with-openssl-rand-base64-48-bytes}
+
+ai:
+  minimax:
+    enabled: false                         # no real API call in local
+  sensenova:
+    enabled: false
+  tavily:
+    enabled: false
+
+notification:
+  serverchan:
+    enabled: false
+  wish-pool:
+    enabled: false

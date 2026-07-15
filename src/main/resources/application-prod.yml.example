@@ -1,0 +1,35 @@
+# Copy to application-prod.yml on the prod server (or mount via K8s Secret).
+# application-prod.yml is in .gitignore — never commit it.
+#
+# All values MUST be supplied via env vars in production. This file only lists the
+# property paths; the file is intentionally empty of real values.
+#
+# Required env vars (set in systemd unit / k8s Secret):
+#   DB_USERNAME, DB_PASSWORD, JWT_SECRET
+#   TDX_API_KEY, WIND_SKILL_DIR, WIND_CONFIG_PATH
+#   SERVER_CHAN_SEND_KEY, WISH_POOL_FEISHU_WEBHOOK_URL
+#   AI_MINIMAX_KEY, AI_SENSENOVA_KEY (or SENSENOVA_API_KEY), TAVILY_API_KEY
+#   HUAXIN_SMS_USER, HUAXIN_SMS_PASSWORD, HUAXIN_SMS_PRODUCT_ID
+#   WECHAT_APP_ID, WECHAT_APP_SECRET, WECHAT_REDIRECT_URI
+#   WECHAT_MP_APP_ID, WECHAT_MP_APP_SECRET, WECHAT_MP_CALLBACK_URL, WECHAT_MP_CALLBACK_TOKEN
+#
+# To enable DB SSL, set DB_USE_SSL=true AND ensure MySQL server has SSL enabled
+# AND a CA cert is mounted at /etc/ssl/mysql-ca.pem (path overridable via DB_SSL_CA_PATH).
+DB_USE_SSL: ${DB_USE_SSL:false}
+DB_SSL_CA_PATH: ${DB_SSL_CA_PATH:}
+
+server:
+  compression:
+    enabled: true
+    mime-types: text/html,text/css,application/javascript,application/json
+    min-response-size: 1024
+
+spring:
+  jpa:
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50
+          order_inserts: true
+          order_updates: true
+          batch_versioned_data: true
