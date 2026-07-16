@@ -1,15 +1,16 @@
 package com.quant.repository;
 
-import com.quant.entity.TechAiPositionFill;
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.List;
+import com.quant.entity.TechAiPositionFill;
 
 public interface TechAiPositionFillRepository extends JpaRepository<TechAiPositionFill, Long> {
 
-    List<TechAiPositionFill> findByPoolIdOrderByFilledAtAscIdAsc(Integer poolId);
+  List<TechAiPositionFill> findByPoolIdOrderByFilledAtAscIdAsc(Integer poolId);
 
-    List<TechAiPositionFill> findByPoolIdOrderByFilledAtDescIdDesc(Integer poolId);
+  List<TechAiPositionFill> findByPoolIdOrderByFilledAtDescIdDesc(Integer poolId);
 
-    void deleteByPoolId(Integer poolId);
+  void deleteByPoolId(Integer poolId);
 }

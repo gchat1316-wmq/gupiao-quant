@@ -6,10 +6,10 @@ import lombok.Data;
 @Data
 @Builder
 public class CardDTO {
-    private Long id;
-    private String cardType;
-    private String stage;
-    private String title;
-    private String body;
-    private String imageUrl;
+  private Long id;
+  private String cardType;
+  private String stage;
+  private String title;
+  private String body;
+  private String imageUrl;
 }

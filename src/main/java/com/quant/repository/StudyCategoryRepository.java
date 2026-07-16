@@ -1,10 +1,11 @@
 package com.quant.repository;
 
-import com.quant.entity.StudyCategory;
-import org.springframework.data.jpa.repository.JpaRepository;
-
 import java.util.List;
 
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.quant.entity.StudyCategory;
+
 public interface StudyCategoryRepository extends JpaRepository<StudyCategory, Integer> {
-    List<StudyCategory> findAllByOrderBySortAsc();
+  List<StudyCategory> findAllByOrderBySortAsc();
 }

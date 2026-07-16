@@ -1,14 +1,14 @@
 package com.quant.dto.study;
 
+import java.util.List;
+
 import lombok.Builder;
 import lombok.Data;
-
-import java.util.List;
 
 @Data
 @Builder
 public class CourseDetailDTO {
-    private CourseSummaryDTO course;
-    private List<KnowledgeNodeDTO> tree;
-    private List<MaterialDTO> materials;
+  private CourseSummaryDTO course;
+  private List<KnowledgeNodeDTO> tree;
+  private List<MaterialDTO> materials;
 }

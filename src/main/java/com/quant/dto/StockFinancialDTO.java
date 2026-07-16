@@ -1,15 +1,15 @@
 package com.quant.dto;
 
+import java.util.List;
+
 import lombok.Builder;
 import lombok.Getter;
-
-import java.util.List;
 
 @Getter
 @Builder
 public class StockFinancialDTO {
-    private String stockCode;
-    private String stockName;
-    private StockBasicInfoDTO basicInfo;
-    private List<QuarterMetricDTO> quarters;
+  private String stockCode;
+  private String stockName;
+  private StockBasicInfoDTO basicInfo;
+  private List<QuarterMetricDTO> quarters;
 }

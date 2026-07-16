@@ -6,6 +6,6 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public class RDistributionBucket {
-    private String label;
-    private Long count;
+  private String label;
+  private Long count;
 }

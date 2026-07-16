@@ -1,11 +1,12 @@
 package com.quant.wishpool;
 
-import com.quant.controller.WishPoolController;
-import com.quant.dto.wishpool.WishSubmitRequest;
-import com.quant.entity.WishPool;
-import com.quant.repository.UserRepository;
-import com.quant.security.JwtTokenProvider;
-import com.quant.service.WishPoolService;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,101 +16,105 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import com.quant.controller.WishPoolController;
+import com.quant.dto.wishpool.WishSubmitRequest;
+import com.quant.entity.WishPool;
+import com.quant.repository.UserRepository;
+import com.quant.security.JwtTokenProvider;
+import com.quant.service.WishPoolService;
 
 @WebMvcTest(WishPoolController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @DisplayName("WishPoolController")
 class WishPoolControllerTest {
 
-    @Autowired
-    MockMvc mvc;
+  @Autowired MockMvc mvc;
 
-    @MockBean
-    WishPoolService wishPoolService;
+  @MockBean WishPoolService wishPoolService;
 
-    @MockBean
-    JwtTokenProvider jwtTokenProvider;
+  @MockBean JwtTokenProvider jwtTokenProvider;
 
-    @MockBean
-    UserRepository userRepository;
+  @MockBean UserRepository userRepository;
 
-    @Test
-    @DisplayName("有效许愿返回 200 和成功消息")
-    void submitWishReturnsSuccess() throws Exception {
-        WishPool saved = new WishPool();
-        saved.setId(42L);
-        when(wishPoolService.submitWish(any(WishSubmitRequest.class), any()))
-                .thenReturn(saved);
+  @Test
+  @DisplayName("有效许愿返回 200 和成功消息")
+  void submitWishReturnsSuccess() throws Exception {
+    WishPool saved = new WishPool();
+    saved.setId(42L);
+    when(wishPoolService.submitWish(any(WishSubmitRequest.class), any())).thenReturn(saved);
 
-        mvc.perform(post("/api/wishes")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
+    mvc.perform(
+            post("/api/wishes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
                                 {"wish":"希望增加复盘摘要导出，帮我每天整理晨会材料。","page":"/gp/market-recap.html"}
                                 """))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message").value("已收到许愿，我们会认真评估"))
-                .andExpect(jsonPath("$.id").value(42));
-    }
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.message").value("已收到许愿，我们会认真评估"))
+        .andExpect(jsonPath("$.id").value(42));
+  }
 
-    @Test
-    @DisplayName("空许愿内容返回 400")
-    void blankWishReturns400() throws Exception {
-        mvc.perform(post("/api/wishes")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
+  @Test
+  @DisplayName("空许愿内容返回 400")
+  void blankWishReturns400() throws Exception {
+    mvc.perform(
+            post("/api/wishes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
                                 {"wish":"   ","page":"/gp/index.html"}
                                 """))
-                .andExpect(status().isBadRequest());
-    }
+        .andExpect(status().isBadRequest());
+  }
 
-    @Test
-    @DisplayName("邮箱格式不正确返回 400")
-    void invalidEmailReturns400() throws Exception {
-        mvc.perform(post("/api/wishes")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
+  @Test
+  @DisplayName("邮箱格式不正确返回 400")
+  void invalidEmailReturns400() throws Exception {
+    mvc.perform(
+            post("/api/wishes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
                                 {"wish":"希望增加每日复盘导出","page":"/gp/index.html","email":"not-an-email"}
                                 """))
-                .andExpect(status().isBadRequest());
-    }
+        .andExpect(status().isBadRequest());
+  }
 
-    @Test
-    @DisplayName("合法邮箱与许愿一并提交成功")
-    void submitWithValidEmailReturnsSuccess() throws Exception {
-        WishPool saved = new WishPool();
-        saved.setId(99L);
-        when(wishPoolService.submitWish(any(WishSubmitRequest.class), any()))
-                .thenReturn(saved);
+  @Test
+  @DisplayName("合法邮箱与许愿一并提交成功")
+  void submitWithValidEmailReturnsSuccess() throws Exception {
+    WishPool saved = new WishPool();
+    saved.setId(99L);
+    when(wishPoolService.submitWish(any(WishSubmitRequest.class), any())).thenReturn(saved);
 
-        mvc.perform(post("/api/wishes")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
+    mvc.perform(
+            post("/api/wishes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
                                 {"wish":"希望增加每日复盘导出功能","page":"/gp/market-recap.html","email":"user@example.com"}
                                 """))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message").value("已收到许愿，我们会认真评估"))
-                .andExpect(jsonPath("$.id").value(99));
-    }
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.message").value("已收到许愿，我们会认真评估"))
+        .andExpect(jsonPath("$.id").value(99));
+  }
 
-    @Test
-    @DisplayName("服务异常时返回 500")
-    void serviceFailureReturns500() throws Exception {
-        doThrow(new IllegalStateException("提交失败，请稍后再试"))
-                .when(wishPoolService)
-                .submitWish(any(WishSubmitRequest.class), any());
+  @Test
+  @DisplayName("服务异常时返回 500")
+  void serviceFailureReturns500() throws Exception {
+    doThrow(new IllegalStateException("提交失败，请稍后再试"))
+        .when(wishPoolService)
+        .submitWish(any(WishSubmitRequest.class), any());
 
-        mvc.perform(post("/api/wishes")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
+    mvc.perform(
+            post("/api/wishes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
                                 {"wish":"希望增加批量导出能力","page":"/gp/index.html"}
                                 """))
-                .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.message").value("提交失败，请稍后再试"));
-    }
+        .andExpect(status().isInternalServerError())
+        .andExpect(jsonPath("$.message").value("提交失败，请稍后再试"));
+  }
 }

@@ -1,16 +1,17 @@
 package com.quant.repository;
 
-import com.quant.entity.XieboWeeklyOpportunitySlot;
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import com.quant.entity.XieboWeeklyOpportunitySlot;
 
 public interface XieboWeeklyOpportunitySlotRepository
-        extends JpaRepository<XieboWeeklyOpportunitySlot, Long> {
+    extends JpaRepository<XieboWeeklyOpportunitySlot, Long> {
 
-    List<XieboWeeklyOpportunitySlot> findByPoolTypeOrderBySlotIndexAsc(String poolType);
+  List<XieboWeeklyOpportunitySlot> findByPoolTypeOrderBySlotIndexAsc(String poolType);
 
-    @Transactional
-    void deleteByPoolType(String poolType);
+  @Transactional
+  void deleteByPoolType(String poolType);
 }

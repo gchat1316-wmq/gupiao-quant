@@ -6,6 +6,6 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class MonitorRunResponse {
-    private String message;
-    private int triggered;
+  private String message;
+  private int triggered;
 }

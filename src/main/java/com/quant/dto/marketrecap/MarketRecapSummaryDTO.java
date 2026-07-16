@@ -12,14 +12,14 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class MarketRecapSummaryDTO {
-    private Long id;
-    private String market;
-    private String tradeDate;
-    private String title;
-    private String indexesSummary;
-    private String advanceDecline;
-    private Integer limitUp;
-    private Integer limitDown;
-    private String sentiment;
-    private String summaryExcerpt;
+  private Long id;
+  private String market;
+  private String tradeDate;
+  private String title;
+  private String indexesSummary;
+  private String advanceDecline;
+  private Integer limitUp;
+  private Integer limitDown;
+  private String sentiment;
+  private String summaryExcerpt;
 }

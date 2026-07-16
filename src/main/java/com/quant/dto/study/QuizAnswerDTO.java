@@ -6,9 +6,9 @@ import lombok.Data;
 @Data
 @Builder
 public class QuizAnswerDTO {
-    private Long quizId;
-    private String correctAnswer;
-    private String picked;
-    private boolean correct;
-    private String analysis;
+  private Long quizId;
+  private String correctAnswer;
+  private String picked;
+  private boolean correct;
+  private String analysis;
 }

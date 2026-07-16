@@ -1,22 +1,23 @@
 package com.quant.repository;
 
-import com.quant.entity.ProsperityPickDaily;
-import org.springframework.data.jpa.repository.JpaRepository;
-
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.quant.entity.ProsperityPickDaily;
+
 public interface ProsperityPickDailyRepository extends JpaRepository<ProsperityPickDaily, Integer> {
 
-    List<ProsperityPickDaily> findBySnapDateOrderByCombinedScoreDesc(LocalDate snapDate);
+  List<ProsperityPickDaily> findBySnapDateOrderByCombinedScoreDesc(LocalDate snapDate);
 
-    Optional<ProsperityPickDaily> findBySnapDateAndStockCode(LocalDate snapDate, String stockCode);
+  Optional<ProsperityPickDaily> findBySnapDateAndStockCode(LocalDate snapDate, String stockCode);
 
-    void deleteBySnapDate(LocalDate snapDate);
+  void deleteBySnapDate(LocalDate snapDate);
 
-    Optional<ProsperityPickDaily> findFirstByOrderBySnapDateDesc();
+  Optional<ProsperityPickDaily> findFirstByOrderBySnapDateDesc();
 
-    List<ProsperityPickDaily> findBySnapDateBetweenOrderBySnapDateDescCombinedScoreDesc(
-            LocalDate from, LocalDate to);
+  List<ProsperityPickDaily> findBySnapDateBetweenOrderBySnapDateDescCombinedScoreDesc(
+      LocalDate from, LocalDate to);
 }

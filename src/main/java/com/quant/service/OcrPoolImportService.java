@@ -1,7 +1,16 @@
 package com.quant.service;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.quant.dto.invest.BatchImportRequest;
 import com.quant.dto.invest.BatchImportResultDTO;
 import com.quant.dto.invest.OcrImportRequest;
@@ -13,299 +22,309 @@ import com.quant.entity.TradeStockBasic;
 import com.quant.repository.InvestStockPoolRepository;
 import com.quant.repository.TradeStockBasicRepository;
 import com.quant.service.ai.MiniMaxClient;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
 public class OcrPoolImportService {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+  private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    private static final String SYSTEM_PROMPT =
-            "你是一个金融数据识别助手。用户会上传一张包含股票表格的截图（如10倍PS估值表/研报清单），" +
-            "请仔细识别图中所有股票，并以严格的 JSON 格式返回。绝不要返回任何解释文字。";
+  private static final String SYSTEM_PROMPT =
+      "你是一个金融数据识别助手。用户会上传一张包含股票表格的截图（如10倍PS估值表/研报清单），" + "请仔细识别图中所有股票，并以严格的 JSON 格式返回。绝不要返回任何解释文字。";
 
-    private static final String USER_PROMPT =
-            "请识别图片中的股票表格，提取每只股票的以下字段，返回纯 JSON（不要 ```json 代码块包裹）：\n" +
-            "{\n" +
-            "  \"items\": [\n" +
-            "    {\n" +
-            "      \"stockName\": \"股票名称（必填，用中文，如：贵州茅台）\",\n" +
-            "      \"stockCode\": \"股票代码（如：600519，没有就留空字符串）\",\n" +
-            "      \"undervaluedPrice\": null,\n" +
-            "      \"fairPrice\": null,\n" +
-            "      \"overvaluedPrice\": null,\n" +
-            "      \"targetBuyPrice\": null,\n" +
-            "      \"targetSellPrice\": null,\n" +
-            "      \"revenue2023\": 2023年营收，单位亿元，纯数字，无则 null,\n" +
-            "      \"revenue2024\": 2024年营收，单位亿元，纯数字，无则 null,\n" +
-            "      \"revenue2025\": 2025年营收，单位亿元，纯数字，无则 null,\n" +
-            "      \"revenueForecastY0\": 该股票今年（当前年度）预测营收，单位亿元，纯数字（如 50.5），无则 null,\n" +
-            "      \"revenueForecastY1\": 明年预测营收（亿），无则 null,\n" +
-            "      \"revenueForecastY2\": 后年预测营收（亿），无则 null,\n" +
-            "      \"q1GrossMargin\": 2026Q1毛利率百分比，纯数字，无则 null,\n" +
-            "      \"q1NetMargin\": 2026Q1净利率百分比，纯数字，无则 null,\n" +
-            "      \"q1RevenueGrowth\": 2026Q1营收增速百分比，纯数字，无则 null,\n" +
-            "      \"minPs5y\": 近5年最低动态PS倍数，纯数字，无则 null,\n" +
-            "      \"memo\": \"可选备注\"\n" +
-            "    }\n" +
-            "  ]\n" +
-            "}\n" +
-            "注意：\n" +
-            "1. 如果图中字段不明确，对应字段填 null。\n" +
-            "2. 价格/营收都是数字，去掉单位（亿/元/%）。\n" +
-            "3. memo 可以拼接图中其它有用字段，方便用户查看。\n" +
-            "4. 必须返回合法 JSON。";
+  private static final String USER_PROMPT =
+      "请识别图片中的股票表格，提取每只股票的以下字段，返回纯 JSON（不要 ```json 代码块包裹）：\n"
+          + "{\n"
+          + "  \"items\": [\n"
+          + "    {\n"
+          + "      \"stockName\": \"股票名称（必填，用中文，如：贵州茅台）\",\n"
+          + "      \"stockCode\": \"股票代码（如：600519，没有就留空字符串）\",\n"
+          + "      \"undervaluedPrice\": null,\n"
+          + "      \"fairPrice\": null,\n"
+          + "      \"overvaluedPrice\": null,\n"
+          + "      \"targetBuyPrice\": null,\n"
+          + "      \"targetSellPrice\": null,\n"
+          + "      \"revenue2023\": 2023年营收，单位亿元，纯数字，无则 null,\n"
+          + "      \"revenue2024\": 2024年营收，单位亿元，纯数字，无则 null,\n"
+          + "      \"revenue2025\": 2025年营收，单位亿元，纯数字，无则 null,\n"
+          + "      \"revenueForecastY0\": 该股票今年（当前年度）预测营收，单位亿元，纯数字（如 50.5），无则 null,\n"
+          + "      \"revenueForecastY1\": 明年预测营收（亿），无则 null,\n"
+          + "      \"revenueForecastY2\": 后年预测营收（亿），无则 null,\n"
+          + "      \"q1GrossMargin\": 2026Q1毛利率百分比，纯数字，无则 null,\n"
+          + "      \"q1NetMargin\": 2026Q1净利率百分比，纯数字，无则 null,\n"
+          + "      \"q1RevenueGrowth\": 2026Q1营收增速百分比，纯数字，无则 null,\n"
+          + "      \"minPs5y\": 近5年最低动态PS倍数，纯数字，无则 null,\n"
+          + "      \"memo\": \"可选备注\"\n"
+          + "    }\n"
+          + "  ]\n"
+          + "}\n"
+          + "注意：\n"
+          + "1. 如果图中字段不明确，对应字段填 null。\n"
+          + "2. 价格/营收都是数字，去掉单位（亿/元/%）。\n"
+          + "3. memo 可以拼接图中其它有用字段，方便用户查看。\n"
+          + "4. 必须返回合法 JSON。";
 
-    private final MiniMaxClient miniMaxClient;
-    private final TradeStockBasicRepository stockBasicRepository;
-    private final InvestStockPoolRepository poolRepository;
-    private final InvestService investService;
+  private final MiniMaxClient miniMaxClient;
+  private final TradeStockBasicRepository stockBasicRepository;
+  private final InvestStockPoolRepository poolRepository;
+  private final InvestService investService;
 
-    public OcrPoolImportService(MiniMaxClient miniMaxClient,
-                                TradeStockBasicRepository stockBasicRepository,
-                                InvestStockPoolRepository poolRepository,
-                                InvestService investService) {
-        this.miniMaxClient = miniMaxClient;
-        this.stockBasicRepository = stockBasicRepository;
-        this.poolRepository = poolRepository;
-        this.investService = investService;
+  public OcrPoolImportService(
+      MiniMaxClient miniMaxClient,
+      TradeStockBasicRepository stockBasicRepository,
+      InvestStockPoolRepository poolRepository,
+      InvestService investService) {
+    this.miniMaxClient = miniMaxClient;
+    this.stockBasicRepository = stockBasicRepository;
+    this.poolRepository = poolRepository;
+    this.investService = investService;
+  }
+
+  public OcrParseResultDTO parseImage(OcrImportRequest req) {
+    if (req.getImageBase64() == null || req.getImageBase64().isBlank()) {
+      throw new IllegalArgumentException("图片不能为空");
+    }
+    String aiResp;
+    try {
+      aiResp =
+          miniMaxClient.chatCompleteVision(SYSTEM_PROMPT, USER_PROMPT, req.getImageBase64(), null);
+    } catch (Exception e) {
+      log.warn("MiniMax 视觉识别失败：{}", e.getMessage(), e);
+      throw new IllegalStateException("AI 识别失败：" + e.getMessage());
+    }
+    log.info("OCR 返回长度: {}", aiResp == null ? 0 : aiResp.length());
+
+    String json = stripJsonFence(aiResp);
+    List<OcrParsedItemDTO> parsed = parseJsonToItems(json);
+
+    String defaultPoolType =
+        req.getDefaultPoolType() != null && !req.getDefaultPoolType().isBlank()
+            ? req.getDefaultPoolType()
+            : "tech_ai";
+
+    for (OcrParsedItemDTO it : parsed) {
+      if (it.getPoolType() == null || it.getPoolType().isBlank()) {
+        it.setPoolType(defaultPoolType);
+      }
+      if (it.getStatus() == null || it.getStatus().isBlank()) {
+        it.setStatus("watching");
+      }
+      tryMatch(it);
     }
 
-    public OcrParseResultDTO parseImage(OcrImportRequest req) {
-        if (req.getImageBase64() == null || req.getImageBase64().isBlank()) {
-            throw new IllegalArgumentException("图片不能为空");
+    int matched = (int) parsed.stream().filter(OcrParsedItemDTO::isMatched).count();
+    return OcrParseResultDTO.builder()
+        .totalParsed(parsed.size())
+        .matched(matched)
+        .items(parsed)
+        .rawAiText(aiResp)
+        .build();
+  }
+
+  /** 把识别项匹配到 trade_stock_basic 找到完整的 stockCode（带后缀）+ 校正 stockName。 */
+  private void tryMatch(OcrParsedItemDTO it) {
+    String code = it.getStockCode();
+    String name = it.getStockName();
+
+    if (code != null && !code.isBlank()) {
+      String trimmed = code.trim();
+      // 已带后缀
+      if (trimmed.contains(".")) {
+        Optional<TradeStockBasic> exact = stockBasicRepository.findByStockCode(trimmed);
+        if (exact.isPresent()) {
+          fillFromBasic(it, exact.get());
+          return;
         }
-        String aiResp;
-        try {
-            aiResp = miniMaxClient.chatCompleteVision(SYSTEM_PROMPT, USER_PROMPT, req.getImageBase64(), null);
-        } catch (Exception e) {
-            log.warn("MiniMax 视觉识别失败：{}", e.getMessage(), e);
-            throw new IllegalStateException("AI 识别失败：" + e.getMessage());
+      } else if (trimmed.matches("\\d{4,8}")) {
+        List<TradeStockBasic> byPrefix = stockBasicRepository.findByStockCodePrefix(trimmed);
+        if (!byPrefix.isEmpty()) {
+          fillFromBasic(it, byPrefix.get(0));
+          return;
         }
-        log.info("OCR 返回长度: {}", aiResp == null ? 0 : aiResp.length());
+      }
+    }
+    if (name != null && !name.isBlank()) {
+      List<TradeStockBasic> byName = stockBasicRepository.findByStockNameLike(name.trim());
+      if (!byName.isEmpty()) {
+        fillFromBasic(it, byName.get(0));
+        return;
+      }
+    }
+    it.setMatched(false);
+  }
 
-        String json = stripJsonFence(aiResp);
-        List<OcrParsedItemDTO> parsed = parseJsonToItems(json);
+  private void fillFromBasic(OcrParsedItemDTO it, TradeStockBasic basic) {
+    it.setStockCode(basic.getStockCode());
+    if (basic.getStockName() != null && !basic.getStockName().isBlank()) {
+      it.setStockName(basic.getStockName());
+    }
+    it.setMatched(true);
+  }
 
-        String defaultPoolType = req.getDefaultPoolType() != null && !req.getDefaultPoolType().isBlank()
-                ? req.getDefaultPoolType() : "tech_ai";
+  private String stripJsonFence(String text) {
+    if (text == null) return "{}";
+    String t = text.trim();
+    if (t.startsWith("```")) {
+      int firstNl = t.indexOf('\n');
+      if (firstNl > 0) t = t.substring(firstNl + 1);
+      int endFence = t.lastIndexOf("```");
+      if (endFence >= 0) t = t.substring(0, endFence);
+      t = t.trim();
+    }
+    // 提取首个 { 到末尾 }
+    int start = t.indexOf('{');
+    int end = t.lastIndexOf('}');
+    if (start >= 0 && end > start) return t.substring(start, end + 1);
+    return t;
+  }
 
-        for (OcrParsedItemDTO it : parsed) {
-            if (it.getPoolType() == null || it.getPoolType().isBlank()) {
-                it.setPoolType(defaultPoolType);
-            }
-            if (it.getStatus() == null || it.getStatus().isBlank()) {
-                it.setStatus("watching");
-            }
-            tryMatch(it);
-        }
-
-        int matched = (int) parsed.stream().filter(OcrParsedItemDTO::isMatched).count();
-        return OcrParseResultDTO.builder()
-                .totalParsed(parsed.size())
-                .matched(matched)
-                .items(parsed)
-                .rawAiText(aiResp)
+  private List<OcrParsedItemDTO> parseJsonToItems(String json) {
+    List<OcrParsedItemDTO> result = new ArrayList<>();
+    try {
+      JsonNode root = MAPPER.readTree(json);
+      JsonNode arr = root.path("items");
+      if (!arr.isArray()) return result;
+      for (JsonNode n : arr) {
+        OcrParsedItemDTO it =
+            OcrParsedItemDTO.builder()
+                .stockName(textOrNull(n, "stockName"))
+                .stockCode(textOrNull(n, "stockCode"))
+                .undervaluedPrice(decimalOrNull(n, "undervaluedPrice"))
+                .fairPrice(decimalOrNull(n, "fairPrice"))
+                .overvaluedPrice(decimalOrNull(n, "overvaluedPrice"))
+                .targetBuyPrice(decimalOrNull(n, "targetBuyPrice"))
+                .targetSellPrice(decimalOrNull(n, "targetSellPrice"))
+                .revenue2023(decimalOrNull(n, "revenue2023"))
+                .revenue2024(decimalOrNull(n, "revenue2024"))
+                .revenue2025(decimalOrNull(n, "revenue2025"))
+                .revenueForecastY0(decimalOrNull(n, "revenueForecastY0"))
+                .revenueForecastY1(decimalOrNull(n, "revenueForecastY1"))
+                .revenueForecastY2(decimalOrNull(n, "revenueForecastY2"))
+                .q1GrossMargin(decimalOrNull(n, "q1GrossMargin"))
+                .q1NetMargin(decimalOrNull(n, "q1NetMargin"))
+                .q1RevenueGrowth(decimalOrNull(n, "q1RevenueGrowth"))
+                .minPs5y(decimalOrNull(n, "minPs5y"))
+                .currentMarketCap(decimalOrNull(n, "currentMarketCap"))
+                .ytdGainPct(decimalOrNull(n, "ytdGainPct"))
+                .memo(textOrNull(n, "memo"))
+                .matched(false)
                 .build();
-    }
-
-    /** 把识别项匹配到 trade_stock_basic 找到完整的 stockCode（带后缀）+ 校正 stockName。 */
-    private void tryMatch(OcrParsedItemDTO it) {
-        String code = it.getStockCode();
-        String name = it.getStockName();
-
-        if (code != null && !code.isBlank()) {
-            String trimmed = code.trim();
-            // 已带后缀
-            if (trimmed.contains(".")) {
-                Optional<TradeStockBasic> exact = stockBasicRepository.findByStockCode(trimmed);
-                if (exact.isPresent()) {
-                    fillFromBasic(it, exact.get());
-                    return;
-                }
-            } else if (trimmed.matches("\\d{4,8}")) {
-                List<TradeStockBasic> byPrefix = stockBasicRepository.findByStockCodePrefix(trimmed);
-                if (!byPrefix.isEmpty()) {
-                    fillFromBasic(it, byPrefix.get(0));
-                    return;
-                }
-            }
+        if (it.getStockName() != null && !it.getStockName().isBlank()) {
+          result.add(it);
         }
-        if (name != null && !name.isBlank()) {
-            List<TradeStockBasic> byName = stockBasicRepository.findByStockNameLike(name.trim());
-            if (!byName.isEmpty()) {
-                fillFromBasic(it, byName.get(0));
-                return;
-            }
-        }
-        it.setMatched(false);
+      }
+    } catch (Exception e) {
+      log.error("解析 OCR JSON 失败: {}", e.getMessage());
+      throw new IllegalStateException("AI 返回内容无法解析为 JSON：" + e.getMessage());
     }
+    return result;
+  }
 
-    private void fillFromBasic(OcrParsedItemDTO it, TradeStockBasic basic) {
-        it.setStockCode(basic.getStockCode());
-        if (basic.getStockName() != null && !basic.getStockName().isBlank()) {
-            it.setStockName(basic.getStockName());
-        }
-        it.setMatched(true);
-    }
+  private String textOrNull(JsonNode n, String key) {
+    JsonNode v = n.path(key);
+    if (v.isMissingNode() || v.isNull()) return null;
+    String s = v.asText("");
+    return s.isBlank() ? null : s.trim();
+  }
 
-    private String stripJsonFence(String text) {
-        if (text == null) return "{}";
-        String t = text.trim();
-        if (t.startsWith("```")) {
-            int firstNl = t.indexOf('\n');
-            if (firstNl > 0) t = t.substring(firstNl + 1);
-            int endFence = t.lastIndexOf("```");
-            if (endFence >= 0) t = t.substring(0, endFence);
-            t = t.trim();
-        }
-        // 提取首个 { 到末尾 }
-        int start = t.indexOf('{');
-        int end = t.lastIndexOf('}');
-        if (start >= 0 && end > start) return t.substring(start, end + 1);
-        return t;
+  private BigDecimal decimalOrNull(JsonNode n, String key) {
+    JsonNode v = n.path(key);
+    if (v.isMissingNode() || v.isNull()) return null;
+    if (v.isNumber()) return v.decimalValue();
+    String s = v.asText("").trim();
+    if (s.isEmpty()) return null;
+    try {
+      return new BigDecimal(s);
+    } catch (NumberFormatException e) {
+      return null;
     }
+  }
 
-    private List<OcrParsedItemDTO> parseJsonToItems(String json) {
-        List<OcrParsedItemDTO> result = new ArrayList<>();
-        try {
-            JsonNode root = MAPPER.readTree(json);
-            JsonNode arr = root.path("items");
-            if (!arr.isArray()) return result;
-            for (JsonNode n : arr) {
-                OcrParsedItemDTO it = OcrParsedItemDTO.builder()
-                        .stockName(textOrNull(n, "stockName"))
-                        .stockCode(textOrNull(n, "stockCode"))
-                        .undervaluedPrice(decimalOrNull(n, "undervaluedPrice"))
-                        .fairPrice(decimalOrNull(n, "fairPrice"))
-                        .overvaluedPrice(decimalOrNull(n, "overvaluedPrice"))
-                        .targetBuyPrice(decimalOrNull(n, "targetBuyPrice"))
-                        .targetSellPrice(decimalOrNull(n, "targetSellPrice"))
-                        .revenue2023(decimalOrNull(n, "revenue2023"))
-                        .revenue2024(decimalOrNull(n, "revenue2024"))
-                        .revenue2025(decimalOrNull(n, "revenue2025"))
-                        .revenueForecastY0(decimalOrNull(n, "revenueForecastY0"))
-                        .revenueForecastY1(decimalOrNull(n, "revenueForecastY1"))
-                        .revenueForecastY2(decimalOrNull(n, "revenueForecastY2"))
-                        .q1GrossMargin(decimalOrNull(n, "q1GrossMargin"))
-                        .q1NetMargin(decimalOrNull(n, "q1NetMargin"))
-                        .q1RevenueGrowth(decimalOrNull(n, "q1RevenueGrowth"))
-                        .minPs5y(decimalOrNull(n, "minPs5y"))
-                        .currentMarketCap(decimalOrNull(n, "currentMarketCap"))
-                        .ytdGainPct(decimalOrNull(n, "ytdGainPct"))
-                        .memo(textOrNull(n, "memo"))
-                        .matched(false)
-                        .build();
-                if (it.getStockName() != null && !it.getStockName().isBlank()) {
-                    result.add(it);
-                }
-            }
-        } catch (Exception e) {
-            log.error("解析 OCR JSON 失败: {}", e.getMessage());
-            throw new IllegalStateException("AI 返回内容无法解析为 JSON：" + e.getMessage());
+  @Transactional
+  public BatchImportResultDTO batchImport(BatchImportRequest req) {
+    if (req.getItems() == null || req.getItems().isEmpty()) {
+      return BatchImportResultDTO.builder()
+          .imported(0)
+          .skipped(0)
+          .failed(0)
+          .failures(List.of())
+          .build();
+    }
+    int imported = 0, skipped = 0, failed = 0;
+    List<String> failures = new ArrayList<>();
+    for (OcrParsedItemDTO it : req.getItems()) {
+      try {
+        String keyword =
+            (it.getStockCode() != null && !it.getStockCode().isBlank())
+                ? it.getStockCode().trim()
+                : (it.getStockName() != null ? it.getStockName().trim() : "");
+        if (keyword.isEmpty()) {
+          failed++;
+          failures.add("(空) 无法匹配");
+          continue;
         }
-        return result;
-    }
-
-    private String textOrNull(JsonNode n, String key) {
-        JsonNode v = n.path(key);
-        if (v.isMissingNode() || v.isNull()) return null;
-        String s = v.asText("");
-        return s.isBlank() ? null : s.trim();
-    }
-
-    private BigDecimal decimalOrNull(JsonNode n, String key) {
-        JsonNode v = n.path(key);
-        if (v.isMissingNode() || v.isNull()) return null;
-        if (v.isNumber()) return v.decimalValue();
-        String s = v.asText("").trim();
-        if (s.isEmpty()) return null;
-        try {
-            return new BigDecimal(s);
-        } catch (NumberFormatException e) {
-            return null;
+        // 已存在：跳过（保持现有数据不被覆盖）
+        Optional<InvestStockPool> exist =
+            poolRepository.findByStockCode(normalizeCode(it.getStockCode()));
+        if (exist.isEmpty() && it.getStockCode() != null) {
+          exist = poolRepository.findByStockCode(it.getStockCode().trim());
         }
-    }
-
-    @Transactional
-    public BatchImportResultDTO batchImport(BatchImportRequest req) {
-        if (req.getItems() == null || req.getItems().isEmpty()) {
-            return BatchImportResultDTO.builder().imported(0).skipped(0).failed(0).failures(List.of()).build();
+        if (exist.isPresent()) {
+          skipped++;
+          continue;
         }
-        int imported = 0, skipped = 0, failed = 0;
-        List<String> failures = new ArrayList<>();
-        for (OcrParsedItemDTO it : req.getItems()) {
-            try {
-                String keyword = (it.getStockCode() != null && !it.getStockCode().isBlank())
-                        ? it.getStockCode().trim()
-                        : (it.getStockName() != null ? it.getStockName().trim() : "");
-                if (keyword.isEmpty()) {
-                    failed++;
-                    failures.add("(空) 无法匹配");
-                    continue;
-                }
-                // 已存在：跳过（保持现有数据不被覆盖）
-                Optional<InvestStockPool> exist = poolRepository.findByStockCode(
-                        normalizeCode(it.getStockCode()));
-                if (exist.isEmpty() && it.getStockCode() != null) {
-                    exist = poolRepository.findByStockCode(it.getStockCode().trim());
-                }
-                if (exist.isPresent()) {
-                    skipped++;
-                    continue;
-                }
-                PoolSaveRequest saveReq = new PoolSaveRequest();
-                saveReq.setKeyword(keyword);
-                saveReq.setPoolType(it.getPoolType() != null ? it.getPoolType() : "tech_ai");
-                saveReq.setStatus(it.getStatus() != null ? it.getStatus() : "watching");
-                saveReq.setMemo(it.getMemo());
-                saveReq.setUndervaluedPrice(it.getUndervaluedPrice());
-                saveReq.setFairPrice(it.getFairPrice());
-                saveReq.setOvervaluedPrice(it.getOvervaluedPrice());
-                saveReq.setTargetBuyPrice(it.getTargetBuyPrice());
-                saveReq.setTargetSellPrice(it.getTargetSellPrice());
-                saveReq.setRevenue2023(it.getRevenue2023());
-                saveReq.setRevenue2024(it.getRevenue2024());
-                saveReq.setRevenue2025(it.getRevenue2025());
-                saveReq.setRevenueForecastY0(it.getRevenueForecastY0());
-                saveReq.setRevenueForecastY1(it.getRevenueForecastY1());
-                saveReq.setRevenueForecastY2(it.getRevenueForecastY2());
-                saveReq.setQ1GrossMargin(it.getQ1GrossMargin());
-                saveReq.setQ1NetMargin(it.getQ1NetMargin());
-                saveReq.setQ1RevenueGrowth(it.getQ1RevenueGrowth());
-                saveReq.setMinPs5y(it.getMinPs5y());
-                investService.addToPool(saveReq);
-                imported++;
-            } catch (IllegalArgumentException e) {
-                if (e.getMessage() != null && e.getMessage().contains("已在股票池")) {
-                    skipped++;
-                } else {
-                    failed++;
-                    failures.add((it.getStockName() != null ? it.getStockName() : it.getStockCode()) + ": " + e.getMessage());
-                }
-            } catch (Exception e) {
-                failed++;
-                failures.add((it.getStockName() != null ? it.getStockName() : it.getStockCode()) + ": " + e.getMessage());
-            }
+        PoolSaveRequest saveReq = new PoolSaveRequest();
+        saveReq.setKeyword(keyword);
+        saveReq.setPoolType(it.getPoolType() != null ? it.getPoolType() : "tech_ai");
+        saveReq.setStatus(it.getStatus() != null ? it.getStatus() : "watching");
+        saveReq.setMemo(it.getMemo());
+        saveReq.setUndervaluedPrice(it.getUndervaluedPrice());
+        saveReq.setFairPrice(it.getFairPrice());
+        saveReq.setOvervaluedPrice(it.getOvervaluedPrice());
+        saveReq.setTargetBuyPrice(it.getTargetBuyPrice());
+        saveReq.setTargetSellPrice(it.getTargetSellPrice());
+        saveReq.setRevenue2023(it.getRevenue2023());
+        saveReq.setRevenue2024(it.getRevenue2024());
+        saveReq.setRevenue2025(it.getRevenue2025());
+        saveReq.setRevenueForecastY0(it.getRevenueForecastY0());
+        saveReq.setRevenueForecastY1(it.getRevenueForecastY1());
+        saveReq.setRevenueForecastY2(it.getRevenueForecastY2());
+        saveReq.setQ1GrossMargin(it.getQ1GrossMargin());
+        saveReq.setQ1NetMargin(it.getQ1NetMargin());
+        saveReq.setQ1RevenueGrowth(it.getQ1RevenueGrowth());
+        saveReq.setMinPs5y(it.getMinPs5y());
+        investService.addToPool(saveReq);
+        imported++;
+      } catch (IllegalArgumentException e) {
+        if (e.getMessage() != null && e.getMessage().contains("已在股票池")) {
+          skipped++;
+        } else {
+          failed++;
+          failures.add(
+              (it.getStockName() != null ? it.getStockName() : it.getStockCode())
+                  + ": "
+                  + e.getMessage());
         }
-        return BatchImportResultDTO.builder()
-                .imported(imported)
-                .skipped(skipped)
-                .failed(failed)
-                .failures(failures)
-                .build();
+      } catch (Exception e) {
+        failed++;
+        failures.add(
+            (it.getStockName() != null ? it.getStockName() : it.getStockCode())
+                + ": "
+                + e.getMessage());
+      }
     }
+    return BatchImportResultDTO.builder()
+        .imported(imported)
+        .skipped(skipped)
+        .failed(failed)
+        .failures(failures)
+        .build();
+  }
 
-    private String normalizeCode(String code) {
-        if (code == null) return null;
-        return code.trim();
-    }
+  private String normalizeCode(String code) {
+    if (code == null) return null;
+    return code.trim();
+  }
 }

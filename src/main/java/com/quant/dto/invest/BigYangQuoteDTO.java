@@ -1,12 +1,12 @@
 package com.quant.dto.invest;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
 
 /**
  * 大阳线信号实时价格（精简 DTO）。
@@ -19,7 +19,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 public class BigYangQuoteDTO {
-    private String stockCode;
-    private BigDecimal currentPrice;
-    private LocalDate currentPriceDate;
+  private String stockCode;
+  private BigDecimal currentPrice;
+  private LocalDate currentPriceDate;
 }

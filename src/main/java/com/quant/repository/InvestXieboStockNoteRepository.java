@@ -1,10 +1,10 @@
 package com.quant.repository;
 
-import com.quant.entity.InvestXieboStockNote;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import com.quant.entity.InvestXieboStockNote;
+
 @Repository
 public interface InvestXieboStockNoteRepository
-        extends JpaRepository<InvestXieboStockNote, String> {
-}
+    extends JpaRepository<InvestXieboStockNote, String> {}

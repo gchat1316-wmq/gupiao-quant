@@ -1,15 +1,15 @@
 package com.quant.dto.invest;
 
+import java.util.List;
+
 import lombok.Builder;
 import lombok.Getter;
-
-import java.util.List;
 
 @Getter
 @Builder
 public class BatchImportResultDTO {
-    private int imported;
-    private int skipped;
-    private int failed;
-    private List<String> failures;
+  private int imported;
+  private int skipped;
+  private int failed;
+  private List<String> failures;
 }

@@ -10,12 +10,12 @@ import lombok.Setter;
 @Table(name = "study_category")
 public class StudyCategory {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Integer id;
 
-    @Column(nullable = false, length = 32)
-    private String name;
+  @Column(nullable = false, length = 32)
+  private String name;
 
-    private Integer sort;
+  private Integer sort;
 }

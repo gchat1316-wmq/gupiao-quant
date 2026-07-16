@@ -1,11 +1,12 @@
 package com.quant.repository;
 
-import com.quant.entity.InvestPoolMeta;
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.List;
+import com.quant.entity.InvestPoolMeta;
 
 public interface InvestPoolMetaRepository extends JpaRepository<InvestPoolMeta, String> {
 
-    List<InvestPoolMeta> findAllByOrderByDisplayOrderAscPoolTypeAsc();
+  List<InvestPoolMeta> findAllByOrderByDisplayOrderAscPoolTypeAsc();
 }

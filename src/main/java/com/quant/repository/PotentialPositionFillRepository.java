@@ -1,15 +1,17 @@
 package com.quant.repository;
 
-import com.quant.entity.PotentialPositionFill;
-import org.springframework.data.jpa.repository.JpaRepository;
-
 import java.util.List;
 
-public interface PotentialPositionFillRepository extends JpaRepository<PotentialPositionFill, Long> {
+import org.springframework.data.jpa.repository.JpaRepository;
 
-    List<PotentialPositionFill> findByPoolIdOrderByFilledAtAscIdAsc(Integer poolId);
+import com.quant.entity.PotentialPositionFill;
 
-    List<PotentialPositionFill> findByPoolIdOrderByFilledAtDescIdDesc(Integer poolId);
+public interface PotentialPositionFillRepository
+    extends JpaRepository<PotentialPositionFill, Long> {
 
-    void deleteByPoolId(Integer poolId);
+  List<PotentialPositionFill> findByPoolIdOrderByFilledAtAscIdAsc(Integer poolId);
+
+  List<PotentialPositionFill> findByPoolIdOrderByFilledAtDescIdDesc(Integer poolId);
+
+  void deleteByPoolId(Integer poolId);
 }

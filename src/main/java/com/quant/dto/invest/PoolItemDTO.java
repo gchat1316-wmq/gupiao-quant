@@ -1,78 +1,91 @@
 package com.quant.dto.invest;
 
-import lombok.Builder;
-import lombok.Getter;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+
+import lombok.Builder;
+import lombok.Getter;
 
 @Getter
 @Builder
 public class PoolItemDTO {
-    private Integer id;
-    private String stockCode;
-    private String stockName;
-    private String poolType;
-    private String poolTypeLabel;
-    private String memo;
+  private Integer id;
+  private String stockCode;
+  private String stockName;
+  private String poolType;
+  private String poolTypeLabel;
+  private String memo;
 
-    /** 估值价格 */
-    private BigDecimal undervaluedPrice;
-    private BigDecimal fairPrice;
-    private BigDecimal overvaluedPrice;
+  /** 估值价格 */
+  private BigDecimal undervaluedPrice;
 
-    /** 操作意向价格 */
-    private BigDecimal targetBuyPrice;
-    private BigDecimal targetSellPrice;
-    /** @deprecated 旧字段，已被 targetBuyPrice / targetSellPrice 取代，保留供兼容 */
-    @Deprecated
-    private BigDecimal targetPrice;
+  private BigDecimal fairPrice;
+  private BigDecimal overvaluedPrice;
 
-    /** 营收预测（亿元） */
-    private BigDecimal revenueForecastY0;
-    private BigDecimal revenueForecastY1;
-    private BigDecimal revenueForecastY2;
+  /** 操作意向价格 */
+  private BigDecimal targetBuyPrice;
 
-    /** 10倍PS看板：历史营收、季度指标、估值跟踪 */
-    private BigDecimal revenue2023;
-    private BigDecimal revenue2024;
-    private BigDecimal revenue2025;
-    private BigDecimal q1GrossMargin;
-    private BigDecimal q1NetMargin;
-    private BigDecimal q1RevenueGrowth;
-    private BigDecimal minPs5y;
-    private BigDecimal targetMarketCap;
-    private BigDecimal currentMarketCap;
-    private BigDecimal ytdGainPct;
-    private Integer displayOrder;
-    private String poolUpdateError;
-    private String profitLevel;
-    private String valuationRange;
-    /** 偏离 10×PS 估值参考年的百分比（−100~+∞），仅当 level=低估/泡沫 时有值；合理或缺数据为 null */
-    private BigDecimal valuationDegree;
-    /** degree 的参照年（2027 / 2028），便于前端展示「27 -45%」「28 +85%」 */
-    private Integer valuationRefYear;
+  private BigDecimal targetSellPrice;
 
-    /** 持仓状态 */
-    private String status;
-    private String statusLabel;
+  /**
+   * @deprecated 旧字段，已被 targetBuyPrice / targetSellPrice 取代，保留供兼容
+   */
+  @Deprecated private BigDecimal targetPrice;
 
-    /** 提醒状态：none / buy_alerted / sell_alerted */
-    private String alertState;
-    private LocalDateTime lastAlertAt;
+  /** 营收预测（亿元） */
+  private BigDecimal revenueForecastY0;
 
-    /** 派生字段：最新收盘价 */
-    private BigDecimal latestPrice;
-    /** 派生字段：年初涨幅（%） */
-    private BigDecimal ytdGain;
-    /** 派生字段：当前市值（亿元） */
-    private BigDecimal marketCap;
+  private BigDecimal revenueForecastY1;
+  private BigDecimal revenueForecastY2;
 
-    /** 最新景气数据（保留兼容） */
-    private BigDecimal latestRevenueYoy;
-    private BigDecimal latestProfitYoy;
-    private String latestLevel;
+  /** 10倍PS看板：历史营收、季度指标、估值跟踪 */
+  private BigDecimal revenue2023;
 
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+  private BigDecimal revenue2024;
+  private BigDecimal revenue2025;
+  private BigDecimal q1GrossMargin;
+  private BigDecimal q1NetMargin;
+  private BigDecimal q1RevenueGrowth;
+  private BigDecimal minPs5y;
+  private BigDecimal targetMarketCap;
+  private BigDecimal currentMarketCap;
+  private BigDecimal ytdGainPct;
+  private Integer displayOrder;
+  private String poolUpdateError;
+  private String profitLevel;
+  private String valuationRange;
+
+  /** 偏离 10×PS 估值参考年的百分比（−100~+∞），仅当 level=低估/泡沫 时有值；合理或缺数据为 null */
+  private BigDecimal valuationDegree;
+
+  /** degree 的参照年（2027 / 2028），便于前端展示「27 -45%」「28 +85%」 */
+  private Integer valuationRefYear;
+
+  /** 持仓状态 */
+  private String status;
+
+  private String statusLabel;
+
+  /** 提醒状态：none / buy_alerted / sell_alerted */
+  private String alertState;
+
+  private LocalDateTime lastAlertAt;
+
+  /** 派生字段：最新收盘价 */
+  private BigDecimal latestPrice;
+
+  /** 派生字段：年初涨幅（%） */
+  private BigDecimal ytdGain;
+
+  /** 派生字段：当前市值（亿元） */
+  private BigDecimal marketCap;
+
+  /** 最新景气数据（保留兼容） */
+  private BigDecimal latestRevenueYoy;
+
+  private BigDecimal latestProfitYoy;
+  private String latestLevel;
+
+  private LocalDateTime createdAt;
+  private LocalDateTime updatedAt;
 }

@@ -1,12 +1,12 @@
 package com.quant.dto.marketrecap;
 
+import java.util.List;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
-import java.util.List;
 
 @Getter
 @Setter
@@ -14,8 +14,8 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SectorCardDTO {
-    private String name;
-    private String strengthLabel;
-    private List<String> leaders;
-    private String catalyst;
+  private String name;
+  private String strengthLabel;
+  private List<String> leaders;
+  private String catalyst;
 }

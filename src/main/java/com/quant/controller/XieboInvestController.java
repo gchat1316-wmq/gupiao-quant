@@ -1,5 +1,19 @@
 package com.quant.controller;
 
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.quant.dto.xieboinvest.XieboAnalysisDetailDTO;
 import com.quant.dto.xieboinvest.XieboAnalysisListItemDTO;
 import com.quant.dto.xieboinvest.XieboNewsDTO;
@@ -10,20 +24,8 @@ import com.quant.dto.xieboinvest.XieboWeeklyOpportunityUpdateRequest;
 import com.quant.service.xieboinvest.XieboInvestAnalysisService;
 import com.quant.service.xieboinvest.XieboInvestNewsService;
 import com.quant.service.xieboinvest.XieboInvestService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-import java.util.Map;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/xiebo-invest")
@@ -31,79 +33,82 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class XieboInvestController {
 
-    private final XieboInvestService service;
-    @SuppressWarnings("unused")
-    private final XieboInvestAnalysisService analysisService;
-    @SuppressWarnings("unused")
-    private final XieboInvestNewsService newsService;
-    @SuppressWarnings("unused")
-    private final com.quant.service.xieboinvest.XieboWeeklyOpportunityService weeklyOpportunityService;
+  private final XieboInvestService service;
 
-    @GetMapping("/watchlist")
-    public List<XieboWatchlistItemDTO> watchlist() {
-        return service.getWatchlist();
-    }
+  @SuppressWarnings("unused")
+  private final XieboInvestAnalysisService analysisService;
 
-    @PostMapping("/watchlist")
-    public List<XieboWatchlistItemDTO> addWatchlist(@RequestBody Map<String, String> body) {
-        return service.addWatchlist(body.get("keyword"));
-    }
+  @SuppressWarnings("unused")
+  private final XieboInvestNewsService newsService;
 
-    @DeleteMapping("/watchlist/{stockCode}")
-    public Map<String, String> removeWatchlist(@PathVariable String stockCode) {
-        service.removeWatchlist(stockCode);
-        return Map.of("message", "removed");
-    }
+  @SuppressWarnings("unused")
+  private final com.quant.service.xieboinvest.XieboWeeklyOpportunityService
+      weeklyOpportunityService;
 
-    @GetMapping("/quote")
-    public XieboQuoteDTO quote(@RequestParam("keyword") String keyword) {
-        return service.getQuote(keyword);
-    }
+  @GetMapping("/watchlist")
+  public List<XieboWatchlistItemDTO> watchlist() {
+    return service.getWatchlist();
+  }
 
-    @GetMapping("/sector-pe")
-    public Map<String, Object> sectorPe(@RequestParam("keyword") String keyword) {
-        return service.getSectorPe(keyword);
-    }
+  @PostMapping("/watchlist")
+  public List<XieboWatchlistItemDTO> addWatchlist(@RequestBody Map<String, String> body) {
+    return service.addWatchlist(body.get("keyword"));
+  }
 
-    @GetMapping("/news")
-    public XieboNewsDTO news(@RequestParam(value = "keyword", required = false) String keyword) {
-        return newsService.load(keyword);
-    }
+  @DeleteMapping("/watchlist/{stockCode}")
+  public Map<String, String> removeWatchlist(@PathVariable String stockCode) {
+    service.removeWatchlist(stockCode);
+    return Map.of("message", "removed");
+  }
 
-    @GetMapping("/analysis")
-    public List<XieboAnalysisListItemDTO> analysisList() {
-        return analysisService.list();
-    }
+  @GetMapping("/quote")
+  public XieboQuoteDTO quote(@RequestParam("keyword") String keyword) {
+    return service.getQuote(keyword);
+  }
 
-    @PostMapping("/analysis")
-    public XieboAnalysisDetailDTO createAnalysis(@RequestBody Map<String, String> body) {
-        return analysisService.create(body.get("keyword"));
-    }
+  @GetMapping("/sector-pe")
+  public Map<String, Object> sectorPe(@RequestParam("keyword") String keyword) {
+    return service.getSectorPe(keyword);
+  }
 
-    @GetMapping("/analysis/{id}")
-    public XieboAnalysisDetailDTO analysisDetail(@PathVariable Long id) {
-        return analysisService.detail(id);
-    }
+  @GetMapping("/news")
+  public XieboNewsDTO news(@RequestParam(value = "keyword", required = false) String keyword) {
+    return newsService.load(keyword);
+  }
 
-    // ── 谢博投资 · 每周重点股票（3×3 卡片） ──
+  @GetMapping("/analysis")
+  public List<XieboAnalysisListItemDTO> analysisList() {
+    return analysisService.list();
+  }
 
-    /** 读取所有 3 个分类的 27 个 slot（已认证即可访问） */
-    @GetMapping("/weekly-opportunity")
-    public List<XieboWeeklyOpportunitySlotDTO> listAllWeeklyOpportunity() {
-        return weeklyOpportunityService.listAll();
-    }
+  @PostMapping("/analysis")
+  public XieboAnalysisDetailDTO createAnalysis(@RequestBody Map<String, String> body) {
+    return analysisService.create(body.get("keyword"));
+  }
 
-    /** 读取单个分类的 9 个 slot（已认证即可访问） */
-    @GetMapping("/weekly-opportunity/{poolType}")
-    public List<XieboWeeklyOpportunitySlotDTO> getWeeklyOpportunity(@PathVariable String poolType) {
-        return weeklyOpportunityService.get(poolType);
-    }
+  @GetMapping("/analysis/{id}")
+  public XieboAnalysisDetailDTO analysisDetail(@PathVariable Long id) {
+    return analysisService.detail(id);
+  }
 
-    /** 全量替换某个分类的 9 个 slot（MANAGER + ADMIN） */
-    @PutMapping("/weekly-opportunity/{poolType}")
-    public List<XieboWeeklyOpportunitySlotDTO> updateWeeklyOpportunity(
-            @PathVariable String poolType,
-            @RequestBody XieboWeeklyOpportunityUpdateRequest req) {
-        return weeklyOpportunityService.update(poolType, req);
-    }
+  // ── 谢博投资 · 每周重点股票（3×3 卡片） ──
+
+  /** 读取所有 3 个分类的 27 个 slot（已认证即可访问） */
+  @GetMapping("/weekly-opportunity")
+  public List<XieboWeeklyOpportunitySlotDTO> listAllWeeklyOpportunity() {
+    return weeklyOpportunityService.listAll();
+  }
+
+  /** 读取单个分类的 9 个 slot（已认证即可访问） */
+  @GetMapping("/weekly-opportunity/{poolType}")
+  public List<XieboWeeklyOpportunitySlotDTO> getWeeklyOpportunity(@PathVariable String poolType) {
+    return weeklyOpportunityService.get(poolType);
+  }
+
+  /** 全量替换某个分类的 9 个 slot（MANAGER + ADMIN） */
+  @PutMapping("/weekly-opportunity/{poolType}")
+  public List<XieboWeeklyOpportunitySlotDTO> updateWeeklyOpportunity(
+      @PathVariable String poolType, @RequestBody XieboWeeklyOpportunityUpdateRequest req) {
+    return weeklyOpportunityService.update(poolType, req);
+  }
 }

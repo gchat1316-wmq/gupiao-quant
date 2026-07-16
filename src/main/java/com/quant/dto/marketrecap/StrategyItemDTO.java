@@ -12,6 +12,6 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class StrategyItemDTO {
-    private String label;
-    private String value;
+  private String label;
+  private String value;
 }
