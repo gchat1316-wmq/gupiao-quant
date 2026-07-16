@@ -50,28 +50,37 @@ public class PotentialPositionCalculator {
    */
   public InvestPositionCommon getOrCreatePosition(String stockCode) {
     return positionRepository.findByStockCodeAndPoolType(stockCode, POOL_TYPE_POTENTIAL)
-        .orElseGet(() -> {
-          InvestPositionCommon pos = new InvestPositionCommon();
-          pos.setStockCode(stockCode);
-          pos.setPoolType(POOL_TYPE_POTENTIAL);
-          pos.setStatus("watching");
-          pos.setAlertState("none");
-          pos.setPositionState("none");
-          pos.setPositionLots(BigDecimal.ZERO);
-          pos.setRealizedPnl(BigDecimal.ZERO);
-          pos.setAddCount(0);
-          pos.setTakeProfitDone(0);
-          pos.setAddStepPct(BigDecimal.valueOf(10));
-          pos.setTrailPct(BigDecimal.valueOf(10));
-          pos.setAddSizeSchedule("1,1,1");
-          pos.setTakeProfitPct(BigDecimal.valueOf(50));
-          pos.setBreakevenAfterTp(1);
-          pos.setUseAtr(0);
-          pos.setAtrPeriod(14);
-          pos.setAtrAddMult(BigDecimal.ONE);
-          pos.setAtrTrailMult(BigDecimal.valueOf(2));
-          return positionRepository.save(pos);
-        });
+        .orElseGet(() -> positionRepository.save(newDefaultPosition(stockCode, "watching")));
+  }
+
+  /**
+   * 构造一份潜在监控默认持仓记录（未持久化）。单一来源：{@link #getOrCreatePosition(String)} 与
+   * {@code PotentialService.addToPool} 都通过它来消除重复初始化逻辑。
+   *
+   * @param stockCode      股票代码
+   * @param requestStatus  入参状态（{@code null} 或空白时回退到 "watching"）
+   */
+  public static InvestPositionCommon newDefaultPosition(String stockCode, String requestStatus) {
+    InvestPositionCommon pos = new InvestPositionCommon();
+    pos.setStockCode(stockCode);
+    pos.setPoolType(POOL_TYPE_POTENTIAL);
+    pos.setStatus(requestStatus == null || requestStatus.isBlank() ? "watching" : requestStatus);
+    pos.setAlertState("none");
+    pos.setPositionState("none");
+    pos.setPositionLots(BigDecimal.ZERO);
+    pos.setRealizedPnl(BigDecimal.ZERO);
+    pos.setAddCount(0);
+    pos.setTakeProfitDone(0);
+    pos.setAddStepPct(BigDecimal.valueOf(10));
+    pos.setTrailPct(BigDecimal.valueOf(10));
+    pos.setAddSizeSchedule("1,1,1");
+    pos.setTakeProfitPct(BigDecimal.valueOf(50));
+    pos.setBreakevenAfterTp(1);
+    pos.setUseAtr(0);
+    pos.setAtrPeriod(14);
+    pos.setAtrAddMult(BigDecimal.ONE);
+    pos.setAtrTrailMult(BigDecimal.valueOf(2));
+    return pos;
   }
 
   /**

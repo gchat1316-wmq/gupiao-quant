@@ -120,25 +120,7 @@ public class PotentialService {
     pool.setMemo(request.getMemo());
     PotentialPool saved = poolRepository.save(pool);
 
-    InvestPositionCommon pos = new InvestPositionCommon();
-    pos.setStockCode(stockCode);
-    pos.setPoolType(PotentialPositionCalculator.POOL_TYPE_POTENTIAL);
-    pos.setStatus(request.getStatus() == null || request.getStatus().isBlank() ? "watching" : request.getStatus());
-    pos.setPositionState("none");
-    pos.setPositionLots(BigDecimal.ZERO);
-    pos.setAddCount(0);
-    pos.setRealizedPnl(BigDecimal.ZERO);
-    pos.setTakeProfitDone(0);
-    pos.setAddStepPct(BigDecimal.valueOf(10));
-    pos.setTrailPct(BigDecimal.valueOf(10));
-    pos.setAddSizeSchedule("1,1,1");
-    pos.setTakeProfitPct(BigDecimal.valueOf(50));
-    pos.setBreakevenAfterTp(1);
-    pos.setUseAtr(0);
-    pos.setAtrPeriod(14);
-    pos.setAtrAddMult(BigDecimal.ONE);
-    pos.setAtrTrailMult(BigDecimal.valueOf(2));
-    pos.setAlertState("none");
+    InvestPositionCommon pos = PotentialPositionCalculator.newDefaultPosition(stockCode, request.getStatus());
     positionRepository.save(pos);
 
     return toPoolDTO(saved, pos, basic, latestQuote(saved.getStockCode()));
