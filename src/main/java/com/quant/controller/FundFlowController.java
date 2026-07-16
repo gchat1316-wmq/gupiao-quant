@@ -12,8 +12,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import com.quant.service.FundFlowService;
-import com.quant.service.FundFlowService.FundFlowData;
+import com.quant.service.recap.FundFlowService;
+import com.quant.service.recap.FundFlowService.FundFlowData;
 
 import lombok.extern.slf4j.Slf4j;
 

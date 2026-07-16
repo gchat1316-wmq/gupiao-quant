@@ -26,7 +26,7 @@ import com.quant.dto.marketrecap.SectorCardDTO;
 import com.quant.dto.marketrecap.StrategyItemDTO;
 import com.quant.repository.UserRepository;
 import com.quant.security.JwtTokenProvider;
-import com.quant.service.MarketRecapService;
+import com.quant.service.recap.MarketRecapService;
 
 @WebMvcTest(MarketRecapController.class)
 @AutoConfigureMockMvc(addFilters = false)

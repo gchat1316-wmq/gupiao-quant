@@ -22,7 +22,7 @@ import com.quant.dto.marketrecap.SectorCardDTO;
 import com.quant.dto.marketrecap.StrategyItemDTO;
 import com.quant.entity.InvestMarketRecap;
 import com.quant.repository.InvestMarketRecapRepository;
-import com.quant.service.MarketRecapService;
+import com.quant.service.recap.MarketRecapService;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("MarketRecapService")

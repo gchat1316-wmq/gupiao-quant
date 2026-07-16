@@ -1,4 +1,4 @@
-package com.quant.service;
+package com.quant.service.recap;
 
 import java.time.LocalDate;
 import java.util.ArrayList;

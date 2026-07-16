@@ -13,8 +13,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.quant.dto.marketrecap.MarketRecapBadgeDTO;
 import com.quant.dto.marketrecap.MarketRecapDetailDTO;
 import com.quant.dto.marketrecap.MarketRecapPageDTO;
-import com.quant.service.DailyRecapService;
-import com.quant.service.MarketRecapService;
+import com.quant.service.recap.DailyRecapService;
+import com.quant.service.recap.MarketRecapService;
 
 @RestController
 @RequestMapping("/api/market-recaps")
