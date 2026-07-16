@@ -1,5 +1,14 @@
 package com.quant.service.potential;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import org.springframework.stereotype.Component;
+
 import com.quant.entity.TechAiQuoteSnapshot;
 import com.quant.entity.TradeStockBasic;
 import com.quant.entity.TradeStockRealtimeKline;
@@ -12,21 +21,14 @@ import com.quant.service.BaostockMinuteQuoteService;
 import com.quant.service.EastMoneyRealtimeQuoteService;
 import com.quant.service.SinaRealtimeQuoteService;
 import com.quant.service.techai.TechAiStockCodeUtils;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 
 /**
  * 潜力监控 · 行情聚合。
  *
- * <p>按"快照→实时行情→实时5分K→新浪→东财→BaoStock 5分钟"的优先级逐级回退拉取
- * {@link TechAiQuoteSnapshot}。 同时封装股票代码归一化、股票基础信息按 code 候选匹配。
+ * <p>按"快照→实时行情→实时5分K→新浪→东财→BaoStock 5分钟"的优先级逐级回退拉取 {@link TechAiQuoteSnapshot}。 同时封装股票代码归一化、股票基础信息按
+ * code 候选匹配。
  */
 @Component
 @RequiredArgsConstructor
@@ -40,17 +42,13 @@ public class PotentialQuoteAggregator {
   private final EastMoneyRealtimeQuoteService eastMoneyRealtimeQuoteService;
   private final BaostockMinuteQuoteService baostockMinuteQuoteService;
 
-  /**
-   * 多源获取最新行情快照。返回的 key 为 project code（无 qmt 后缀）。
-   */
+  /** 多源获取最新行情快照。返回的 key 为 project code（无 qmt 后缀）。 */
   public Map<String, TechAiQuoteSnapshot> latestQuotes(Collection<String> codes) {
     if (codes.isEmpty()) {
       return Map.of();
     }
-    List<String> normalizedCodes = codes.stream()
-        .map(TechAiStockCodeUtils::normalizeProjectCode)
-        .distinct()
-        .toList();
+    List<String> normalizedCodes =
+        codes.stream().map(TechAiStockCodeUtils::normalizeProjectCode).distinct().toList();
     List<String> candidates = codeCandidates(normalizedCodes);
     Map<String, TechAiQuoteSnapshot> result = new HashMap<>();
 
@@ -60,14 +58,16 @@ public class PotentialQuoteAggregator {
 
     List<String> missing = missingCodes(normalizedCodes, result);
     if (!missing.isEmpty()) {
-      for (TradeStockRealtimeQuote quote : realtimeQuoteRepository.findByStockCodeIn(codeCandidates(missing))) {
+      for (TradeStockRealtimeQuote quote :
+          realtimeQuoteRepository.findByStockCodeIn(codeCandidates(missing))) {
         putIfMissing(result, quoteToSnapshot(quote));
       }
     }
 
     missing = missingCodes(normalizedCodes, result);
     if (!missing.isEmpty()) {
-      for (TradeStockRealtimeKline kline : realtimeKlineRepository.findLatestByStockCodesAndPeriod(codeCandidates(missing), "5m")) {
+      for (TradeStockRealtimeKline kline :
+          realtimeKlineRepository.findLatestByStockCodesAndPeriod(codeCandidates(missing), "5m")) {
         putIfMissing(result, klineToSnapshot(kline));
       }
     }
@@ -84,7 +84,10 @@ public class PotentialQuoteAggregator {
 
     missing = missingCodes(normalizedCodes, result);
     if (!missing.isEmpty()) {
-      baostockMinuteQuoteService.fetchLatest5m(missing).values().forEach(q -> putIfMissing(result, q));
+      baostockMinuteQuoteService
+          .fetchLatest5m(missing)
+          .values()
+          .forEach(q -> putIfMissing(result, q));
     }
 
     return result;
@@ -115,9 +118,7 @@ public class PotentialQuoteAggregator {
     return basics.get(TechAiStockCodeUtils.normalizeProjectCode(stockCode));
   }
 
-  /**
-   * 解析用户输入关键字：先归一化查 DB；查不到且关键字不含 6 位数字时，按名称模糊匹配取第一条。
-   */
+  /** 解析用户输入关键字：先归一化查 DB；查不到且关键字不含 6 位数字时，按名称模糊匹配取第一条。 */
   public String resolveStockCode(String keyword) {
     String normalized = TechAiStockCodeUtils.normalizeProjectCode(keyword);
     TradeStockBasic exact = basic(normalized);
@@ -134,9 +135,7 @@ public class PotentialQuoteAggregator {
   }
 
   List<String> missingCodes(List<String> codes, Map<String, TechAiQuoteSnapshot> quotes) {
-    return codes.stream()
-        .filter(code -> !quotes.containsKey(code))
-        .toList();
+    return codes.stream().filter(code -> !quotes.containsKey(code)).toList();
   }
 
   void putNewer(Map<String, TechAiQuoteSnapshot> quotes, TechAiQuoteSnapshot quote) {
@@ -145,8 +144,10 @@ public class PotentialQuoteAggregator {
     }
     String key = TechAiStockCodeUtils.normalizeProjectCode(quote.getStockCode());
     TechAiQuoteSnapshot existing = quotes.get(key);
-    if (existing == null || existing.getQuoteTime() == null
-        || (quote.getQuoteTime() != null && quote.getQuoteTime().isAfter(existing.getQuoteTime()))) {
+    if (existing == null
+        || existing.getQuoteTime() == null
+        || (quote.getQuoteTime() != null
+            && quote.getQuoteTime().isAfter(existing.getQuoteTime()))) {
       quotes.put(key, quote);
     }
   }

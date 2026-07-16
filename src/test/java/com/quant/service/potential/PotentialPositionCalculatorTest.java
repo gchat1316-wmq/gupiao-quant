@@ -1,5 +1,24 @@
 package com.quant.service.potential;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
 import com.quant.entity.InvestPositionCommon;
 import com.quant.entity.PotentialPool;
 import com.quant.entity.PotentialPositionFill;
@@ -9,24 +28,6 @@ import com.quant.repository.PotentialPositionFillRepository;
 import com.quant.repository.TradeStockDailyRepository;
 import com.quant.service.techai.TechAiAtrCalculator;
 import com.quant.service.techai.TechAiPositionEngine;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("PotentialPositionCalculator")
@@ -43,9 +44,14 @@ class PotentialPositionCalculatorTest {
 
   @BeforeEach
   void setUp() {
-    calculator = new PotentialPositionCalculator(
-        poolRepository, fillRepository, positionRepository,
-        dailyRepository, positionEngine, atrCalculator);
+    calculator =
+        new PotentialPositionCalculator(
+            poolRepository,
+            fillRepository,
+            positionRepository,
+            dailyRepository,
+            positionEngine,
+            atrCalculator);
   }
 
   @Nested
@@ -128,7 +134,8 @@ class PotentialPositionCalculatorTest {
       BigDecimal target = calculator.defaultTargetPrice(new BigDecimal("10"), new BigDecimal("50"));
       assertThat(target).isEqualByComparingTo("15.00");
 
-      BigDecimal negative = calculator.defaultTargetPrice(new BigDecimal("10"), new BigDecimal("-10"));
+      BigDecimal negative =
+          calculator.defaultTargetPrice(new BigDecimal("10"), new BigDecimal("-10"));
       assertThat(negative).isNull();
 
       BigDecimal zeroEntry = calculator.defaultTargetPrice(BigDecimal.ZERO, new BigDecimal("50"));
@@ -210,7 +217,8 @@ class PotentialPositionCalculatorTest {
       assertThat(pos.getOpenedAt()).isNull();
       assertThat(pos.getTakeProfitDone()).isEqualTo(0);
       assertThat(pos.getPositionState()).isEqualTo("none");
-      verify(positionEngine, never()).evaluate(any(TechAiPositionEngine.PoolView.class), any(), any());
+      verify(positionEngine, never())
+          .evaluate(any(TechAiPositionEngine.PoolView.class), any(), any());
     }
 
     @Test
@@ -218,7 +226,8 @@ class PotentialPositionCalculatorTest {
       PotentialPool pool = poolWithId(7, "002851.SZ");
       when(poolRepository.findByStockCode("002851.SZ")).thenReturn(Optional.of(pool));
 
-      PotentialPositionFill open = fill(1L, "open", "10", "2", LocalDateTime.of(2026, 7, 16, 9, 30));
+      PotentialPositionFill open =
+          fill(1L, "open", "10", "2", LocalDateTime.of(2026, 7, 16, 9, 30));
       when(fillRepository.findByPoolIdOrderByFilledAtAscIdAsc(7)).thenReturn(List.of(open));
 
       // Position engine returns a non-null stop price to confirm evaluate() is called
@@ -253,7 +262,8 @@ class PotentialPositionCalculatorTest {
       PotentialPool pool = poolWithId(7, "002851.SZ");
       when(poolRepository.findByStockCode("002851.SZ")).thenReturn(Optional.of(pool));
 
-      PotentialPositionFill open = fill(1L, "open", "10", "2", LocalDateTime.of(2026, 7, 16, 9, 30));
+      PotentialPositionFill open =
+          fill(1L, "open", "10", "2", LocalDateTime.of(2026, 7, 16, 9, 30));
       PotentialPositionFill add = fill(2L, "add", "12", "2", LocalDateTime.of(2026, 7, 16, 11, 0));
       when(fillRepository.findByPoolIdOrderByFilledAtAscIdAsc(7)).thenReturn(List.of(open, add));
 
@@ -284,8 +294,10 @@ class PotentialPositionCalculatorTest {
       PotentialPool pool = poolWithId(7, "002851.SZ");
       when(poolRepository.findByStockCode("002851.SZ")).thenReturn(Optional.of(pool));
 
-      PotentialPositionFill open = fill(1L, "open", "10", "2", LocalDateTime.of(2026, 7, 16, 9, 30));
-      PotentialPositionFill clear = fill(2L, "clear", "15", null, LocalDateTime.of(2026, 7, 16, 14, 30));
+      PotentialPositionFill open =
+          fill(1L, "open", "10", "2", LocalDateTime.of(2026, 7, 16, 9, 30));
+      PotentialPositionFill clear =
+          fill(2L, "clear", "15", null, LocalDateTime.of(2026, 7, 16, 14, 30));
       when(fillRepository.findByPoolIdOrderByFilledAtAscIdAsc(7)).thenReturn(List.of(open, clear));
 
       // No positionEngine call expected (exited path returns early)
@@ -305,7 +317,8 @@ class PotentialPositionCalculatorTest {
       assertThat(pos.getRealizedPnl()).isEqualByComparingTo("1000.00");
       // exited branch resets takeProfitDone to 0 (a fresh position would re-evaluate)
       assertThat(pos.getTakeProfitDone()).isEqualTo(0);
-      verify(positionEngine, never()).evaluate(any(TechAiPositionEngine.PoolView.class), any(), any());
+      verify(positionEngine, never())
+          .evaluate(any(TechAiPositionEngine.PoolView.class), any(), any());
     }
 
     @Test
@@ -314,8 +327,7 @@ class PotentialPositionCalculatorTest {
       pos.setStockCode("UNKNOWN");
       when(poolRepository.findByStockCode("UNKNOWN")).thenReturn(Optional.empty());
 
-      org.assertj.core.api.Assertions.assertThatThrownBy(
-              () -> calculator.recomputeAggregates(pos))
+      org.assertj.core.api.Assertions.assertThatThrownBy(() -> calculator.recomputeAggregates(pos))
           .isInstanceOf(IllegalStateException.class)
           .hasMessageContaining("UNKNOWN");
     }
@@ -330,7 +342,8 @@ class PotentialPositionCalculatorTest {
     return pool;
   }
 
-  private PotentialPositionFill fill(Long id, String action, String price, String lots, LocalDateTime at) {
+  private PotentialPositionFill fill(
+      Long id, String action, String price, String lots, LocalDateTime at) {
     PotentialPositionFill f = new PotentialPositionFill();
     f.setId(id);
     f.setAction(action);

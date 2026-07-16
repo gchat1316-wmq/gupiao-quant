@@ -1,5 +1,11 @@
 package com.quant.service.potential;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalTime;
+
+import org.springframework.stereotype.Component;
+
 import com.quant.dto.techai.PositionFillDTO;
 import com.quant.dto.techai.TechAiAlertDTO;
 import com.quant.dto.techai.TechAiPoolItemDTO;
@@ -8,12 +14,6 @@ import com.quant.entity.InvestPositionCommon;
 import com.quant.entity.PotentialPool;
 import com.quant.entity.PotentialPositionFill;
 import com.quant.entity.TradeStockBasic;
-import org.springframework.stereotype.Component;
-
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.LocalTime;
-import java.util.List;
 
 /**
  * 潜力监控 · 无状态工具与 DTO 装配。
@@ -38,8 +38,11 @@ public class PotentialPoolSupport {
   /** 涨跌幅（百分比，2 位小数）。 */
   public static BigDecimal pctChange(BigDecimal value, BigDecimal base) {
     if (value == null || base == null || base.compareTo(BigDecimal.ZERO) == 0) return null;
-    return value.subtract(base).divide(base, 6, RoundingMode.HALF_UP)
-        .multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP);
+    return value
+        .subtract(base)
+        .divide(base, 6, RoundingMode.HALF_UP)
+        .multiply(BigDecimal.valueOf(100))
+        .setScale(2, RoundingMode.HALF_UP);
   }
 
   /** A 股盘中：9:30–11:30 + 13:00–15:00。 */
@@ -123,14 +126,14 @@ public class PotentialPoolSupport {
   /**
    * 组装 {@link TechAiPoolItemDTO}。这是一个较复杂的 DTO，需要 positionEngine 评估止损/加仓位 → 留给调用方注入 plan/roadmap。
    *
-   * @param pool           监控池条目
-   * @param pos            持仓记录（可为 null）
-   * @param basic          股票基础（可为 null）
-   * @param quote          最新行情快照（可为 null）
-   * @param view           {@link com.quant.service.techai.TechAiPositionEngine.PoolView} 视图
-   * @param plan           已评估的 {@link com.quant.service.techai.TechAiPositionEngine.PositionPlan}
-   * @param roadmap        策略路线图（watching 时预演的全部档位）
-   * @param atr            ATR 指标
+   * @param pool 监控池条目
+   * @param pos 持仓记录（可为 null）
+   * @param basic 股票基础（可为 null）
+   * @param quote 最新行情快照（可为 null）
+   * @param view {@link com.quant.service.techai.TechAiPositionEngine.PoolView} 视图
+   * @param plan 已评估的 {@link com.quant.service.techai.TechAiPositionEngine.PositionPlan}
+   * @param roadmap 策略路线图（watching 时预演的全部档位）
+   * @param atr ATR 指标
    * @param targetSellPrice 有效目标价（pos.targetSellPrice 或 entryPrice × (1 + takeProfitPct/100)）
    */
   public static TechAiPoolItemDTO toPoolDTO(
@@ -144,8 +147,12 @@ public class PotentialPoolSupport {
       BigDecimal atr,
       BigDecimal targetSellPrice) {
     BigDecimal price = quote == null ? null : quote.getLatestPrice();
-    BigDecimal dailyChange = quote == null ? null : pctChange(quote.getLatestPrice(), quote.getPrevClosePrice());
-    boolean hasPosition = pos != null && pos.getPositionLots() != null && pos.getPositionLots().compareTo(BigDecimal.ZERO) > 0;
+    BigDecimal dailyChange =
+        quote == null ? null : pctChange(quote.getLatestPrice(), quote.getPrevClosePrice());
+    boolean hasPosition =
+        pos != null
+            && pos.getPositionLots() != null
+            && pos.getPositionLots().compareTo(BigDecimal.ZERO) > 0;
     boolean isAtrMode = pos != null && pos.getUseAtr() != null && pos.getUseAtr() == 1;
 
     return TechAiPoolItemDTO.builder()
@@ -175,14 +182,16 @@ public class PotentialPoolSupport {
         .stopPrice(pos != null ? pos.getStopPrice() : null)
         .realizedPnl(pos != null ? pos.getRealizedPnl() : null)
         .positionState(pos != null ? pos.getPositionState() : null)
-        .takeProfitDone(pos != null && pos.getTakeProfitDone() != null && pos.getTakeProfitDone() == 1)
+        .takeProfitDone(
+            pos != null && pos.getTakeProfitDone() != null && pos.getTakeProfitDone() == 1)
         .openedAt(pos != null ? pos.getOpenedAt() : null)
         .addStepPct(pos != null ? pos.getAddStepPct() : null)
         .trailPct(pos != null ? pos.getTrailPct() : null)
         .addSizeSchedule(pos != null ? pos.getAddSizeSchedule() : null)
         .maxLots(pos != null ? pos.getMaxLots() : null)
         .takeProfitPct(pos != null ? pos.getTakeProfitPct() : null)
-        .breakevenAfterTp(pos != null && pos.getBreakevenAfterTp() != null && pos.getBreakevenAfterTp() == 1)
+        .breakevenAfterTp(
+            pos != null && pos.getBreakevenAfterTp() != null && pos.getBreakevenAfterTp() == 1)
         .timeStopDays(pos != null ? pos.getTimeStopDays() : null)
         .useAtr(pos != null && isAtrMode)
         .atrPeriod(pos != null ? pos.getAtrPeriod() : null)
