@@ -1,4 +1,4 @@
-package com.quant.service;
+package com.quant.service.study;
 
 import java.util.*;
 import java.util.stream.Collectors;

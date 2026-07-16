@@ -7,8 +7,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.quant.dto.study.*;
-import com.quant.service.StudyService;
-import com.quant.service.StudyUploadService;
+import com.quant.service.study.StudyService;
+import com.quant.service.study.StudyUploadService;
 
 import lombok.RequiredArgsConstructor;
 
