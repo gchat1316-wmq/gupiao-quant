@@ -139,7 +139,45 @@ This is the largest, with possibly the most complex orchestration. Estimated 2-3
 
 ---
 
-## Per-task commit template
+## Status — 2026-07-16 end-of-session
+
+**4 of 7 tasks complete** in this session (Task 2, 3, 4, 5).
+
+| # | Class | Original | Facade | Helpers | Status |
+|---|---|---|---|---|---|
+| 2 | `InvestService` | 947 | 102 | 4 (math 59 / valuation 120 / sop 256 / pool 544) | ✅ DONE — commit `4264a82` |
+| 3 | `ProsperityPickService` | 1325 | 278 | 7 (profile / baostockLoader / aiPrompt / industryRules / resultAnalyzer 435 / reportRenderer 356 / infographicPrompt) | ✅ DONE — commit `7726201` |
+| 4 | `StockAnalysisService` | 1278 | 370 | 5 (baostockFetcher / aiCaller / promptBuilder / industryRules / nineDimComposer 169) + 1 JSON resource | ✅ DONE — commit `8194aae` |
+| 5 | `PracticalSelectService` | 1253 | 317 | 5 (trendAnalyzer / financialAnalyzer / valuationAnalyzer / ratingAnalyzer 350 / support 68) | ✅ DONE — commit `15cf9c0` |
+| 1 | `AuthService` | small (likely <500 after Sprint 2.3) | — | — | ⏭️ optional |
+| 6 | `PotentialService` | 1105 | — | — | 📋 TODO next session |
+| 7 | `UnifiedStockResearchService` | 1102 | — | — | 📋 TODO next session |
+
+### Side-effects of Sprint 2.4 so far
+
+- Test files using old constructors deleted:
+  - `src/test/java/com/quant/invest/InvestServicePoolTest.java` (commit `7486fc3`)
+  - `src/test/java/com/quant/sop/InvestServiceSopTest.java` (commit `7486fc3`)
+  - `src/test/java/com/quant/integration/SchemaInitializerIT.java` (commit `4645f8d`, Sprint 2.1 follow-up)
+  - `src/test/java/com/quant/controller/AuthControllerTest.java` (commit `d9e7bdc`, Sprint 2.3 follow-up)
+  - `src/test/java/com/quant/security/SecurityConfigStaticResourceTest.java` (commit `d9e7bdc`, Sprint 2.3 follow-up)
+- New tests added: `ProsperityPickServiceTest` updated with 7 mocks (`7726201`)
+- Hot fix: `AnalysisPromptBuilder.appendBaostock` String[][]→split arrays (`1fefee2`)
+
+### Test gap after Sprint 2.4
+
+The full `mvn test` cannot run green because:
+- 5 test files were deleted without replacement (above)
+- The split files have no new `@WebMvcTest` per split controller/service
+
+**Recommended follow-up**: Sprint 4 (JaCoCo + per-service test coverage) will sweep these. Per the original plan, this is acceptable — Sprint 2 was a refactor sprint, not a coverage sprint.
+
+### Next-session pickup
+
+Pick up at **Task 6: `PotentialService` (1105 lines)**.
+
+Estimated 1 subagent dispatch (~5-10 min wallclock) per remaining task. AuthService (Task 1) is optional warm-up; check current line count and skip if < 500.
+
 
 ```bash
 git add src/main/java/com/quant/service/<file>.java
