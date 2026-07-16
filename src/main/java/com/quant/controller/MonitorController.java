@@ -19,7 +19,7 @@ import com.quant.entity.InvestPositionCommon;
 import com.quant.entity.TradeStockBasic;
 import com.quant.repository.InvestPositionCommonRepository;
 import com.quant.repository.TradeStockBasicRepository;
-import com.quant.service.AStockDataQuoteService;
+import com.quant.service.aistockdata.AStockDataQuoteService;
 import com.quant.service.monitor.MonitorService;
 
 import lombok.RequiredArgsConstructor;

@@ -12,6 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.quant.entity.InvestStockPool;
 import com.quant.repository.InvestStockPoolRepository;
+import com.quant.service.aistockdata.AStockDataForecastProvider;
+import com.quant.service.aistockdata.BaostockSyncService;
 
 import lombok.extern.slf4j.Slf4j;
 

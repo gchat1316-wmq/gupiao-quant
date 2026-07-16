@@ -26,6 +26,9 @@ import com.quant.entity.TradeStockBasic;
 import com.quant.repository.InvestPositionCommonRepository;
 import com.quant.repository.InvestStockPoolRepository;
 import com.quant.repository.TradeStockBasicRepository;
+import com.quant.service.aistockdata.AStockDataQuoteService;
+import com.quant.service.notification.NotificationDispatcher;
+import com.quant.service.notification.PriceMonitorService;
 
 /** PriceMonitorService 单测：覆盖价格监控状态机与通知 fanout 行为。 */
 @ExtendWith(MockitoExtension.class)

@@ -23,7 +23,7 @@ import com.quant.entity.InvestPositionCommon;
 import com.quant.repository.InvestAlertRepository;
 import com.quant.repository.InvestPositionCommonRepository;
 import com.quant.repository.TradeStockDailyRepository;
-import com.quant.service.NotificationService;
+import com.quant.service.notification.NotificationService;
 import com.quant.service.techai.TechAiAlertCandidate;
 import com.quant.service.techai.TechAiAlertRuleEngine;
 import com.quant.service.techai.TechAiPositionEngine;

@@ -14,6 +14,8 @@ import com.quant.entity.InvestAlert;
 import com.quant.entity.UserStockSubscription;
 import com.quant.repository.InvestAlertRepository;
 import com.quant.repository.UserStockSubscriptionRepository;
+import com.quant.service.aistockdata.AStockDataQuoteService;
+import com.quant.service.notification.NotificationService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

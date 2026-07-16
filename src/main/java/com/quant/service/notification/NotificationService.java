@@ -1,4 +1,4 @@
-package com.quant.service;
+package com.quant.service.notification;
 
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;

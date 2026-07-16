@@ -13,6 +13,7 @@ import com.quant.dto.xiebo.RecentWatchDto;
 import com.quant.entity.InvestXieboRecentWatch;
 import com.quant.repository.InvestXieboRecentWatchRepository;
 import com.quant.repository.InvestXieboStockNoteRepository;
+import com.quant.service.aistockdata.AStockDataQuoteService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -1,4 +1,4 @@
-package com.quant.service;
+package com.quant.service.aistockdata;
 
 import java.math.BigDecimal;
 import java.time.Instant;

@@ -22,6 +22,8 @@ import com.quant.entity.User;
 import com.quant.entity.UserNotificationLog;
 import com.quant.repository.UserNotificationLogRepository;
 import com.quant.repository.UserRepository;
+import com.quant.service.notification.NotificationDispatcher;
+import com.quant.service.notification.NotificationService;
 
 /**
  * 重度用户（notifySms=true, 监控股价波动）通知 fanout 测试。

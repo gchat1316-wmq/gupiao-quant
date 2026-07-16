@@ -16,7 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.quant.dto.journal.JournalTradeDTO;
 import com.quant.repository.UserRepository;
 import com.quant.security.JwtTokenProvider;
-import com.quant.service.journal.JournalService;
+import com.quant.service.notification.JournalService;
 import com.quant.service.journal.JournalStatsService;
 
 @WebMvcTest(JournalController.class)

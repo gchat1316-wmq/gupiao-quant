@@ -8,6 +8,7 @@ import java.util.Locale;
 import org.springframework.stereotype.Service;
 
 import com.quant.entity.TradeStockFinancial;
+import com.quant.service.aistockdata.AStockDataQuoteService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

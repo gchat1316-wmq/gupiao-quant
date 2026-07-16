@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import com.quant.service.aistockdata.QuoteHttpClient;
+
 import lombok.extern.slf4j.Slf4j;
 
 /**

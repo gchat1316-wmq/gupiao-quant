@@ -27,7 +27,7 @@ import com.quant.repository.ProsperityLeaderCandidateRepository;
 import com.quant.repository.ProsperityPickDailyRepository;
 import com.quant.repository.TradeStockBasicRepository;
 import com.quant.repository.TradeStockFinancialRepository;
-import com.quant.service.AStockDataQuoteService;
+import com.quant.service.aistockdata.AStockDataQuoteService;
 import com.quant.service.prosperitystrong.*;
 
 /**

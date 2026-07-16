@@ -23,6 +23,7 @@ import com.quant.entity.TradeStockBasic;
 import com.quant.entity.TradeStockFinancial;
 import com.quant.repository.TradeStockBasicRepository;
 import com.quant.repository.TradeStockFinancialRepository;
+import com.quant.service.aistockdata.AStockDataQuoteService;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("StockQueryService.resolveStock XD/除权除息简称兼容")
@@ -181,9 +182,9 @@ class StockQueryServiceTest {
     return f;
   }
 
-  private com.quant.service.AStockDataQuoteService.QuoteSnapshot quoteWithCapYi(
+  private com.quant.service.aistockdata.AStockDataQuoteService.QuoteSnapshot quoteWithCapYi(
       double currentCapYi) {
-    return new com.quant.service.AStockDataQuoteService.QuoteSnapshot(
+    return new com.quant.service.aistockdata.AStockDataQuoteService.QuoteSnapshot(
         "688401.SH",
         BigDecimal.valueOf(10.0),
         BigDecimal.valueOf(10.0),

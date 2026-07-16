@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import com.quant.dto.journal.*;
 import com.quant.entity.JournalTrade;
 import com.quant.security.UserPrincipal;
-import com.quant.service.journal.JournalService;
+import com.quant.service.notification.JournalService;
 import com.quant.service.journal.JournalStatsService;
 
 import lombok.RequiredArgsConstructor;

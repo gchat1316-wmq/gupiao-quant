@@ -1,4 +1,4 @@
-package com.quant.service;
+package com.quant.service.aistockdata;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import com.quant.entity.InvestStockPool;
 import com.quant.entity.TradeStockFinancial;
 import com.quant.repository.TradeStockFinancialRepository;
+import com.quant.service.InvestForecastProvider;
 
 import lombok.extern.slf4j.Slf4j;
 

@@ -20,7 +20,8 @@ import com.quant.entity.TradeStockDaily;
 import com.quant.repository.InvestAlertRepository;
 import com.quant.repository.InvestPositionCommonRepository;
 import com.quant.repository.TradeStockDailyRepository;
-import com.quant.service.NotificationService;
+import com.quant.service.aistockdata.AStockDataQuoteService;
+import com.quant.service.notification.NotificationService;
 import com.quant.service.techai.TechAiAlertCandidate;
 import com.quant.service.techai.TechAiAlertRuleEngine;
 import com.quant.service.techai.TechAiAlertThresholds;
@@ -103,7 +104,7 @@ public class PotentialAlertEngine {
   public int confirmPositionSignals(
       NotificationProperties.QuoteMonitor cfg,
       List<PotentialPool> pool,
-      Map<String, com.quant.service.AStockDataQuoteService.QuoteSnapshot> quoteMap) {
+      Map<String, AStockDataQuoteService.QuoteSnapshot> quoteMap) {
     int triggered = 0;
     for (PotentialPool item : pool) {
       InvestPositionCommon position =
@@ -116,7 +117,7 @@ public class PotentialAlertEngine {
           || position.getPositionLots().compareTo(BigDecimal.ZERO) <= 0) {
         continue;
       }
-      com.quant.service.AStockDataQuoteService.QuoteSnapshot snapshot =
+      AStockDataQuoteService.QuoteSnapshot snapshot =
           quoteMap.get(
               item.getStockCode() == null
                   ? ""

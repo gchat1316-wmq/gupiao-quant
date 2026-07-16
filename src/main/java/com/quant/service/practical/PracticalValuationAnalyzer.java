@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 import com.quant.dto.practicalselect.FinancialAnalysis;
 import com.quant.dto.practicalselect.ValuationAnalysis;
 import com.quant.entity.TradeStockBasic;
-import com.quant.service.AStockDataQuoteService;
+import com.quant.service.aistockdata.AStockDataQuoteService;
 
 /** 实战选股 · 估值分析（10 倍 PS 法 + 预测营收 + 低估/合理/泡沫判定）。 */
 @Component

@@ -1,4 +1,4 @@
-package com.quant.service.journal;
+package com.quant.service.notification;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;

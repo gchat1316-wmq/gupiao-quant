@@ -21,6 +21,7 @@ import com.quant.repository.InvestProsperityPickRepository;
 import com.quant.repository.TradeStockFinancialRepository;
 import com.quant.service.ai.MiniMaxClient;
 import com.quant.service.ai.SenseNovaClient;
+import com.quant.service.aistockdata.AStockDataQuoteService;
 import com.quant.service.prosperitystrong.ProsperityPickAiPromptBuilder;
 import com.quant.service.prosperitystrong.ProsperityPickBaostockLoader;
 import com.quant.service.prosperitystrong.ProsperityPickInfographicPromptBuilder;

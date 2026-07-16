@@ -17,9 +17,9 @@ import com.quant.repository.TechAiQuoteSnapshotRepository;
 import com.quant.repository.TradeStockBasicRepository;
 import com.quant.repository.TradeStockRealtimeKlineRepository;
 import com.quant.repository.TradeStockRealtimeQuoteRepository;
-import com.quant.service.BaostockMinuteQuoteService;
-import com.quant.service.EastMoneyRealtimeQuoteService;
-import com.quant.service.SinaRealtimeQuoteService;
+import com.quant.service.aistockdata.BaostockMinuteQuoteService;
+import com.quant.service.aistockdata.EastMoneyRealtimeQuoteService;
+import com.quant.service.aistockdata.SinaRealtimeQuoteService;
 import com.quant.service.techai.TechAiStockCodeUtils;
 
 import lombok.RequiredArgsConstructor;

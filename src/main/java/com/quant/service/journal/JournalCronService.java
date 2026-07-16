@@ -10,7 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.quant.config.JournalProperties;
 import com.quant.entity.JournalTrade;
 import com.quant.repository.JournalTradeRepository;
-import com.quant.service.NotificationService;
+import com.quant.service.notification.NotificationService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

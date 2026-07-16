@@ -20,7 +20,7 @@ import com.quant.repository.InvestXieboRecentWatchRepository;
 import com.quant.repository.InvestXieboStockNoteRepository;
 import com.quant.repository.UserRepository;
 import com.quant.security.JwtTokenProvider;
-import com.quant.service.AStockDataQuoteService;
+import com.quant.service.aistockdata.AStockDataQuoteService;
 
 @WebMvcTest(AdminXieboRecentController.class)
 @AutoConfigureMockMvc(addFilters = false)

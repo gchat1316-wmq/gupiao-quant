@@ -1,4 +1,4 @@
-package com.quant.service;
+package com.quant.service.aistockdata;
 
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
@@ -11,6 +11,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.quant.config.BaostockSyncProperties;
+import com.quant.service.aistockdata.BaostockSyncCoordinator;
+import com.quant.service.aistockdata.BaostockSyncService;
+import com.quant.service.notification.NotificationService;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("BaostockSyncCoordinator")

@@ -29,6 +29,7 @@ import com.quant.entity.TradeStockBasic;
 import com.quant.entity.TradeStockFinancial;
 import com.quant.repository.TradeStockBasicRepository;
 import com.quant.repository.TradeStockFinancialRepository;
+import com.quant.service.aistockdata.AStockDataQuoteService;
 
 import lombok.extern.slf4j.Slf4j;
 

@@ -1,4 +1,4 @@
-package com.quant.service;
+package com.quant.service.aistockdata;
 
 import java.io.InputStream;
 import java.math.BigDecimal;

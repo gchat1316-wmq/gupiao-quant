@@ -12,8 +12,8 @@ import org.junit.jupiter.api.Test;
 
 import com.quant.entity.InvestStockPool;
 import com.quant.repository.InvestStockPoolRepository;
-import com.quant.service.AStockDataForecastProvider;
-import com.quant.service.BaostockSyncService;
+import com.quant.service.aistockdata.AStockDataForecastProvider;
+import com.quant.service.aistockdata.BaostockSyncService;
 import com.quant.service.InvestForecastProvider;
 import com.quant.service.InvestPoolRefreshService;
 

@@ -29,7 +29,7 @@ import com.quant.entity.TradeStockBasic;
 import com.quant.entity.TradeStockDaily;
 import com.quant.repository.TradeStockBasicRepository;
 import com.quant.repository.TradeStockDailyRepository;
-import com.quant.service.AStockDataQuoteService;
+import com.quant.service.aistockdata.AStockDataQuoteService;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("LeaderIdentifier")

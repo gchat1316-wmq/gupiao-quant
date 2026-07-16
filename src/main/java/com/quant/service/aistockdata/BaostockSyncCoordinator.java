@@ -1,4 +1,4 @@
-package com.quant.service;
+package com.quant.service.aistockdata;
 
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -6,6 +6,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import com.quant.config.BaostockSyncProperties;
+import com.quant.service.notification.NotificationService;
 
 import lombok.extern.slf4j.Slf4j;
 

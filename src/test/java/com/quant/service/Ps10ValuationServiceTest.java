@@ -16,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.quant.entity.TradeStockFinancial;
+import com.quant.service.aistockdata.AStockDataQuoteService;
 
 /** Ps10ValuationService TDD。 RED: 先写期望 → 跑不过 → 修代码 */
 @ExtendWith(MockitoExtension.class)

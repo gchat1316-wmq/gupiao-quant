@@ -27,7 +27,7 @@ import com.quant.service.practical.PracticalFinancialAnalyzer;
 import com.quant.service.practical.PracticalRatingAnalyzer;
 import com.quant.service.practical.PracticalTrendAnalyzer;
 import com.quant.service.practical.PracticalValuationAnalyzer;
-
+import com.quant.service.aistockdata.AStockDataQuoteService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 

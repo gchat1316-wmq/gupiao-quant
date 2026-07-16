@@ -42,7 +42,7 @@ import com.quant.repository.ProsperityPickDailyRepository;
 import com.quant.repository.ProsperityPipelineRunRepository;
 import com.quant.repository.TradeStockBasicRepository;
 import com.quant.repository.TradeStockFinancialRepository;
-import com.quant.service.AStockDataQuoteService;
+import com.quant.service.aistockdata.AStockDataQuoteService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -23,6 +23,7 @@ import com.quant.entity.InvestXieboRecentWatch;
 import com.quant.entity.InvestXieboStockNote;
 import com.quant.repository.InvestXieboRecentWatchRepository;
 import com.quant.repository.InvestXieboStockNoteRepository;
+import com.quant.service.aistockdata.AStockDataQuoteService;
 
 @ExtendWith(MockitoExtension.class)
 class XieboRecentServiceTest {

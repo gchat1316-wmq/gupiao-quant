@@ -24,6 +24,7 @@ import com.quant.repository.InvestPositionCommonRepository;
 import com.quant.repository.InvestStockPoolRepository;
 import com.quant.repository.TradeStockBasicRepository;
 import com.quant.repository.TradeStockFinancialRepository;
+import com.quant.service.aistockdata.AStockDataQuoteService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

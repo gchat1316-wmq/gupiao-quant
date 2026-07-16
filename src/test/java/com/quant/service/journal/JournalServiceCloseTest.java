@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.quant.dto.journal.JournalTradeUpdateRequest;
 import com.quant.entity.JournalTrade;
 import com.quant.repository.JournalTradeRepository;
+import com.quant.service.notification.JournalService;
 
 @ExtendWith(MockitoExtension.class)
 class JournalServiceCloseTest {

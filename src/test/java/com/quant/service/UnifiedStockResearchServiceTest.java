@@ -23,6 +23,7 @@ import com.quant.entity.TradeStockFinancial;
 import com.quant.repository.TradeStockFinancialRepository;
 import com.quant.service.ai.MiniMaxClient;
 import com.quant.service.ai.SenseNovaClient;
+import com.quant.service.aistockdata.AStockDataQuoteService;
 import com.quant.service.search.WebSearchClient;
 
 @ExtendWith(MockitoExtension.class)

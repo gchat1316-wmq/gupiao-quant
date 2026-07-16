@@ -22,6 +22,7 @@ import com.quant.config.AiProperties;
 import com.quant.entity.InvestMarketRecap;
 import com.quant.repository.InvestMarketRecapRepository;
 import com.quant.service.ai.MiniMaxClient;
+import com.quant.service.notification.NotificationService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

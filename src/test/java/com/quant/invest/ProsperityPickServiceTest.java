@@ -30,7 +30,7 @@ import com.quant.entity.InvestProsperityPick;
 import com.quant.entity.TradeStockBasic;
 import com.quant.repository.InvestProsperityPickRepository;
 import com.quant.repository.TradeStockFinancialRepository;
-import com.quant.service.AStockDataQuoteService;
+import com.quant.service.aistockdata.AStockDataQuoteService;
 import com.quant.service.ProsperityPickService;
 import com.quant.service.StockQueryService;
 import com.quant.service.ai.MiniMaxClient;

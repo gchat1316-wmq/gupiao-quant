@@ -30,6 +30,7 @@ import com.quant.repository.InvestXieboAnalysisRecordRepository;
 import com.quant.repository.InvestXieboWatchlistRepository;
 import com.quant.repository.TradeStockBasicRepository;
 import com.quant.repository.TradeStockFinancialRepository;
+import com.quant.service.aistockdata.AStockDataQuoteService;
 import com.quant.service.xieboinvest.XieboInvestAnalysisService;
 import com.quant.service.xieboinvest.XieboInvestService;
 

@@ -29,8 +29,8 @@ import com.quant.entity.InvestPositionCommon;
 import com.quant.repository.InvestAlertRepository;
 import com.quant.repository.InvestPositionCommonRepository;
 import com.quant.repository.TradeStockDailyRepository;
-import com.quant.service.AStockDataQuoteService;
-import com.quant.service.NotificationService;
+import com.quant.service.aistockdata.AStockDataQuoteService;
+import com.quant.service.notification.NotificationService;
 import com.quant.service.techai.TechAiAtrCalculator;
 
 @ExtendWith(MockitoExtension.class)

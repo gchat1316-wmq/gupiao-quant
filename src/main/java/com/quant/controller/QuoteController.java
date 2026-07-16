@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.*;
 
 import com.quant.dto.QuoteDTO;
 import com.quant.dto.QuotePageDTO;
-import com.quant.service.QuoteService;
+import com.quant.service.aistockdata.QuoteService;
 
 import lombok.RequiredArgsConstructor;
 

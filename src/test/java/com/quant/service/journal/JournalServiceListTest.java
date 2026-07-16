@@ -19,6 +19,7 @@ import com.quant.entity.InvestPositionFill;
 import com.quant.entity.JournalTrade;
 import com.quant.repository.InvestPositionFillRepository;
 import com.quant.repository.JournalTradeRepository;
+import com.quant.service.notification.JournalService;
 
 @ExtendWith(MockitoExtension.class)
 @SuppressWarnings("unchecked")

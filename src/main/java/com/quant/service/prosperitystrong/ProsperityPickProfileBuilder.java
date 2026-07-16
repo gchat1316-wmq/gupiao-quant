@@ -12,7 +12,7 @@ import com.quant.dto.invest.ProsperityPickResultDTO;
 import com.quant.entity.TradeStockBasic;
 import com.quant.entity.TradeStockFinancial;
 import com.quant.repository.TradeStockFinancialRepository;
-import com.quant.service.AStockDataQuoteService;
+import com.quant.service.aistockdata.AStockDataQuoteService;
 import com.quant.service.StockQueryService;
 
 import lombok.RequiredArgsConstructor;

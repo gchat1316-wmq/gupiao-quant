@@ -1,4 +1,4 @@
-package com.quant.service;
+package com.quant.service.aistockdata;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -19,6 +19,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.quant.entity.TechAiQuoteSnapshot;
+import com.quant.service.aistockdata.EastMoneyRealtimeQuoteService;
+import com.quant.service.aistockdata.QuoteHttpClient;
 
 /**
  * 大阳线实时行情拉取服务的并发/降级行为测试。

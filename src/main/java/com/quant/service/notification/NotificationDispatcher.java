@@ -1,4 +1,4 @@
-package com.quant.service;
+package com.quant.service.notification;
 
 import java.util.List;
 
@@ -9,6 +9,7 @@ import com.quant.entity.User;
 import com.quant.entity.UserNotificationLog;
 import com.quant.repository.UserNotificationLogRepository;
 import com.quant.repository.UserRepository;
+import com.quant.service.SmsService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

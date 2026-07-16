@@ -38,7 +38,7 @@ import com.quant.service.InvestPoolService;
 import com.quant.service.InvestService;
 import com.quant.service.InvestWeeklyOpportunityService;
 import com.quant.service.OcrPoolImportService;
-import com.quant.service.PriceMonitorService;
+import com.quant.service.notification.PriceMonitorService;
 
 @RestController
 @RequestMapping("/api/invest")

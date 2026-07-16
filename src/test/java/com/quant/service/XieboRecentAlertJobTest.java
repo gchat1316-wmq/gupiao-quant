@@ -21,6 +21,8 @@ import com.quant.entity.InvestAlert;
 import com.quant.entity.UserStockSubscription;
 import com.quant.repository.InvestAlertRepository;
 import com.quant.repository.UserStockSubscriptionRepository;
+import com.quant.service.aistockdata.AStockDataQuoteService;
+import com.quant.service.notification.NotificationService;
 
 @ExtendWith(MockitoExtension.class)
 class XieboRecentAlertJobTest {

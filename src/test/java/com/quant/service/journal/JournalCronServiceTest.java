@@ -16,7 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.quant.entity.JournalTrade;
 import com.quant.repository.JournalTradeRepository;
-import com.quant.service.NotificationService;
+import com.quant.service.notification.NotificationService;
 
 @ExtendWith(MockitoExtension.class)
 class JournalCronServiceTest {

@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 import com.quant.config.ProsperityStrongProperties;
 import com.quant.dto.prosperitystrong.PipelineRunResultDTO;
-import com.quant.service.NotificationService;
+import com.quant.service.notification.NotificationService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

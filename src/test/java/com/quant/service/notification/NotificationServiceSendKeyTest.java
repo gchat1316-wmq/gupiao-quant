@@ -1,4 +1,4 @@
-package com.quant.service;
+package com.quant.service.notification;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.*;
