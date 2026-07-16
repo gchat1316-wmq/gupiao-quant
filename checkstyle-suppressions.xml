@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!DOCTYPE suppressions PUBLIC
+    "-//Checkstyle//DTD SuppressionFilter Configuration 1.3//EN"
+    "https://checkstyle.org/dtds/suppressions_1_3.dtd">
+<suppressions>
+    <!-- Sprint 1: EnvironmentPostProcessor runs BEFORE SLF4J is wired; uses stdout intentionally. -->
+    <suppress files="DataSourceUrlCustomizer\.java" checks="RegexpSinglelineJava"/>
+</suppressions>
