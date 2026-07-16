@@ -55,6 +55,14 @@ spring:
     multipart:
       max-file-size: 100MB
       max-request-size: 110MB
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 0
+    baseline-description: "SchemaInitializer-era baseline (treated as already migrated)"
+    table: flyway_schema_history
+    placeholder-replacement: false
 
 app:
   upload-dir: uploads
