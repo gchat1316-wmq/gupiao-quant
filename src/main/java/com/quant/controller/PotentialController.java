@@ -20,7 +20,7 @@ import com.quant.dto.invest.PositionFillRequest;
 import com.quant.dto.techai.PositionFillDTO;
 import com.quant.dto.techai.TechAiAlertDTO;
 import com.quant.dto.techai.TechAiPoolItemDTO;
-import com.quant.service.PotentialService;
+import com.quant.service.potential.PotentialService;
 
 @RestController
 @RequestMapping("/api/potential")

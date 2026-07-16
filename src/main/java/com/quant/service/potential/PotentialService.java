@@ -1,4 +1,4 @@
-package com.quant.service;
+package com.quant.service.potential;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;

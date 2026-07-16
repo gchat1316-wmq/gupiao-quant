@@ -31,6 +31,7 @@ import com.quant.service.stockanalysis.AnalysisPromptBuilder;
 import com.quant.service.stockanalysis.BaostockDataFetcher;
 import com.quant.service.stockanalysis.NineDimensionComposer;
 import com.quant.service.stockanalysis.WindResearchService;
+import com.quant.service.potential.UnifiedStockResearchService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

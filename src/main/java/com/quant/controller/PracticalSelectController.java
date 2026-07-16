@@ -18,8 +18,8 @@ import org.springframework.web.bind.annotation.*;
 import com.quant.dto.practicalselect.PracticalSelectResponse;
 import com.quant.entity.InvestPracticalSelectRecord;
 import com.quant.repository.InvestPracticalSelectRecordRepository;
-import com.quant.service.PracticalSelectPdfService;
-import com.quant.service.PracticalSelectService;
+import com.quant.service.potential.PracticalSelectPdfService;
+import com.quant.service.potential.PracticalSelectService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
