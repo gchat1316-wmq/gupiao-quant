@@ -23,7 +23,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.quant.config.AiProperties;
 import com.quant.config.StockAnalysisProperties;
+import com.quant.dto.invest.ProsperityPickRecentDTO;
 import com.quant.dto.invest.ProsperityPickResultDTO;
+import com.quant.dto.invest.ProsperityPickResultDTO.Profile;
 import com.quant.entity.InvestProsperityPick;
 import com.quant.entity.TradeStockBasic;
 import com.quant.repository.InvestProsperityPickRepository;
@@ -33,6 +35,12 @@ import com.quant.service.ProsperityPickService;
 import com.quant.service.StockQueryService;
 import com.quant.service.ai.MiniMaxClient;
 import com.quant.service.ai.SenseNovaClient;
+import com.quant.service.prosperitystrong.ProsperityPickAiPromptBuilder;
+import com.quant.service.prosperitystrong.ProsperityPickBaostockLoader;
+import com.quant.service.prosperitystrong.ProsperityPickInfographicPromptBuilder;
+import com.quant.service.prosperitystrong.ProsperityPickProfileBuilder;
+import com.quant.service.prosperitystrong.ProsperityPickReportRenderer;
+import com.quant.service.prosperitystrong.ProsperityPickResultAnalyzer;
 import com.quant.service.search.WebSearchClient;
 
 @ExtendWith(MockitoExtension.class)
@@ -56,6 +64,12 @@ class ProsperityPickServiceTest {
   @Mock MiniMaxClient miniMaxClient;
   @Mock SenseNovaClient senseNovaClient;
   @Mock WebSearchClient webSearchClient;
+  @Mock ProsperityPickProfileBuilder profileBuilder;
+  @Mock ProsperityPickBaostockLoader baostockLoader;
+  @Mock ProsperityPickAiPromptBuilder aiPromptBuilder;
+  @Mock ProsperityPickResultAnalyzer resultAnalyzer;
+  @Mock ProsperityPickReportRenderer reportRenderer;
+  @Mock ProsperityPickInfographicPromptBuilder infographicPromptBuilder;
 
   private ProsperityPickService service;
 
@@ -71,6 +85,128 @@ class ProsperityPickServiceTest {
     org.mockito.Mockito.lenient()
         .when(aStockDataQuoteService.fetchQuotes(anyList()))
         .thenReturn(Map.of());
+    // 给 profileBuilder 一个最小 Profile（currentPrice 为 null），保证 analyze 走到 resultAnalyzer
+    org.mockito.Mockito.lenient()
+        .when(profileBuilder.buildProfile(any(TradeStockBasic.class)))
+        .thenAnswer(
+            invocation -> {
+              TradeStockBasic b = invocation.getArgument(0);
+              return Profile.builder()
+                  .stockCode(b.getStockCode())
+                  .stockName(b.getStockName())
+                  .build();
+            });
+    // resultAnalyzer 紫苏叶阶段空跑，返回空 outcome
+    org.mockito.Mockito.lenient()
+        .when(resultAnalyzer.runPurplePerillaStage(any(), any(), any()))
+        .thenAnswer(
+            invocation ->
+                new ProsperityPickResultAnalyzer.PurplePerillaOutcome(
+                    null, null, null, null, List.of(), List.of()));
+    // aiPromptBuilder 提示词生成返回固定字符串
+    org.mockito.Mockito.lenient()
+        .when(aiPromptBuilder.buildPrompt(any(), any(), any()))
+        .thenReturn("prompt-stub");
+    org.mockito.Mockito.lenient().when(aiPromptBuilder.extractJson(any())).thenReturn(REAL_JSON);
+    // baostock loader 在 test 下关闭 stockAnalysis，返回 null
+    org.mockito.Mockito.lenient()
+        .when(baostockLoader.fetchBaostockPack(anyString()))
+        .thenReturn(null);
+    // resultAnalyzer.buildEntity 直接 echo 一个 InvestProsperityPick
+    org.mockito.Mockito.lenient()
+        .when(
+            resultAnalyzer.buildEntity(
+                any(),
+                any(),
+                anyString(),
+                any(),
+                any(),
+                org.mockito.ArgumentMatchers.anyInt(),
+                org.mockito.ArgumentMatchers.anyBoolean(),
+                any()))
+        .thenAnswer(
+            invocation -> {
+              TradeStockBasic b = invocation.getArgument(0);
+              String aiJson = invocation.getArgument(2);
+              InvestProsperityPick e = new InvestProsperityPick();
+              e.setStockCode(b.getStockCode());
+              e.setStockName(b.getStockName());
+              e.setResultJson(aiJson);
+              return e;
+            });
+    // reportRenderer.buildReportHtml 返回 null（facade 不要求非空）
+    org.mockito.Mockito.lenient()
+        .when(reportRenderer.buildReportHtml(any(), any()))
+        .thenReturn(null);
+    // resultAnalyzer.toResultDTO 返回最小 ProsperityPickResultDTO
+    org.mockito.Mockito.lenient()
+        .when(resultAnalyzer.toResultDTO(any(), any(), org.mockito.ArgumentMatchers.anyBoolean()))
+        .thenAnswer(
+            invocation -> {
+              TradeStockBasic b = invocation.getArgument(1);
+              InvestProsperityPick e = invocation.getArgument(0);
+              com.fasterxml.jackson.databind.ObjectMapper m =
+                  new com.fasterxml.jackson.databind.ObjectMapper();
+              com.fasterxml.jackson.databind.JsonNode analysis = null;
+              try {
+                analysis =
+                    e.getResultJson() == null || e.getResultJson().isBlank()
+                        ? null
+                        : m.readTree(e.getResultJson());
+              } catch (Exception ignored) {
+              }
+              return ProsperityPickResultDTO.builder()
+                  .id(e.getId())
+                  .stockCode(e.getStockCode())
+                  .stockName(e.getStockName() != null ? e.getStockName() : b.getStockName())
+                  .analysisDate(e.getAnalysisDate())
+                  .analysis(analysis)
+                  .build();
+            });
+    // resultAnalyzer.toRecentDTO 返回最小 ProsperityPickRecentDTO
+    org.mockito.Mockito.lenient()
+        .when(resultAnalyzer.toRecentDTO(any()))
+        .thenAnswer(
+            invocation -> {
+              InvestProsperityPick e = invocation.getArgument(0);
+              com.fasterxml.jackson.databind.ObjectMapper m =
+                  new com.fasterxml.jackson.databind.ObjectMapper();
+              String oneLiner = "";
+              String valuationVerdict = "";
+              String technicalVerdict = "";
+              String capitalVerdict = "";
+              java.util.List<String> bullets = new java.util.ArrayList<>();
+              try {
+                com.fasterxml.jackson.databind.JsonNode root =
+                    m.readTree(e.getResultJson() == null ? "{}" : e.getResultJson());
+                com.fasterxml.jackson.databind.JsonNode summary = root.path("summary");
+                oneLiner = summary.path("oneLiner").asText("");
+                com.fasterxml.jackson.databind.JsonNode bulletNode = summary.path("bullets");
+                if (bulletNode.isArray()) {
+                  int i = 0;
+                  for (com.fasterxml.jackson.databind.JsonNode n : bulletNode) {
+                    String t = n.asText("");
+                    if (!t.isBlank()) bullets.add(t);
+                    if (++i >= 3) break;
+                  }
+                }
+                valuationVerdict = root.path("valuation").path("verdict").asText("");
+                technicalVerdict = root.path("technical").path("verdict").asText("");
+                capitalVerdict = root.path("capital").path("verdict").asText("");
+              } catch (Exception ignored) {
+              }
+              return ProsperityPickRecentDTO.builder()
+                  .id(e.getId())
+                  .stockCode(e.getStockCode())
+                  .stockName(e.getStockName())
+                  .analysisDate(e.getAnalysisDate())
+                  .summaryOneLiner(oneLiner)
+                  .summaryBullets(bullets)
+                  .valuationVerdict(valuationVerdict)
+                  .technicalVerdict(technicalVerdict)
+                  .capitalVerdict(capitalVerdict)
+                  .build();
+            });
     service =
         new ProsperityPickService(
             stockQueryService,
@@ -81,7 +217,13 @@ class ProsperityPickServiceTest {
             senseNovaClient,
             webSearchClient,
             aiProperties,
-            stockAnalysisProperties);
+            stockAnalysisProperties,
+            profileBuilder,
+            baostockLoader,
+            aiPromptBuilder,
+            resultAnalyzer,
+            reportRenderer,
+            infographicPromptBuilder);
   }
 
   @Test

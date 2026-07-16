@@ -383,7 +383,7 @@ public class StockQueryService {
   }
 
   /** 按股票代码前缀推断板块类型。 */
-  static String deriveBoard(String stockCode) {
+  public static String deriveBoard(String stockCode) {
     if (stockCode == null) return null;
     String bare =
         stockCode.contains(".") ? stockCode.substring(0, stockCode.indexOf('.')) : stockCode;
