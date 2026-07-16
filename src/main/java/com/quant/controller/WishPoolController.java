@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.quant.dto.wishpool.WishPublicDto;
 import com.quant.dto.wishpool.WishSubmitRequest;
 import com.quant.entity.WishPool;
-import com.quant.service.WishPoolService;
+import com.quant.service.ai.WishPoolService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;

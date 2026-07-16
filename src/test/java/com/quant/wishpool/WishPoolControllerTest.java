@@ -21,7 +21,7 @@ import com.quant.dto.wishpool.WishSubmitRequest;
 import com.quant.entity.WishPool;
 import com.quant.repository.UserRepository;
 import com.quant.security.JwtTokenProvider;
-import com.quant.service.WishPoolService;
+import com.quant.service.ai.WishPoolService;
 
 @WebMvcTest(WishPoolController.class)
 @AutoConfigureMockMvc(addFilters = false)

@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.quant.dto.wishpool.WishAdminDto;
 import com.quant.dto.wishpool.WishReplyRequest;
 import com.quant.entity.WishPool;
-import com.quant.service.WishPoolService;
+import com.quant.service.ai.WishPoolService;
 
 import lombok.RequiredArgsConstructor;
 

@@ -16,6 +16,8 @@ import com.quant.config.NotificationProperties;
 import com.quant.dto.wishpool.WishSubmitRequest;
 import com.quant.entity.WishPool;
 import com.quant.repository.WishPoolRepository;
+import com.quant.service.ai.WishPoolNotifier;
+import com.quant.service.ai.WishPoolService;
 
 /** WishPoolService 单测：验证入库 + 触发异步通知。 飞书 webhook 调用已迁移到 {@link WishPoolNotifier} 内部，失败仅日志。 */
 @DisplayName("WishPoolService")

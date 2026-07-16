@@ -1,4 +1,4 @@
-package com.quant.service;
+package com.quant.service.ai;
 
 import java.time.LocalDateTime;
 import java.util.List;
