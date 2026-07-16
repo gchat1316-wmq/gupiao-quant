@@ -34,6 +34,7 @@ import com.quant.dto.invest.WeeklyOpportunityUpdateRequest;
 import com.quant.service.InvestPoolMetaService;
 import com.quant.service.InvestPoolRefreshService;
 import com.quant.service.InvestPoolSeedService;
+import com.quant.service.InvestPoolService;
 import com.quant.service.InvestService;
 import com.quant.service.InvestWeeklyOpportunityService;
 import com.quant.service.OcrPoolImportService;
@@ -145,7 +146,7 @@ public class InvestController {
    * "message": "reordered"}
    */
   @PostMapping("/pool/reorder")
-  public Map<String, Object> reorderPool(@RequestBody List<InvestService.ReorderItem> items) {
+  public Map<String, Object> reorderPool(@RequestBody List<InvestPoolService.ReorderItem> items) {
     int updated = investService.reorder(items);
     return Map.of("updated", updated, "message", "reordered");
   }
