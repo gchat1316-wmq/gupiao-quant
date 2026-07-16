@@ -158,15 +158,11 @@ public class AnalysisPromptBuilder {
     Map<String, Object> quote = util.asMap(rawData.get("quote"));
     if (!quote.isEmpty()) {
       sb.append("\nbaostock 行情数据:\n");
-      String[][] qkv = {
-        {"收盘: ", quote.get("close")},
-        {"成交量: ", quote.get("volume")},
-        {"换手率: ", quote.get("turn")},
-        {"区间最高: ", quote.get("period_high")},
-        {"区间最低: ", quote.get("period_low")},
-        {"区间涨跌幅: ", quote.get("period_change_pct")}
-      };
-      for (String[] e : qkv) sb.append(e[0]).append(util.safe(e[1])).append('\n');
+      String[] qkeys = {"收盘: ", "成交量: ", "换手率: ", "区间最高: ", "区间最低: ", "区间涨跌幅: "};
+      String[] qfields = {"close", "volume", "turn", "period_high", "period_low", "period_change_pct"};
+      for (int qi = 0; qi < qkeys.length; qi++) {
+        sb.append(qkeys[qi]).append(util.safe(quote.get(qfields[qi]))).append('\n');
+      }
     }
     List<Object> finHistory = util.asList(rawData.get("financial_history"));
     if (!finHistory.isEmpty()) {
