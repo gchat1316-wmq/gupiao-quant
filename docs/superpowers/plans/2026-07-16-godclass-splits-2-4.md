@@ -141,7 +141,7 @@ This is the largest, with possibly the most complex orchestration. Estimated 2-3
 
 ## Status — 2026-07-16 end-of-session
 
-**4 of 7 tasks complete** in this session (Task 2, 3, 4, 5).
+**5 of 7 tasks complete** in this session (Task 2, 3, 4, 5, 6).
 
 | # | Class | Original | Facade | Helpers | Status |
 |---|---|---|---|---|---|
@@ -150,8 +150,8 @@ This is the largest, with possibly the most complex orchestration. Estimated 2-3
 | 4 | `StockAnalysisService` | 1278 | 370 | 5 (baostockFetcher / aiCaller / promptBuilder / industryRules / nineDimComposer 169) + 1 JSON resource | ✅ DONE — commit `8194aae` |
 | 5 | `PracticalSelectService` | 1253 | 317 | 5 (trendAnalyzer / financialAnalyzer / valuationAnalyzer / ratingAnalyzer 350 / support 68) | ✅ DONE — commit `15cf9c0` |
 | 1 | `AuthService` | small (likely <500 after Sprint 2.3) | — | — | ⏭️ optional |
-| 6 | `PotentialService` | 1105 | — | — | 📋 TODO next session |
-| 7 | `UnifiedStockResearchService` | 1102 | — | — | 📋 TODO next session |
+| 6 | `PotentialService` | 1250 | 419 | 4 (`PotentialQuoteAggregator` / `PotentialPositionCalculator` / `PotentialAlertEngine` / `PotentialPoolSupport`) | ✅ DONE — commits `67ca6b2`, `48c0815`, `83ca439` |
+| 7 | `UnifiedStockResearchService` | 1102 | — | — | 📋 TODO next sprint |
 
 ### Side-effects of Sprint 2.4 so far
 
@@ -161,22 +161,20 @@ This is the largest, with possibly the most complex orchestration. Estimated 2-3
   - `src/test/java/com/quant/integration/SchemaInitializerIT.java` (commit `4645f8d`, Sprint 2.1 follow-up)
   - `src/test/java/com/quant/controller/AuthControllerTest.java` (commit `d9e7bdc`, Sprint 2.3 follow-up)
   - `src/test/java/com/quant/security/SecurityConfigStaticResourceTest.java` (commit `d9e7bdc`, Sprint 2.3 follow-up)
-- New tests added: `ProsperityPickServiceTest` updated with 7 mocks (`7726201`)
+- New tests added: `ProsperityPickServiceTest` updated with 7 mocks (`7726201`); Potential helper coverage added in `48c0815`.
 - Hot fix: `AnalysisPromptBuilder.appendBaostock` String[][]→split arrays (`1fefee2`)
 
 ### Test gap after Sprint 2.4
 
 The full `mvn test` cannot run green because:
 - 5 test files were deleted without replacement (above)
-- The split files have no new `@WebMvcTest` per split controller/service
+- Most split files still have no new `@WebMvcTest` per split controller/service; PotentialService is covered by 43 focused helper tests.
 
 **Recommended follow-up**: Sprint 4 (JaCoCo + per-service test coverage) will sweep these. Per the original plan, this is acceptable — Sprint 2 was a refactor sprint, not a coverage sprint.
 
 ### Next-session pickup
 
-Pick up at **Task 6: `PotentialService` (1105 lines)**.
-
-Estimated 1 subagent dispatch (~5-10 min wallclock) per remaining task. AuthService (Task 1) is optional warm-up; check current line count and skip if < 500.
+Sprint 2.5 service-package reorganization is now complete. The remaining Sprint 2.4 item is Task 7: `UnifiedStockResearchService`.
 
 
 ```bash

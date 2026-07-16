@@ -194,6 +194,32 @@ git commit -m "refactor(service): move OldService to newpkg/ + update callers"
 
 ---
 
+## Status — 2026-07-16
+
+**Sprint 2.5 complete.** All planned mechanical service moves are integrated; the root package now contains exactly 12 service classes.
+
+| Cluster | Destination | Status / commits |
+|---|---|---|
+| Quote + BaoStock | `service/aistockdata/` (9 files) | ✅ `dc04927` |
+| Recap | `service/recap/` (3 files) | ✅ `0e4e69e` |
+| Study | `service/study/` (2 files) | ✅ `fd470c6` |
+| Invest | `service/invest/` (13 files) | ✅ `93c1058` |
+| Potential | `service/potential/` (4 facades/services; Sprint 2.4 helpers retained) | ✅ `d5656d9` |
+| Notification + JournalService | `service/notification/` (4 files) | ✅ `dc04927` |
+| Wish pool | existing `service/ai/` (2 files) | ✅ `edf1901` |
+| Test package alignment | moved notification/journal tests | ✅ `89dcad9`, `d7614e4` |
+
+### Verification
+
+- `mvn compile -q -DskipTests` — passed.
+- `mvn test-compile -q` — passed.
+- Focused tests for moved clusters — passed (including 43 Potential helper tests and 19 journal tests); the known full-context Prosperity integration failures require the unavailable MySQL environment.
+- Stale imports for moved root services — none found.
+- Root direct service count — 12 (meets the ≤12 target).
+- Spotless is clean for moved files; the pre-existing `service/stockanalysis/AnalysisPromptBuilder.java` violation remains out of scope.
+
+---
+
 ## Out of scope
 
 - Sub-package internals — they remain in `service/` root after this plan lands, then a follow-up plan moves them deeper if needed.
