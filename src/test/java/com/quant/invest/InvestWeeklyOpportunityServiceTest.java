@@ -20,7 +20,7 @@ import com.quant.entity.InvestStockPool;
 import com.quant.entity.InvestWeeklyOpportunitySlot;
 import com.quant.repository.InvestStockPoolRepository;
 import com.quant.repository.InvestWeeklyOpportunitySlotRepository;
-import com.quant.service.InvestWeeklyOpportunityService;
+import com.quant.service.invest.InvestWeeklyOpportunityService;
 
 /**
  * 每周机会点 (3×3 卡片) 服务单测。

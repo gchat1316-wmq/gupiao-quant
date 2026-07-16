@@ -14,8 +14,8 @@ import com.quant.entity.InvestStockPool;
 import com.quant.repository.InvestStockPoolRepository;
 import com.quant.service.aistockdata.AStockDataForecastProvider;
 import com.quant.service.aistockdata.BaostockSyncService;
-import com.quant.service.InvestForecastProvider;
-import com.quant.service.InvestPoolRefreshService;
+import com.quant.service.invest.InvestForecastProvider;
+import com.quant.service.invest.InvestPoolRefreshService;
 
 @DisplayName("InvestPoolRefreshService")
 class InvestPoolRefreshServiceTest {

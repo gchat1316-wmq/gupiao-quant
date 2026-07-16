@@ -16,7 +16,7 @@ import com.quant.entity.InvestStockPool;
 import com.quant.repository.InvestPositionCommonRepository;
 import com.quant.repository.InvestStockPoolRepository;
 import com.quant.repository.TradeStockBasicRepository;
-import com.quant.service.InvestPoolSeedService;
+import com.quant.service.invest.InvestPoolSeedService;
 
 @DisplayName("InvestPoolSeedService")
 class InvestPoolSeedServiceTest {

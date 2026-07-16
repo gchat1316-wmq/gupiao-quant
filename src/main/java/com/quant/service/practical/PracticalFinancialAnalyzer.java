@@ -15,7 +15,7 @@ import com.quant.dto.invest.SopCheckupDTO;
 import com.quant.dto.practicalselect.FinancialAnalysis;
 import com.quant.entity.TradeStockFinancial;
 import com.quant.repository.TradeStockFinancialRepository;
-import com.quant.service.InvestService;
+import com.quant.service.invest.InvestService;
 
 import lombok.RequiredArgsConstructor;
 

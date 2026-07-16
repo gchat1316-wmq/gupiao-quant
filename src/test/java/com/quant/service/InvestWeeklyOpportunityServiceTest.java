@@ -30,6 +30,7 @@ import com.quant.entity.InvestStockPool;
 import com.quant.entity.InvestWeeklyOpportunitySlot;
 import com.quant.repository.InvestStockPoolRepository;
 import com.quant.repository.InvestWeeklyOpportunitySlotRepository;
+import com.quant.service.invest.InvestWeeklyOpportunityService;
 
 /**
  * 覆盖 InvestWeeklyOpportunityService 的 imageUrl 扩展点： - update() 持久化 imageUrl - get() 透传 imageUrl 到

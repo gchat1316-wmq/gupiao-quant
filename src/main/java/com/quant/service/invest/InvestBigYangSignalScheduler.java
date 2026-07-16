@@ -1,4 +1,4 @@
-package com.quant.service;
+package com.quant.service.invest;
 
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;

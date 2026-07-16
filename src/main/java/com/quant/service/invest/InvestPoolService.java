@@ -1,4 +1,4 @@
-package com.quant.service;
+package com.quant.service.invest;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;

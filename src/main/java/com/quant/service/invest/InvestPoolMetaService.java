@@ -1,4 +1,4 @@
-package com.quant.service;
+package com.quant.service.invest;
 
 import java.io.IOException;
 import java.io.InputStream;

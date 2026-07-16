@@ -1,4 +1,4 @@
-package com.quant.service;
+package com.quant.service.invest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;

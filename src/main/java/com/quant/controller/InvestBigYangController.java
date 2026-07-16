@@ -15,7 +15,7 @@ import com.quant.dto.invest.BigYangQuoteDTO;
 import com.quant.dto.invest.BigYangRunResultDTO;
 import com.quant.dto.invest.BigYangSignalDTO;
 import com.quant.dto.invest.BigYangSummaryDTO;
-import com.quant.service.InvestBigYangSignalService;
+import com.quant.service.invest.InvestBigYangSignalService;
 
 import lombok.RequiredArgsConstructor;
 

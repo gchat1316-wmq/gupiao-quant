@@ -19,12 +19,12 @@ import com.quant.controller.InvestController;
 import com.quant.dto.invest.SopCheckupDTO;
 import com.quant.repository.UserRepository;
 import com.quant.security.JwtTokenProvider;
-import com.quant.service.InvestPoolMetaService;
-import com.quant.service.InvestPoolRefreshService;
-import com.quant.service.InvestPoolSeedService;
-import com.quant.service.InvestService;
-import com.quant.service.InvestWeeklyOpportunityService;
-import com.quant.service.OcrPoolImportService;
+import com.quant.service.invest.InvestPoolMetaService;
+import com.quant.service.invest.InvestPoolRefreshService;
+import com.quant.service.invest.InvestPoolSeedService;
+import com.quant.service.invest.InvestService;
+import com.quant.service.invest.InvestWeeklyOpportunityService;
+import com.quant.service.invest.OcrPoolImportService;
 import com.quant.service.notification.PriceMonitorService;
 
 @WebMvcTest(InvestController.class)

@@ -13,7 +13,7 @@ import com.quant.dto.invest.PoolMetaDTO;
 import com.quant.dto.invest.PoolMetaUpdateRequest;
 import com.quant.entity.InvestPoolMeta;
 import com.quant.repository.InvestPoolMetaRepository;
-import com.quant.service.InvestPoolMetaService;
+import com.quant.service.invest.InvestPoolMetaService;
 
 /**
  * 股票池元信息（封面图 / 估值方法 / 每周机会点）服务单测。

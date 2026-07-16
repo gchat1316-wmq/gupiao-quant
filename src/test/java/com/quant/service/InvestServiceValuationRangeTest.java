@@ -8,7 +8,8 @@ import java.math.BigDecimal;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.quant.service.InvestValuationService.ValuationVerdict;
+import com.quant.service.invest.InvestValuationService;
+import com.quant.service.invest.InvestValuationService.ValuationVerdict;
 
 /**
  * 覆盖 10×PS 估值三档 + 程度字段： - 低估 → 用 Y1 (2027) 为参照，degree 为负 - 合理 → 不输出 degree，强制要求前后端都给 null - 泡沫 → 用
