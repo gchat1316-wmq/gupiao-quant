@@ -1,4 +1,4 @@
-package com.quant.service.journal;
+package com.quant.service.notification;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -16,7 +16,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.quant.dto.journal.JournalTradeCreateRequest;
 import com.quant.entity.JournalTrade;
 import com.quant.repository.JournalTradeRepository;
-import com.quant.service.notification.JournalService;
 
 @ExtendWith(MockitoExtension.class)
 class JournalServiceCreateTest {
