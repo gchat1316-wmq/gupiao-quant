@@ -26,12 +26,12 @@ import com.quant.entity.StockAnalysisRecord;
 import com.quant.entity.TradeStockBasic;
 import com.quant.repository.StockAnalysisRecordRepository;
 import com.quant.repository.TradeStockBasicRepository;
+import com.quant.service.potential.UnifiedStockResearchService;
 import com.quant.service.stockanalysis.AnalysisAiCaller;
 import com.quant.service.stockanalysis.AnalysisPromptBuilder;
 import com.quant.service.stockanalysis.BaostockDataFetcher;
 import com.quant.service.stockanalysis.NineDimensionComposer;
 import com.quant.service.stockanalysis.WindResearchService;
-import com.quant.service.potential.UnifiedStockResearchService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

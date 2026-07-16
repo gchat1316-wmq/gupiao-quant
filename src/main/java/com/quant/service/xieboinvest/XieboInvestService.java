@@ -26,9 +26,9 @@ import com.quant.entity.TradeStockFinancial;
 import com.quant.repository.InvestXieboWatchlistRepository;
 import com.quant.repository.TradeStockBasicRepository;
 import com.quant.repository.TradeStockFinancialRepository;
-import com.quant.service.aistockdata.AStockDataQuoteService;
 import com.quant.service.Ps10ValuationService;
 import com.quant.service.StockQueryService;
+import com.quant.service.aistockdata.AStockDataQuoteService;
 
 import lombok.RequiredArgsConstructor;
 

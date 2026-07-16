@@ -11,8 +11,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.quant.config.BaostockSyncProperties;
-import com.quant.service.aistockdata.BaostockSyncCoordinator;
-import com.quant.service.aistockdata.BaostockSyncService;
 import com.quant.service.notification.NotificationService;
 
 @ExtendWith(MockitoExtension.class)
