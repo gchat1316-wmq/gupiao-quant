@@ -26,6 +26,7 @@ import com.quant.dto.marketrecap.SectorCardDTO;
 import com.quant.dto.marketrecap.StrategyItemDTO;
 import com.quant.repository.UserRepository;
 import com.quant.security.JwtTokenProvider;
+import com.quant.service.recap.DailyRecapService;
 import com.quant.service.recap.MarketRecapService;
 
 @WebMvcTest(MarketRecapController.class)
@@ -36,6 +37,8 @@ class MarketRecapControllerTest {
   @Autowired MockMvc mvc;
 
   @MockBean MarketRecapService marketRecapService;
+
+  @MockBean DailyRecapService dailyRecapService;
 
   @MockBean JwtTokenProvider jwtTokenProvider;
 

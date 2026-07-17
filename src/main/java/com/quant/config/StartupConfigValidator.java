@@ -26,6 +26,7 @@ public class StartupConfigValidator implements ApplicationRunner {
   @Override
   public void run(ApplicationArguments args) {
     if (env.acceptsProfiles(Profiles.of("local"))) return;
+    if (env.acceptsProfiles(Profiles.of("test"))) return;
 
     require("spring.datasource.password", "DB_PASSWORD");
     require("app.jwt.secret", "JWT_SECRET");

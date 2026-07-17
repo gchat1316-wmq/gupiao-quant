@@ -25,6 +25,11 @@ public class JwtTokenProvider {
 
   @PostConstruct
   public void init() {
+    if (jwtSecret == null || jwtSecret.isBlank()) {
+      throw new IllegalStateException(
+          "app.jwt.secret must be set (env JWT_SECRET); "
+              + "StartupConfigValidator should fail-fast, but @PostConstruct runs earlier in some contexts.");
+    }
     // 保证 key 至少 256 bit
     String padded = jwtSecret;
     while (padded.getBytes(StandardCharsets.UTF_8).length < 32) {

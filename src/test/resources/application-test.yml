@@ -1,0 +1,28 @@
+# Test profile: zero external dependencies so @SpringBootTest / @WebMvcTest boot in isolation.
+# Loaded only when @ActiveProfiles("test") is set; production uses application.yml unchanged.
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:gupiao_test;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      # Tests get a fresh schema per Spring context. JPA entities → tables via Hibernate.
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: false
+    show-sql: false
+  flyway:
+    # Hibernate owns the schema in tests; Flyway would fight create-drop.
+    enabled: false
+
+# Provide a valid placeholder JWT secret so JwtTokenProvider.init() passes its blank-check.
+# Production StartupConfigValidator remains in main/resources and still enforces non-blank JWT_SECRET in real profiles.
+app:
+  jwt:
+    secret: test-secret-key-padded-to-32-chars-min!!
+    expire-hours: 24
