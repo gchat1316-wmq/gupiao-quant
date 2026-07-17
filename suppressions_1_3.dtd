@@ -1,0 +1,8 @@
+<!-- Local copy of checkstyle suppressions DTD v1.3.
+     checkstyle.org no longer hosts this DTD; bundling locally so offline builds work. -->
+<!ELEMENT suppressions (suppress*)>
+<!ELEMENT suppress EMPTY>
+<!ATTLIST suppress files CDATA #IMPLIED>
+<!ATTLIST suppress checks CDATA #IMPLIED>
+<!ATTLIST suppress message CDATA #IMPLIED>
+<!ATTLIST suppress id CDATA #IMPLIED>

@@ -159,7 +159,9 @@ public class AnalysisPromptBuilder {
     if (!quote.isEmpty()) {
       sb.append("\nbaostock 行情数据:\n");
       String[] qkeys = {"收盘: ", "成交量: ", "换手率: ", "区间最高: ", "区间最低: ", "区间涨跌幅: "};
-      String[] qfields = {"close", "volume", "turn", "period_high", "period_low", "period_change_pct"};
+      String[] qfields = {
+        "close", "volume", "turn", "period_high", "period_low", "period_change_pct"
+      };
       for (int qi = 0; qi < qkeys.length; qi++) {
         sb.append(qkeys[qi]).append(util.safe(quote.get(qfields[qi]))).append('\n');
       }

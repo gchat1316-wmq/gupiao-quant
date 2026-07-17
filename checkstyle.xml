@@ -13,6 +13,11 @@
         <property name="optional" value="true"/>
     </module>
 
+    <!-- Line length limit (must live under Checker, not TreeWalker) -->
+    <module name="LineLength">
+        <property name="max" value="140"/>
+    </module>
+
     <module name="TreeWalker">
         <!-- Forbid System.out/System.err (DataSourceUrlCustomizer is suppressed) -->
         <module name="RegexpSinglelineJava">
@@ -26,14 +31,9 @@
             <property name="ignoreComments" value="true"/>
             <property name="message" value="Avoid printStackTrace — use log.error(&quot;...&quot;, e) to attach the stack trace"/>
         </module>
-        <!-- JavaDoc on public/protected -->
+        <!-- JavaDoc on public/protected (JavadocMethod in checkstyle 9.3 uses accessModifiers instead of scope) -->
         <module name="JavadocMethod">
-            <property name="scope" value="public"/>
-            <property name="allowMissingPropertyJavadoc" value="true"/>
-        </module>
-        <!-- Line length limit -->
-        <module name="LineLength">
-            <property name="max" value="140"/>
+            <property name="accessModifiers" value="public"/>
         </module>
     </module>
 </module>
