@@ -1,44 +1,45 @@
 package com.quant.config;
 
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
-import org.springframework.core.env.Environment;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.env.EnvironmentPostProcessor;
+import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.Profiles;
-import org.springframework.stereotype.Component;
-
-import lombok.RequiredArgsConstructor;
 
 /**
- * Validates that secrets required in non-local profiles are non-empty. Runs at @Order(0) so it
- * fails the app boot before anything else binds.
+ * Validates that secrets required in non-local profiles are non-empty.
  *
- * <p>Local profile is exempt — devs run without prod secrets.
+ * <p>Implemented as an {@link EnvironmentPostProcessor} so it runs DURING environment preparation,
+ * before any bean is instantiated — meaning {@code @PostConstruct} checks in beans like {@code
+ * JwtTokenProvider} never get the chance to throw a confusing wrapped stack trace. The app fails
+ * immediately with a one-line, actionable error.
  *
- * <p>To extend: add another required-secret check in the same fail-fast shape.
+ * <p>Local, test and the default (no profile) profile are exempt — devs and CI run without prod
+ * secrets. Any explicitly activated non-local/test profile (e.g. {@code prod}) is treated as
+ * production and must have all secrets configured.
+ *
+ * <p>To extend: add another required-secret check in the same fail-fast shape, then list this class
+ * in {@code META-INF/spring.factories} under {@code
+ * org.springframework.boot.env.EnvironmentPostProcessor} (already done).
  */
-@Component
-@org.springframework.core.annotation.Order(0)
-@RequiredArgsConstructor
-public class StartupConfigValidator implements ApplicationRunner {
-
-  private final Environment env;
+public class StartupConfigValidator implements EnvironmentPostProcessor {
 
   @Override
-  public void run(ApplicationArguments args) {
+  public void postProcessEnvironment(ConfigurableEnvironment env, SpringApplication app) {
     if (env.acceptsProfiles(Profiles.of("local"))) return;
     if (env.acceptsProfiles(Profiles.of("test"))) return;
+    if (env.getActiveProfiles().length == 0) return;
 
-    require("spring.datasource.password", "DB_PASSWORD");
-    require("app.jwt.secret", "JWT_SECRET");
-    require("ai.minimax.api-key", "AI_MINIMAX_KEY");
-    require("ai.sensenova.api-key", "SENSENOVA_API_KEY or AI_SENSENOVA_KEY");
-    require("ai.tavily.api-key", "TAVILY_API_KEY");
-    require("prosperity-strong.tdx.api-key", "TDX_API_KEY");
-    require("notification.serverchan.send-key", "SERVER_CHAN_SEND_KEY");
-    require("notification.wish-pool.webhook-url", "WISH_POOL_FEISHU_WEBHOOK_URL");
+    require(env, "spring.datasource.password", "DB_PASSWORD");
+    require(env, "app.jwt.secret", "JWT_SECRET");
+    require(env, "ai.minimax.api-key", "AI_MINIMAX_KEY");
+    require(env, "ai.sensenova.api-key", "SENSENOVA_API_KEY or AI_SENSENOVA_KEY");
+    require(env, "ai.tavily.api-key", "TAVILY_API_KEY");
+    require(env, "prosperity-strong.tdx.api-key", "TDX_API_KEY");
+    require(env, "notification.serverchan.send-key", "SERVER_CHAN_SEND_KEY");
+    require(env, "notification.wish-pool.webhook-url", "WISH_POOL_FEISHU_WEBHOOK_URL");
   }
 
-  private void require(String key, String friendlyEnvVar) {
+  private void require(ConfigurableEnvironment env, String key, String friendlyEnvVar) {
     String value = env.getProperty(key, "");
     if (value == null || value.isBlank()) {
       throw new IllegalStateException(

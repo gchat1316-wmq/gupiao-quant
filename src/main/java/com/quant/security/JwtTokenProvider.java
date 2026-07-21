@@ -26,9 +26,12 @@ public class JwtTokenProvider {
   @PostConstruct
   public void init() {
     if (jwtSecret == null || jwtSecret.isBlank()) {
+      // Defense-in-depth: StartupConfigValidator (EnvironmentPostProcessor) should already have
+      // rejected startup with a clean error in non-local/test profiles. This guard exists for
+      // local profile (validator is bypassed) and as a safety net.
       throw new IllegalStateException(
-          "app.jwt.secret must be set (env JWT_SECRET); "
-              + "StartupConfigValidator should fail-fast, but @PostConstruct runs earlier in some contexts.");
+          "app.jwt.secret must be set (env JWT_SECRET); set it in "
+              + "./secrets.env (project root) and re-run ./restart.sh");
     }
     // 保证 key 至少 256 bit
     String padded = jwtSecret;

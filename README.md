@@ -33,7 +33,7 @@ mvn spring-boot:run -Dspring-boot.run.profiles=local
 
 ### 生产部署
 
-将所有运维密钥放在 `/etc/gupiao-quant/secrets.env`（详见 `deploy/secrets.env.example`）。
+将所有运维密钥放在项目根的 `secrets.env`（详见 `deploy/secrets.env.example`，已被 `.gitignore` 忽略）。
 `restart.sh` 会自动 source 该文件，并把 Spring profile 切到 `prod`。
 任何缺失的密钥会让启动直接失败（见 `StartupConfigValidator`），而不是静默降级。
 

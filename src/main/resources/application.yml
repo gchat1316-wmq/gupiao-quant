@@ -59,8 +59,10 @@ spring:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
-    baseline-version: 0
-    baseline-description: "SchemaInitializer-era baseline (treated as already migrated)"
+    # DB 已被 SchemaInitializer-era 创建过 V1–V20 的所有表;baseline 锚定到 V20,
+    # 下次 Flyway 启动时不再重跑 V1–V20,只会跑 V21+(目前还没有)。
+    baseline-version: 20
+    baseline-description: "SchemaInitializer-era baseline (V1-V20 already applied via SchemaInitializer)"
     table: flyway_schema_history
     placeholder-replacement: false
 

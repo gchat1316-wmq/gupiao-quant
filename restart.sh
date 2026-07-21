@@ -131,7 +131,8 @@ echo "      ✓ 构建成功: $JAR_SIZE"
 # ============================================================
 # 4.5 加载运维密钥文件（可选；不存在则不报错，使用 application.yml 中的 ${ENV:} 占位）
 # ============================================================
-SECRETS_FILE="/etc/gupiao-quant/secrets.env"
+# 项目根目录下的 secrets.env（已在 .gitignore 中忽略，部署时手动维护）
+SECRETS_FILE="$(cd "$(dirname "$0")" && pwd)/secrets.env"
 if [ -f "$SECRETS_FILE" ]; then
     set -a
     # shellcheck disable=SC1090

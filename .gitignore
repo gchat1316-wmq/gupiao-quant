@@ -84,6 +84,9 @@ desktop.ini
 application-local.yml
 application-local.properties
 secrets/
+# 项目根的运维密钥文件（restart.sh 会 source 它；只能本地维护，绝不提交）
+secrets.env
+/secrets.env
 
 # ======================================
 # deploy/ 目录下的真实密钥文件
