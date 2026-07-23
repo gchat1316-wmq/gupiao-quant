@@ -205,21 +205,75 @@ public class MarketRecapService {
 
   private List<SectorCardDTO> parseSectors(String raw) {
     JsonNode root = readJsonNode(raw);
-    if (root == null || !root.isArray()) {
+    if (root != null && root.isArray()) {
+      List<SectorCardDTO> sectors = new ArrayList<>();
+      for (JsonNode node : root) {
+        sectors.add(
+            SectorCardDTO.builder()
+                .name(text(node, "name"))
+                .strengthLabel(firstNonBlank(text(node, "涨停数"), text(node, "strength")))
+                .leaders(stringArray(node.path("标的")))
+                .catalyst(readCatalyst(node))
+                .build());
+      }
+      return sectors;
+    }
+    // Fallback: AI 把 sectors 输出成扁平字符串,常见三种形态:
+    //   1) "科创50,次新股,电子器件,半导体"            — 英文逗号分隔
+    //   2) "电力|煤炭|油气开采|中药"                  — 竖线分隔
+    //   3) "创新药({count..,names:[...]}) / 中报预增(...)"  — 多分隔符 + 内嵌 JSON
+    // 用 paren-aware 切分(只在深度 0 视作顶层分隔符),每段去掉尾部 (...) 拿到板块名。
+    if (!hasText(raw)) {
       return List.of();
     }
-
     List<SectorCardDTO> sectors = new ArrayList<>();
-    for (JsonNode node : root) {
-      sectors.add(
-          SectorCardDTO.builder()
-              .name(text(node, "name"))
-              .strengthLabel(firstNonBlank(text(node, "涨停数"), text(node, "strength")))
-              .leaders(stringArray(node.path("标的")))
-              .catalyst(readCatalyst(node))
-              .build());
+    for (String part : splitTopLevelSectors(raw)) {
+      String trimmed = part.trim();
+      if (!hasText(trimmed)) {
+        continue;
+      }
+      int parenIdx = trimmed.indexOf('(');
+      String name = parenIdx > 0 ? trimmed.substring(0, parenIdx).trim() : trimmed;
+      if (!hasText(name)) {
+        continue;
+      }
+      sectors.add(SectorCardDTO.builder().name(name).build());
     }
     return sectors;
+  }
+
+  /**
+   * 在 paren 深度为 0 的位置按指定分隔符切分。这样不会切到内嵌 JSON(如 {@code 创新药({'count': 4, 'names': ['a','b']})}
+   * 里的逗号),而是只在顶层分隔。
+   */
+  private static List<String> splitTopLevelSectors(String raw) {
+    String separators = ",，|｜、;；/";
+    List<String> result = new ArrayList<>();
+    StringBuilder current = new StringBuilder();
+    int depth = 0;
+    for (int i = 0; i < raw.length(); i++) {
+      char c = raw.charAt(i);
+      if (c == '(') {
+        depth++;
+        current.append(c);
+      } else if (c == ')') {
+        if (depth > 0) depth--;
+        current.append(c);
+      } else if (depth == 0 && separators.indexOf(c) >= 0) {
+        // 顶层分隔符:合并连续分隔符(避免产生空字符串段)
+        if (current.length() == 0) {
+          continue;
+        }
+        result.add(current.toString());
+        current.setLength(0);
+      } else {
+        current.append(c);
+      }
+    }
+    if (current.length() > 0) {
+      result.add(current.toString());
+    }
+    return result;
   }
 
   private List<String> parseStringList(String raw) {

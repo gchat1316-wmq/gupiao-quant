@@ -259,10 +259,11 @@
 
       <div class="pool-header">
         <div class="pool-filter-tabs">
-          <button class="pool-filter-btn active" data-filter="all">全部</button>
-          <button class="pool-filter-btn" data-filter="fair">合理</button>
-          <button class="pool-filter-btn" data-filter="low">低估</button>
-          <button class="pool-filter-btn" data-filter="high">高估</button>
+          <span class="pool-filter-label">筛选：</span>
+          <button class="pool-filter-btn active" data-filter="all">全部<span class="pool-filter-count" id="poolCountAll">--</span></button>
+          <button class="pool-filter-btn" data-filter="fair">合理<span class="pool-filter-count" id="poolCountFair">--</span></button>
+          <button class="pool-filter-btn" data-filter="low">低估<span class="pool-filter-count" id="poolCountLow">--</span></button>
+          <button class="pool-filter-btn" data-filter="high">高估<span class="pool-filter-count" id="poolCountHigh">--</span></button>
         </div>
         <div class="pool-header-search">
           <input id="poolSearchInput" type="text" placeholder="搜索：名称 / 拼音首字母 / 代码" autocomplete="off" />

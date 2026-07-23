@@ -290,11 +290,13 @@ public class DailyRecapService {
     recap.setRecapDate(LocalDate.now());
     recap.setRecapType("evening");
     recap.setTradeDate(LocalDate.now());
-    recap.setContent(aiJson); // 存原始 AI JSON，前端/Service 层自行渲染
 
     try {
       JsonNode node = objectMapper.readTree(aiJson);
       recap.setTitle(nullSafe(node.path("title").asText("")));
+      // 只存 JSON 里 content 字段的 markdown 正文(给 MarketRecapService.renderMarkdown 渲染用);
+      // 不要存整段 AI JSON,否则 HTML 渲染会变成 <p>{原始 JSON}</p>。
+      recap.setContent(node.path("content").asText(""));
       recap.setIndexesSummary(nullSafe(node.path("indexes_summary").asText("")));
       recap.setAdvanceDecline(nullSafe(node.path("advance_decline").asText("")));
       recap.setLimitUp(node.path("limit_up").canConvertToInt() ? node.path("limit_up").asInt() : 0);
@@ -310,6 +312,9 @@ public class DailyRecapService {
     } catch (Exception e) {
       log.warn("AI 返回 JSON 解析失败，使用骨架 market={} err={}", market, e.getMessage());
       recap.setTitle("【" + market + " 复盘】" + LocalDate.now());
+      // 解析失败时,至少把原始 AI 输出用 code-fence 包起来,渲染时仍是合法的 markdown
+      // 而不是 <p>{原始 JSON}</p> 这种乱码。
+      recap.setContent("```json\n" + aiJson + "\n```");
     }
 
     return repository.save(recap);

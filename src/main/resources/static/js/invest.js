@@ -734,7 +734,7 @@
 
   // 10倍PS股票池看板列定义。inline 决定是否可内联编辑。
   const POOL_COLUMNS = [
-    { key: 'stockName',         label: '公司简称', cls: 'pool-col-stock', render: renderStockCell },
+    { key: 'stockName',         label: '公司<br>简称', cls: 'pool-col-stock', render: renderStockCell },
     { key: 'revenue2023',       label: '2023<br>营收<br>(亿)', cls: 'pool-col-num', inline: 'number' },
     { key: 'revenue2024',       label: '2024<br>营收<br>(亿)', cls: 'pool-col-num', inline: 'number' },
     { key: 'revenue2025',       label: '2025<br>营收<br>(亿)', cls: 'pool-col-num', inline: 'number' },
@@ -1154,6 +1154,8 @@
   function renderPool() {
     const wrap = document.getElementById('poolListWrap');
     if (!wrap) return;
+    // 同步顶部筛选按钮的数量徽章（全部 / 合理 / 低估 / 高估）
+    updateFilterCounts();
     let items = poolData;
     if (poolFilter === 'fair') items = poolData.filter(isFairZone);
     else if (poolFilter === 'low') items = poolData.filter(isLowZone);
@@ -1296,22 +1298,28 @@
   }
 
   function renderPoolBoardSummary(items) {
-    const fairCount = poolData.filter(isFairZone).length;
-    const lowCount = poolData.filter(isLowZone).length;
-    const bubbleCount = poolData.filter(isBubbleZone).length;
-    const avgGrowth = avg(poolData.map(i => i.q1RevenueGrowth));
     return `<div class="pool-board-head">
       <div>
         <div class="pool-board-title">适合用10倍PS来简单估测和跟踪的高科技成长股 <span>${new Date().toISOString().slice(0, 10)}</span></div>
         <div class="pool-board-note">判断依据：合理市值 = 明年预测营收 × 10；当前市值低于 Y1×10 为低估，超过 Y2×10 为泡沫（需警惕）。</div>
       </div>
-      <div class="pool-board-stats">
-        <span class="pool-stat green">合理 ${fairCount}</span>
-        <span class="pool-stat blue">低估 ${lowCount}</span>
-        <span class="pool-stat red">泡沫 ${bubbleCount}</span>
-        <span class="pool-stat orange">均值 ${isFinite(avgGrowth) ? avgGrowth.toFixed(1) + '%' : '—'}</span>
-      </div>
     </div>`;
+  }
+
+  /**
+   * 把当前池子的「全部 / 合理 / 低估 / 高估」数量同步到顶部筛选按钮的徽章上。
+   * 数字来源与之前 .pool-board-stats 里的 4 个统计一致（高估 = 后端 valuationRange === '泡沫'）。
+   */
+  function updateFilterCounts() {
+    const all = poolData.length;
+    const fair = poolData.filter(isFairZone).length;
+    const low = poolData.filter(isLowZone).length;
+    const high = poolData.filter(isBubbleZone).length;
+    const set = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = n; };
+    set('poolCountAll', all);
+    set('poolCountFair', fair);
+    set('poolCountLow', low);
+    set('poolCountHigh', high);
   }
 
   function renderPoolCharts(items) {
