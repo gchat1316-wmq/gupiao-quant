@@ -44,7 +44,14 @@ class XieboRecentServiceTest {
 
   private AStockDataQuoteService.QuoteSnapshot quote(String code, String price, String prev) {
     return new AStockDataQuoteService.QuoteSnapshot(
-        code, new BigDecimal(price), new BigDecimal(prev), null, LocalDateTime.now(), "tencent");
+        code,
+        new BigDecimal(price),
+        new BigDecimal(prev),
+        null,
+        null,
+        LocalDateTime.now(),
+        "tencent"
+);
   }
 
   @Test

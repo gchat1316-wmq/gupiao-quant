@@ -135,18 +135,36 @@ class MonitorRuleEngineTest {
     pos.setAtrTrailMult(new BigDecimal("2.00"));
     pos.setAtrPeriod(14);
 
-    // stopLine = 120 - 2 * 2 * 3 = 108; latest 110 > 108 → 不触发
+    // stopLine = 120 - 2 * 3 = 114; latest 115 > 114 → 不触发
     List<MonitorSignal> sigs1 =
         engine.evaluate(
-            ctx(new BigDecimal("110.00"), new BigDecimal("108.00"), new BigDecimal("3.00")));
+            ctx(new BigDecimal("115.00"), new BigDecimal("108.00"), new BigDecimal("3.00")));
     assertTrue(
         sigs1.stream().noneMatch(s -> MonitorSignal.STOP_LOSS_ATR.equals(s.getSignalType())));
 
-    // latest 105 < 108 → 触发
+    // latest 110 < 114 → 触发
     List<MonitorSignal> sigs2 =
         engine.evaluate(
-            ctx(new BigDecimal("105.00"), new BigDecimal("108.00"), new BigDecimal("3.00")));
+            ctx(new BigDecimal("110.00"), new BigDecimal("108.00"), new BigDecimal("3.00")));
     assertTrue(sigs2.stream().anyMatch(s -> MonitorSignal.STOP_LOSS_ATR.equals(s.getSignalType())));
+  }
+
+  @Test
+  void monitorModeFixedOnlySkipsAtrAndPctRules() {
+    pos.setMonitorMode("fixed_only");
+    pos.setFixedBuyPrice(new BigDecimal("1500.00"));
+    pos.setFixedBuyEnabled(1);
+    pos.setAtrAlertEnabled(1);
+    pos.setAtrAlertAmplitude(new BigDecimal("1.0"));
+    pos.setEntryPrice(new BigDecimal("100.00"));
+    pos.setTakeProfitPct(new BigDecimal("20.00"));
+
+    List<MonitorSignal> sigs =
+        engine.evaluate(
+            ctx(new BigDecimal("1480.00"), new BigDecimal("1400.00"), new BigDecimal("10.00")));
+
+    assertEquals(1, sigs.size());
+    assertEquals(MonitorSignal.FIXED_BUY, sigs.get(0).getSignalType());
   }
 
   @Test

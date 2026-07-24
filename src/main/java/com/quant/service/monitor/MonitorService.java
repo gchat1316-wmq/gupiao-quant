@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -14,9 +15,11 @@ import org.springframework.transaction.annotation.Transactional;
 import com.quant.config.NotificationProperties;
 import com.quant.entity.InvestAlert;
 import com.quant.entity.InvestPositionCommon;
+import com.quant.entity.TradeStockBasic;
 import com.quant.entity.TradeStockDaily;
 import com.quant.repository.InvestAlertRepository;
 import com.quant.repository.InvestPositionCommonRepository;
+import com.quant.repository.TradeStockBasicRepository;
 import com.quant.repository.TradeStockDailyRepository;
 import com.quant.service.aistockdata.AStockDataQuoteService;
 import com.quant.service.notification.NotificationService;
@@ -41,9 +44,16 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class MonitorService {
 
+  /** 投资池在 invest_position_common 中的正式 poolType；历史 UI 曾用 "stock" 作为别名。 */
+  public static final String POOL_INVEST = "invest";
+
+  public static final String POOL_TECH_AI = "tech_ai";
+  public static final String POOL_POTENTIAL = "potential";
+
   private final InvestPositionCommonRepository posRepo;
   private final InvestAlertRepository alertRepo;
   private final TradeStockDailyRepository dailyRepo;
+  private final TradeStockBasicRepository basicRepo;
   private final AStockDataQuoteService quoteService;
   private final NotificationService notificationService;
   private final MonitorRuleEngine ruleEngine;
@@ -57,7 +67,7 @@ public class MonitorService {
     if (cfg == null || !cfg.isEnabled()) return;
     for (String poolType : cfg.getPoolTypes()) {
       try {
-        scan(poolType);
+        scan(normalizePoolType(poolType));
       } catch (Exception e) {
         log.error("[{}] scanAll 中 scan 异常", poolType, e);
       }
@@ -71,7 +81,7 @@ public class MonitorService {
     if (cfg == null || !cfg.isEnabled()) return;
     for (String poolType : cfg.getPoolTypes()) {
       try {
-        scan(poolType);
+        scan(normalizePoolType(poolType));
       } catch (Exception e) {
         log.error("[{}] confirm 中 scan 异常", poolType, e);
       }
@@ -89,29 +99,43 @@ public class MonitorService {
     if (cfg == null || !cfg.isEnabled()) return 0;
     if (cfg.isRequireTradingTime() && !isTradingTime()) return 0;
 
-    List<InvestPositionCommon> positions = posRepo.findByPoolType(poolType);
+    String normalized = normalizePoolType(poolType);
+    List<InvestPositionCommon> positions = posRepo.findByPoolType(normalized);
     if (positions == null || positions.isEmpty()) return 0;
 
-    List<String> codes = positions.stream().map(InvestPositionCommon::getStockCode).toList();
+    List<InvestPositionCommon> active =
+        positions.stream().filter(p -> !isExited(p)).toList();
+    if (active.isEmpty()) return 0;
+
+    List<String> codes = active.stream().map(InvestPositionCommon::getStockCode).toList();
 
     Map<String, AStockDataQuoteService.QuoteSnapshot> quoteMap;
     try {
       quoteMap = quoteService.fetchQuotes(codes);
     } catch (Exception e) {
-      log.warn("[{}] 拉取行情失败，跳过本次扫描", poolType, e);
+      log.warn("[{}] 拉取行情失败，跳过本次扫描", normalized, e);
       return 0;
     }
 
+    Map<String, String> nameMap =
+        basicRepo.findByStockCodeIn(codes).stream()
+            .collect(
+                java.util.stream.Collectors.toMap(
+                    TradeStockBasic::getStockCode,
+                    TradeStockBasic::getStockName,
+                    (a, b) -> a));
+
     int triggered = 0;
-    for (InvestPositionCommon pos : positions) {
+    for (InvestPositionCommon pos : active) {
       try {
-        if (scanOne(pos, quoteMap.get(pos.getStockCode()), cfg)) triggered++;
+        String name = nameMap.getOrDefault(pos.getStockCode(), pos.getStockCode());
+        if (scanOne(pos, name, quoteMap.get(pos.getStockCode()), cfg)) triggered++;
       } catch (Exception e) {
         log.warn("[{}] scan 异常: {}", pos.getStockCode(), e.getMessage());
       }
     }
     if (triggered > 0) {
-      log.info("[{}] monitor scan 本次触发 {} 条推送（共 {} 只标的）", poolType, triggered, positions.size());
+      log.info("[{}] monitor scan 本次触发 {} 条推送（共 {} 只标的）", normalized, triggered, active.size());
     }
     return triggered;
   }
@@ -119,19 +143,34 @@ public class MonitorService {
   /** 单条评估 + 推送 + 持久化。返回是否命中并推送。 */
   private boolean scanOne(
       InvestPositionCommon pos,
+      String stockName,
       AStockDataQuoteService.QuoteSnapshot quote,
       NotificationProperties.Monitor cfg) {
     if (quote == null || quote.latestPrice() == null) return false;
 
+    // 刷新峰值（用于 ATR 移动止损）
+    BigDecimal latest = quote.latestPrice();
+    if (pos.getPeakPrice() == null || latest.compareTo(pos.getPeakPrice()) > 0) {
+      pos.setPeakPrice(latest);
+      posRepo.save(pos);
+    }
+
     BigDecimal atr = computeAtr(pos);
+    BigDecimal openToday =
+        quote.openPrice() != null
+            ? quote.openPrice()
+            : quote.prevClosePrice(); // 无今开时退回昨收，避免振幅恒为 0
+    BigDecimal close3d = closePriceNTradingDaysAgo(pos.getStockCode(), 3);
+
     MonitorContext ctx =
         MonitorContext.builder()
             .position(pos)
             .stockCode(pos.getStockCode())
-            .stockName(pos.getStockCode()) // 名字由调用方在 DTO 层补
-            .latest(quote.latestPrice())
-            .openToday(quote.latestPrice()) // 没有独立 openPrice，使用 latest
+            .stockName(stockName)
+            .latest(latest)
+            .openToday(openToday)
             .prevClose(quote.prevClosePrice())
+            .closePrice3DaysAgo(close3d)
             .atr(atr)
             .quoteTime(quote.quoteTime())
             .build();
@@ -198,12 +237,27 @@ public class MonitorService {
     } catch (Exception e) {
       log.warn("[{}] InvestAlert 持久化失败: {}", pos.getStockCode(), e.getMessage());
     }
+
+    // 无论推送是否成功，更新 lastAlertAt 便于前端展示
+    try {
+      pos.setLastAlertAt(alert.getTriggerAt());
+      posRepo.save(pos);
+    } catch (Exception e) {
+      log.debug("[{}] 更新 lastAlertAt 失败: {}", pos.getStockCode(), e.getMessage());
+    }
     return sent;
   }
 
   private BigDecimal computeAtr(InvestPositionCommon pos) {
     Integer period = pos.getAtrPeriod();
-    if (period == null || period <= 0) return null;
+    if (period == null || period <= 0) {
+      // ATR 振幅告警启用但未设周期时给默认 14
+      if (intAsBool(pos.getAtrAlertEnabled()) || Integer.valueOf(1).equals(pos.getUseAtr())) {
+        period = 14;
+      } else {
+        return null;
+      }
+    }
     try {
       List<TradeStockDaily> dailies =
           dailyRepo.findTop30ByStockCodeOrderByTradeDateDesc(pos.getStockCode());
@@ -213,9 +267,41 @@ public class MonitorService {
     }
   }
 
+  private BigDecimal closePriceNTradingDaysAgo(String stockCode, int n) {
+    try {
+      List<TradeStockDaily> dailies = dailyRepo.findTop6ByStockCodeOrderByTradeDateDesc(stockCode);
+      if (dailies == null || dailies.size() <= n) return null;
+      TradeStockDaily row = dailies.get(n);
+      return row == null ? null : row.getClosePrice();
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
   private boolean isTradingTime() {
     LocalTime now = LocalTime.now();
     return (now.isAfter(LocalTime.of(9, 29)) && now.isBefore(LocalTime.of(11, 31)))
         || (now.isAfter(LocalTime.of(12, 59)) && now.isBefore(LocalTime.of(15, 1)));
+  }
+
+  private static boolean isExited(InvestPositionCommon p) {
+    return p != null && p.getStatus() != null && "exited".equalsIgnoreCase(p.getStatus());
+  }
+
+  private static boolean intAsBool(Integer i) {
+    return i != null && i == 1;
+  }
+
+  /** 兼容历史别名 stock → invest。 */
+  public static String normalizePoolType(String poolType) {
+    if (poolType == null || poolType.isBlank()) return poolType;
+    String p = poolType.trim().toLowerCase(Locale.ROOT);
+    if ("stock".equals(p)) return POOL_INVEST;
+    return p;
+  }
+
+  public static boolean isKnownPoolType(String poolType) {
+    String p = normalizePoolType(poolType);
+    return POOL_INVEST.equals(p) || POOL_TECH_AI.equals(p) || POOL_POTENTIAL.equals(p);
   }
 }

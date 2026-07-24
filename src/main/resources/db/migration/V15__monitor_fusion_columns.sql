@@ -1,5 +1,5 @@
 -- V15: Monitor Fusion (2026-06-30) — 9 columns on invest_position_common
--- Source: SchemaInitializer.ensureMonitorFusionColumns() / sql/monitor_fusion_v1_init.sql
+-- Source: sql/monitor_fusion_v1_init.sql（手工脚本镜像；本文件由 Flyway 执行）
 -- 新增 9 列：固定买入/卖出价 + ATR 振幅 + %-based 止损 + Server酱模板
 -- 每个新列默认禁用（固定列可空，启用列默认 0），不影响现有行行为。
 

@@ -19,6 +19,11 @@ public class MonitorSignal {
   public static final String TAKE_PROFIT = "take_profit_hit";
   public static final String STOP_LOSS_PCT = "stop_loss_hit";
   public static final String STOP_LOSS_ATR = "stop_loss_atr_hit";
+  public static final String DAILY_PCT = "daily_pct_alert";
+  public static final String THREE_DAY_PCT = "three_day_pct_alert";
+  public static final String MINUTE_1M_PCT = "minute_1m_pct_alert";
+  public static final String MINUTE_5M_PCT = "minute_5m_pct_alert";
+  public static final String TURNOVER_RATIO = "turnover_ratio_alert";
 
   private String stockCode;
   private String stockName;
@@ -225,6 +230,53 @@ public class MonitorSignal {
                 + " ✅ 已触发")
         .triggerPrice(triggerPrice)
         .threshold(stopLine)
+        .template(pos.getServerchanTemplate() == null ? "standard" : pos.getServerchanTemplate())
+        .triggeredAt(LocalDateTime.now())
+        .build();
+  }
+
+  public static MonitorSignal pctMove(
+      InvestPositionCommon pos,
+      String code,
+      String name,
+      String signalType,
+      String label,
+      BigDecimal triggerPrice,
+      BigDecimal thresholdPct,
+      BigDecimal currentPct) {
+    String dir = currentPct != null && currentPct.compareTo(BigDecimal.ZERO) >= 0 ? "上涨" : "下跌";
+    return MonitorSignal.builder()
+        .stockCode(code)
+        .stockName(name)
+        .signalType(signalType)
+        .title(
+            String.format(
+                "📊 %s(%s) %s %s%%（阈值 %s%%）",
+                name,
+                code,
+                label + dir,
+                currentPct == null ? "?" : currentPct.stripTrailingZeros().toPlainString(),
+                thresholdPct == null ? "?" : thresholdPct.stripTrailingZeros().toPlainString()))
+        .content(
+            "## "
+                + name
+                + "（"
+                + code
+                + "）\n\n"
+                + "- 当前价: "
+                + triggerPrice
+                + "\n"
+                + "- "
+                + label
+                + ": "
+                + currentPct
+                + "%\n"
+                + "- 阈值: ±"
+                + thresholdPct
+                + "% ✅ 已触发")
+        .triggerPrice(triggerPrice)
+        .threshold(thresholdPct)
+        .currentValue(currentPct)
         .template(pos.getServerchanTemplate() == null ? "standard" : pos.getServerchanTemplate())
         .triggeredAt(LocalDateTime.now())
         .build();

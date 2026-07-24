@@ -38,7 +38,6 @@ class PriceMonitorServiceTest {
   @Mock private TradeStockBasicRepository basicRepository;
   @Mock private AStockDataQuoteService aStockDataQuoteService;
   @Mock private NotificationDispatcher notificationDispatcher;
-  @Mock private com.quant.service.monitor.MonitorService monitorService;
 
   private NotificationProperties notifProps;
   private PriceMonitorService service;
@@ -56,8 +55,7 @@ class PriceMonitorServiceTest {
             basicRepository,
             aStockDataQuoteService,
             notifProps,
-            notificationDispatcher,
-            monitorService);
+            notificationDispatcher);
   }
 
   @Test
@@ -83,7 +81,14 @@ class PriceMonitorServiceTest {
 
     AStockDataQuoteService.QuoteSnapshot snap =
         new AStockDataQuoteService.QuoteSnapshot(
-            "600519", new BigDecimal("1750"), null, null, null, null);
+            "600519",
+            new BigDecimal("1750"),
+            null,
+            null,
+            null,
+            null,
+            null
+);
     when(aStockDataQuoteService.fetchQuotes(anyList()))
         .thenReturn(java.util.Map.of("600519", snap));
 
@@ -119,7 +124,14 @@ class PriceMonitorServiceTest {
 
     AStockDataQuoteService.QuoteSnapshot snap =
         new AStockDataQuoteService.QuoteSnapshot(
-            "600519", new BigDecimal("1850"), null, null, null, null);
+            "600519",
+            new BigDecimal("1850"),
+            null,
+            null,
+            null,
+            null,
+            null
+);
     when(aStockDataQuoteService.fetchQuotes(anyList()))
         .thenReturn(java.util.Map.of("600519", snap));
 
@@ -173,7 +185,14 @@ class PriceMonitorServiceTest {
 
     AStockDataQuoteService.QuoteSnapshot snap =
         new AStockDataQuoteService.QuoteSnapshot(
-            "002371", new BigDecimal("305"), null, null, null, null);
+            "002371",
+            new BigDecimal("305"),
+            null,
+            null,
+            null,
+            null,
+            null
+);
     when(aStockDataQuoteService.fetchQuotes(anyList()))
         .thenReturn(java.util.Map.of("002371", snap));
 

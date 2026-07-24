@@ -42,9 +42,6 @@ public class PriceMonitorService {
   private final NotificationProperties notifProps;
   private final NotificationDispatcher notificationDispatcher;
 
-  /** 2026-06-30 Monitor Fusion — 追加评估 invest_position_common.fixed_* 列的固定价触发 */
-  private final com.quant.service.monitor.MonitorService monitorService;
-
   @Scheduled(cron = "${notification.price-monitor.cron:0 */5 9-15 * * MON-FRI}")
   @Transactional
   public void monitorPrices() {
@@ -159,13 +156,7 @@ public class PriceMonitorService {
     if (triggered > 0) {
       log.info("价格监控本次触发 {} 条推送（共 {} 只标的）", triggered, posMap.size());
     }
-    // 2026-06-30 Monitor Fusion: 追加评估 invest_position_common.fixed_*(新版) — 与旧
-    // InvestStockPool.targetBuyPrice 并存
-    try {
-      monitorService.scan(POOL_TYPE_INVEST);
-    } catch (Exception e) {
-      log.warn("MonitorService.scan 异常（忽略）: {}", e.getMessage());
-    }
+    // fixed_* fusion 已由 MonitorService 主 cron（poolTypes 含 invest）覆盖，这里不再重复 scan，避免双推。
   }
 
   private String buildAlertContent(

@@ -107,9 +107,11 @@ class XieboInvestServiceTest {
                     "600519.SH",
                     new BigDecimal("1490.00"),
                     new BigDecimal("1485.00"),
+                    null,
                     new BigDecimal("18716"),
                     LocalDateTime.now(),
-                    "a-stock-data/tencent")));
+                    "a-stock-data/tencent"
+)));
     when(financialRepository.findByStockCodeOrderByReportDateDesc("600519.SH"))
         .thenReturn(sampleProfits());
 
@@ -183,16 +185,20 @@ class XieboInvestServiceTest {
                         new BigDecimal("410.00"),
                         new BigDecimal("405.00"),
                         null,
+                        null,
                         LocalDateTime.now(),
-                        "a-stock-data/tencent"),
+                        "a-stock-data/tencent"
+),
                 "688012.SH",
                     new AStockDataQuoteService.QuoteSnapshot(
                         "688012.SH",
                         new BigDecimal("180.00"),
                         new BigDecimal("178.00"),
                         null,
+                        null,
                         LocalDateTime.now(),
-                        "a-stock-data/tencent")));
+                        "a-stock-data/tencent"
+)));
 
     Map<String, Object> sector = service.getSectorPe("北方华创");
 
@@ -222,8 +228,10 @@ class XieboInvestServiceTest {
                     new BigDecimal("410.00"),
                     new BigDecimal("405.00"),
                     null,
+                    null,
                     LocalDateTime.now(),
-                    "a-stock-data/tencent")));
+                    "a-stock-data/tencent"
+)));
     when(financialRepository.findByStockCodeOrderByReportDateDesc("002371.SZ"))
         .thenReturn(
             List.of(

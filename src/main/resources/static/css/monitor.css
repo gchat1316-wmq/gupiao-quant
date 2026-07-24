@@ -54,13 +54,43 @@
 .add-form {
     display: flex;
     gap: 8px;
-    align-items: center;
+    align-items: flex-start;
+    flex-wrap: wrap;
 }
 .add-form input,
-.add-form select {
+.add-form select,
+.add-form textarea {
     padding: 6px 10px;
     border-radius: 4px;
     border: 1px solid #ccc;
+}
+.add-form textarea {
+    min-width: 280px;
+    flex: 1;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    line-height: 1.4;
+}
+.monitor-table-wrap {
+    overflow-x: auto;
+}
+.btn-del {
+    padding: 4px 8px;
+    border: 1px solid #c45;
+    background: #fff;
+    color: #c45;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 0.85em;
+}
+.btn-del:hover { background: #c45; color: #fff; }
+.pool-badge {
+    display: inline-block;
+    margin-left: 4px;
+    font-size: 0.75em;
+    color: #666;
+    background: #eee;
+    padding: 1px 6px;
+    border-radius: 3px;
 }
 
 #monitor-table {

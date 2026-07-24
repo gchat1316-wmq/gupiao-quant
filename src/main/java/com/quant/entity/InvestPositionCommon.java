@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.IdClass;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -22,6 +23,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
+@IdClass(InvestPositionCommonId.class)
 @Table(name = "invest_position_common")
 public class InvestPositionCommon {
 
@@ -30,6 +32,7 @@ public class InvestPositionCommon {
   @Column(name = "stock_code", nullable = false, length = 20)
   private String stockCode;
 
+  @Id
   @Column(name = "pool_type", nullable = false, length = 20)
   private String poolType;
 

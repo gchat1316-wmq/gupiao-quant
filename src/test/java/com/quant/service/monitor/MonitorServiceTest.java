@@ -28,6 +28,7 @@ import com.quant.entity.InvestAlert;
 import com.quant.entity.InvestPositionCommon;
 import com.quant.repository.InvestAlertRepository;
 import com.quant.repository.InvestPositionCommonRepository;
+import com.quant.repository.TradeStockBasicRepository;
 import com.quant.repository.TradeStockDailyRepository;
 import com.quant.service.aistockdata.AStockDataQuoteService;
 import com.quant.service.notification.NotificationService;
@@ -39,6 +40,7 @@ class MonitorServiceTest {
   @Mock private InvestPositionCommonRepository posRepo;
   @Mock private InvestAlertRepository alertRepo;
   @Mock private TradeStockDailyRepository dailyRepo;
+  @Mock private TradeStockBasicRepository basicRepo;
   @Mock private AStockDataQuoteService quoteService;
   @Mock private NotificationService notificationService;
   @Mock private MonitorRuleEngine ruleEngine;
@@ -57,11 +59,13 @@ class MonitorServiceTest {
             posRepo,
             alertRepo,
             dailyRepo,
+            basicRepo,
             quoteService,
             notificationService,
             ruleEngine,
             atrCalculator,
             props);
+    org.mockito.Mockito.lenient().when(basicRepo.findByStockCodeIn(anyList())).thenReturn(List.of());
   }
 
   private InvestPositionCommon fixedBuyEnabled(String code) {
@@ -79,8 +83,10 @@ class MonitorServiceTest {
         new BigDecimal("1480.00"),
         new BigDecimal("1500.00"),
         null,
+        null,
         LocalDateTime.now(),
-        "tencent");
+        "tencent"
+);
   }
 
   @Test

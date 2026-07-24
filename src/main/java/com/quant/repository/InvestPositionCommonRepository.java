@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import com.quant.entity.InvestPositionCommon;
+import com.quant.entity.InvestPositionCommonId;
 
 /**
  * 三池持仓状态聚合表 Repository。
@@ -16,7 +17,7 @@ import com.quant.entity.InvestPositionCommon;
  */
 @Repository
 public interface InvestPositionCommonRepository
-    extends JpaRepository<InvestPositionCommon, String> {
+    extends JpaRepository<InvestPositionCommon, InvestPositionCommonId> {
 
   Optional<InvestPositionCommon> findByStockCodeAndPoolType(String stockCode, String poolType);
 

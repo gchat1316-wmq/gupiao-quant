@@ -10,17 +10,17 @@
 <body>
     <div id="siteHeader"></div>
     <main class="container">
-        <h1>📊 统一监控</h1>
+        <h1>统一监控</h1>
         <p class="subtitle">融合 <strong>AI监控</strong> + <strong>潜力监控</strong> + <strong>投资池价格预警</strong> — 同一只股票可同时设置固定价、涨跌幅、ATR 振幅、止盈止损多类提醒，统一 Server酱推送。</p>
 
         <div class="monitor-banner">
-            <strong>v1 启用：</strong>新增 <code>fixed_buy_price</code> / <code>fixed_sell_price</code> / <code>atr_alert_amplitude</code> / <code>stop_loss_pct</code> 列。
-            旧数据默认全部 <code>enabled=0</code>，不会突然触发新告警。
+            <strong>支持批量加股：</strong>代码可用逗号 / 换行分隔（如 <code>600519, 000001</code> 或每行一只）。
+            池类型：<code>invest</code>（投资池）/ <code>tech_ai</code> / <code>potential</code>。
         </div>
 
         <section class="monitor-pool-picker">
             <button data-pool="all" class="active">全部</button>
-            <button data-pool="stock">投资池</button>
+            <button data-pool="invest">投资池</button>
             <button data-pool="tech_ai">AI监控</button>
             <button data-pool="potential">潜力监控</button>
             <button id="run-now" class="btn-primary">手动扫描</button>
@@ -30,36 +30,41 @@
         <section class="monitor-add">
             <h3>添加监控</h3>
             <form id="add-form" class="add-form">
-                <input name="stockCode" placeholder="股票代码 例 600519.SH" required>
+                <textarea name="stockCode" rows="3" placeholder="股票代码，支持批量&#10;例：600519&#10;000001.SZ&#10;300750" required></textarea>
                 <select name="poolType">
                     <option value="tech_ai">AI监控</option>
                     <option value="potential">潜力监控</option>
-                    <option value="stock">投资池</option>
+                    <option value="invest">投资池</option>
                 </select>
                 <button type="submit" class="btn-primary">加入监控</button>
             </form>
+            <p id="add-result" class="muted"></p>
         </section>
 
+        <div class="monitor-table-wrap">
         <table id="monitor-table" class="data-table">
             <thead>
                 <tr>
                     <th>股票</th>
                     <th>现价 / 涨跌</th>
+                    <th>成本价</th>
                     <th>固定买入 (价 / 启用)</th>
                     <th>固定卖出 (价 / 启用)</th>
                     <th>ATR 振幅 (倍数 / 启用)</th>
                     <th>止盈 %</th>
                     <th>止损 %</th>
+                    <th>模式</th>
                     <th>模板</th>
                     <th>最后告警</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody id="monitor-tbody"></tbody>
         </table>
+        </div>
 
         <aside class="monitor-panel">
             <h3>最近告警</h3>
-            <p class="muted">告警流自推送后写入 <code>invest_alert</code> 表，可直接查询 <code>/api/monitor/alerts</code>（受现有 <code>invest_alert</code> 权限保护）。</p>
             <ul id="monitor-alerts"></ul>
         </aside>
     </main>

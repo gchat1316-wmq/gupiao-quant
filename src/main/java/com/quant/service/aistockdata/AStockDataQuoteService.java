@@ -140,11 +140,13 @@ public class AStockDataQuoteService {
       if (latestPrice == null) {
         continue;
       }
+      // Tencent qt 字段：3=现价 4=昨收 5=今开 45=总市值(亿)
       QuoteSnapshot snapshot =
           new QuoteSnapshot(
               projectCode.toUpperCase(),
               latestPrice,
               decimal(parts[4]),
+              decimal(parts[5]),
               decimal(parts[45]),
               parseQuoteTime(parts[30]),
               "a-stock-data/tencent");
@@ -265,6 +267,7 @@ public class AStockDataQuoteService {
       String stockCode,
       BigDecimal latestPrice,
       BigDecimal prevClosePrice,
+      BigDecimal openPrice,
       BigDecimal totalMarketCapYi,
       LocalDateTime quoteTime,
       String source) {}
