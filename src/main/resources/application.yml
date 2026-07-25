@@ -234,6 +234,23 @@ xiebo-recent-alert:
   enabled: true
   cron: "0 */5 9-15 * * MON-FRI"
 
+# 趋势波段：HYBRID = Server酱提醒 + 系统自动记账
+swing-trading:
+  enabled: true
+  require-trading-time: true
+  intraday-cron: "0 */2 9-15 * * MON-FRI"
+  eod-cron: "0 5 15 * * MON-FRI"
+  cooldown-minutes: 30
+  vol-ratio-min: 1.30
+  pullback-vol-max-ratio: 0.50
+  pullback-expire-days: 8
+  platform-min-days: 5
+  platform-max-days: 10
+  breakout-vol-mult: 1.50
+  max-open-positions: 4
+  default-account-equity: 100000
+
+
 logging:
   level:
     root: INFO

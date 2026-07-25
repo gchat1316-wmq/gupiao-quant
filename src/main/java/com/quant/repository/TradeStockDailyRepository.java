@@ -21,6 +21,9 @@ public interface TradeStockDailyRepository extends JpaRepository<TradeStockDaily
   /** 取最近 N 日 daily（用于 ATR 计算），按日期倒序 */
   List<TradeStockDaily> findTop30ByStockCodeOrderByTradeDateDesc(String stockCode);
 
+  /** 取最近 80 日 daily（用于 MA60 / 量能中枢），按日期倒序 */
+  List<TradeStockDaily> findTop80ByStockCodeOrderByTradeDateDesc(String stockCode);
+
   /**
    * 批量取多只股票最近 N 条日 K 线（启动期扫描使用，代替 N+1 循环）。 返回 Map<stockCode, List<TradeStockDaily>>，每个 List 倒序且只取最近
    * topN 条。 trade_date >= cutoffDate 过滤，避免拉全表。

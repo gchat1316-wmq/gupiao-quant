@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>趋势波段 · 科技股回踩/突破交易系统</title>
+    <link rel="stylesheet" href="/gp/css/style.css">
+    <link rel="stylesheet" href="/gp/css/study.css?v=20260701-feed-merge">
+    <link rel="stylesheet" href="/gp/css/swing.css?v=20260725-v1">
+</head>
+<body>
+    <div id="siteHeader"></div>
+    <main class="container swing-page">
+        <header class="swing-hero">
+            <h1>趋势波段</h1>
+            <p class="subtitle">高景气科技股 · 20日线多头 · 涨停回踩/平台突破。HYBRID：Server酱提醒的同时系统自动记账，方便你手工同步下单并复盘胜率。</p>
+        </header>
+
+        <section class="swing-stats" id="statsBar">
+            <div class="stat"><span class="label">监控中</span><strong id="statWatching">—</strong></div>
+            <div class="stat"><span class="label">持仓</span><strong id="statOpen">—</strong></div>
+            <div class="stat"><span class="label">已平仓</span><strong id="statClosed">—</strong></div>
+            <div class="stat"><span class="label">胜率</span><strong id="statWinRate">—</strong></div>
+            <div class="stat"><span class="label">累计盈亏</span><strong id="statPnl">—</strong></div>
+            <div class="stat"><span class="label">盈亏比</span><strong id="statPf">—</strong></div>
+        </section>
+
+        <section class="swing-add">
+            <h2>加入监控</h2>
+            <form id="addForm" class="swing-form">
+                <input name="stockCode" placeholder="股票代码 如 300750 / 300750.SZ" required>
+                <input name="sectorTag" placeholder="赛道 如 AI算力" required>
+                <input name="thesis" placeholder="景气逻辑（可选）">
+                <select name="preferredSetup">
+                    <option value="BOTH">回踩+突破</option>
+                    <option value="PULLBACK">仅回踩</option>
+                    <option value="BREAKOUT">仅突破</option>
+                </select>
+                <input name="accountEquity" type="number" step="1000" placeholder="总资金 默认10万">
+                <label class="chk"><input type="checkbox" name="hardFilterOk" checked> 已过景气审核</label>
+                <label class="chk"><input type="checkbox" name="quietPeriod"> 静默期</label>
+                <button type="submit" class="btn-primary">开始监控</button>
+                <button type="button" id="btnScan" class="btn-secondary">手动扫描</button>
+            </form>
+            <p id="formMsg" class="msg" hidden></p>
+        </section>
+
+        <section class="swing-list-wrap">
+            <div class="section-head">
+                <h2>我的监控池</h2>
+                <span id="listMeta" class="muted"></span>
+            </div>
+            <div class="table-scroll">
+                <table class="data-table swing-table">
+                    <thead>
+                        <tr>
+                            <th>股票</th>
+                            <th>状态</th>
+                            <th>现价</th>
+                            <th>前置</th>
+                            <th>结构/区间</th>
+                            <th>持仓</th>
+                            <th>止损</th>
+                            <th>浮盈</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="watchTbody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="swing-signals">
+            <h2>最近信号</h2>
+            <ul id="signalList" class="signal-list"></ul>
+        </section>
+    </main>
+
+    <script src="/gp/js/layout.js?v=20260725-swing-v1"></script>
+    <script src="/gp/js/swing.js?v=20260725-v1"></script>
+</body>
+</html>

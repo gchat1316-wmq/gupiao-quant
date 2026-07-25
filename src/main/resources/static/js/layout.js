@@ -216,6 +216,7 @@
               '<a href="prosperity-pick.html" class="nav-link" data-match="prosperity-pick.html,stock-analysis.html">个股研究</a>' +
               '<a href="prosperity-strong.html" class="nav-link" data-match="prosperity-strong.html">热点强势选股</a>' +
               '<a href="monitor.html" class="nav-link" data-match="monitor.html">📊 统一监控</a>' +
+              '<a href="swing.html" class="nav-link" data-match="swing.html">趋势波段</a>' +
               '<div class="nav-dropdown" id="navMoreDropdown">' +
                 '<button type="button" class="nav-link nav-dropdown-toggle" aria-haspopup="menu" aria-expanded="false" aria-controls="navMoreMenu">' +
                   '更多' +
