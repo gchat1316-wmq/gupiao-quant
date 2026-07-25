@@ -9,6 +9,7 @@ import com.quant.config.BaostockSyncProperties;
 import com.quant.config.InvestBigYangProperties;
 import com.quant.config.JournalProperties;
 import com.quant.config.NotificationProperties;
+import com.quant.config.TrendWaveProperties;
 import com.quant.config.XieboRecentAlertProperties;
 
 @SpringBootApplication
@@ -18,7 +19,8 @@ import com.quant.config.XieboRecentAlertProperties;
   BaostockSyncProperties.class,
   InvestBigYangProperties.class,
   JournalProperties.class,
-  XieboRecentAlertProperties.class
+  XieboRecentAlertProperties.class,
+  TrendWaveProperties.class
 })
 public class GupiaoQuantApplication {
 

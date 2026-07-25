@@ -198,7 +198,7 @@
     if (!mount) return;
 
     try {
-      const response = await fetch('header.html?v=20260630-pm-v2', { cache: 'no-cache' });
+      const response = await fetch('header.html?v=20260724-trend-wave', { cache: 'no-cache' });
       if (!response.ok) throw new Error('header load failed');
       mount.innerHTML = await response.text();
     }           catch (e) {
@@ -216,6 +216,7 @@
               '<a href="prosperity-pick.html" class="nav-link" data-match="prosperity-pick.html,stock-analysis.html">个股研究</a>' +
               '<a href="prosperity-strong.html" class="nav-link" data-match="prosperity-strong.html">热点强势选股</a>' +
               '<a href="monitor.html" class="nav-link" data-match="monitor.html">📊 统一监控</a>' +
+              '<a href="trend-wave.html" class="nav-link" data-match="trend-wave.html">📈 趋势波段</a>' +
               '<div class="nav-dropdown" id="navMoreDropdown">' +
                 '<button type="button" class="nav-link nav-dropdown-toggle" aria-haspopup="menu" aria-expanded="false" aria-controls="navMoreMenu">' +
                   '更多' +
