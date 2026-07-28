@@ -158,6 +158,70 @@ invest-big-yang:
   candidate-cron: "0 35 18 * * MON-FRI"
   trigger-cron: "0 */5 9-15 * * MON-FRI"
 
+# 科技趋势波段（money_*）：高景气科技股 + 20日线多头 + 涨停回踩/突破
+trend-wave:
+  enabled: true
+  require-trading-time: true
+  intraday-cron: "0 */1 9-15 * * MON-FRI"
+  eod-cron: "0 10 15 * * MON-FRI"
+  cooldown-minutes: 30
+  max-active-watches: 4
+  max-positions: 4
+  max-single-position-pct: 15
+  max-sector-position-pct: 40
+  buy-signal-expire-days: 3
+  pause-days-after-two-stops: 2
+  market-index-code: "000001.SH"
+  sector-whitelist:
+    - AI
+    - 算力
+    - 半导体
+    - 芯片
+    - 机器人
+    - 人形机器人
+    - 光模块
+    - CPO
+    - 存储
+    - GPU
+    - 先进封装
+  screening:
+    volume-expand-ratio: 1.30
+    high-near-3y-ratio: 0.85
+    pe-soft-cap: 120
+    min-market-cap-yi: 50
+    require-sector-tag: false
+  pullback:
+    min-limit-up: 1
+    max-limit-up: 2
+    lookback-days: 20
+    shrink-volume-ratio: 0.50
+    volume-dump-ratio: 1.20
+  breakout:
+    min-platform-days: 5
+    max-platform-days: 10
+    volume-ratio: 1.50
+    range-tighten-pct: 8
+  stop-loss:
+    pullback-primary-buffer-pct: 2
+    pullback-secondary-pct: 8
+    breakout-primary-buffer-pct: 3
+    breakout-secondary-pct: 10
+    below-ma20-confirm-days: 2
+    intraday-volume-break-ratio: 1.0
+  take-profit:
+    tier1-profit-pct: 15
+    tier2-profit-pct: 30
+    tier3-profit-pct: 50
+    tier1-drawdown-pct: 8
+    tier2-drawdown-pct: 6
+    tier3-drawdown-pct: 5
+    flash-crash-pct: 7
+    flash-crash-vol-ratio: 2.0
+    first-sell-pct: 50
+  add-position:
+    min-profit-pct: 10
+    max-add-ratio: 0.50
+
 # 龙江投资股票池后台补全：周末全量 + 每日增量巡检
 # refresh-cron  : 全量刷新（拉 BaoStock 日线 + 回填所有池条目）
 # backfill-cron : 每日巡检，仅补 NULL 字段，不覆盖手工/OCR/seed 数据

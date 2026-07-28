@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <base href="/gp/" />
+  <title>趋势波段 · 科技股交易系统</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/trend-wave.css?v=20260724" />
+</head>
+<body>
+  <div id="siteHeader"></div>
+  <main class="tw-page">
+    <header class="tw-hero">
+      <div>
+        <h1>趋势波段</h1>
+        <p>高景气科技股 · 20日线多头 · 涨停回踩/突破 · Server酱提醒 · 手工确认成交</p>
+      </div>
+      <div class="tw-hero-actions">
+        <button type="button" id="btnScan" class="tw-btn tw-btn-primary">手动扫描</button>
+        <button type="button" id="btnScanEod" class="tw-btn">日终重筛</button>
+        <span id="twScanMsg" class="tw-muted"></span>
+      </div>
+    </header>
+
+    <section class="tw-card">
+      <h2>加入股票池</h2>
+      <form id="addForm" class="tw-form">
+        <input name="stockCode" placeholder="代码/名称 例 688981 或 中芯国际" required />
+        <input name="sectorTag" placeholder="赛道标签 例 AI算力" />
+        <input name="source" placeholder="来源 默认 MANUAL" />
+        <label class="tw-check"><input type="checkbox" name="paperMode" /> 纸面自动成交</label>
+        <button type="submit" class="tw-btn tw-btn-primary">加入并筛选</button>
+      </form>
+      <p class="tw-muted">独立池表 <code>money_stock_pool</code>，其他模块可通过 <code>POST /api/trend-wave/pool</code> 写入（带 source）。</p>
+    </section>
+
+    <section class="tw-stats" id="statsPanel">
+      <div class="tw-stat"><span class="tw-stat-label">胜率</span><strong id="stWinRate">—</strong></div>
+      <div class="tw-stat"><span class="tw-stat-label">盈亏比</span><strong id="stPf">—</strong></div>
+      <div class="tw-stat"><span class="tw-stat-label">期望%</span><strong id="stExp">—</strong></div>
+      <div class="tw-stat"><span class="tw-stat-label">已完成</span><strong id="stTotal">—</strong></div>
+      <div class="tw-stat"><span class="tw-stat-label">累计盈亏</span><strong id="stPnl">—</strong></div>
+    </section>
+
+    <section class="tw-card">
+      <div class="tw-section-head">
+        <h2>监控列表</h2>
+        <div class="tw-tabs" id="watchTabs">
+          <button type="button" data-filter="ALL" class="active">全部</button>
+          <button type="button" data-filter="WATCH">观察中</button>
+          <button type="button" data-filter="BUY_SIGNAL">待买入</button>
+          <button type="button" data-filter="HOLDING">持仓中</button>
+        </div>
+      </div>
+      <div class="tw-table-wrap">
+        <table class="tw-table" id="watchTable">
+          <thead>
+            <tr>
+              <th>股票</th>
+              <th>状态</th>
+              <th>现价</th>
+              <th>均线</th>
+              <th>筛选</th>
+              <th>形态</th>
+              <th>持仓/风控</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="tw-grid-2">
+      <div class="tw-card">
+        <h2>股票池</h2>
+        <ul id="poolList" class="tw-list"></ul>
+      </div>
+      <div class="tw-card">
+        <h2>最近信号</h2>
+        <ul id="eventList" class="tw-list"></ul>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="tradeDialog">
+    <form method="dialog" id="tradeForm" class="tw-dialog">
+      <h3 id="tradeTitle">确认交易</h3>
+      <input type="hidden" name="watchId" />
+      <input type="hidden" name="positionId" />
+      <input type="hidden" name="mode" />
+      <label>价格 <input name="price" type="number" step="0.01" required /></label>
+      <label>数量 <input name="shares" type="number" step="100" placeholder="可选" /></label>
+      <label class="sell-only">卖出比例% <input name="sellPct" type="number" step="1" value="100" /></label>
+      <label>备注 <input name="memo" /></label>
+      <div class="tw-dialog-actions">
+        <button type="submit" class="tw-btn tw-btn-primary" value="ok">确认</button>
+        <button type="button" class="tw-btn" id="tradeCancel">取消</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="js/layout.js?v=20260724-trend-wave" defer></script>
+  <script src="js/trend-wave.js?v=20260724" defer></script>
+</body>
+</html>
