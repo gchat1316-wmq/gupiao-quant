@@ -56,7 +56,14 @@ class XieboRecentAlertJobTest {
 
   private AStockDataQuoteService.QuoteSnapshot quote(String code, String price) {
     return new AStockDataQuoteService.QuoteSnapshot(
-        code, new BigDecimal(price), new BigDecimal("100"), null, LocalDateTime.now(), "tencent");
+        code,
+        new BigDecimal(price),
+        new BigDecimal("100"),
+        null,
+        null,
+        LocalDateTime.now(),
+        "tencent"
+);
   }
 
   @Test

@@ -250,9 +250,15 @@ notification:
     confirm-cron: "0 5 15 * * MON-FRI"
     default-template: standard
     pool-types:
-      - stock
+      - invest
       - tech_ai
       - potential
+  price-monitor:
+    # 旧投资池 targetBuy/Sell 状态机推送；固定价 fusion 已由 notification.monitor 覆盖 invest，不再重复 scan
+    enabled: false
+    require-trading-time: true
+    cooldown-minutes: 30
+    cron: "0 */5 9-15 * * MON-FRI"
   wish-pool:
     enabled: true
     webhook-url: ${WISH_POOL_FEISHU_WEBHOOK_URL:}

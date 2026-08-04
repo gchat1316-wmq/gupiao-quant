@@ -1,8 +1,7 @@
 -- ============================================================================
 -- Monitor Fusion v1 — 2026-06-30
 -- 新增 9 列到 invest_position_common，支持固定价/ATR 振幅/%-止损/Server酱模板
--- SchemaInitializer.ensureMonitorFusionColumns() 已支持幂等升级，旧库无需手动跑。
--- 这个文件供新建库或历史脚本归一用。
+-- Flyway V15__monitor_fusion_columns.sql 负责正式迁移；本文件供手工/历史脚本归一用。
 -- ============================================================================
 
 ALTER TABLE invest_position_common

@@ -71,7 +71,7 @@ public class NotificationProperties {
     /** 默认 Server酱 模板 */
     private String defaultTemplate = "standard";
 
-    /** 要扫描的 pool 类型集合 */
-    private List<String> poolTypes = new ArrayList<>(List.of("stock", "tech_ai", "potential"));
+    /** 要扫描的 pool 类型集合（投资池正式值为 invest；历史别名 stock 会被归一化） */
+    private List<String> poolTypes = new ArrayList<>(List.of("invest", "tech_ai", "potential"));
   }
 }

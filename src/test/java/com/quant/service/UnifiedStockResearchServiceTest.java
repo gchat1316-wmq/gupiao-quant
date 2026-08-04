@@ -51,9 +51,11 @@ class UnifiedStockResearchServiceTest {
                     "002851.SZ",
                     new BigDecimal("25.30"),
                     new BigDecimal("24.80"),
+                    null,
                     new BigDecimal("253"),
                     LocalDateTime.now(),
-                    "a-stock-data/tencent")));
+                    "a-stock-data/tencent"
+)));
     service =
         new UnifiedStockResearchService(
             financialRepository,

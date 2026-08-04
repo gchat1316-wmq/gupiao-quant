@@ -139,8 +139,10 @@ class LeaderIdentifierTest {
                     new BigDecimal("21.50"),
                     new BigDecimal("20.00"),
                     null,
+                    null,
                     LocalDateTime.now(),
-                    "a-stock-data/tencent")));
+                    "a-stock-data/tencent"
+)));
     when(dailyRepo.findLatestByStockCodes(anyList()))
         .thenReturn(List.of(quote("688001.SH", snapDate.minusDays(10), "20.00", "3.20")));
     when(dailyRepo.findFirstAfterDateByStockCodes(anyList(), any()))

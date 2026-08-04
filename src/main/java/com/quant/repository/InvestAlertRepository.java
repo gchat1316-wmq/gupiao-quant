@@ -20,5 +20,7 @@ public interface InvestAlertRepository extends JpaRepository<InvestAlert, Long> 
 
   List<InvestAlert> findTop100BySignalTypeOrderByTriggerAtDesc(String signalType);
 
+  List<InvestAlert> findTop50ByOrderByTriggerAtDesc();
+
   long countBySignalTypeAndReadFlag(String signalType, Integer readFlag);
 }

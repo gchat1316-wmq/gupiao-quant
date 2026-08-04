@@ -188,9 +188,11 @@ class StockQueryServiceTest {
         "688401.SH",
         BigDecimal.valueOf(10.0),
         BigDecimal.valueOf(10.0),
+        null,
         BigDecimal.valueOf(currentCapYi),
         LocalDateTime.of(2025, 9, 30, 15, 0),
-        "test");
+        "test"
+);
   }
 
   private com.quant.service.StockQueryService.TenPsSnapshot snapshotFor(
