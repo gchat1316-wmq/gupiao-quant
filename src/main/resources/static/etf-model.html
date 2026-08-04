@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>省心ETF · 交易模型持仓与提醒</title>
+    <link rel="stylesheet" href="/gp/css/style.css">
+    <link rel="stylesheet" href="/gp/css/etf-model.css?v=20260804-v1">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+</head>
+<body>
+    <div id="siteHeader"></div>
+    <main class="container">
+        <h1>🧘 省心ETF交易系统</h1>
+        <p class="subtitle">罗汉【省心】etf交易模型 · 10w资金3年不动 · 成立 2026-06-23 —
+            分批买入 / 三段止盈 / 分档止损 / 组合保命线，盘中实时 + 收盘兜底 Server酱提醒。</p>
+
+        <div id="etf-guard-banner" class="etf-guard-banner" hidden></div>
+
+        <section class="etf-summary" id="etf-summary">
+            <div class="etf-card"><span class="k">总资产</span><strong id="sum-total">-</strong></div>
+            <div class="etf-card"><span class="k">持仓市值</span><strong id="sum-mv">-</strong></div>
+            <div class="etf-card"><span class="k">现金</span><strong id="sum-cash">-</strong></div>
+            <div class="etf-card"><span class="k">仓位（≤70%）</span><strong id="sum-pos-pct">-</strong></div>
+            <div class="etf-card"><span class="k">距最高点回撤</span><strong id="sum-dd">-</strong></div>
+            <div class="etf-card etf-card-actions">
+                <button id="btn-run" class="btn-primary" type="button">手动扫描</button>
+                <button id="btn-sync" type="button">同步日K</button>
+            </div>
+        </section>
+
+        <nav class="etf-tabs" id="etf-tabs">
+            <button data-tab="positions" class="active">持仓总览</button>
+            <button data-tab="trades">交易记录</button>
+            <button data-tab="pool">ETF池管理</button>
+            <button data-tab="nav">净值曲线</button>
+            <button data-tab="alerts">提醒历史</button>
+            <button data-tab="config">模型参数</button>
+            <button data-tab="rules">模型规则</button>
+        </nav>
+
+        <!-- ═══════ 持仓总览 ═══════ -->
+        <section class="etf-pane" data-pane="positions">
+            <table class="etf-table">
+                <thead>
+                    <tr>
+                        <th>ETF</th>
+                        <th>类别</th>
+                        <th>现价 / 涨跌</th>
+                        <th>份额</th>
+                        <th>摊薄成本</th>
+                        <th>收益率</th>
+                        <th>市值 / 占比</th>
+                        <th>批次</th>
+                        <th>档位进度</th>
+                        <th>MA5 / MA20</th>
+                        <th>建议档位</th>
+                        <th>回补</th>
+                    </tr>
+                </thead>
+                <tbody id="positions-tbody"></tbody>
+            </table>
+            <p class="muted">档位进度随「交易记录」中对应类型的卖出录单自动流转；清仓后自动进入新周期。移动止盈（收盘跌破20日线）仅在收盘兜底任务中判定。</p>
+        </section>
+
+        <!-- ═══════ 交易记录 ═══════ -->
+        <section class="etf-pane" data-pane="trades" hidden>
+            <div class="etf-form-card">
+                <h3>录入交易</h3>
+                <form id="trade-form" class="etf-form">
+                    <select name="poolId" id="trade-pool" required></select>
+                    <select name="direction" id="trade-direction">
+                        <option value="BUY">买入</option>
+                        <option value="SELL">卖出</option>
+                    </select>
+                    <select name="tradeType" id="trade-type"></select>
+                    <input name="price" type="number" step="0.001" min="0" placeholder="成交价" required>
+                    <input name="shares" type="number" step="100" min="100" placeholder="份额" required>
+                    <input name="amount" type="number" step="0.01" min="0" placeholder="金额(默认价×份额)">
+                    <input name="tradeTime" type="datetime-local">
+                    <input name="memo" type="text" placeholder="备注">
+                    <button type="submit" class="btn-primary">保存</button>
+                </form>
+                <div id="trade-warnings" class="etf-warnings" hidden></div>
+            </div>
+            <table class="etf-table">
+                <thead>
+                    <tr><th>时间</th><th>ETF</th><th>方向</th><th>类型</th><th>价格</th><th>份额</th><th>金额</th><th>来源</th><th>备注</th><th></th></tr>
+                </thead>
+                <tbody id="trades-tbody"></tbody>
+            </table>
+        </section>
+
+        <!-- ═══════ ETF池管理 ═══════ -->
+        <section class="etf-pane" data-pane="pool" hidden>
+            <div class="etf-form-card">
+                <h3>加入池子（≤10 支）</h3>
+                <form id="pool-form" class="etf-form">
+                    <input name="stockCode" placeholder="代码 例 513100 或 513100.SH" required>
+                    <input name="stockName" placeholder="名称 例 纳指ETF" required>
+                    <select name="category">
+                        <option value="BROAD">宽基（标普/纳指/沪深300/中证500/A500）</option>
+                        <option value="SECTOR" selected>行业/主题（半导体/医药/新能源/中概…）</option>
+                    </select>
+                    <input name="memo" placeholder="备注">
+                    <button type="submit" class="btn-primary">加入</button>
+                </form>
+            </div>
+            <table class="etf-table">
+                <thead><tr><th>代码</th><th>名称</th><th>类别</th><th>备注</th><th></th></tr></thead>
+                <tbody id="pool-tbody"></tbody>
+            </table>
+            <p class="muted">类别决定止损档位：宽基 -15% 减半 → -30% 再减半留 1/4；行业 -10% 减半 → -18% 无条件清仓。</p>
+        </section>
+
+        <!-- ═══════ 净值曲线 ═══════ -->
+        <section class="etf-pane" data-pane="nav" hidden>
+            <canvas id="nav-chart" height="110"></canvas>
+            <p class="muted">每个交易日收盘后（15:20）自动记录：持仓市值 + 现金 = 总资产；从最高点回撤 ≥20% 触发组合保命线（整体降 1/4 + 冷静一周）。</p>
+        </section>
+
+        <!-- ═══════ 提醒历史 ═══════ -->
+        <section class="etf-pane" data-pane="alerts" hidden>
+            <ul id="alerts-list" class="etf-alerts"></ul>
+        </section>
+
+        <!-- ═══════ 模型参数 ═══════ -->
+        <section class="etf-pane" data-pane="config" hidden>
+            <div class="etf-form-card">
+                <h3>模型参数（存库，改后立即生效）</h3>
+                <form id="config-form" class="etf-config-form">
+                    <label>总资金(元) <input name="totalCapital" type="number" step="1000"></label>
+                    <label>单支上限(%) <input name="singleMaxPct" type="number" step="1"></label>
+                    <label>组合上限(%) <input name="portfolioMaxPct" type="number" step="1"></label>
+                    <label>轻仓单次上限(元) <input name="lightBatchMaxAmount" type="number" step="500"></label>
+                    <label>中仓单次下限(元) <input name="midBatchMinAmount" type="number" step="1000"></label>
+                    <label>中仓单次上限(元) <input name="midBatchMaxAmount" type="number" step="1000"></label>
+                    <label>涨幅大阈值(近20日%) <input name="bigRiseThresholdPct" type="number" step="1"></label>
+                    <label>保命线回撤(%) <input name="portfolioDrawdownPct" type="number" step="1"></label>
+                    <label>冷静天数 <input name="calmDays" type="number" step="1"></label>
+                    <label>成立日 <input name="inceptionDate" type="date"></label>
+                    <button type="submit" class="btn-primary">保存参数</button>
+                    <button type="button" id="btn-clear-calm" hidden>解除冷静期</button>
+                </form>
+            </div>
+            <p class="muted">止盈（+5%/+10%/20日线）与止损（-15%/-30%、-10%/-18%）阈值是模型固定纪律，不作为可调参数。</p>
+        </section>
+
+        <!-- ═══════ 模型规则 ═══════ -->
+        <section class="etf-pane" data-pane="rules" hidden>
+            <div class="etf-rules">
+                <h3>一、买入规则</h3>
+                <ol>
+                    <li>只买 ETF，池子 10 支。</li>
+                    <li>每支分 3 次进（1建仓 + 2加仓），中间可做T — 分批是为了控制筹码、防下重手。</li>
+                    <li>轻仓（趋势向下 / 涨幅大）：≤ 5000 元；中仓（横盘 / 趋势向上）：10000~20000 元。</li>
+                </ol>
+                <h3>二、仓位</h3>
+                <ol>
+                    <li>单支 ≤ 总仓位 20%（≤ 2 万）。</li>
+                    <li>组合持仓 ≤ 70%，永远留 30% 现金。</li>
+                </ol>
+                <h3>三、止盈卖出（单支，从摊薄成本算）</h3>
+                <ol>
+                    <li>+5% → 减 1/3。</li>
+                    <li>+10% → 再减 1/3。</li>
+                    <li>剩 1/3 → 移动止盈：收盘跌破 20 日均线才卖。</li>
+                </ol>
+                <h3>四、止损卖出（单支，从摊薄成本算）</h3>
+                <ol>
+                    <li>宽基（标普/纳指/沪深300/中证500/A500）：-15% 减半 → -30% 再减半 → 留 1/4 长持，平稳后回补。</li>
+                    <li>行业/主题（半导体/医药/新能源/中概…）：-10% 减半 → -18% 无条件清仓（防行业逻辑永久破坏：教育、地产）。</li>
+                </ol>
+                <h3>★ 组合级保命</h3>
+                <p>总资产从最高点回撤 20% → 整体降 1/4，冷静一周（冷静期内买入/加仓提醒附加冷静标注）。</p>
+                <h3>回补</h3>
+                <p>止损减仓后标记「待回补」；周K连续 2 周收在 5 日均线上方 → 标记「可回补」并推送提醒。</p>
+            </div>
+        </section>
+    </main>
+
+    <script src="/gp/js/layout.js?v=20260630-pm-v2"></script>
+    <script src="/gp/js/etf-model.js?v=20260804-v1"></script>
+</body>
+</html>
