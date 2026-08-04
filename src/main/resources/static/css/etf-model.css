@@ -1,0 +1,213 @@
+:root {
+    --etf-accent: #2f7d5d;
+    --etf-accent-weak: rgba(47, 125, 93, 0.10);
+    --etf-danger: #c0392b;
+    --etf-warn: #b48a3a;
+}
+
+.etf-guard-banner {
+    padding: 12px 18px;
+    background: #fdecea;
+    color: var(--etf-danger);
+    border: 1px solid #f5c6c0;
+    border-radius: 6px;
+    margin: 12px 0;
+    font-weight: 600;
+}
+
+/* ── 顶部摘要卡 ── */
+.etf-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin: 16px 0;
+}
+.etf-card {
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    background: #fdfdfd;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.etf-card .k { color: #777; font-size: 0.85em; }
+.etf-card strong { font-size: 1.15em; }
+.etf-card-actions {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    justify-content: center;
+}
+.etf-card-actions button {
+    padding: 6px 14px;
+    border: 1px solid #ccc;
+    background: #f6f6f6;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-primary {
+    background: var(--etf-accent);
+    color: #fff;
+    border-color: var(--etf-accent);
+}
+
+/* ── Tabs ── */
+.etf-tabs {
+    display: flex;
+    gap: 8px;
+    margin: 16px 0 12px;
+    flex-wrap: wrap;
+    border-bottom: 2px solid #e6e6e6;
+    padding-bottom: 8px;
+}
+.etf-tabs button {
+    padding: 6px 14px;
+    border: 1px solid #ccc;
+    background: #f6f6f6;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.etf-tabs button.active {
+    background: var(--etf-accent);
+    color: #fff;
+    border-color: var(--etf-accent);
+}
+
+/* ── 表格 ── */
+.etf-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+}
+.etf-table th,
+.etf-table td {
+    padding: 8px 6px;
+    border-bottom: 1px solid #eaeaea;
+    font-size: 0.9em;
+    text-align: left;
+    vertical-align: middle;
+}
+.etf-table tr:hover { background: var(--etf-accent-weak); }
+.etf-table small { color: #888; display: block; }
+
+.up   { color: var(--etf-danger); }
+.down { color: var(--etf-accent); }
+
+/* ── 徽章 ── */
+.etf-badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 10px;
+    font-size: 0.78em;
+    border: 1px solid #ccc;
+    color: #777;
+    margin-right: 3px;
+    white-space: nowrap;
+}
+.etf-badge.on-tp { background: var(--etf-accent); border-color: var(--etf-accent); color: #fff; }
+.etf-badge.on-sl { background: var(--etf-danger); border-color: var(--etf-danger); color: #fff; }
+.etf-badge.cat-broad  { background: #eef4fb; border-color: #b9d2ee; color: #2c5f95; }
+.etf-badge.cat-sector { background: #fdf3e7; border-color: #ecd3ae; color: #9a6b1e; }
+.etf-badge.tier-light { background: #fdf3e7; border-color: var(--etf-warn); color: var(--etf-warn); }
+.etf-badge.tier-mid   { background: var(--etf-accent-weak); border-color: var(--etf-accent); color: var(--etf-accent); }
+.etf-badge.recoup-waiting { border-color: var(--etf-warn); color: var(--etf-warn); }
+.etf-badge.recoup-ready   { background: var(--etf-warn); border-color: var(--etf-warn); color: #fff; }
+
+/* ── 表单 ── */
+.etf-form-card {
+    background: #fafafa;
+    padding: 12px 18px;
+    margin: 12px 0;
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+}
+.etf-form {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.etf-form input,
+.etf-form select {
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+}
+.etf-form button {
+    padding: 6px 16px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.etf-warnings {
+    margin-top: 10px;
+    padding: 10px 14px;
+    background: #fdf3e7;
+    border: 1px solid #ecd3ae;
+    border-radius: 6px;
+    color: #9a6b1e;
+    line-height: 1.7;
+}
+
+.etf-config-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px 16px;
+    align-items: center;
+}
+.etf-config-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.9em;
+    color: #555;
+}
+.etf-config-form input {
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+}
+.etf-config-form button {
+    padding: 8px 16px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    align-self: end;
+}
+
+/* ── 提醒历史 / 规则 ── */
+.etf-alerts { padding-left: 0; list-style: none; }
+.etf-alerts li {
+    padding: 10px 14px;
+    border: 1px solid #eaeaea;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    background: #fdfdfd;
+}
+.etf-alerts .t { color: #999; font-size: 0.82em; margin-left: 8px; }
+
+.etf-rules {
+    background: #fdfdfd;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 16px 22px;
+    line-height: 1.9;
+}
+.etf-rules h3 { margin: 14px 0 6px; }
+
+.muted { color: #777; font-size: 0.88em; margin-top: 10px; }
+
+.etf-del-btn {
+    border: 1px solid #ddd;
+    background: #fff;
+    color: var(--etf-danger);
+    border-radius: 4px;
+    padding: 3px 10px;
+    cursor: pointer;
+}
+
+@media (max-width: 900px) {
+    .etf-table { display: block; overflow-x: auto; }
+}

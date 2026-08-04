@@ -6,6 +6,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 
 import com.quant.config.AiProperties;
 import com.quant.config.BaostockSyncProperties;
+import com.quant.config.EtfModelProperties;
 import com.quant.config.InvestBigYangProperties;
 import com.quant.config.JournalProperties;
 import com.quant.config.NotificationProperties;
@@ -20,7 +21,8 @@ import com.quant.config.XieboRecentAlertProperties;
   InvestBigYangProperties.class,
   JournalProperties.class,
   XieboRecentAlertProperties.class,
-  TrendWaveProperties.class
+  TrendWaveProperties.class,
+  EtfModelProperties.class
 })
 public class GupiaoQuantApplication {
 
