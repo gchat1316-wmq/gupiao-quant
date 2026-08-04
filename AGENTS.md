@@ -202,3 +202,16 @@ mysql -u<user> -p < sql/wucai_trade.sql
 3. **涉及数据库变更**：请同时提供 `sql/` 下的增量脚本，并在 `SchemaInitializer` 中考虑自动执行逻辑。
 4. **涉及敏感配置**：新增 API Key 或 webhook 时，必须写成 `${ENV_VAR:default}` 形式，default 值应为占位符或本地调试值。
 5. **修改后请运行测试**：`mvn test`，确保没有破坏现有功能。
+
+## Cursor Cloud specific instructions
+
+面向在 Cloud VM 中运行的后续 agent。工具链（JDK 17 为默认 `java`、Maven、MySQL 8）已随快照安装，启动脚本只做依赖刷新，服务需手动启动。以下都是不显而易见、容易踩坑的点：
+
+- **先启动 MySQL 再跑应用**：`sudo service mysql start`。数据库 `wucai_trade` 与一个可 TCP 登录的账号（`root` / `root`，覆盖 `localhost`/`127.0.0.1`/`%`）已在快照里建好；应用通过 JDBC 连 `127.0.0.1:3306`，而 MySQL 默认的 `root@localhost` 是 socket 认证，无法用于 TCP，所以务必用这个账号（或按需重建）。
+- **本地开发用 local profile**：`mvn spring-boot:run -Dspring-boot.run.profiles=local`（首页 http://localhost:8080/gp/ ，context-path `/gp`）。`local` profile 豁免 `StartupConfigValidator`，并禁用 AI/通知外部依赖。
+- **Flyway 迁移对全新空库不自洽（关键坑）**：仓库里 `db/migration/V1–V20` 是从已删除的 `SchemaInitializer` 回填而来，很多是 `ALTER`（如 `V8` 改 `prosperity_hot_sector`），依赖 SchemaInitializer 时代已建好的基表。`application.yml` 用 `baseline-version: 20` 让生产老库跳过 V1–V20，只跑 V21+。**对全新空 MySQL，Flyway 会在 V8 直接报错启动失败**。因此本地开发用 `application-local.yml` 关掉 Flyway、改用 Hibernate 从 JPA 实体建表（`spring.jpa.hibernate.ddl-auto: update` + `spring.flyway.enabled: false`），这也和 H2 测试 profile 的做法一致。
+- **`application-local.yml` 被 .gitignore 忽略**（不会进 PR，但会随 VM 快照保留）。若丢失需重建，最小内容：datasource 指向 `127.0.0.1:3306/wucai_trade`、`username/password` 为 `root/root`、`app.jwt.secret` 给任意非空 dev 值、`spring.jpa.hibernate.ddl-auto: update`、`spring.flyway.enabled: false`、AI 与 notification 全部 `enabled: false`。可从 `application-local.yml.example` 起步，再补上 `ddl-auto: update` + `flyway.enabled: false` 两项（example 本身不含，直接用会触发上面的 Flyway 坑）。
+- **首次启动自动建 admin**：`FirstAdminBootstrap` 在库里无用户时创建 `admin`，随机密码打印在启动日志（搜 `首次启动` / `密码`）。API 登录：`POST /gp/api/auth/login`，body `{"username":"admin","password":"..."}`，返回 `accessToken`（Bearer）。注意前端登录弹窗只支持邮箱/手机/登录码，用户名+密码登录仅走该 API；前端页面从 `localStorage` 读 token（layout/header 用 `gp_auth_token`，`journal.js` 用 `token`）。
+- **测试无需 MySQL**：`mvn test` 用内存 H2（`application-test.yml`，Flyway 关闭、Hibernate `create-drop`），全部用例通过。
+- **Lint 现状（坑）**：`mvn checkstyle:check` 干净通过；但 `mvn spotless:check` 在 `main` 上就对一批既有文件报 google-java-format 格式漂移，所以 `mvn verify`（含 spotless，`verify` 阶段）当前会在 spotless 处失败——这是既有状态，不是环境问题，别为它去改无关代码。需要格式化时才手动 `mvn spotless:apply`。
+- 生产脚本 `restart.sh` 走 `prod` profile，会强制校验一堆真实密钥，**不要在 Cloud VM 里用它做本地验证**。
