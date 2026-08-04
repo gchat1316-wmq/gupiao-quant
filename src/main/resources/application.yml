@@ -298,6 +298,17 @@ xiebo-recent-alert:
   enabled: true
   cron: "0 */5 9-15 * * MON-FRI"
 
+# 省心 ETF 交易系统（etf_* 表）：盘中实时提醒 + 收盘兜底 + 周五回补检查
+# 业务参数（总资金/仓位上限/分批金额档）在 etf_model_config 表中，页面可改
+etf-model:
+  enabled: ${ETF_MODEL_ENABLED:true}
+  require-trading-time: true
+  cooldown-minutes: 30
+  intraday-cron: "0 */1 9-15 * * MON-FRI"
+  eod-cron: "0 20 15 * * MON-FRI"
+  weekly-cron: "0 40 15 * * FRI"
+  kline-days-back: 90
+
 logging:
   level:
     root: INFO
